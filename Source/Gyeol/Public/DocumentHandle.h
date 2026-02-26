@@ -22,6 +22,7 @@ namespace Gyeol
         WidgetId addWidget(WidgetType type, juce::Rectangle<float> bounds, const PropertyBag& properties = {});
         bool removeWidget(const WidgetId& id);
         bool moveWidget(const WidgetId& id, juce::Point<float> delta);
+        bool setWidgetBounds(const WidgetId& id, juce::Rectangle<float> bounds);
 
         void selectSingle(const WidgetId& id);
         void setSelection(std::vector<WidgetId> selection);

@@ -5,8 +5,8 @@
 `아키텍처 코어 확정 -> 기본 Scene + Canvas -> Export MVP -> 편집 고도화 -> Style 시스템 -> 플러그인 친화 레이아웃 -> 제품화 안정화 -> 고급 확장`
 
 ## 진행판(요약)
-- [ ] Phase 0. 아키텍처 코어 확정 (가장 먼저)
-- [ ] Phase 1. 기본 Scene + Canvas
+- [ ] Phase 0. 아키텍처 코어 확정 (가장 먼저) (진행중)
+- [ ] Phase 1. 기본 Scene + Canvas (진행중)
 - [ ] Phase 2. Export MVP
 - [ ] Phase 3. 편집 고도화 (Editor UX)
 - [ ] Phase 4. Style 시스템
@@ -29,12 +29,12 @@
 - [ ] 없음
 
 작업 체크리스트:
-- [ ] `Gyeol::Document` immutable 구조 정의
-- [ ] `WidgetModel + PropertyBag` 설계
-- [ ] `Action` 스키마 정의
-- [ ] `Reducer` 구현
-- [ ] `DocumentStore` 구현 (`apply / undoStack / redoStack`)
-- [ ] 기본 JSON 저장/불러오기
+- [x] `Gyeol::Document` immutable 구조 정의
+- [x] `WidgetModel + PropertyBag` 설계
+- [x] `Action` 스키마 정의
+- [x] `Reducer` 구현
+- [x] `DocumentStore` 구현 (`apply / undoStack / redoStack`)
+- [x] 기본 JSON 저장/불러오기
 - [ ] Scene 검증기(최소 규칙)
 
 결정 확정(락):
@@ -69,14 +69,14 @@
 - [ ] Phase 0 완료
 
 작업 체크리스트:
-- [ ] `CanvasComponent`
-- [ ] `SceneRenderer(CPU)`
-- [ ] `WidgetView` 기본 타입 구현
-- [ ] 단일 선택
-- [ ] 드래그 이동
-- [ ] 리사이즈
-- [ ] 위젯 생성/삭제 UI
-- [ ] Undo/Redo 단축키 연결
+- [x] `CanvasComponent`
+- [x] `CanvasRenderer(CPU)`
+- [x] `WidgetComponent` 기본 타입 구현
+- [x] 단일 선택
+- [x] 드래그 이동
+- [x] 리사이즈
+- [x] 위젯 생성/삭제 UI
+- [x] Undo/Redo 단축키 연결
 
 검증 체크리스트:
 - [ ] 위젯 20개 이상 배치 테스트
@@ -223,6 +223,6 @@
 - [ ] 로드맵 체크 상태 최신화 완료
 
 ## 구현 로그(갱신용)
-- [ ] YYYY-MM-DD: Phase / 작업 / 결과 / 남은 이슈
+- [ ] 2026-02-26: Phase 1 / Canvas+렌더+입력 루프 구현 / 생성·선택·이동·리사이즈·UndoRedo 단축키 동작 / 20개 배치 수동 검증 필요
 - [ ] YYYY-MM-DD: Phase / 작업 / 결과 / 남은 이슈
 - [ ] YYYY-MM-DD: Phase / 작업 / 결과 / 남은 이슈

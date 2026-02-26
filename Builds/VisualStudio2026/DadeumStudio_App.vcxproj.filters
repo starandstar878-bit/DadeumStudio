@@ -2,6 +2,18 @@
 
 <Project ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Filter Include="DadeumStudio\Source\Gyeol\Core">
+      <UniqueIdentifier>{318D02C0-956A-D5A5-F66D-7DD142EBEA8C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DadeumStudio\Source\Gyeol\Public">
+      <UniqueIdentifier>{766C1ED1-71B8-C7DD-0A74-BE8B8BC938A3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DadeumStudio\Source\Gyeol\Serialization">
+      <UniqueIdentifier>{240E537F-EE56-3737-E9A8-EF0981A36C15}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DadeumStudio\Source\Gyeol">
+      <UniqueIdentifier>{D21DC7F1-3CF4-4747-8E4F-600C17C207E4}</UniqueIdentifier>
+    </Filter>
     <Filter Include="DadeumStudio\Source">
       <UniqueIdentifier>{67935C35-5C9C-FDFB-08EB-5DD9F156D54C}</UniqueIdentifier>
     </Filter>
@@ -310,6 +322,15 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\Source\Gyeol\Core\Document.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gyeol\Core\DocumentHandle.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gyeol\Serialization\DocumentJson.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Serialization</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\Main.cpp">
       <Filter>DadeumStudio\Source</Filter>
     </ClCompile>
@@ -2119,6 +2140,9 @@
     <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_gui_extra\juce_gui_extra.mm">
       <Filter>JUCE Modules\juce_gui_extra</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\JuceLibraryCode\BinaryData.cpp">
+      <Filter>JUCE Library Code</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\JuceLibraryCode\include_juce_core.cpp">
       <Filter>JUCE Library Code</Filter>
     </ClCompile>
@@ -2148,6 +2172,36 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\Source\Gyeol\Core\Document.h">
+      <Filter>DadeumStudio\Source\Gyeol\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Core\DocumentStore.h">
+      <Filter>DadeumStudio\Source\Gyeol\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Core\Reducer.h">
+      <Filter>DadeumStudio\Source\Gyeol\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Core\SceneValidator.h">
+      <Filter>DadeumStudio\Source\Gyeol\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Public\Action.h">
+      <Filter>DadeumStudio\Source\Gyeol\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Public\DocumentHandle.h">
+      <Filter>DadeumStudio\Source\Gyeol\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Public\EditorHandle.h">
+      <Filter>DadeumStudio\Source\Gyeol\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Public\Types.h">
+      <Filter>DadeumStudio\Source\Gyeol\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Serialization\DocumentJson.h">
+      <Filter>DadeumStudio\Source\Gyeol\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Gyeol.h">
+      <Filter>DadeumStudio\Source\Gyeol</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\Source\MainComponent.h">
       <Filter>DadeumStudio\Source</Filter>
     </ClInclude>
@@ -4647,11 +4701,17 @@
     <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_gui_extra\juce_gui_extra.h">
       <Filter>JUCE Modules\juce_gui_extra</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\JuceLibraryCode\BinaryData.h">
+      <Filter>JUCE Library Code</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\JuceLibraryCode\JuceHeader.h">
       <Filter>JUCE Library Code</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\Source\Gyeol\Gyeol Roadmap.md">
+      <Filter>DadeumStudio\Source\Gyeol</Filter>
+    </None>
     <None Include="..\..\..\..\..\..\JUCE\modules\juce_core\native\java\README.txt">
       <Filter>JUCE Modules\juce_core\native\java</Filter>
     </None>

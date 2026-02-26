@@ -4,6 +4,10 @@
 
 namespace Gyeol::Serialization
 {
+    juce::Result serializeDocumentToJsonString(const DocumentModel& document,
+                                               const EditorStateModel& editorState,
+                                               juce::String& jsonOut);
+
     juce::Result saveDocumentToFile(const juce::File& file,
                                     const DocumentModel& document,
                                     const EditorStateModel& editorState);

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <limits>
 
 namespace
@@ -11,6 +12,21 @@ namespace
     Gyeol::WidgetId normalizeNextWidgetId(Gyeol::WidgetId requested) noexcept
     {
         return requested <= 0 ? 1 : requested;
+    }
+
+    bool isValidBounds(const juce::Rectangle<float>& bounds) noexcept
+    {
+        return std::isfinite(bounds.getX())
+            && std::isfinite(bounds.getY())
+            && std::isfinite(bounds.getWidth())
+            && std::isfinite(bounds.getHeight())
+            && bounds.getWidth() >= 0.0f
+            && bounds.getHeight() >= 0.0f;
+    }
+
+    bool isFiniteDelta(const juce::Point<float>& delta) noexcept
+    {
+        return std::isfinite(delta.x) && std::isfinite(delta.y);
     }
 
     template <typename StateMutator>
@@ -61,6 +77,9 @@ namespace Gyeol::Core
                                        juce::Rectangle<float> bounds,
                                        const PropertyBag& properties) const
     {
+        if (!isValidBounds(bounds))
+            return *this;
+
         const auto propertyValidation = validatePropertyBag(properties);
         if (propertyValidation.failed())
             return *this;
@@ -108,6 +127,9 @@ namespace Gyeol::Core
 
     Document Document::withWidgetMoved(const WidgetId& id, juce::Point<float> delta) const
     {
+        if (!isFiniteDelta(delta))
+            return *this;
+
         return cloneAndMutate(model(),
                               [&](DocumentModel& state)
                               {
@@ -119,7 +141,11 @@ namespace Gyeol::Core
                                                                });
 
                                   if (it != state.widgets.end())
-                                      it->bounds = it->bounds.translated(delta.x, delta.y);
+                                  {
+                                      const auto moved = it->bounds.translated(delta.x, delta.y);
+                                      if (isValidBounds(moved))
+                                          it->bounds = moved;
+                                  }
                               });
     }
 

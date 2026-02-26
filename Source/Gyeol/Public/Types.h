@@ -127,6 +127,10 @@ namespace Gyeol
             const auto name = bag.getName(i).toString();
             const auto& value = bag.getValueAt(i);
 
+            // Bounds are first-class widget geometry and must not live in PropertyBag.
+            if (name == "bounds")
+                return juce::Result::fail("PropertyBag key 'bounds' is reserved");
+
             if (!isAllowedPropertyValue(value))
                 return juce::Result::fail("Unsupported PropertyBag value type at key: " + name);
 

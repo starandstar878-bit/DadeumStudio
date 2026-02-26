@@ -4,6 +4,35 @@
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
   <MAINGROUP id="vqcKQd" name="DadeumStudio">
     <GROUP id="{2B42515B-7D16-20B6-BFDA-D5F355CB4814}" name="Source">
+      <GROUP id="{847407AD-BCEA-C453-4D4C-6B37117F2C25}" name="Gyeol">
+        <GROUP id="{3133118F-526F-25B2-D1E8-1DD14A3237CC}" name="Core">
+          <FILE id="qJBnk2" name="Document.cpp" compile="1" resource="0" file="Source/Gyeol/Core/Document.cpp"/>
+          <FILE id="GMTAQR" name="Document.h" compile="0" resource="0" file="Source/Gyeol/Core/Document.h"/>
+          <FILE id="mf7Xj6" name="DocumentHandle.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Core/DocumentHandle.cpp"/>
+          <FILE id="cxZ2a2" name="DocumentStore.h" compile="0" resource="0" file="Source/Gyeol/Core/DocumentStore.h"/>
+          <FILE id="ZXqkDw" name="Reducer.h" compile="0" resource="0" file="Source/Gyeol/Core/Reducer.h"/>
+          <FILE id="uRw3NQ" name="SceneValidator.h" compile="0" resource="0"
+                file="Source/Gyeol/Core/SceneValidator.h"/>
+        </GROUP>
+        <GROUP id="{EEE24E8E-D0AF-566E-91B9-4B438E6639AC}" name="Editor"/>
+        <GROUP id="{CF8E5C07-2070-0BD6-D75B-17118FA05629}" name="Public">
+          <FILE id="GoupaF" name="Action.h" compile="0" resource="0" file="Source/Gyeol/Public/Action.h"/>
+          <FILE id="VrVEbD" name="DocumentHandle.h" compile="0" resource="0"
+                file="Source/Gyeol/Public/DocumentHandle.h"/>
+          <FILE id="x72Iuq" name="EditorHandle.h" compile="0" resource="0" file="Source/Gyeol/Public/EditorHandle.h"/>
+          <FILE id="BrmwGn" name="Types.h" compile="0" resource="0" file="Source/Gyeol/Public/Types.h"/>
+        </GROUP>
+        <GROUP id="{D8C67FC9-5F56-00CE-534E-13138A02B71E}" name="Render"/>
+        <GROUP id="{10231294-074A-10E5-9965-FA9F297D8828}" name="Serialization">
+          <FILE id="SOUejC" name="DocumentJson.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Serialization/DocumentJson.cpp"/>
+          <FILE id="ClRgom" name="DocumentJson.h" compile="0" resource="0" file="Source/Gyeol/Serialization/DocumentJson.h"/>
+        </GROUP>
+        <FILE id="Lcfbl1" name="Gyeol Roadmap.md" compile="0" resource="1"
+              file="Source/Gyeol/Gyeol Roadmap.md"/>
+        <FILE id="rabDSP" name="Gyeol.h" compile="0" resource="0" file="Source/Gyeol/Gyeol.h"/>
+      </GROUP>
       <FILE id="NgKvms" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
       <FILE id="WPLVWS" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="GO4krX" name="MainComponent.cpp" compile="1" resource="0"

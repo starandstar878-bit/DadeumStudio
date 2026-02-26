@@ -1,6 +1,7 @@
 #include "Gyeol/Serialization/DocumentJson.h"
 
 #include "Gyeol/Core/Document.h"
+#include "Gyeol/Core/SceneValidator.h"
 #include <algorithm>
 
 namespace
@@ -96,7 +97,13 @@ namespace
         outBag.clear();
         const auto& props = object->getProperties();
         for (int i = 0; i < props.size(); ++i)
-            outBag.set(props.getName(i), props.getValueAt(i));
+        {
+            const auto key = props.getName(i);
+            if (key == juce::Identifier("bounds"))
+                continue; // Legacy compatibility: geometry is stored in widget.bounds.
+
+            outBag.set(key, props.getValueAt(i));
+        }
 
         return Gyeol::validatePropertyBag(outBag);
     }
@@ -217,23 +224,13 @@ namespace
 
 namespace Gyeol::Serialization
 {
-    juce::Result saveDocumentToFile(const juce::File& file,
-                                    const DocumentModel& document,
-                                    const EditorStateModel& editorState)
+    juce::Result serializeDocumentToJsonString(const DocumentModel& document,
+                                               const EditorStateModel& editorState,
+                                               juce::String& jsonOut)
     {
-        const auto bagCheck = [&document]()
-        {
-            for (const auto& widget : document.widgets)
-            {
-                const auto result = validatePropertyBag(widget.properties);
-                if (result.failed())
-                    return result;
-            }
-            return juce::Result::ok();
-        }();
-
-        if (bagCheck.failed())
-            return bagCheck;
+        const auto sceneCheck = Core::SceneValidator::validateScene(document, &editorState);
+        if (sceneCheck.failed())
+            return sceneCheck;
 
         auto root = std::make_unique<juce::DynamicObject>();
         root->setProperty("version", serializeSchemaVersion(document.schemaVersion));
@@ -244,7 +241,19 @@ namespace Gyeol::Serialization
         root->setProperty("widgets", juce::var(widgetArray));
         root->setProperty("editor", serializeSelection(editorState));
 
-        const auto json = juce::JSON::toString(juce::var(root.release()), true);
+        jsonOut = juce::JSON::toString(juce::var(root.release()), true);
+        return juce::Result::ok();
+    }
+
+    juce::Result saveDocumentToFile(const juce::File& file,
+                                    const DocumentModel& document,
+                                    const EditorStateModel& editorState)
+    {
+        juce::String json;
+        const auto serializeResult = serializeDocumentToJsonString(document, editorState, json);
+        if (serializeResult.failed())
+            return serializeResult;
+
         if (!file.replaceWithText(json))
             return juce::Result::fail("Failed to write JSON file: " + file.getFullPathName());
 
@@ -310,6 +319,6 @@ namespace Gyeol::Serialization
 
         documentOut = std::move(nextDocument);
         editorStateOut = std::move(nextEditor);
-        return juce::Result::ok();
+        return Core::SceneValidator::validateScene(documentOut, &editorStateOut);
     }
 }

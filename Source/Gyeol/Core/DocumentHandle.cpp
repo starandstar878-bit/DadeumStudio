@@ -1,22 +1,41 @@
-#include "Gyeol/Public/DocumentHandle.h"
+﻿#include "Gyeol/Public/DocumentHandle.h"
 
-#include "Gyeol/Core/Document.h"
+#include "Gyeol/Core/DocumentStore.h"
 #include "Gyeol/Serialization/DocumentJson.h"
 #include <algorithm>
+#include <cmath>
 #include <memory>
 
 namespace Gyeol
 {
+    namespace
+    {
+        const WidgetModel* findWidgetInDocument(const DocumentModel& document, const WidgetId& id) noexcept
+        {
+            const auto it = std::find_if(document.widgets.begin(),
+                                         document.widgets.end(),
+                                         [&id](const WidgetModel& widget)
+                                         {
+                                             return widget.id == id;
+                                         });
+
+            if (it == document.widgets.end())
+                return nullptr;
+
+            return &(*it);
+        }
+    }
+
     class DocumentHandle::Impl
     {
     public:
         struct Snapshot
         {
-            Core::Document document;
+            DocumentModel document;
             EditorStateModel editorState;
         };
 
-        Core::Document document;
+        Core::DocumentStore store;
         EditorStateModel editorState;
         std::vector<Snapshot> undoStack;
         std::vector<Snapshot> redoStack;
@@ -24,23 +43,23 @@ namespace Gyeol
 
         bool hasWidget(const WidgetId& id) const noexcept
         {
-            return document.findWidget(id) != nullptr;
+            return findWidgetInDocument(store.snapshot(), id) != nullptr;
         }
 
         Snapshot snapshot() const
         {
-            return { document, editorState };
+            return { store.snapshot(), editorState };
         }
 
         void restore(Snapshot state)
         {
-            document = std::move(state.document);
+            store.reset(std::move(state.document));
             editorState = std::move(state.editorState);
         }
 
-        void pushUndo()
+        void pushUndoState(Snapshot snapshotState)
         {
-            undoStack.push_back(snapshot());
+            undoStack.push_back(std::move(snapshotState));
             if (undoStack.size() > maxHistory)
                 undoStack.erase(undoStack.begin());
         }
@@ -48,6 +67,20 @@ namespace Gyeol
         void clearRedo()
         {
             redoStack.clear();
+        }
+
+        bool commitDocumentAction(const Action& action,
+                                  std::vector<WidgetId>* createdIdsOut = nullptr)
+        {
+            auto previous = snapshot();
+
+            const auto result = store.apply(action, createdIdsOut, false);
+            if (result.failed())
+                return false;
+
+            pushUndoState(std::move(previous));
+            clearRedo();
+            return true;
         }
     };
 
@@ -62,7 +95,7 @@ namespace Gyeol
 
     const DocumentModel& DocumentHandle::snapshot() const noexcept
     {
-        return impl->document.model();
+        return impl->store.snapshot();
     }
 
     const EditorStateModel& DocumentHandle::editorState() const noexcept
@@ -74,51 +107,65 @@ namespace Gyeol
                                        juce::Rectangle<float> bounds,
                                        const PropertyBag& properties)
     {
-        const auto previousSize = impl->document.model().widgets.size();
-        const auto nextDocument = impl->document.withWidgetAdded(type, bounds, properties);
-        if (nextDocument.model().widgets.size() == previousSize)
+        CreateWidgetAction action;
+        action.type = type;
+        action.bounds = bounds;
+        action.properties = properties;
+
+        std::vector<WidgetId> createdIds;
+        if (!impl->commitDocumentAction(action, &createdIds))
             return 0;
 
-        impl->pushUndo();
-        impl->document = nextDocument;
-        impl->clearRedo();
-        const auto& widgets = impl->document.model().widgets;
-        return widgets.empty() ? 0 : widgets.back().id;
+        return createdIds.size() == 1 ? createdIds.front() : 0;
     }
 
     bool DocumentHandle::removeWidget(const WidgetId& id)
     {
-        const auto previousSize = impl->document.model().widgets.size();
-        const auto nextDocument = impl->document.withWidgetRemoved(id);
-        if (nextDocument.model().widgets.size() == previousSize)
+        DeleteWidgetsAction action;
+        action.ids = { id };
+
+        if (!impl->commitDocumentAction(action, nullptr))
             return false;
 
-        impl->pushUndo();
-        impl->document = nextDocument;
         impl->editorState.selection.erase(std::remove(impl->editorState.selection.begin(),
                                                       impl->editorState.selection.end(),
                                                       id),
                                           impl->editorState.selection.end());
-        impl->clearRedo();
         return true;
     }
 
     bool DocumentHandle::moveWidget(const WidgetId& id, juce::Point<float> delta)
     {
-        const auto* before = impl->document.findWidget(id);
+        if (!std::isfinite(delta.x) || !std::isfinite(delta.y))
+            return false;
+
+        const auto* before = findWidgetInDocument(impl->store.snapshot(), id);
         if (before == nullptr)
             return false;
 
-        const auto oldBounds = before->bounds;
-        const auto nextDocument = impl->document.withWidgetMoved(id, delta);
-        const auto* after = nextDocument.findWidget(id);
-        if (after == nullptr || after->bounds == oldBounds)
+        return setWidgetBounds(id, before->bounds.translated(delta.x, delta.y));
+    }
+
+    bool DocumentHandle::setWidgetBounds(const WidgetId& id, juce::Rectangle<float> bounds)
+    {
+        if (!std::isfinite(bounds.getX())
+            || !std::isfinite(bounds.getY())
+            || !std::isfinite(bounds.getWidth())
+            || !std::isfinite(bounds.getHeight())
+            || bounds.getWidth() < 0.0f
+            || bounds.getHeight() < 0.0f)
+        {
+            return false;
+        }
+
+        const auto* before = findWidgetInDocument(impl->store.snapshot(), id);
+        if (before == nullptr || before->bounds == bounds)
             return false;
 
-        impl->pushUndo();
-        impl->document = nextDocument;
-        impl->clearRedo();
-        return true;
+        SetWidgetPropsAction action;
+        action.ids = { id };
+        action.bounds = bounds;
+        return impl->commitDocumentAction(action, nullptr);
     }
 
     void DocumentHandle::selectSingle(const WidgetId& id)
@@ -143,7 +190,7 @@ namespace Gyeol
         if (normalized == impl->editorState.selection)
             return;
 
-        impl->pushUndo();
+        impl->pushUndoState(impl->snapshot());
         impl->editorState.selection = std::move(normalized);
         impl->clearRedo();
     }
@@ -180,7 +227,7 @@ namespace Gyeol
         if (impl->redoStack.empty())
             return false;
 
-        impl->undoStack.push_back(impl->snapshot());
+        impl->pushUndoState(impl->snapshot());
         auto next = std::move(impl->redoStack.back());
         impl->redoStack.pop_back();
         impl->restore(std::move(next));
@@ -200,7 +247,7 @@ namespace Gyeol
         if (result.failed())
             return result;
 
-        impl->document = Core::Document(std::make_shared<const DocumentModel>(std::move(loadedDocument)));
+        impl->store.reset(std::move(loadedDocument));
         impl->editorState = std::move(loadedEditorState);
         impl->undoStack.clear();
         impl->redoStack.clear();
