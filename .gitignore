@@ -1,23 +1,23 @@
 # Prerequisites
 *.d
 
-# Compiled Object files
+# Compiled object files
 *.slo
 *.lo
 *.o
 *.obj
 
-# Precompiled Headers
+# Precompiled headers
 *.gch
 *.pch
 
-# Linker files
+# Linker and debugger files
 *.ilk
-
-# Debugger Files
 *.pdb
+*.idb
+*.tlog
 
-# Compiled Dynamic libraries
+# Compiled dynamic libraries
 *.so
 *.dylib
 *.dll
@@ -26,16 +26,39 @@
 *.mod
 *.smod
 
-# Compiled Static libraries
+# Compiled static libraries
 *.lai
 *.la
 *.a
 *.lib
 
-# Executables
+# Executables and app bundles
 *.exe
 *.out
 *.app
 
-# debug information files
+# Debug information
 *.dwo
+*.exp
+*.recipe
+*.res
+
+# Visual Studio workspace and user-specific files
+.vs/
+*.suo
+*.user
+*.VC.db
+*.opendb
+*.VC.opendb
+*.sln.docstates
+
+# Build outputs and intermediates
+Builds/**/x64/
+Builds/**/Win32/
+Builds/**/Debug/
+Builds/**/Release/
+Builds/**/App/
+
+# Common OS noise
+.DS_Store
+Thumbs.db

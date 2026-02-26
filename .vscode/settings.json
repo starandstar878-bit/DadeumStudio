@@ -1,0 +1,14 @@
+{
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/Source",
+        "${workspaceFolder}/JuceLibraryCode",
+        "C:/JUCE/modules"
+    ],
+    "C_Cpp.default.defines": [
+        "JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1",
+        "JUCE_STRICT_REFCOUNTEDPOINTER=1"
+    ],
+    "files.associations": {
+        "*.h": "cpp"
+    }
+}
