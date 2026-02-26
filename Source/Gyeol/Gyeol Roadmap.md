@@ -5,9 +5,9 @@
 `아키텍처 코어 확정 -> 기본 Scene + Canvas -> Export MVP -> 편집 고도화 -> Style 시스템 -> 플러그인 친화 레이아웃 -> 제품화 안정화 -> 고급 확장`
 
 ## 진행판(요약)
-- [ ] Phase 0. 아키텍처 코어 확정 (가장 먼저) (진행중)
-- [ ] Phase 1. 기본 Scene + Canvas (진행중)
-- [ ] Phase 2. Export MVP
+- [x] Phase 0. 아키텍처 코어 확정 (가장 먼저)
+- [x] Phase 1. 기본 Scene + Canvas
+- [ ] Phase 2. Export MVP (진행중)
 - [ ] Phase 3. 편집 고도화 (Editor UX)
 - [ ] Phase 4. Style 시스템
 - [ ] Phase 5. 플러그인 친화 레이아웃
@@ -26,7 +26,7 @@
 목표: 모든 기능의 기반이 되는 데이터 구조를 고정한다.
 
 선행 조건:
-- [ ] 없음
+- [x] 없음
 
 작업 체크리스트:
 - [x] `Gyeol::Document` immutable 구조 정의
@@ -35,7 +35,7 @@
 - [x] `Reducer` 구현
 - [x] `DocumentStore` 구현 (`apply / undoStack / redoStack`)
 - [x] 기본 JSON 저장/불러오기
-- [ ] Scene 검증기(최소 규칙)
+- [x] Scene 검증기(최소 규칙)
 
 결정 확정(락):
 - [x] `selection`은 `EditorStateModel`로 분리하고 Export/런타임 출력에서는 무시한다.
@@ -53,12 +53,12 @@
 - [x] `bounds`는 JSON number로 저장하고 비교/검증 시 `eps=1e-4`를 사용한다.
 
 검증 체크리스트:
-- [ ] Create/Delete/Move/Selection 테스트 통과
-- [ ] Undo/Redo 20회 반복 정상
-- [ ] 저장 -> 재로드 -> 상태 동일
+- [x] Create/Delete/Move/Selection 테스트 통과
+- [x] Undo/Redo 20회 반복 정상
+- [x] 저장 -> 재로드 -> 상태 동일
 
 완료 기준(DoD):
-- [ ] 데이터 모델 변경 없이 기능을 계속 추가할 수 있다.
+- [x] 데이터 모델 변경 없이 기능을 계속 추가할 수 있다.
 
 ---
 
@@ -66,7 +66,7 @@
 목표: 렌더 + 입력 루프 완성
 
 선행 조건:
-- [ ] Phase 0 완료
+- [x] Phase 0 완료
 
 작업 체크리스트:
 - [x] `CanvasComponent`
@@ -79,11 +79,11 @@
 - [x] Undo/Redo 단축키 연결
 
 검증 체크리스트:
-- [ ] 위젯 20개 이상 배치 테스트
-- [ ] 드래그 + Undo 정상
+- [x] 위젯 20개 이상 배치 테스트
+- [x] 드래그 + Undo 정상
 
 완료 기준(DoD):
-- [ ] 단순 플러그인 UI 1개를 배치 가능
+- [x] 단순 플러그인 UI 1개를 배치 가능
 
 ---
 
@@ -91,7 +91,7 @@
 목표: 구조가 실제 JUCE 코드로 변환 가능한지 검증
 
 선행 조건:
-- [ ] Phase 1 완료
+- [x] Phase 1 완료
 
 작업 체크리스트:
 - [ ] Export 데이터 계약 문서화
@@ -223,6 +223,7 @@
 - [ ] 로드맵 체크 상태 최신화 완료
 
 ## 구현 로그(갱신용)
-- [ ] 2026-02-26: Phase 1 / Canvas+렌더+입력 루프 구현 / 생성·선택·이동·리사이즈·UndoRedo 단축키 동작 / 20개 배치 수동 검증 필요
+- [x] 2026-02-26: Phase 1 / Canvas+렌더+입력 루프 구현 / 생성·선택·이동·리사이즈·UndoRedo 단축키 동작 / 20개 배치 수동 검증 완료
+- [ ] 2026-02-26: Phase 2 / Export MVP 진입 / 데이터 계약 문서화부터 진행 / 버튼·슬라이더 매핑 방식 확정 필요
 - [ ] YYYY-MM-DD: Phase / 작업 / 결과 / 남은 이슈
 - [ ] YYYY-MM-DD: Phase / 작업 / 결과 / 남은 이슈

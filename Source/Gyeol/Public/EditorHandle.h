@@ -178,9 +178,18 @@ namespace Gyeol::Ui
         void updateFromModel(const WidgetModel& widgetIn, bool isSelected)
         {
             widget = widgetIn;
-            selected = isSelected;
             resizeHandleHot = false;
+            setSelected(isSelected);
             setViewBounds(widget.bounds);
+        }
+
+        void setSelected(bool isSelected)
+        {
+            if (selected == isSelected)
+                return;
+
+            selected = isSelected;
+            repaint();
         }
 
         void setViewBounds(const juce::Rectangle<float>& bounds)
@@ -429,7 +438,7 @@ namespace Gyeol::Ui
             if (!containsWidgetId(document.editorState().selection, id))
             {
                 document.selectSingle(id);
-                refreshFromDocument();
+                syncSelectionToViews();
             }
 
             if (!event.mods.isLeftButtonDown())
@@ -505,6 +514,15 @@ namespace Gyeol::Ui
         {
             if (onStateChanged != nullptr)
                 onStateChanged();
+        }
+
+        void syncSelectionToViews()
+        {
+            const auto& selection = document.editorState().selection;
+            for (auto& view : widgetViews)
+                view->setSelected(containsWidgetId(selection, view->widgetId()));
+
+            notifyStateChanged();
         }
 
         DocumentHandle& document;
