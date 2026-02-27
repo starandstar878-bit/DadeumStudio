@@ -1,31 +1,39 @@
-#include "Gyeol/Serialization/DocumentJson.h"
+﻿#include "Gyeol/Serialization/DocumentJson.h"
 
 #include "Gyeol/Core/Document.h"
 #include "Gyeol/Core/SceneValidator.h"
+#include "Gyeol/Widgets/WidgetRegistry.h"
 #include <algorithm>
 
 namespace
 {
+    enum class UnknownWidgetTypeLoadPolicy
+    {
+        reject
+    };
+
+    constexpr auto kUnknownWidgetTypeLoadPolicy = UnknownWidgetTypeLoadPolicy::reject;
+
+    const Gyeol::Widgets::WidgetRegistry& serializationRegistry()
+    {
+        static const auto registry = Gyeol::Widgets::makeDefaultWidgetRegistry();
+        return registry;
+    }
+
     juce::String widgetTypeToString(Gyeol::WidgetType type)
     {
-        switch (type)
-        {
-            case Gyeol::WidgetType::button: return "button";
-            case Gyeol::WidgetType::slider: return "slider";
-            case Gyeol::WidgetType::knob:   return "knob";
-            case Gyeol::WidgetType::label:  return "label";
-            case Gyeol::WidgetType::meter:  return "meter";
-            default: return "button";
-        }
+        if (const auto* descriptor = serializationRegistry().find(type))
+            return descriptor->typeKey;
+
+        DBG("[Gyeol] serialize fallback: unknown widget type ordinal="
+            + juce::String(static_cast<int>(type)) + ", defaulting to 'button'");
+        return "button";
     }
 
     std::optional<Gyeol::WidgetType> widgetTypeFromString(const juce::String& value)
     {
-        if (value == "button") return Gyeol::WidgetType::button;
-        if (value == "slider") return Gyeol::WidgetType::slider;
-        if (value == "knob")   return Gyeol::WidgetType::knob;
-        if (value == "label")  return Gyeol::WidgetType::label;
-        if (value == "meter")  return Gyeol::WidgetType::meter;
+        if (const auto* descriptor = serializationRegistry().findByKey(value))
+            return descriptor->type;
         return std::nullopt;
     }
 
@@ -134,7 +142,10 @@ namespace
 
         const auto type = widgetTypeFromString(props["type"].toString());
         if (!type.has_value())
-            return juce::Result::fail("widget.type is unknown");
+        {
+            if constexpr (kUnknownWidgetTypeLoadPolicy == UnknownWidgetTypeLoadPolicy::reject)
+                return juce::Result::fail("widget.type is unknown (policy=reject): " + props["type"].toString());
+        }
 
         const auto bounds = parseBounds(props["bounds"]);
         if (!bounds.has_value())
@@ -149,6 +160,63 @@ namespace
         outWidget.type = *type;
         outWidget.bounds = *bounds;
         outWidget.properties = std::move(parsedProperties);
+        return juce::Result::ok();
+    }
+
+    juce::var serializeGroup(const Gyeol::GroupModel& group)
+    {
+        auto object = std::make_unique<juce::DynamicObject>();
+        object->setProperty("id", Gyeol::widgetIdToJsonString(group.id));
+        object->setProperty("name", group.name);
+        if (group.parentGroupId.has_value())
+            object->setProperty("parentGroupId", Gyeol::widgetIdToJsonString(*group.parentGroupId));
+
+        juce::Array<juce::var> members;
+        for (const auto memberId : group.memberWidgetIds)
+            members.add(Gyeol::widgetIdToJsonString(memberId));
+        object->setProperty("members", juce::var(members));
+        return juce::var(object.release());
+    }
+
+    juce::Result parseGroup(const juce::var& value, Gyeol::GroupModel& outGroup)
+    {
+        const auto* object = value.getDynamicObject();
+        if (object == nullptr)
+            return juce::Result::fail("group must be object");
+
+        const auto& props = object->getProperties();
+        if (!props.contains("id") || !props.contains("members"))
+            return juce::Result::fail("group requires id/members");
+
+        const auto groupId = Gyeol::widgetIdFromJsonString(props["id"].toString());
+        if (!groupId.has_value() || *groupId <= Gyeol::kRootId)
+            return juce::Result::fail("group.id must be positive int64 encoded as string");
+
+        const auto* membersArray = props["members"].getArray();
+        if (membersArray == nullptr)
+            return juce::Result::fail("group.members must be array");
+
+        outGroup.id = *groupId;
+        outGroup.name = props.contains("name") ? props["name"].toString() : juce::String("Group");
+        outGroup.parentGroupId.reset();
+        if (props.contains("parentGroupId"))
+        {
+            const auto parentGroupId = Gyeol::widgetIdFromJsonString(props["parentGroupId"].toString());
+            if (!parentGroupId.has_value() || *parentGroupId <= Gyeol::kRootId)
+                return juce::Result::fail("group.parentGroupId must be positive int64 encoded as string");
+            outGroup.parentGroupId = *parentGroupId;
+        }
+
+        outGroup.memberWidgetIds.clear();
+        outGroup.memberWidgetIds.reserve(static_cast<size_t>(membersArray->size()));
+        for (const auto& memberValue : *membersArray)
+        {
+            const auto memberId = Gyeol::widgetIdFromJsonString(memberValue.toString());
+            if (!memberId.has_value() || *memberId <= Gyeol::kRootId)
+                return juce::Result::fail("group.members[] id must be positive int64 encoded as string");
+            outGroup.memberWidgetIds.push_back(*memberId);
+        }
+
         return juce::Result::ok();
     }
 
@@ -239,6 +307,12 @@ namespace Gyeol::Serialization
         for (const auto& widget : document.widgets)
             widgetArray.add(serializeWidget(widget));
         root->setProperty("widgets", juce::var(widgetArray));
+
+        juce::Array<juce::var> groupArray;
+        for (const auto& group : document.groups)
+            groupArray.add(serializeGroup(group));
+        root->setProperty("groups", juce::var(groupArray));
+
         root->setProperty("editor", serializeSelection(editorState));
 
         jsonOut = juce::JSON::toString(juce::var(root.release()), true);
@@ -304,6 +378,23 @@ namespace Gyeol::Serialization
             if (result.failed())
                 return result;
             nextDocument.widgets.push_back(std::move(widget));
+        }
+
+        if (rootProps.contains("groups"))
+        {
+            const auto* groupsArray = rootProps["groups"].getArray();
+            if (groupsArray == nullptr)
+                return juce::Result::fail("groups must be array when present");
+
+            nextDocument.groups.reserve(static_cast<size_t>(groupsArray->size()));
+            for (const auto& groupValue : *groupsArray)
+            {
+                GroupModel group;
+                const auto groupResult = parseGroup(groupValue, group);
+                if (groupResult.failed())
+                    return groupResult;
+                nextDocument.groups.push_back(std::move(group));
+            }
         }
 
         // JSON load rule: nextWidgetId = max(widgetId) + 1 (minimum 1, rootId fixed to 0).

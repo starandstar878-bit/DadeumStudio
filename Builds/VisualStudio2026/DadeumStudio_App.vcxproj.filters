@@ -5,8 +5,17 @@
     <Filter Include="DadeumStudio\Source\Gyeol\Core">
       <UniqueIdentifier>{318D02C0-956A-D5A5-F66D-7DD142EBEA8C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DadeumStudio\Source\Gyeol\Editor">
+      <UniqueIdentifier>{9F101600-C3D7-7755-89A3-0CE0E998CB02}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DadeumStudio\Source\Gyeol\Export">
+      <UniqueIdentifier>{C3B2F6C4-D8FF-05CB-D89C-7F0BBDA85FB3}</UniqueIdentifier>
+    </Filter>
     <Filter Include="DadeumStudio\Source\Gyeol\Public">
       <UniqueIdentifier>{766C1ED1-71B8-C7DD-0A74-BE8B8BC938A3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DadeumStudio\Source\Gyeol\Widgets">
+      <UniqueIdentifier>{19B00DF3-8018-5101-54CE-B3F292B8B1EB}</UniqueIdentifier>
     </Filter>
     <Filter Include="DadeumStudio\Source\Gyeol\Serialization">
       <UniqueIdentifier>{240E537F-EE56-3737-E9A8-EF0981A36C15}</UniqueIdentifier>
@@ -327,6 +336,18 @@
     </ClCompile>
     <ClCompile Include="..\..\Source\Gyeol\Core\DocumentHandle.cpp">
       <Filter>DadeumStudio\Source\Gyeol\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gyeol\Editor\EditorHandle.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gyeol\Editor\Interaction\LayerOrderEngine.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gyeol\Editor\Panels\LayerTreePanel.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gyeol\Export\JuceComponentExport.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Export</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Gyeol\Serialization\DocumentJson.cpp">
       <Filter>DadeumStudio\Source\Gyeol\Serialization</Filter>
@@ -2184,6 +2205,9 @@
     <ClInclude Include="..\..\Source\Gyeol\Core\SceneValidator.h">
       <Filter>DadeumStudio\Source\Gyeol\Core</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Export\JuceComponentExport.h">
+      <Filter>DadeumStudio\Source\Gyeol\Export</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\Source\Gyeol\Public\Action.h">
       <Filter>DadeumStudio\Source\Gyeol\Public</Filter>
     </ClInclude>
@@ -2195,6 +2219,30 @@
     </ClInclude>
     <ClInclude Include="..\..\Source\Gyeol\Public\Types.h">
       <Filter>DadeumStudio\Source\Gyeol\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\WidgetRegistry.h">
+      <Filter>DadeumStudio\Source\Gyeol\Widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\WidgetSDK.h">
+      <Filter>DadeumStudio\Source\Gyeol\Widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\ButtonWidget.h">
+      <Filter>DadeumStudio\Source\Gyeol\Widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\SliderWidget.h">
+      <Filter>DadeumStudio\Source\Gyeol\Widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\KnobWidget.h">
+      <Filter>DadeumStudio\Source\Gyeol\Widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\LabelWidget.h">
+      <Filter>DadeumStudio\Source\Gyeol\Widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\MeterWidget.h">
+      <Filter>DadeumStudio\Source\Gyeol\Widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\GyeolWidgetPluginABI.h">
+      <Filter>DadeumStudio\Source\Gyeol\Widgets</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Gyeol\Serialization\DocumentJson.h">
       <Filter>DadeumStudio\Source\Gyeol\Serialization</Filter>
@@ -4709,6 +4757,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\Source\Gyeol\Export\ExportDataContract.md">
+      <Filter>DadeumStudio\Source\Gyeol\Export</Filter>
+    </None>
     <None Include="..\..\Source\Gyeol\Gyeol Roadmap.md">
       <Filter>DadeumStudio\Source\Gyeol</Filter>
     </None>

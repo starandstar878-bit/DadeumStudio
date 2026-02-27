@@ -9,7 +9,7 @@
 namespace BinaryData
 {
     extern const char*   Gyeol_Roadmap_md;
-    const int            Gyeol_Roadmap_mdSize = 7072;
+    const int            Gyeol_Roadmap_mdSize = 16240;
 
     // Number of elements in the namedResourceList and originalFileNames arrays.
     const int namedResourceListSize = 1;

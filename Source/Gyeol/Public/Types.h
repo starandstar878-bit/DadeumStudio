@@ -21,6 +21,18 @@ namespace Gyeol
         meter
     };
 
+    enum class LayerNodeKind
+    {
+        widget,
+        group
+    };
+
+    struct LayerNodeRef
+    {
+        LayerNodeKind kind = LayerNodeKind::widget;
+        WidgetId id = kRootId;
+    };
+
     struct WidgetModel
     {
         WidgetId id = 0;
@@ -29,10 +41,18 @@ namespace Gyeol
         PropertyBag properties;
     };
 
+    struct GroupModel
+    {
+        WidgetId id = 0;
+        juce::String name;
+        std::vector<WidgetId> memberWidgetIds;
+        std::optional<WidgetId> parentGroupId;
+    };
+
     struct SchemaVersion
     {
         int major = 0;
-        int minor = 1;
+        int minor = 2;
         int patch = 0;
     };
 
@@ -56,6 +76,7 @@ namespace Gyeol
     {
         SchemaVersion schemaVersion = currentSchemaVersion();
         std::vector<WidgetModel> widgets;
+        std::vector<GroupModel> groups;
     };
 
     struct EditorStateModel

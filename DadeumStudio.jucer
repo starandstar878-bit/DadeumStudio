@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="y6gk3d" name="DadeumStudio" projectType="guiapp" useAppConfig="0"
-              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" headerPath="Source">
   <MAINGROUP id="vqcKQd" name="DadeumStudio">
     <GROUP id="{2B42515B-7D16-20B6-BFDA-D5F355CB4814}" name="Source">
       <GROUP id="{847407AD-BCEA-C453-4D4C-6B37117F2C25}" name="Gyeol">
@@ -15,7 +15,18 @@
           <FILE id="uRw3NQ" name="SceneValidator.h" compile="0" resource="0"
                 file="Source/Gyeol/Core/SceneValidator.h"/>
         </GROUP>
-        <GROUP id="{EEE24E8E-D0AF-566E-91B9-4B438E6639AC}" name="Editor"/>
+        <GROUP id="{EEE24E8E-D0AF-566E-91B9-4B438E6639AC}" name="Editor">
+          <FILE id="hP7zLm" name="EditorHandle.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Editor/EditorHandle.cpp"/>
+        </GROUP>
+        <GROUP id="{A4152B20-7D42-4CB5-8E04-83B15B4F22E1}" name="Export">
+          <FILE id="A2kP9m" name="JuceComponentExport.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Export/JuceComponentExport.cpp"/>
+          <FILE id="w8Lt4H" name="JuceComponentExport.h" compile="0" resource="0"
+                file="Source/Gyeol/Export/JuceComponentExport.h"/>
+          <FILE id="H4mQ2s" name="ExportDataContract.md" compile="0" resource="0"
+                file="Source/Gyeol/Export/ExportDataContract.md"/>
+        </GROUP>
         <GROUP id="{CF8E5C07-2070-0BD6-D75B-17118FA05629}" name="Public">
           <FILE id="GoupaF" name="Action.h" compile="0" resource="0" file="Source/Gyeol/Public/Action.h"/>
           <FILE id="VrVEbD" name="DocumentHandle.h" compile="0" resource="0"
@@ -24,6 +35,20 @@
           <FILE id="BrmwGn" name="Types.h" compile="0" resource="0" file="Source/Gyeol/Public/Types.h"/>
         </GROUP>
         <GROUP id="{D8C67FC9-5F56-00CE-534E-13138A02B71E}" name="Render"/>
+        <GROUP id="{45A2F8A3-22D1-4FC4-A27A-2DB0316E56AA}" name="Widgets">
+          <FILE id="vR5kzB" name="WidgetRegistry.h" compile="0" resource="0"
+                file="Source/Gyeol/Widgets/WidgetRegistry.h"/>
+          <FILE id="VaT8Au" name="WidgetSDK.h" compile="0" resource="0" file="Source/Gyeol/Widgets/WidgetSDK.h"/>
+          <FILE id="u0Ea9x" name="ButtonWidget.h" compile="0" resource="0"
+                file="Source/Gyeol/Widgets/ButtonWidget.h"/>
+          <FILE id="UZMtQe" name="SliderWidget.h" compile="0" resource="0"
+                file="Source/Gyeol/Widgets/SliderWidget.h"/>
+          <FILE id="NcmDk4" name="KnobWidget.h" compile="0" resource="0" file="Source/Gyeol/Widgets/KnobWidget.h"/>
+          <FILE id="Z9Hm2j" name="LabelWidget.h" compile="0" resource="0" file="Source/Gyeol/Widgets/LabelWidget.h"/>
+          <FILE id="h7CwNp" name="MeterWidget.h" compile="0" resource="0" file="Source/Gyeol/Widgets/MeterWidget.h"/>
+          <FILE id="cWn6xS" name="GyeolWidgetPluginABI.h" compile="0" resource="0"
+                file="Source/Gyeol/Widgets/GyeolWidgetPluginABI.h"/>
+        </GROUP>
         <GROUP id="{10231294-074A-10E5-9965-FA9F297D8828}" name="Serialization">
           <FILE id="SOUejC" name="DocumentJson.cpp" compile="1" resource="0"
                 file="Source/Gyeol/Serialization/DocumentJson.cpp"/>

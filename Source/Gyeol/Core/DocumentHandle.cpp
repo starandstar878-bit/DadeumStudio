@@ -1,10 +1,11 @@
-﻿#include "Gyeol/Public/DocumentHandle.h"
+#include "Gyeol/Public/DocumentHandle.h"
 
 #include "Gyeol/Core/DocumentStore.h"
 #include "Gyeol/Serialization/DocumentJson.h"
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <unordered_set>
 
 namespace Gyeol
 {
@@ -23,6 +24,75 @@ namespace Gyeol
                 return nullptr;
 
             return &(*it);
+        }
+
+        const GroupModel* findGroupInDocument(const DocumentModel& document, const WidgetId& id) noexcept
+        {
+            const auto it = std::find_if(document.groups.begin(),
+                                         document.groups.end(),
+                                         [&id](const GroupModel& group)
+                                         {
+                                             return group.id == id;
+                                         });
+
+            if (it == document.groups.end())
+                return nullptr;
+
+            return &(*it);
+        }
+
+        void collectGroupWidgetIdsRecursive(const DocumentModel& document,
+                                            WidgetId groupId,
+                                            std::unordered_set<WidgetId>& outWidgetIds,
+                                            std::unordered_set<WidgetId>& visitedGroupIds)
+        {
+            if (!visitedGroupIds.insert(groupId).second)
+                return;
+
+            const auto* group = findGroupInDocument(document, groupId);
+            if (group == nullptr)
+                return;
+
+            for (const auto memberId : group->memberWidgetIds)
+                outWidgetIds.insert(memberId);
+
+            for (const auto& candidate : document.groups)
+            {
+                if (candidate.parentGroupId.has_value() && *candidate.parentGroupId == groupId)
+                    collectGroupWidgetIdsRecursive(document, candidate.id, outWidgetIds, visitedGroupIds);
+            }
+        }
+
+        std::unordered_set<WidgetId> collectGroupWidgetIdsRecursive(const DocumentModel& document, WidgetId groupId)
+        {
+            std::unordered_set<WidgetId> widgets;
+            std::unordered_set<WidgetId> visitedGroups;
+            collectGroupWidgetIdsRecursive(document, groupId, widgets, visitedGroups);
+            return widgets;
+        }
+
+        bool hasSelectedAncestorGroup(const DocumentModel& document,
+                                      WidgetId groupId,
+                                      const std::unordered_set<WidgetId>& selectedGroupIds)
+        {
+            const auto* group = findGroupInDocument(document, groupId);
+            if (group == nullptr)
+                return false;
+
+            auto parent = group->parentGroupId;
+            while (parent.has_value())
+            {
+                if (selectedGroupIds.count(*parent) > 0)
+                    return true;
+
+                const auto* parentGroup = findGroupInDocument(document, *parent);
+                if (parentGroup == nullptr)
+                    break;
+
+                parent = parentGroup->parentGroupId;
+            }
+
+            return false;
         }
     }
 
@@ -143,28 +213,187 @@ namespace Gyeol
         if (before == nullptr)
             return false;
 
-        return setWidgetBounds(id, before->bounds.translated(delta.x, delta.y));
+        return setWidgetsBounds({ { id, before->bounds.translated(delta.x, delta.y) } });
     }
 
     bool DocumentHandle::setWidgetBounds(const WidgetId& id, juce::Rectangle<float> bounds)
     {
-        if (!std::isfinite(bounds.getX())
-            || !std::isfinite(bounds.getY())
-            || !std::isfinite(bounds.getWidth())
-            || !std::isfinite(bounds.getHeight())
-            || bounds.getWidth() < 0.0f
-            || bounds.getHeight() < 0.0f)
-        {
+        return setWidgetsBounds({ { id, bounds } });
+    }
+
+    bool DocumentHandle::setWidgetsBounds(const std::vector<WidgetBoundsUpdate>& updates)
+    {
+        if (updates.empty())
             return false;
+
+        SetWidgetsBoundsAction action;
+        action.items.reserve(updates.size());
+
+        bool hasAnyChange = false;
+        std::vector<WidgetId> seenIds;
+        seenIds.reserve(updates.size());
+
+        for (const auto& update : updates)
+        {
+            if (update.id <= kRootId)
+                return false;
+            if (!std::isfinite(update.bounds.getX())
+                || !std::isfinite(update.bounds.getY())
+                || !std::isfinite(update.bounds.getWidth())
+                || !std::isfinite(update.bounds.getHeight())
+                || update.bounds.getWidth() < 0.0f
+                || update.bounds.getHeight() < 0.0f)
+            {
+                return false;
+            }
+
+            if (std::find(seenIds.begin(), seenIds.end(), update.id) != seenIds.end())
+                return false;
+            seenIds.push_back(update.id);
+
+            const auto* before = findWidgetInDocument(impl->store.snapshot(), update.id);
+            if (before == nullptr)
+                return false;
+
+            if (before->bounds != update.bounds)
+                hasAnyChange = true;
+
+            SetWidgetsBoundsAction::Item item;
+            item.id = update.id;
+            item.bounds = update.bounds;
+            action.items.push_back(item);
         }
 
-        const auto* before = findWidgetInDocument(impl->store.snapshot(), id);
-        if (before == nullptr || before->bounds == bounds)
+        if (!hasAnyChange)
             return false;
 
-        SetWidgetPropsAction action;
-        action.ids = { id };
-        action.bounds = bounds;
+        return impl->commitDocumentAction(action, nullptr);
+    }
+
+    bool DocumentHandle::groupSelection()
+    {
+        if (impl->editorState.selection.size() < 2)
+            return false;
+
+        const auto& document = impl->store.snapshot();
+        std::unordered_set<WidgetId> selectionSet(impl->editorState.selection.begin(), impl->editorState.selection.end());
+
+        std::vector<WidgetId> candidateGroupIds;
+        for (const auto& group : document.groups)
+        {
+            const auto groupWidgets = collectGroupWidgetIdsRecursive(document, group.id);
+            if (groupWidgets.empty())
+                continue;
+
+            const auto fullyCovered = std::all_of(groupWidgets.begin(),
+                                                  groupWidgets.end(),
+                                                  [&selectionSet](WidgetId widgetId)
+                                                  {
+                                                      return selectionSet.count(widgetId) > 0;
+                                                  });
+            if (fullyCovered)
+                candidateGroupIds.push_back(group.id);
+        }
+
+        std::unordered_set<WidgetId> candidateGroupSet(candidateGroupIds.begin(), candidateGroupIds.end());
+        std::vector<WidgetId> selectedGroupIds;
+        selectedGroupIds.reserve(candidateGroupIds.size());
+        for (const auto groupId : candidateGroupIds)
+        {
+            if (!hasSelectedAncestorGroup(document, groupId, candidateGroupSet))
+                selectedGroupIds.push_back(groupId);
+        }
+
+        std::unordered_set<WidgetId> widgetsCoveredBySelectedGroups;
+        for (const auto groupId : selectedGroupIds)
+        {
+            const auto coveredWidgets = collectGroupWidgetIdsRecursive(document, groupId);
+            widgetsCoveredBySelectedGroups.insert(coveredWidgets.begin(), coveredWidgets.end());
+        }
+
+        std::vector<WidgetId> explicitWidgetIds;
+        explicitWidgetIds.reserve(impl->editorState.selection.size());
+        for (const auto widgetId : impl->editorState.selection)
+        {
+            if (widgetsCoveredBySelectedGroups.count(widgetId) > 0)
+                continue;
+            if (std::find(explicitWidgetIds.begin(), explicitWidgetIds.end(), widgetId) == explicitWidgetIds.end())
+                explicitWidgetIds.push_back(widgetId);
+        }
+
+        const auto selectedUnitCount = explicitWidgetIds.size() + selectedGroupIds.size();
+        const auto allowSingleGroupWrapper = explicitWidgetIds.empty() && selectedGroupIds.size() == 1;
+        if (selectedUnitCount < 2 && !allowSingleGroupWrapper)
+            return false;
+
+        GroupWidgetsAction action;
+        action.widgetIds = std::move(explicitWidgetIds);
+        action.groupIds = std::move(selectedGroupIds);
+        action.groupName = "Group";
+        return impl->commitDocumentAction(action, nullptr);
+    }
+
+    bool DocumentHandle::ungroupSelection()
+    {
+        if (impl->editorState.selection.empty())
+            return false;
+
+        const auto& document = impl->store.snapshot();
+        std::unordered_set<WidgetId> selectionSet(impl->editorState.selection.begin(), impl->editorState.selection.end());
+
+        std::vector<WidgetId> candidateGroupIds;
+        for (const auto& group : document.groups)
+        {
+            const auto groupWidgets = collectGroupWidgetIdsRecursive(document, group.id);
+            if (groupWidgets.empty())
+                continue;
+
+            const auto fullyCovered = std::all_of(groupWidgets.begin(),
+                                                  groupWidgets.end(),
+                                                  [&selectionSet](WidgetId widgetId)
+                                                  {
+                                                      return selectionSet.count(widgetId) > 0;
+                                                  });
+            if (fullyCovered)
+                candidateGroupIds.push_back(group.id);
+        }
+
+        std::unordered_set<WidgetId> candidateGroupSet(candidateGroupIds.begin(), candidateGroupIds.end());
+        std::vector<WidgetId> groupIds;
+        groupIds.reserve(candidateGroupIds.size());
+        for (const auto groupId : candidateGroupIds)
+        {
+            if (!hasSelectedAncestorGroup(document, groupId, candidateGroupSet))
+                groupIds.push_back(groupId);
+        }
+
+        if (groupIds.empty())
+        {
+            for (const auto id : impl->editorState.selection)
+            {
+                if (findGroupInDocument(document, id) != nullptr)
+                    groupIds.push_back(id);
+            }
+        }
+
+        if (groupIds.empty())
+            return false;
+
+        std::sort(groupIds.begin(), groupIds.end());
+        groupIds.erase(std::unique(groupIds.begin(), groupIds.end()), groupIds.end());
+
+        UngroupWidgetsAction action;
+        action.groupIds = std::move(groupIds);
+        return impl->commitDocumentAction(action, nullptr);
+    }
+
+    bool DocumentHandle::reparent(ReparentAction action)
+    {
+        return impl->commitDocumentAction(action, nullptr);
+    }
+
+    bool DocumentHandle::reorder(ReorderAction action)
+    {
         return impl->commitDocumentAction(action, nullptr);
     }
 

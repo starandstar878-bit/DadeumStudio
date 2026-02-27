@@ -94,7 +94,13 @@ namespace Gyeol::Core
                                                           [id](const WidgetModel& widget)
                                                           {
                                                               return widget.id == id;
-                                                          }) != state.widgets.end();
+                                                          }) != state.widgets.end()
+                                          || std::find_if(state.groups.begin(),
+                                                          state.groups.end(),
+                                                          [id](const GroupModel& group)
+                                                          {
+                                                              return group.id == id;
+                                                          }) != state.groups.end();
                                   };
 
                                   WidgetId newId = createWidgetId();
@@ -159,6 +165,8 @@ namespace Gyeol::Core
         WidgetId maxId = kRootId;
         for (const auto& widget : model.widgets)
             maxId = std::max(maxId, widget.id);
+        for (const auto& group : model.groups)
+            maxId = std::max(maxId, group.id);
 
         WidgetId requestedNext = 1;
         if (maxId < std::numeric_limits<WidgetId>::max())

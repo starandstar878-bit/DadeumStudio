@@ -3,6 +3,7 @@
 #include "Gyeol/Public/Types.h"
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -58,6 +59,83 @@ namespace Gyeol::Core::SceneValidator
         std::sort(sortedIds.begin(), sortedIds.end());
         if (std::adjacent_find(sortedIds.begin(), sortedIds.end()) != sortedIds.end())
             return juce::Result::fail("widget ids must be unique");
+
+        std::unordered_set<WidgetId> widgetIdSet(sortedIds.begin(), sortedIds.end());
+        std::unordered_set<WidgetId> groupIds;
+        std::unordered_set<WidgetId> groupedMembers;
+        std::unordered_map<WidgetId, const GroupModel*> groupById;
+        std::unordered_map<WidgetId, int> childCounts;
+        groupById.reserve(document.groups.size());
+        childCounts.reserve(document.groups.size());
+
+        for (const auto& group : document.groups)
+        {
+            if (group.id <= kRootId)
+                return juce::Result::fail("group.id must be > rootId");
+            if (widgetIdSet.count(group.id) > 0)
+                return juce::Result::fail("group.id must not collide with widget ids");
+            if (!groupIds.insert(group.id).second)
+                return juce::Result::fail("group ids must be unique");
+            groupById.emplace(group.id, &group);
+            childCounts[group.id] = 0;
+
+            std::unordered_set<WidgetId> membersInGroup;
+            for (const auto memberId : group.memberWidgetIds)
+            {
+                if (memberId <= kRootId)
+                    return juce::Result::fail("group member id must be > rootId");
+                if (widgetIdSet.count(memberId) == 0)
+                    return juce::Result::fail("group member id not found in document widgets");
+                if (!membersInGroup.insert(memberId).second)
+                    return juce::Result::fail("group member ids must be unique inside each group");
+                if (!groupedMembers.insert(memberId).second)
+                    return juce::Result::fail("widget must belong to at most one group");
+            }
+        }
+
+        for (const auto& group : document.groups)
+        {
+            if (!group.parentGroupId.has_value())
+                continue;
+
+            if (*group.parentGroupId <= kRootId)
+                return juce::Result::fail("group.parentGroupId must be > rootId");
+            if (*group.parentGroupId == group.id)
+                return juce::Result::fail("group.parentGroupId must not equal group.id");
+            if (groupById.find(*group.parentGroupId) == groupById.end())
+                return juce::Result::fail("group.parentGroupId not found in document groups");
+
+            ++childCounts[*group.parentGroupId];
+        }
+
+        for (const auto& group : document.groups)
+        {
+            std::unordered_set<WidgetId> chain;
+            chain.insert(group.id);
+
+            auto parent = group.parentGroupId;
+            while (parent.has_value())
+            {
+                if (!chain.insert(*parent).second)
+                    return juce::Result::fail("group hierarchy must not contain cycles");
+
+                const auto it = groupById.find(*parent);
+                if (it == groupById.end())
+                    return juce::Result::fail("group hierarchy references missing parent");
+
+                parent = it->second->parentGroupId;
+            }
+        }
+
+        for (const auto& group : document.groups)
+        {
+            const auto childCountIt = childCounts.find(group.id);
+            const auto childCount = childCountIt != childCounts.end() ? childCountIt->second : 0;
+
+            // Keep leaf-group invariants stable: a leaf group should have at least two widgets.
+            if (childCount == 0 && group.memberWidgetIds.size() < 2)
+                return juce::Result::fail("leaf group must contain at least two widget ids");
+        }
 
         return juce::Result::ok();
     }

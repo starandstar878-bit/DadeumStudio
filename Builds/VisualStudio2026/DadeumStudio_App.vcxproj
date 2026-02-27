@@ -67,7 +67,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>..\..\JuceLibraryCode;..\..\Source;C:\JUCE\modules;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\Source;$(ProjectDir)..\..\JuceLibraryCode;C:\JUCE\modules;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_WINDOWS;DEBUG;_DEBUG;JUCE_PROJUCER_VERSION=0x8000c;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;JUCE_STRICT_REFCOUNTEDPOINTER=1;JUCE_STANDALONE_APPLICATION=1;JUCER_VS2026_78A5042=1;JUCE_APP_VERSION=1.0.0;JUCE_APP_VERSION_HEX=0x10000;JucePlugin_Build_VST=0;JucePlugin_Build_VST3=0;JucePlugin_Build_AU=0;JucePlugin_Build_AUv3=0;JucePlugin_Build_AAX=0;JucePlugin_Build_Standalone=0;JucePlugin_Build_Unity=0;JucePlugin_Build_LV2=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
@@ -81,7 +81,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>..\..\JuceLibraryCode;..\..\Source;C:\JUCE\modules;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\Source;$(ProjectDir)..\..\JuceLibraryCode;C:\JUCE\modules;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_WINDOWS;DEBUG;_DEBUG;JUCE_PROJUCER_VERSION=0x8000c;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;JUCE_STRICT_REFCOUNTEDPOINTER=1;JUCE_STANDALONE_APPLICATION=1;JUCER_VS2026_78A5042=1;JUCE_APP_VERSION=1.0.0;JUCE_APP_VERSION_HEX=0x10000;JucePlugin_Build_VST=0;JucePlugin_Build_VST3=0;JucePlugin_Build_AU=0;JucePlugin_Build_AUv3=0;JucePlugin_Build_AAX=0;JucePlugin_Build_Standalone=0;JucePlugin_Build_Unity=0;JucePlugin_Build_LV2=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <Link>
@@ -110,7 +110,7 @@
     <ClCompile>
       <Optimization>Full</Optimization>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>..\..\JuceLibraryCode;..\..\Source;C:\JUCE\modules;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\Source;$(ProjectDir)..\..\JuceLibraryCode;C:\JUCE\modules;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_WINDOWS;NDEBUG;JUCE_PROJUCER_VERSION=0x8000c;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;JUCE_STRICT_REFCOUNTEDPOINTER=1;JUCE_STANDALONE_APPLICATION=1;JUCER_VS2026_78A5042=1;JUCE_APP_VERSION=1.0.0;JUCE_APP_VERSION_HEX=0x10000;JucePlugin_Build_VST=0;JucePlugin_Build_VST3=0;JucePlugin_Build_AU=0;JucePlugin_Build_AUv3=0;JucePlugin_Build_AAX=0;JucePlugin_Build_Standalone=0;JucePlugin_Build_Unity=0;JucePlugin_Build_LV2=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
@@ -124,7 +124,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>..\..\JuceLibraryCode;..\..\Source;C:\JUCE\modules;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\Source;$(ProjectDir)..\..\JuceLibraryCode;C:\JUCE\modules;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_WINDOWS;NDEBUG;JUCE_PROJUCER_VERSION=0x8000c;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;JUCE_STRICT_REFCOUNTEDPOINTER=1;JUCE_STANDALONE_APPLICATION=1;JUCER_VS2026_78A5042=1;JUCE_APP_VERSION=1.0.0;JUCE_APP_VERSION_HEX=0x10000;JucePlugin_Build_VST=0;JucePlugin_Build_VST3=0;JucePlugin_Build_AU=0;JucePlugin_Build_AUv3=0;JucePlugin_Build_AAX=0;JucePlugin_Build_Standalone=0;JucePlugin_Build_Unity=0;JucePlugin_Build_LV2=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <Link>
@@ -148,6 +148,10 @@
   <ItemGroup>
     <ClCompile Include="..\..\Source\Gyeol\Core\Document.cpp"/>
     <ClCompile Include="..\..\Source\Gyeol\Core\DocumentHandle.cpp"/>
+    <ClCompile Include="..\..\Source\Gyeol\Editor\EditorHandle.cpp"/>
+    <ClCompile Include="..\..\Source\Gyeol\Editor\Interaction\LayerOrderEngine.cpp"/>
+    <ClCompile Include="..\..\Source\Gyeol\Editor\Panels\LayerTreePanel.cpp"/>
+    <ClCompile Include="..\..\Source\Gyeol\Export\JuceComponentExport.cpp"/>
     <ClCompile Include="..\..\Source\Gyeol\Serialization\DocumentJson.cpp"/>
     <ClCompile Include="..\..\Source\Main.cpp"/>
     <ClCompile Include="..\..\Source\MainComponent.cpp"/>
@@ -1868,10 +1872,19 @@
     <ClInclude Include="..\..\Source\Gyeol\Core\DocumentStore.h"/>
     <ClInclude Include="..\..\Source\Gyeol\Core\Reducer.h"/>
     <ClInclude Include="..\..\Source\Gyeol\Core\SceneValidator.h"/>
+    <ClInclude Include="..\..\Source\Gyeol\Export\JuceComponentExport.h"/>
     <ClInclude Include="..\..\Source\Gyeol\Public\Action.h"/>
     <ClInclude Include="..\..\Source\Gyeol\Public\DocumentHandle.h"/>
     <ClInclude Include="..\..\Source\Gyeol\Public\EditorHandle.h"/>
     <ClInclude Include="..\..\Source\Gyeol\Public\Types.h"/>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\WidgetRegistry.h"/>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\WidgetSDK.h"/>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\ButtonWidget.h"/>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\SliderWidget.h"/>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\KnobWidget.h"/>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\LabelWidget.h"/>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\MeterWidget.h"/>
+    <ClInclude Include="..\..\Source\Gyeol\Widgets\GyeolWidgetPluginABI.h"/>
     <ClInclude Include="..\..\Source\Gyeol\Serialization\DocumentJson.h"/>
     <ClInclude Include="..\..\Source\Gyeol\Gyeol.h"/>
     <ClInclude Include="..\..\Source\MainComponent.h"/>
@@ -2711,6 +2724,7 @@
     <ClInclude Include="..\..\JuceLibraryCode\JuceHeader.h"/>
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\Source\Gyeol\Export\ExportDataContract.md"/>
     <None Include="..\..\Source\Gyeol\Gyeol Roadmap.md"/>
     <None Include="..\..\..\..\..\..\JUCE\modules\juce_core\native\java\README.txt"/>
     <None Include="..\..\..\..\..\..\JUCE\modules\juce_core\zip\zlib\JUCE_CHANGES.txt"/>
