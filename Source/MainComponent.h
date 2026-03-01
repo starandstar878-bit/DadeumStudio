@@ -21,6 +21,10 @@ public:
 
 private:
     //==============================================================================
+    void restoreSession();
+    void persistSession() const;
+    static juce::File sessionFilePath();
+
     std::unique_ptr<Gyeol::EditorHandle> gyeolEditor;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)

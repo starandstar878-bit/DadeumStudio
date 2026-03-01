@@ -13,6 +13,7 @@ namespace Gyeol
 
         DocumentHandle& document() noexcept;
         const DocumentHandle& document() const noexcept;
+        void refreshFromDocument();
 
         void paint(juce::Graphics& g) override;
         void resized() override;

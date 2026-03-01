@@ -24,10 +24,10 @@ namespace Gyeol::Ui::Interaction
 
     struct LayerTreeDropRequest
     {
-        std::vector<LayerNodeRef> dragged;
-        std::optional<LayerNodeRef> target;
+        std::vector<NodeRef> dragged;
+        std::optional<NodeRef> target;
         LayerDropPlacement placement = LayerDropPlacement::before;
-        WidgetId parentId = kRootId;
+        ParentRef parent;
         int insertIndex = -1; // back-to-front order index
     };
 
@@ -37,7 +37,7 @@ namespace Gyeol::Ui::Interaction
         juce::Result moveSelection(DocumentHandle& document, LayerMoveCommand command);
         juce::Result reorder(DocumentHandle& document,
                              const std::vector<WidgetId>& ids,
-                             WidgetId parentId,
+                             ParentRef parent,
                              int insertIndex);
         juce::Result applyTreeDrop(DocumentHandle& document, const LayerTreeDropRequest& request);
     };

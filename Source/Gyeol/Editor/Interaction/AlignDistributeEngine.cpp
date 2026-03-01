@@ -128,11 +128,16 @@ namespace Gyeol::Ui::Interaction
     juce::Result AlignDistributeEngine::applyBoundsPatches(DocumentHandle& document,
                                                            const std::vector<BoundsPatch>& patches) const
     {
+        if (patches.empty())
+            return juce::Result::ok();
+
+        std::vector<WidgetBoundsUpdate> updates;
+        updates.reserve(patches.size());
         for (const auto& patch : patches)
-        {
-            if (!document.setWidgetBounds(patch.id, patch.bounds))
-                return juce::Result::fail("Failed to apply bounds patch for id=" + juce::String(patch.id));
-        }
+            updates.push_back({ patch.id, patch.bounds });
+
+        if (!document.setWidgetsBounds(updates))
+            return juce::Result::fail("Failed to apply bounds patches");
 
         return juce::Result::ok();
     }

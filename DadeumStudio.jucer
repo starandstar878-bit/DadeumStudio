@@ -39,10 +39,8 @@
           <FILE id="vR5kzB" name="WidgetRegistry.h" compile="0" resource="0"
                 file="Source/Gyeol/Widgets/WidgetRegistry.h"/>
           <FILE id="VaT8Au" name="WidgetSDK.h" compile="0" resource="0" file="Source/Gyeol/Widgets/WidgetSDK.h"/>
-          <FILE id="u0Ea9x" name="ButtonWidget.h" compile="0" resource="0"
-                file="Source/Gyeol/Widgets/ButtonWidget.h"/>
-          <FILE id="UZMtQe" name="SliderWidget.h" compile="0" resource="0"
-                file="Source/Gyeol/Widgets/SliderWidget.h"/>
+          <FILE id="u0Ea9x" name="ButtonWidget.h" compile="0" resource="0" file="Source/Gyeol/Widgets/ButtonWidget.h"/>
+          <FILE id="UZMtQe" name="SliderWidget.h" compile="0" resource="0" file="Source/Gyeol/Widgets/SliderWidget.h"/>
           <FILE id="NcmDk4" name="KnobWidget.h" compile="0" resource="0" file="Source/Gyeol/Widgets/KnobWidget.h"/>
           <FILE id="Z9Hm2j" name="LabelWidget.h" compile="0" resource="0" file="Source/Gyeol/Widgets/LabelWidget.h"/>
           <FILE id="h7CwNp" name="MeterWidget.h" compile="0" resource="0" file="Source/Gyeol/Widgets/MeterWidget.h"/>
@@ -65,6 +63,9 @@
     </GROUP>
   </MAINGROUP>
   <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
@@ -86,6 +87,9 @@
         <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2026>
   </EXPORTFORMATS>

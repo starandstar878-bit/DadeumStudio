@@ -167,6 +167,8 @@ namespace Gyeol::Core
             maxId = std::max(maxId, widget.id);
         for (const auto& group : model.groups)
             maxId = std::max(maxId, group.id);
+        for (const auto& layer : model.layers)
+            maxId = std::max(maxId, layer.id);
 
         WidgetId requestedNext = 1;
         if (maxId < std::numeric_limits<WidgetId>::max())

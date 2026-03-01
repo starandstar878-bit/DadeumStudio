@@ -26,15 +26,32 @@ namespace Gyeol
         const DocumentModel& snapshot() const noexcept;
         const EditorStateModel& editorState() const noexcept;
 
-        WidgetId addWidget(WidgetType type, juce::Rectangle<float> bounds, const PropertyBag& properties = {});
+        WidgetId createNode(const CreateAction& action);
+        bool deleteNodes(const DeleteAction& action);
+        bool setProps(const SetPropsAction& action);
+        bool setBounds(const SetBoundsAction& action);
+        bool reparent(ReparentAction action);
+        bool reorder(ReorderAction action);
+        bool setAssets(std::vector<AssetModel> assets);
+        bool replaceAssetRefKey(const juce::String& oldRefKey, const juce::String& newRefKey);
+        bool setRuntimeBindings(std::vector<RuntimeBindingModel> bindings);
+
+        bool beginCoalescedEdit(const juce::String& key);
+        bool previewSetProps(const SetPropsAction& action);
+        bool previewSetBounds(const SetBoundsAction& action);
+        bool endCoalescedEdit(const juce::String& key, bool commit);
+
+        // Compatibility wrappers (kept for one release).
+        WidgetId addWidget(WidgetType type,
+                           juce::Rectangle<float> bounds,
+                           const PropertyBag& properties = {},
+                           std::optional<WidgetId> layerId = std::nullopt);
         bool removeWidget(const WidgetId& id);
         bool moveWidget(const WidgetId& id, juce::Point<float> delta);
         bool setWidgetBounds(const WidgetId& id, juce::Rectangle<float> bounds);
         bool setWidgetsBounds(const std::vector<WidgetBoundsUpdate>& updates);
-        bool groupSelection();
+        bool groupSelection(std::optional<WidgetId> layerId = std::nullopt);
         bool ungroupSelection();
-        bool reparent(ReparentAction action);
-        bool reorder(ReorderAction action);
 
         void selectSingle(const WidgetId& id);
         void setSelection(std::vector<WidgetId> selection);
@@ -42,6 +59,9 @@ namespace Gyeol
 
         bool canUndo() const noexcept;
         bool canRedo() const noexcept;
+        int undoDepth() const noexcept;
+        int redoDepth() const noexcept;
+        uint64_t historySerial() const noexcept;
         bool undo();
         bool redo();
 

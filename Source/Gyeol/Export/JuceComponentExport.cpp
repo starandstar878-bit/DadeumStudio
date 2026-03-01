@@ -23,12 +23,16 @@ namespace
         juce::StringArray resizedLines;
     };
 
-    struct CopiedResourceEntry
+    struct CopiedAssetEntry
     {
-        Gyeol::WidgetId widgetId = 0;
-        juce::String propertyKey;
+        Gyeol::WidgetId assetId = 0;
+        juce::String refKey;
+        juce::String kind;
+        juce::String mimeType;
         juce::String sourcePath;
         juce::String destinationRelativePath;
+        bool copied = false;
+        bool reused = false;
     };
 
     juce::String severityToString(Gyeol::Export::IssueSeverity severity)
@@ -315,13 +319,41 @@ namespace
     }
 
     juce::String generateSourceCode(const juce::String& className,
-                                    const std::vector<ExportWidgetEntry>& widgets)
+                                    const std::vector<ExportWidgetEntry>& widgets,
+                                    const std::vector<juce::String>& assetPreloadPaths)
     {
         juce::StringArray lines;
         lines.add("#include \"" + className + ".h\"");
         lines.add("");
+        lines.add("namespace");
+        lines.add("{");
+        lines.add("    juce::File resolveExportAssetFile(const juce::String& relativePath)");
+        lines.add("    {");
+        lines.add("        auto baseDir = juce::File::getSpecialLocation(juce::File::currentApplicationFile).getParentDirectory();");
+        lines.add("        return baseDir.getChildFile(relativePath);");
+        lines.add("    }");
+        lines.add("");
+        lines.add("    juce::Image preloadExportAssetImage(const juce::String& relativePath)");
+        lines.add("    {");
+        lines.add("        const auto file = resolveExportAssetFile(relativePath);");
+        lines.add("        if (!file.existsAsFile())");
+        lines.add("            return {};");
+        lines.add("        return juce::ImageFileFormat::loadFrom(file);");
+        lines.add("    }");
+        lines.add("}");
+        lines.add("");
         lines.add(className + "::" + className + "()");
         lines.add("{");
+
+        if (!assetPreloadPaths.empty())
+        {
+            lines.add("    // Preload exported asset binaries from Assets/.");
+            for (const auto& relativePath : assetPreloadPaths)
+            {
+                lines.add("    juce::ignoreUnused(preloadExportAssetImage(" + toCppStringLiteral(relativePath) + "));");
+            }
+            lines.add("");
+        }
 
         if (widgets.empty())
         {
@@ -368,21 +400,7 @@ namespace
         return lines.joinIntoString("\n");
     }
 
-    bool isResourcePropertyKey(const juce::String& key)
-    {
-        return key.containsIgnoreCase("image")
-            || key.containsIgnoreCase("asset")
-            || key.endsWithIgnoreCase("path");
-    }
-
-    bool isLikelyPathValue(const juce::String& value)
-    {
-        return value.containsChar('/')
-            || value.containsChar('\\')
-            || value.containsChar('.');
-    }
-
-    juce::File resolveResourceFile(const juce::String& value, const Gyeol::Export::ExportOptions& options)
+    juce::File resolveInputFilePath(const juce::String& value, const Gyeol::Export::ExportOptions& options)
     {
         if (juce::File::isAbsolutePath(value))
             return juce::File(value);
@@ -393,23 +411,88 @@ namespace
         return juce::File::getCurrentWorkingDirectory().getChildFile(value);
     }
 
-    juce::File makeUniqueDestinationPath(const juce::File& resourceDirectory, const juce::File& sourceFile)
+    juce::String normalizeRelativePath(const juce::String& value)
     {
-        auto candidate = resourceDirectory.getChildFile(sourceFile.getFileName());
+        auto normalized = value.trim().replaceCharacter('\\', '/');
+        while (normalized.startsWith("/"))
+            normalized = normalized.substring(1);
+        while (normalized.contains("//"))
+            normalized = normalized.replace("//", "/");
+        while (normalized.startsWith("../"))
+            normalized = normalized.substring(3);
+        while (normalized.contains("/../"))
+            normalized = normalized.replace("/../", "/");
+        return normalized;
+    }
+
+    juce::String buildPreferredExportAssetRelativePath(const Gyeol::AssetModel& asset, const juce::File& sourceFile)
+    {
+        auto normalized = normalizeRelativePath(asset.relativePath);
+        if (normalized.isEmpty())
+            normalized = sourceFile.getFileName();
+
+        const auto slash = normalized.lastIndexOfChar('/');
+        auto parent = slash >= 0 ? normalized.substring(0, slash) : juce::String();
+        auto fileName = slash >= 0 ? normalized.substring(slash + 1) : normalized;
+        fileName = fileName.trim();
+        if (fileName.isEmpty())
+            fileName = sourceFile.getFileName();
+
+        if (parent.startsWithIgnoreCase("Assets/"))
+            parent = parent.fromFirstOccurrenceOf("Assets/", false, false);
+
+        auto relative = juce::String("Assets");
+        if (parent.isNotEmpty())
+            relative << "/" << parent;
+        relative << "/" << fileName;
+        return normalizeRelativePath(relative);
+    }
+
+    bool isAssetExcludedFromExport(const Gyeol::AssetModel& asset)
+    {
+        static constexpr const char* kExportExcludeKey = "export.exclude";
+        if (!asset.meta.contains(kExportExcludeKey))
+            return false;
+
+        const auto& raw = asset.meta[kExportExcludeKey];
+        if (raw.isBool())
+            return static_cast<bool>(raw);
+        if (raw.isInt() || raw.isInt64() || raw.isDouble())
+            return static_cast<double>(raw) != 0.0;
+
+        const auto text = raw.toString().trim().toLowerCase();
+        return text == "true" || text == "1" || text == "yes" || text == "on";
+    }
+
+    juce::File makeUniqueDestinationPath(const juce::File& outputDirectory,
+                                         const juce::String& preferredRelativePath)
+    {
+        auto normalized = normalizeRelativePath(preferredRelativePath);
+        auto candidate = outputDirectory.getChildFile(normalized);
         if (!candidate.existsAsFile())
             return candidate;
 
-        const auto stem = sourceFile.getFileNameWithoutExtension();
-        const auto ext = sourceFile.getFileExtension();
+        const auto fileName = candidate.getFileName();
+        const auto stem = candidate.getFileNameWithoutExtension();
+        const auto ext = candidate.getFileExtension();
+        auto parentPath = normalizeRelativePath(normalized.upToLastOccurrenceOf(fileName, false, false));
+        if (parentPath.endsWith("/"))
+            parentPath = parentPath.dropLastCharacters(1);
 
         for (int suffix = 2; suffix < 10000; ++suffix)
         {
-            candidate = resourceDirectory.getChildFile(stem + "_" + juce::String(suffix) + ext);
+            const auto suffixedName = stem + "_" + juce::String(suffix) + ext;
+            auto relative = parentPath.isNotEmpty() ? (parentPath + "/" + suffixedName) : suffixedName;
+            relative = normalizeRelativePath(relative);
+            candidate = outputDirectory.getChildFile(relative);
             if (!candidate.existsAsFile())
                 return candidate;
         }
 
-        return resourceDirectory.getChildFile(stem + "_" + juce::String(juce::Time::currentTimeMillis()) + ext);
+        const auto fallback = stem + "_" + juce::String(juce::Time::currentTimeMillis()) + ext;
+        auto relative = parentPath.isNotEmpty() ? (parentPath + "/" + fallback) : fallback;
+        relative = normalizeRelativePath(relative);
+        return outputDirectory.getChildFile(relative);
     }
 
     juce::var serializePropertiesForManifest(const Gyeol::PropertyBag& properties)
@@ -446,7 +529,7 @@ namespace
     juce::String buildManifestJson(const Gyeol::DocumentModel& document,
                                    const juce::String& componentClassName,
                                    const std::vector<ExportWidgetEntry>& widgets,
-                                   const std::vector<CopiedResourceEntry>& resources)
+                                   const std::vector<CopiedAssetEntry>& assets)
     {
         auto root = std::make_unique<juce::DynamicObject>();
         root->setProperty("schemaVersion", document.schemaVersion.major * 10000
@@ -474,17 +557,25 @@ namespace
         }
         root->setProperty("widgets", juce::var(widgetArray));
 
-        juce::Array<juce::var> resourceArray;
-        for (const auto& resource : resources)
+        juce::Array<juce::var> assetArray;
+        for (const auto& asset : assets)
         {
             auto item = std::make_unique<juce::DynamicObject>();
-            item->setProperty("widgetId", Gyeol::widgetIdToJsonString(resource.widgetId));
-            item->setProperty("propertyKey", resource.propertyKey);
-            item->setProperty("sourcePath", resource.sourcePath);
-            item->setProperty("destinationPath", resource.destinationRelativePath);
-            resourceArray.add(juce::var(item.release()));
+            item->setProperty("assetId", Gyeol::widgetIdToJsonString(asset.assetId));
+            item->setProperty("refKey", asset.refKey);
+            item->setProperty("kind", asset.kind);
+            item->setProperty("mime", asset.mimeType);
+            item->setProperty("sourcePath", asset.sourcePath);
+            item->setProperty("destinationPath", asset.destinationRelativePath);
+            item->setProperty("exportPath", asset.destinationRelativePath);
+            item->setProperty("copied", asset.copied);
+            item->setProperty("reused", asset.reused);
+            assetArray.add(juce::var(item.release()));
         }
-        root->setProperty("copiedResources", juce::var(resourceArray));
+        root->setProperty("exportedAssets", juce::var(assetArray));
+
+        // Legacy key retained for one release for tooling compatibility.
+        root->setProperty("copiedResources", juce::var(assetArray));
 
         return juce::JSON::toString(juce::var(root.release()), true);
     }
@@ -518,9 +609,21 @@ namespace Gyeol::Export
         lines.add("Generated Source: " + generatedSourceFile.getFullPathName());
         lines.add("Manifest File: " + manifestFile.getFullPathName());
         lines.add("Widgets Exported: " + juce::String(exportedWidgetCount));
-        lines.add("Resources Copied: " + juce::String(copiedResourceCount));
+        lines.add("Assets Copied: " + juce::String(copiedResourceCount));
+        lines.add("Assets Total: " + juce::String(totalAssetCount));
+        lines.add("Assets Reused: " + juce::String(reusedAssetCount));
+        lines.add("Assets Skipped: " + juce::String(skippedAssetCount));
+        lines.add("Assets Missing: " + juce::String(missingAssetCount));
+        lines.add("Assets Copy Failed: " + juce::String(failedAssetCount));
         lines.add("Warnings: " + juce::String(warningCount));
         lines.add("Errors: " + juce::String(errorCount));
+        lines.add("");
+        lines.add("Assets Summary:");
+        lines.add("- success(copied): " + juce::String(copiedResourceCount));
+        lines.add("- success(reused): " + juce::String(reusedAssetCount));
+        lines.add("- skipped(metadata): " + juce::String(skippedAssetCount));
+        lines.add("- missing: " + juce::String(missingAssetCount));
+        lines.add("- failed(copy): " + juce::String(failedAssetCount));
         lines.add("");
         lines.add("Issues:");
 
@@ -572,10 +675,13 @@ namespace Gyeol::Export
         if (outputDirCheck.failed())
             return fail(outputDirCheck.getErrorMessage());
 
-        const auto resourcesDirectory = options.outputDirectory.getChildFile("Resources");
-        const auto resourcesDirCheck = ensureDirectory(resourcesDirectory);
-        if (resourcesDirCheck.failed())
-            return fail(resourcesDirCheck.getErrorMessage());
+        const auto assetsDirectory = options.outputDirectory.getChildFile("Assets");
+        if (assetsDirectory.exists() && !assetsDirectory.deleteRecursively())
+            return fail("Failed to clear export Assets directory: " + assetsDirectory.getFullPathName());
+
+        const auto assetsDirCheck = ensureDirectory(assetsDirectory);
+        if (assetsDirCheck.failed())
+            return fail(assetsDirCheck.getErrorMessage());
 
         reportOut.generatedHeaderFile = options.outputDirectory.getChildFile(reportOut.componentClassName + ".h");
         reportOut.generatedSourceFile = options.outputDirectory.getChildFile(reportOut.componentClassName + ".cpp");
@@ -648,8 +754,111 @@ namespace Gyeol::Export
             exportWidgets.push_back(std::move(entry));
         }
 
+        std::vector<CopiedAssetEntry> copiedAssets;
+        copiedAssets.reserve(document.assets.size());
+        reportOut.totalAssetCount = static_cast<int>(document.assets.size());
+        std::map<juce::String, juce::String> copiedBySourcePath;
+        std::set<juce::String> preloadImagePathsSet;
+
+        for (const auto& asset : document.assets)
+        {
+            CopiedAssetEntry copied;
+            copied.assetId = asset.id;
+            copied.refKey = asset.refKey;
+            copied.kind = Gyeol::assetKindToKey(asset.kind);
+            copied.mimeType = asset.mimeType;
+
+            if (isAssetExcludedFromExport(asset))
+            {
+                ++reportOut.skippedAssetCount;
+                copied.copied = false;
+                copied.sourcePath = asset.relativePath;
+                reportOut.addIssue(IssueSeverity::info,
+                                   "Asset excluded from export by flag: refKey=" + asset.refKey);
+                copiedAssets.push_back(std::move(copied));
+                continue;
+            }
+
+            if (asset.kind == AssetKind::colorPreset)
+            {
+                ++reportOut.skippedAssetCount;
+                copied.copied = false;
+                copiedAssets.push_back(std::move(copied));
+                continue;
+            }
+
+            if (asset.relativePath.trim().isEmpty())
+            {
+                ++reportOut.missingAssetCount;
+                reportOut.addIssue(IssueSeverity::warning,
+                                   "Asset path is empty for refKey=" + asset.refKey);
+                copiedAssets.push_back(std::move(copied));
+                continue;
+            }
+
+            const auto source = resolveInputFilePath(asset.relativePath, options);
+            auto sourceKey = source.getFullPathName().replaceCharacter('\\', '/');
+            copied.sourcePath = sourceKey;
+
+            if (!source.existsAsFile())
+            {
+                ++reportOut.missingAssetCount;
+                reportOut.addIssue(IssueSeverity::warning,
+                                   "Asset file not found: refKey=" + asset.refKey
+                                   + ", path=" + asset.relativePath);
+                copiedAssets.push_back(std::move(copied));
+                continue;
+            }
+
+            juce::String destinationRelativePath;
+            const auto existing = copiedBySourcePath.find(sourceKey);
+            if (existing != copiedBySourcePath.end())
+            {
+                destinationRelativePath = existing->second;
+                copied.reused = true;
+                ++reportOut.reusedAssetCount;
+            }
+            else
+            {
+                const auto preferredRelativePath = buildPreferredExportAssetRelativePath(asset, source);
+                const auto destination = makeUniqueDestinationPath(options.outputDirectory,
+                                                                   preferredRelativePath);
+                const auto destinationParent = destination.getParentDirectory();
+                if (!destinationParent.exists() && !destinationParent.createDirectory())
+                {
+                    ++reportOut.failedAssetCount;
+                    reportOut.addIssue(IssueSeverity::warning,
+                                       "Failed to create asset folder: " + destinationParent.getFullPathName());
+                    copiedAssets.push_back(std::move(copied));
+                    continue;
+                }
+
+                if (!source.copyFileTo(destination))
+                {
+                    ++reportOut.failedAssetCount;
+                    reportOut.addIssue(IssueSeverity::warning,
+                                       "Failed to copy asset file: " + source.getFullPathName());
+                    copiedAssets.push_back(std::move(copied));
+                    continue;
+                }
+
+                destinationRelativePath = relativePathOrAbsolute(destination, options.outputDirectory);
+                copiedBySourcePath.emplace(sourceKey, destinationRelativePath);
+                ++reportOut.copiedResourceCount;
+            }
+
+            copied.destinationRelativePath = destinationRelativePath;
+            copied.copied = true;
+            copiedAssets.push_back(copied);
+
+            if (asset.kind == AssetKind::image && copied.destinationRelativePath.isNotEmpty())
+                preloadImagePathsSet.insert(copied.destinationRelativePath);
+        }
+
+        std::vector<juce::String> preloadImagePaths(preloadImagePathsSet.begin(), preloadImagePathsSet.end());
+
         const auto headerCode = generateHeaderCode(reportOut.componentClassName, exportWidgets);
-        const auto sourceCode = generateSourceCode(reportOut.componentClassName, exportWidgets);
+        const auto sourceCode = generateSourceCode(reportOut.componentClassName, exportWidgets, preloadImagePaths);
 
         const auto headerWrite = writeTextFile(reportOut.generatedHeaderFile, headerCode, options.overwriteExistingFiles);
         if (headerWrite.failed())
@@ -659,76 +868,12 @@ namespace Gyeol::Export
         if (sourceWrite.failed())
             return fail(sourceWrite.getErrorMessage());
 
-        std::vector<CopiedResourceEntry> copiedResources;
-        std::map<juce::String, juce::String> copiedBySourcePath;
-
-        for (const auto& widget : exportWidgets)
-        {
-            const auto& properties = widget.model->properties;
-            for (int i = 0; i < properties.size(); ++i)
-            {
-                const auto key = properties.getName(i).toString();
-                const auto& valueVar = properties.getValueAt(i);
-
-                if (!valueVar.isString())
-                    continue;
-                if (!isResourcePropertyKey(key))
-                    continue;
-
-                const auto value = valueVar.toString().trim();
-                if (value.isEmpty() || !isLikelyPathValue(value))
-                    continue;
-
-                const auto source = resolveResourceFile(value, options);
-                if (!source.existsAsFile())
-                {
-                    reportOut.addIssue(IssueSeverity::warning,
-                                       "Resource not found for widget id="
-                                       + juce::String(widget.model->id)
-                                       + ", property=" + key
-                                       + ", value=" + value);
-                    continue;
-                }
-
-                auto sourceKey = source.getFullPathName();
-                sourceKey = sourceKey.replaceCharacter('\\', '/');
-
-                juce::String destinationRelativePath;
-                const auto existingCopy = copiedBySourcePath.find(sourceKey);
-                if (existingCopy != copiedBySourcePath.end())
-                {
-                    destinationRelativePath = existingCopy->second;
-                }
-                else
-                {
-                    const auto destination = makeUniqueDestinationPath(resourcesDirectory, source);
-                    if (!source.copyFileTo(destination))
-                    {
-                        reportOut.addIssue(IssueSeverity::warning,
-                                           "Failed to copy resource: " + source.getFullPathName());
-                        continue;
-                    }
-
-                    destinationRelativePath = relativePathOrAbsolute(destination, options.outputDirectory);
-                    copiedBySourcePath.emplace(sourceKey, destinationRelativePath);
-                    ++reportOut.copiedResourceCount;
-                }
-
-                CopiedResourceEntry copied;
-                copied.widgetId = widget.model->id;
-                copied.propertyKey = key;
-                copied.sourcePath = sourceKey;
-                copied.destinationRelativePath = destinationRelativePath;
-                copiedResources.push_back(std::move(copied));
-            }
-        }
-
         if (options.writeManifestJson)
         {
             const auto manifest = buildManifestJson(document,
                                                     reportOut.componentClassName,
                                                     exportWidgets,
-                                                    copiedResources);
+                                                    copiedAssets);
 
             const auto manifestWrite = writeTextFile(reportOut.manifestFile, manifest, options.overwriteExistingFiles);
             if (manifestWrite.failed())

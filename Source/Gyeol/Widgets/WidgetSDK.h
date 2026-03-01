@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Gyeol/Public/Types.h"
+#include <algorithm>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -20,6 +22,84 @@ namespace Gyeol::Widgets
         juce::String label;
         juce::Identifier propKey;
         juce::String hint;
+    };
+
+    enum class WidgetPropertyKind
+    {
+        text,
+        integer,
+        number,
+        boolean,
+        enumChoice,
+        color,
+        vec2,
+        rect,
+        assetRef
+    };
+
+    enum class WidgetPropertyUiHint
+    {
+        autoHint,
+        lineEdit,
+        multiLine,
+        spinBox,
+        slider,
+        toggle,
+        dropdown,
+        segmented,
+        colorPicker,
+        vec2Editor,
+        rectEditor,
+        assetPicker
+    };
+
+    enum class ColorStorage
+    {
+        hexString,      // "#RRGGBB" / "#RRGGBBAA"
+        rgbaObject255,  // { r,g,b,a } in 0..255
+        rgbaObject01,   // { r,g,b,a } in 0..1
+        hslaObject,     // { h,s,l,a } with h:0..360, s/l/a:0..1
+        argbInt,        // 0xAARRGGBB
+        token           // design token id/string
+    };
+
+    struct WidgetEnumOption
+    {
+        juce::String value;
+        juce::String label;
+    };
+
+    struct WidgetPropertySpec
+    {
+        juce::Identifier key;
+        juce::String label;
+        WidgetPropertyKind kind = WidgetPropertyKind::text;
+        WidgetPropertyUiHint uiHint = WidgetPropertyUiHint::autoHint;
+        juce::String group = "Widget";
+        int order = 0;
+        juce::String hint;
+        juce::var defaultValue;
+        std::optional<double> minValue;
+        std::optional<double> maxValue;
+        std::optional<double> step;
+        int decimals = 3;
+        std::vector<WidgetEnumOption> enumOptions;
+        std::vector<AssetKind> acceptedAssetKinds;
+        ColorStorage colorStorage = ColorStorage::hexString;
+        bool colorAllowAlpha = true;
+        bool colorAllowHdr = false;
+        std::optional<juce::Identifier> dependsOnKey;
+        std::optional<juce::var> dependsOnValue;
+        bool advanced = false;
+        bool readOnly = false;
+    };
+
+    struct RuntimeEventSpec
+    {
+        juce::String key;
+        juce::String displayLabel;
+        juce::String description;
+        bool continuous = false;
     };
 
     using DropOptionsProvider = std::function<std::vector<DropOption>(const WidgetModel&, const AssetRef&)>;
@@ -69,10 +149,15 @@ namespace Gyeol::Widgets
         WidgetType type = WidgetType::button;
         juce::String typeKey;
         juce::String displayName;
+        juce::String category;
+        juce::StringArray tags;
+        juce::String iconKey;
         juce::String exportTargetType;
         juce::Rectangle<float> defaultBounds;
         juce::Point<float> minSize { 18.0f, 18.0f };
         PropertyBag defaultProperties;
+        std::vector<WidgetPropertySpec> propertySpecs;
+        std::vector<RuntimeEventSpec> runtimeEvents;
         WidgetPainter painter;
         ExportCodegen exportCodegen;
 
@@ -82,6 +167,33 @@ namespace Gyeol::Widgets
         DropOptionsProvider dropOptions;
         ApplyDrop applyDrop;
     };
+
+    inline const WidgetPropertySpec* findPropertySpec(const std::vector<WidgetPropertySpec>& specs,
+                                                      const juce::Identifier& key) noexcept
+    {
+        const auto it = std::find_if(specs.begin(),
+                                     specs.end(),
+                                     [&key](const WidgetPropertySpec& spec)
+                                     {
+                                         return spec.key == key;
+                                     });
+        return it == specs.end() ? nullptr : &(*it);
+    }
+
+    inline const WidgetPropertySpec* findPropertySpec(const WidgetDescriptor& descriptor,
+                                                      const juce::Identifier& key) noexcept
+    {
+        return findPropertySpec(descriptor.propertySpecs, key);
+    }
+
+    inline bool isAssetKindAccepted(const WidgetPropertySpec& spec, AssetKind kind) noexcept
+    {
+        if (spec.acceptedAssetKinds.empty())
+            return true;
+
+        return std::find(spec.acceptedAssetKinds.begin(), spec.acceptedAssetKinds.end(), kind)
+            != spec.acceptedAssetKinds.end();
+    }
 
     class WidgetClass
     {

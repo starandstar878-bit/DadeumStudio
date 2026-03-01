@@ -9,7 +9,7 @@ This contract defines the files emitted by `Gyeol::Export::exportToJuceComponent
 - `<ComponentClassName>.cpp`: generated constructor + `resized()` layout.
 - `export-manifest.json`: normalized export payload for tooling/inspection.
 - `ExportReport.txt`: human-readable report with warnings/errors.
-- `Resources/*`: copied resource files referenced by scene properties.
+- `Assets/*`: copied asset binaries resolved from `DocumentModel.assets`.
 
 ## Manifest Schema (`export-manifest.json`)
 - `schemaVersion` (`int`): packed scene schema version (`major*10000 + minor*100 + patch`).
@@ -27,21 +27,30 @@ This contract defines the files emitted by `Gyeol::Export::exportToJuceComponent
 - `supported` (`bool`): `false` means fallback UI code was generated.
 - `bounds` (`object`): `{x, y, w, h}` as float.
 - `properties` (`object`): serialized widget `PropertyBag`.
-- `copiedResources` (`array<object>`):
-- `widgetId` (`string`)
-- `propertyKey` (`string`)
+- `exportedAssets` (`array<object>`):
+- `assetId` (`string`)
+- `refKey` (`string`)
+- `kind` (`string`)
+- `mime` (`string`)
 - `sourcePath` (`string`)
 - `destinationPath` (`string`) relative to export output directory when available.
+- `exportPath` (`string`) canonical export-relative path (`Assets/...`).
+- `copied` (`bool`)
+- `reused` (`bool`) `true` when already-copied source path was reused.
+- `copiedResources` (`array<object>`): legacy compatibility mirror of `exportedAssets` (kept for one release).
 
-## Resource Copy Rule (MVP)
-- Only `string` properties are considered.
-- Property key must look resource-like (`*image*`, `*asset*`, `*path`).
-- Value must look path-like (`/`, `\`, or `.` included).
-- Relative paths are resolved from `ExportOptions::projectRootDirectory`.
+## Asset Copy Rule (Phase 3.5 Assets 2nd)
+- Exporter creates/refreshes output `Assets/` directory for each export run.
+- Copy source is `DocumentModel.assets` (`image/font/file` kinds); `colorPreset` is metadata-only.
+- Relative source paths are resolved from `ExportOptions::projectRootDirectory`.
+- Export destination prefers preserving relative subpath under `Assets/`.
+- Filename collisions are resolved with suffix (`name`, `name_2`, `name_3`, ...).
+- Missing files are recorded as `WARN` and do not hard-fail export.
 
 ## Report Rule
 - `ExportReport.txt` is always emitted on successful write path.
 - Each issue is recorded with severity: `INFO`, `WARN`, `ERROR`.
+- Report contains `Assets Summary` (`copied/reused/skipped/missing/failed`).
 - Export function returns failure when any hard error occurs.
 
 ## Codegen Resolution Order

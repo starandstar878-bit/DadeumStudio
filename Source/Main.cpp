@@ -71,10 +71,34 @@ public:
             setFullScreen (true);
            #else
             setResizable (true, true);
-            centreWithSize (getWidth(), getHeight());
+            if (const auto* display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay())
+                windowedBounds = display->userArea.reduced (display->userArea.getWidth() / 10,
+                                                            display->userArea.getHeight() / 10);
+            else
+                windowedBounds = { 120, 80, 1440, 900 };
+
+            setBounds (windowedBounds);
+            enterFullscreenMode();
            #endif
 
             setVisible (true);
+        }
+
+        bool keyPressed (const juce::KeyPress& key) override
+        {
+            if (key.getKeyCode() == juce::KeyPress::F11Key)
+            {
+                toggleFullscreenMode();
+                return true;
+            }
+
+            if (key.getKeyCode() == juce::KeyPress::escapeKey && fullscreenMode)
+            {
+                exitFullscreenMode();
+                return true;
+            }
+
+            return DocumentWindow::keyPressed(key);
         }
 
         void closeButtonPressed() override
@@ -93,6 +117,43 @@ public:
         */
 
     private:
+        void toggleFullscreenMode()
+        {
+            if (fullscreenMode)
+                exitFullscreenMode();
+            else
+                enterFullscreenMode();
+        }
+
+        void enterFullscreenMode()
+        {
+            if (fullscreenMode)
+                return;
+
+            windowedBounds = getBounds();
+            setUsingNativeTitleBar (false);
+            setTitleBarHeight (0);
+            setFullScreen (true);
+            fullscreenMode = true;
+        }
+
+        void exitFullscreenMode()
+        {
+            if (! fullscreenMode)
+                return;
+
+            setFullScreen (false);
+            setUsingNativeTitleBar (true);
+
+            if (! windowedBounds.isEmpty())
+                setBounds (windowedBounds);
+
+            fullscreenMode = false;
+        }
+
+        bool fullscreenMode = false;
+        juce::Rectangle<int> windowedBounds;
+
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)
     };
 

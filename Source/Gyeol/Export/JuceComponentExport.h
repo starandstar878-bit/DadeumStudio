@@ -30,6 +30,11 @@ namespace Gyeol::Export
 
         int exportedWidgetCount = 0;
         int copiedResourceCount = 0;
+        int totalAssetCount = 0;
+        int skippedAssetCount = 0;
+        int missingAssetCount = 0;
+        int failedAssetCount = 0;
+        int reusedAssetCount = 0;
         int warningCount = 0;
         int errorCount = 0;
 
@@ -54,4 +59,3 @@ namespace Gyeol::Export
                                        const ExportOptions& options,
                                        ExportReport& reportOut);
 }
-

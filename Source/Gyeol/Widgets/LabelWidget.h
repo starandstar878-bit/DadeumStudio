@@ -13,10 +13,37 @@ namespace Gyeol::Widgets
             descriptor.type = WidgetType::label;
             descriptor.typeKey = "label";
             descriptor.displayName = "Label";
+            descriptor.category = "Text";
+            descriptor.tags = { "label", "text", "display" };
+            descriptor.iconKey = "label";
             descriptor.exportTargetType = "juce::Label";
             descriptor.defaultBounds = { 0.0f, 0.0f, 120.0f, 28.0f };
             descriptor.minSize = { 60.0f, 20.0f };
             descriptor.defaultProperties.set("text", juce::String("Label"));
+            {
+                WidgetPropertySpec textSpec;
+                textSpec.key = juce::Identifier("text");
+                textSpec.label = "Text";
+                textSpec.kind = WidgetPropertyKind::text;
+                textSpec.uiHint = WidgetPropertyUiHint::lineEdit;
+                textSpec.group = "Content";
+                textSpec.order = 10;
+                textSpec.hint = "Displayed label text";
+                textSpec.defaultValue = juce::var("Label");
+                descriptor.propertySpecs.push_back(std::move(textSpec));
+
+                WidgetPropertySpec bgImageSpec;
+                bgImageSpec.key = juce::Identifier("label.backgroundImage");
+                bgImageSpec.label = "Background Image";
+                bgImageSpec.kind = WidgetPropertyKind::assetRef;
+                bgImageSpec.uiHint = WidgetPropertyUiHint::assetPicker;
+                bgImageSpec.group = "Appearance";
+                bgImageSpec.order = 100;
+                bgImageSpec.hint = "Optional image asset id for label background";
+                bgImageSpec.acceptedAssetKinds = { AssetKind::image };
+                bgImageSpec.advanced = true;
+                descriptor.propertySpecs.push_back(std::move(bgImageSpec));
+            }
             descriptor.painter = [](juce::Graphics& g, const WidgetModel& widget, const juce::Rectangle<float>& body)
             {
                 g.setColour(juce::Colour::fromRGB(44, 49, 60));
