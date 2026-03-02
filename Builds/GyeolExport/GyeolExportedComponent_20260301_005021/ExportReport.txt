@@ -1,0 +1,28 @@
+Gyeol Export Report
+===================
+Component Class: GyeolExportedComponent
+Output Directory: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260301_005021
+Generated Header: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260301_005021\GyeolExportedComponent.h
+Generated Source: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260301_005021\GyeolExportedComponent.cpp
+Manifest File: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260301_005021\export-manifest.json
+Widgets Exported: 1
+Assets Copied: 0
+Assets Total: 3
+Assets Reused: 0
+Assets Skipped: 0
+Assets Missing: 3
+Assets Copy Failed: 0
+Warnings: 3
+Errors: 0
+
+Assets Summary:
+- success(copied): 0
+- success(reused): 0
+- skipped(metadata): 0
+- missing: 3
+- failed(copy): 0
+
+Issues:
+- WARN: Asset file not found: refKey=asset.wp_pedal, path=JUCE Dev/Wahplash/Resources/WP_Pedal.png
+- WARN: Asset file not found: refKey=asset.wp_stompbutton_off, path=JUCE Dev/Wahplash/Resources/WP_StompButton_Off.png
+- WARN: Asset file not found: refKey=asset.wp_stompbutton_on, path=JUCE Dev/Wahplash/Resources/WP_StompButton_On.png

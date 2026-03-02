@@ -93,6 +93,55 @@ namespace Gyeol
             return true;
         }
 
+        bool runtimeParamEquals(const RuntimeParamModel& lhs, const RuntimeParamModel& rhs) noexcept
+        {
+            return lhs.key == rhs.key
+                && lhs.type == rhs.type
+                && lhs.defaultValue == rhs.defaultValue
+                && lhs.description == rhs.description
+                && lhs.exposed == rhs.exposed;
+        }
+
+        bool runtimeParamsEqual(const std::vector<RuntimeParamModel>& lhs,
+                                const std::vector<RuntimeParamModel>& rhs) noexcept
+        {
+            if (lhs.size() != rhs.size())
+                return false;
+
+            for (size_t i = 0; i < lhs.size(); ++i)
+            {
+                if (!runtimeParamEquals(lhs[i], rhs[i]))
+                    return false;
+            }
+
+            return true;
+        }
+
+        bool propertyBindingEquals(const PropertyBindingModel& lhs, const PropertyBindingModel& rhs) noexcept
+        {
+            return lhs.id == rhs.id
+                && lhs.name == rhs.name
+                && lhs.enabled == rhs.enabled
+                && lhs.targetWidgetId == rhs.targetWidgetId
+                && lhs.targetProperty == rhs.targetProperty
+                && lhs.expression == rhs.expression;
+        }
+
+        bool propertyBindingsEqual(const std::vector<PropertyBindingModel>& lhs,
+                                   const std::vector<PropertyBindingModel>& rhs) noexcept
+        {
+            if (lhs.size() != rhs.size())
+                return false;
+
+            for (size_t i = 0; i < lhs.size(); ++i)
+            {
+                if (!propertyBindingEquals(lhs[i], rhs[i]))
+                    return false;
+            }
+
+            return true;
+        }
+
         bool assetModelEquals(const AssetModel& lhs, const AssetModel& rhs) noexcept
         {
             return lhs.id == rhs.id
@@ -748,6 +797,48 @@ namespace Gyeol
 
         auto nextDocument = currentDocument;
         nextDocument.assets = std::move(assets);
+
+        const auto previous = impl->snapshot();
+        impl->store.reset(std::move(nextDocument));
+        impl->editorState = previous.editorState;
+        impl->pushUndoState(previous);
+        impl->clearRedo();
+        ++impl->historySerial;
+        return true;
+    }
+
+    bool DocumentHandle::setRuntimeParams(std::vector<RuntimeParamModel> params)
+    {
+        if (!impl->finalizeActiveCoalescedEdit(true))
+            return false;
+
+        const auto& currentDocument = impl->store.snapshot();
+        if (runtimeParamsEqual(currentDocument.runtimeParams, params))
+            return false;
+
+        auto nextDocument = currentDocument;
+        nextDocument.runtimeParams = std::move(params);
+
+        const auto previous = impl->snapshot();
+        impl->store.reset(std::move(nextDocument));
+        impl->editorState = previous.editorState;
+        impl->pushUndoState(previous);
+        impl->clearRedo();
+        ++impl->historySerial;
+        return true;
+    }
+
+    bool DocumentHandle::setPropertyBindings(std::vector<PropertyBindingModel> bindings)
+    {
+        if (!impl->finalizeActiveCoalescedEdit(true))
+            return false;
+
+        const auto& currentDocument = impl->store.snapshot();
+        if (propertyBindingsEqual(currentDocument.propertyBindings, bindings))
+            return false;
+
+        auto nextDocument = currentDocument;
+        nextDocument.propertyBindings = std::move(bindings);
 
         const auto previous = impl->snapshot();
         impl->store.reset(std::move(nextDocument));

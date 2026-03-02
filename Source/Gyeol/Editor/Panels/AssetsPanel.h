@@ -104,11 +104,15 @@ namespace Gyeol::Ui::Panels
         juce::File resolveProjectRootDirectory() const;
         juce::File resolveInputFilePath(const juce::String& value) const;
         juce::Image getImageThumbnailForAsset(const AssetModel& asset) const;
+        juce::Typeface::Ptr getFontPreviewTypefaceForAsset(const AssetModel& asset) const;
         static bool isAudioAsset(const AssetModel& asset);
+        static bool isVideoAsset(const AssetModel& asset);
         bool isAssetPreviewPlaying(WidgetId assetId) const;
         void toggleAudioPreviewForAsset(WidgetId assetId);
         void startAudioPreviewForAsset(const AssetModel& asset);
+        void startVideoPreviewForAsset(const AssetModel& asset);
         void stopAudioPreview();
+        void updateVideoPreviewLayout();
         void startDragForRow(int row, juce::Component& sourceComponent, juce::Point<int> dragStartPos);
 
         static juce::String sanitizeRefToken(const juce::String& text);
@@ -133,9 +137,11 @@ namespace Gyeol::Ui::Panels
         std::unordered_map<WidgetId, int> usageCountByAssetId;
         std::vector<AssetUsageEntry> selectedAssetUsageEntries;
         mutable std::map<juce::String, juce::Image> thumbnailCache;
+        mutable std::map<juce::String, juce::Typeface::Ptr> fontPreviewCache;
         WidgetId selectedAssetId = kRootId;
         bool fileDragHovering = false;
         bool audioPreviewAvailable = false;
+        bool videoPreviewVisible = false;
         WidgetId previewAssetId = kRootId;
 
         std::function<void(const juce::String&)> onAssetsChanged;
@@ -169,6 +175,9 @@ namespace Gyeol::Ui::Panels
         juce::AudioSourcePlayer audioSourcePlayer;
         std::unique_ptr<juce::AudioFormatReaderSource> audioReaderSource;
         juce::AudioDeviceManager audioDeviceManager;
+        std::unique_ptr<juce::VideoComponent> videoPreview;
+        juce::Label videoPreviewLabel;
+        juce::TextButton videoPreviewStopButton { "Stop Video" };
         std::unique_ptr<juce::FileChooser> pendingFileChooser;
     };
 }

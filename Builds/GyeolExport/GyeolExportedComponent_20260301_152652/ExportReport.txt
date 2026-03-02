@@ -1,0 +1,27 @@
+Gyeol Export Report
+===================
+Component Class: GyeolExportedComponent
+Output Directory: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260301_152652
+Generated Header: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260301_152652\GyeolExportedComponent.h
+Generated Source: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260301_152652\GyeolExportedComponent.cpp
+Manifest File: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260301_152652\export-manifest.json
+Widgets Exported: 7
+Assets Copied: 1
+Assets Total: 3
+Assets Reused: 0
+Assets Skipped: 0
+Assets Missing: 2
+Assets Copy Failed: 0
+Warnings: 2
+Errors: 0
+
+Assets Summary:
+- success(copied): 1
+- success(reused): 0
+- skipped(metadata): 0
+- missing: 2
+- failed(copy): 0
+
+Issues:
+- WARN: Asset file not found: refKey=asset.wp_stompbutton_on, path=JUCE Dev/Wahplash/Resources/WP_StompButton_On.png
+- WARN: Asset file not found: refKey=asset.montserrat-medium, path=JUCE Dev/Wahplash/Resources/Montserrat-Medium.ttf

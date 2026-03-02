@@ -1,0 +1,7 @@
+-xc++
+-I./Source
+-I./JuceLibraryCode
+-IC:/JUCE/modules
+-DJUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
+-DJUCE_STRICT_REFCOUNTEDPOINTER=1
+-std=c++20

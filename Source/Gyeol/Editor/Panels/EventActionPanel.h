@@ -21,6 +21,12 @@ namespace Gyeol::Ui::Panels
         void resized() override;
 
     private:
+        enum class PanelMode
+        {
+            eventAction,
+            stateBinding
+        };
+
         struct WidgetOption
         {
             WidgetId id = kRootId;
@@ -61,17 +67,58 @@ namespace Gyeol::Ui::Panels
             EventActionPanel& owner;
         };
 
+        class RuntimeParamListModel final : public juce::ListBoxModel
+        {
+        public:
+            explicit RuntimeParamListModel(EventActionPanel& ownerIn) : owner(ownerIn) {}
+            int getNumRows() override;
+            void paintListBoxItem(int rowNumber,
+                                  juce::Graphics& g,
+                                  int width,
+                                  int height,
+                                  bool rowIsSelected) override;
+            void selectedRowsChanged(int lastRowSelected) override;
+
+        private:
+            EventActionPanel& owner;
+        };
+
+        class PropertyBindingListModel final : public juce::ListBoxModel
+        {
+        public:
+            explicit PropertyBindingListModel(EventActionPanel& ownerIn) : owner(ownerIn) {}
+            int getNumRows() override;
+            void paintListBoxItem(int rowNumber,
+                                  juce::Graphics& g,
+                                  int width,
+                                  int height,
+                                  bool rowIsSelected) override;
+            void selectedRowsChanged(int lastRowSelected) override;
+
+        private:
+            EventActionPanel& owner;
+        };
+
         int selectedBindingModelIndex() const;
         RuntimeBindingModel* selectedBinding();
         const RuntimeBindingModel* selectedBinding() const;
         RuntimeActionModel* selectedAction();
         const RuntimeActionModel* selectedAction() const;
+        int selectedRuntimeParamIndex() const;
+        RuntimeParamModel* selectedRuntimeParam();
+        const RuntimeParamModel* selectedRuntimeParam() const;
+        int selectedPropertyBindingIndex() const;
+        PropertyBindingModel* selectedPropertyBinding();
+        const PropertyBindingModel* selectedPropertyBinding() const;
 
         void rebuildWidgetOptions();
         void rebuildCreateCombos();
         void rebuildVisibleBindings();
         void restoreSelections();
         void refreshDetailEditors();
+        void refreshStateEditors();
+        void updatePanelModeVisibility();
+        void setPanelMode(PanelMode mode);
         void updateActionEditorVisibility(const RuntimeActionModel* action, bool hasAction);
         void rebuildAssetPatchEditors(const RuntimeActionModel* action);
         void syncAssetPatchValueEditor();
@@ -85,22 +132,32 @@ namespace Gyeol::Ui::Panels
         void deleteAction();
         void moveActionUp();
         void moveActionDown();
+        void addRuntimeParam();
+        void deleteRuntimeParam();
+        void applySelectedRuntimeParam();
+        void addPropertyBinding();
+        void deletePropertyBinding();
+        void applySelectedPropertyBinding();
 
         void applyBindingMeta();
         void applyActionKind();
         void applySelectedAction();
 
         bool commitBindings(const juce::String& reason);
+        bool commitRuntimeParams(const juce::String& reason);
+        bool commitPropertyBindings(const juce::String& reason);
         void setStatus(const juce::String& text, juce::Colour colour);
 
         RuntimeBindingModel makeDefaultBinding(WidgetId sourceWidgetId, const juce::String& eventKey) const;
         RuntimeActionModel makeDefaultAction(RuntimeActionKind kind, WidgetId sourceWidgetId) const;
         WidgetId nextBindingId() const;
+        WidgetId nextPropertyBindingId() const;
 
         std::optional<WidgetOption> findWidgetOption(WidgetId id) const;
         juce::String formatEventLabel(const Widgets::RuntimeEventSpec& eventSpec) const;
         juce::String formatEventLabel(WidgetId sourceWidgetId, const juce::String& eventKey) const;
         juce::String actionSummary(const RuntimeActionModel& action) const;
+        juce::String validatePropertyBindingForUi(const PropertyBindingModel& binding) const;
 
         static juce::String actionKindLabel(RuntimeActionKind kind);
         static std::optional<RuntimeActionKind> actionKindFromLabel(const juce::String& label);
@@ -115,17 +172,26 @@ namespace Gyeol::Ui::Panels
         const Widgets::WidgetRegistry& registry;
         BindingListModel bindingListModel;
         ActionListModel actionListModel;
+        RuntimeParamListModel runtimeParamListModel;
+        PropertyBindingListModel propertyBindingListModel;
 
         std::function<void()> onBindingsChanged;
 
+        PanelMode panelMode = PanelMode::eventAction;
         std::vector<WidgetOption> widgetOptions;
         std::vector<RuntimeBindingModel> bindings;
+        std::vector<RuntimeParamModel> runtimeParams;
+        std::vector<PropertyBindingModel> propertyBindings;
         std::vector<int> visibleBindingIndices;
         WidgetId selectedBindingId = kRootId;
         int selectedActionRow = -1;
+        int selectedRuntimeParamRow = -1;
+        int selectedPropertyBindingRow = -1;
         bool suppressCallbacks = false;
 
         juce::Label titleLabel;
+        juce::TextButton eventModeButton { "Events" };
+        juce::TextButton stateModeButton { "State" };
         juce::ComboBox sourceCombo;
         juce::ComboBox eventCombo;
         juce::TextButton addBindingButton { "+ Binding" };
@@ -164,6 +230,27 @@ namespace Gyeol::Ui::Panels
 
         std::vector<juce::Identifier> assetPatchKeys;
         std::vector<juce::String> assetPatchValues;
+
+        juce::Label stateHintLabel;
+        juce::Label runtimeParamTitleLabel;
+        juce::ListBox runtimeParamList;
+        juce::TextButton addRuntimeParamButton { "+ Param" };
+        juce::TextButton deleteRuntimeParamButton { "Delete Param" };
+        juce::TextEditor runtimeParamKeyEditor;
+        juce::ComboBox runtimeParamTypeCombo;
+        juce::TextEditor runtimeParamDefaultEditor;
+        juce::TextEditor runtimeParamDescriptionEditor;
+        juce::ToggleButton runtimeParamExposedToggle { "Exposed" };
+
+        juce::Label propertyBindingTitleLabel;
+        juce::ListBox propertyBindingList;
+        juce::TextButton addPropertyBindingButton { "+ Link" };
+        juce::TextButton deletePropertyBindingButton { "Delete Link" };
+        juce::TextEditor propertyBindingNameEditor;
+        juce::ToggleButton propertyBindingEnabledToggle { "Enabled" };
+        juce::TextEditor propertyBindingTargetIdEditor;
+        juce::TextEditor propertyBindingTargetPropertyEditor;
+        juce::TextEditor propertyBindingExpressionEditor;
 
         juce::Label statusLabel;
     };

@@ -6,6 +6,7 @@
             "intelliSenseMode": "windows-msvc-x64",
             "cStandard": "c17",
             "cppStandard": "c++20",
+            "compilerPath": "cl.exe",
             "includePath": [
                 "${workspaceFolder}/Source",
                 "${workspaceFolder}/JuceLibraryCode",

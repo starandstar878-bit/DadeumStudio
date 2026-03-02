@@ -98,6 +98,32 @@ namespace Gyeol
         std::vector<RuntimeActionModel> actions;
     };
 
+    enum class RuntimeParamValueType
+    {
+        number,
+        boolean,
+        string
+    };
+
+    struct RuntimeParamModel
+    {
+        juce::String key;
+        RuntimeParamValueType type = RuntimeParamValueType::number;
+        juce::var defaultValue;
+        juce::String description;
+        bool exposed = true;
+    };
+
+    struct PropertyBindingModel
+    {
+        WidgetId id = kRootId;
+        juce::String name;
+        bool enabled = true;
+        WidgetId targetWidgetId = kRootId;
+        juce::String targetProperty;
+        juce::String expression;
+    };
+
     // Compatibility aliases for existing editor/interaction code paths.
     using LayerNodeKind = NodeKind;
     using LayerNodeRef = NodeRef;
@@ -150,7 +176,7 @@ namespace Gyeol
     struct SchemaVersion
     {
         int major = 0;
-        int minor = 5;
+        int minor = 6;
         int patch = 0;
     };
 
@@ -177,6 +203,8 @@ namespace Gyeol
         std::vector<GroupModel> groups;
         std::vector<LayerModel> layers;
         std::vector<AssetModel> assets;
+        std::vector<RuntimeParamModel> runtimeParams;
+        std::vector<PropertyBindingModel> propertyBindings;
         std::vector<RuntimeBindingModel> runtimeBindings;
     };
 
@@ -225,6 +253,27 @@ namespace Gyeol
         if (normalized == "toggleRuntimeParam") return RuntimeActionKind::toggleRuntimeParam;
         if (normalized == "setNodeProps") return RuntimeActionKind::setNodeProps;
         if (normalized == "setNodeBounds") return RuntimeActionKind::setNodeBounds;
+        return std::nullopt;
+    }
+
+    inline juce::String runtimeParamValueTypeToKey(RuntimeParamValueType type)
+    {
+        switch (type)
+        {
+            case RuntimeParamValueType::number: return "number";
+            case RuntimeParamValueType::boolean: return "boolean";
+            case RuntimeParamValueType::string: return "string";
+        }
+
+        return {};
+    }
+
+    inline std::optional<RuntimeParamValueType> runtimeParamValueTypeFromKey(const juce::String& key)
+    {
+        const auto normalized = key.trim();
+        if (normalized == "number") return RuntimeParamValueType::number;
+        if (normalized == "boolean") return RuntimeParamValueType::boolean;
+        if (normalized == "string") return RuntimeParamValueType::string;
         return std::nullopt;
     }
 

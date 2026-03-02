@@ -126,6 +126,7 @@ namespace Gyeol::Ui::Panels
         void buildLayerContent(const LayerModel& layer);
         void buildGroupContent(const GroupModel& group);
         void buildWidgetContent(const std::vector<WidgetRef>& widgets, bool multiSelection);
+        void buildWidgetBindingSummary(const std::vector<WidgetRef>& widgets);
 
         void buildCommonWidgetProperties(const std::vector<WidgetRef>& widgets);
         std::vector<Widgets::WidgetPropertySpec> commonPropertySpecs(const std::vector<WidgetRef>& widgets) const;

@@ -8,11 +8,18 @@
 #include "Gyeol/Editor/Panels/GridSnapPanel.h"
 #include "Gyeol/Editor/Panels/HistoryPanel.h"
 #include "Gyeol/Editor/Panels/LayerTreePanel.h"
+#include "Gyeol/Editor/Panels/NavigatorPanel.h"
+#include "Gyeol/Editor/Panels/PerformancePanel.h"
 #include "Gyeol/Editor/Panels/PropertyPanel.h"
 #include "Gyeol/Editor/Panels/AssetsPanel.h"
 #include "Gyeol/Editor/Panels/ValidationPanel.h"
 #include "Gyeol/Editor/Panels/WidgetLibraryPanel.h"
 #include "Gyeol/Export/JuceComponentExport.h"
+#include "Gyeol/Runtime/RuntimeActionExecutor.h"
+#include "Gyeol/Runtime/RuntimeBindingEngine.h"
+#include "Gyeol/Runtime/RuntimeDiagnostics.h"
+#include "Gyeol/Runtime/PropertyBindingResolver.h"
+#include "Gyeol/Runtime/RuntimeParamBridge.h"
 #include "Gyeol/Widgets/WidgetRegistry.h"
 #include "Gyeol/Serialization/DocumentJson.h"
 #include <algorithm>
@@ -21,6 +28,7 @@
 #include <cmath>
 #include <functional>
 #include <limits>
+#include <map>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -371,18 +379,126 @@ namespace Gyeol::Ui
                             public juce::DragAndDropTarget
     {
     public:
+        enum class InteractionMode
+        {
+            preview,
+            run
+        };
+
         CanvasComponent(DocumentHandle& documentIn, const Widgets::WidgetFactory& widgetFactoryIn)
             : document(documentIn),
               widgetFactory(widgetFactoryIn),
               renderer(widgetFactoryIn)
         {
             setWantsKeyboardFocus(true);
+
+            Runtime::RuntimeDiagnostics::Settings diagnosticsSettings;
+            diagnosticsSettings.logLevel = Runtime::RuntimeLogLevel::info;
+            diagnosticsSettings.valueChangedLogStride = 12;
+            runtimeDiagnostics.setSettings(diagnosticsSettings);
+
+            Runtime::RuntimeBindingEngine::DispatchOptions dispatchOptions;
+            dispatchOptions.maxActionsPerEvent = 128;
+            dispatchOptions.continueOnActionFailure = true;
+            runtimeBindingEngine.setDispatchOptions(dispatchOptions);
+
             refreshFromDocument();
+        }
+
+        void setInteractionMode(InteractionMode nextMode)
+        {
+            if (interactionModeValue == nextMode)
+                return;
+
+            interactionModeValue = nextMode;
+            dragState = {};
+            marqueeState = {};
+            panState = {};
+            guideDragState = {};
+            runtimeInteraction = {};
+            runtimeParamBridge.clear();
+            runtimeDiagnostics.resetSession();
+            clearTransientSnapGuides();
+            clearWidgetLibraryDropPreview();
+            clearAssetDropPreview();
+            lastRuntimeBindingFailureDigest.clear();
+
+            bool bindingAppliedOnModeSwitch = false;
+            if (interactionModeValue == InteractionMode::run)
+            {
+                activeGroupEditId.reset();
+                seedRuntimeParamsFromDocument();
+                bindingAppliedOnModeSwitch = applyRuntimePropertyBindings();
+            }
+            else if (interactionModeValue == InteractionMode::preview && previewBindingSimulationEnabled)
+            {
+                seedRuntimeParamsFromDocument();
+                bindingAppliedOnModeSwitch = applyRuntimePropertyBindings();
+            }
+
+            if (bindingAppliedOnModeSwitch)
+                refreshFromDocument();
+            else
+            {
+                syncSelectionToViews();
+                repaint();
+            }
+        }
+
+        InteractionMode interactionMode() const noexcept
+        {
+            return interactionModeValue;
+        }
+
+        bool isRunMode() const noexcept
+        {
+            return interactionModeValue == InteractionMode::run;
+        }
+
+        bool isPreviewBindingSimulationEnabled() const noexcept
+        {
+            return previewBindingSimulationEnabled;
+        }
+
+        void setPreviewBindingSimulationEnabled(bool enabled)
+        {
+            if (previewBindingSimulationEnabled == enabled)
+                return;
+
+            previewBindingSimulationEnabled = enabled;
+            runtimeParamBridge.clear();
+            runtimeDiagnostics.resetSession();
+            lastRuntimeBindingFailureDigest.clear();
+
+            bool bindingApplied = false;
+            if (interactionModeValue == InteractionMode::preview && previewBindingSimulationEnabled)
+            {
+                seedRuntimeParamsFromDocument();
+                bindingApplied = applyRuntimePropertyBindings();
+            }
+
+            if (bindingApplied)
+                refreshFromDocument();
+            else
+            {
+                syncSelectionToViews();
+                repaint();
+            }
         }
 
         void setStateChangedCallback(std::function<void()> callback)
         {
             onStateChanged = std::move(callback);
+        }
+
+        void setViewportChangedCallback(std::function<void()> callback)
+        {
+            onViewportChanged = std::move(callback);
+        }
+
+        void setRuntimeLogCallback(std::function<void(const juce::String&, const juce::String&)> callback)
+        {
+            onRuntimeLog = std::move(callback);
         }
 
         void setActiveLayerResolver(std::function<std::optional<WidgetId>()> resolver)
@@ -417,11 +533,30 @@ namespace Gyeol::Ui
             return snapSettings;
         }
 
+        float currentZoomLevel() const noexcept
+        {
+            return zoomLevel;
+        }
+
+        juce::Point<float> currentViewOriginWorld() const noexcept
+        {
+            return viewOriginWorld;
+        }
+
+        juce::Rectangle<float> visibleWorldBounds() const noexcept
+        {
+            const auto viewport = viewportBounds();
+            if (viewport.isEmpty())
+                return {};
+            return viewToWorldRect(viewport.toFloat());
+        }
+
         void resized() override
         {
             recenterAndClampViewport();
             updateAllWidgetViewBounds();
             repaint();
+            notifyViewportChanged();
         }
 
         juce::Rectangle<int> viewportBounds() const noexcept
@@ -464,6 +599,9 @@ namespace Gyeol::Ui
 
         bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails& dragSourceDetails) override
         {
+            if (isRunMode())
+                return false;
+
             return extractWidgetLibraryTypeKey(dragSourceDetails.description).has_value()
                 || extractAssetDragPayload(dragSourceDetails.description).has_value();
         }
@@ -475,6 +613,13 @@ namespace Gyeol::Ui
 
         void itemDragMove(const juce::DragAndDropTarget::SourceDetails& dragSourceDetails) override
         {
+            if (isRunMode())
+            {
+                clearWidgetLibraryDropPreview();
+                clearAssetDropPreview();
+                return;
+            }
+
             if (extractWidgetLibraryTypeKey(dragSourceDetails.description).has_value())
             {
                 clearAssetDropPreview();
@@ -530,6 +675,9 @@ namespace Gyeol::Ui
 
         void itemDropped(const juce::DragAndDropTarget::SourceDetails& dragSourceDetails) override
         {
+            if (isRunMode())
+                return;
+
             const auto typeKey = extractWidgetLibraryTypeKey(dragSourceDetails.description);
             const auto viewPoint = dragSourceDetails.localPosition.toFloat();
             clearWidgetLibraryDropPreview();
@@ -636,6 +784,33 @@ namespace Gyeol::Ui
             clampViewOriginToCanvas();
             updateAllWidgetViewBounds();
             repaint();
+            notifyViewportChanged();
+            return true;
+        }
+
+        bool focusWorldPoint(juce::Point<float> worldPoint)
+        {
+            const auto viewport = viewportBounds();
+            if (viewport.getWidth() <= 0 || viewport.getHeight() <= 0)
+                return false;
+
+            const auto visibleWorldW = static_cast<float>(viewport.getWidth()) / zoomLevel;
+            const auto visibleWorldH = static_cast<float>(viewport.getHeight()) / zoomLevel;
+            const auto previousOrigin = viewOriginWorld;
+
+            viewOriginWorld.x = worldPoint.x - visibleWorldW * 0.5f;
+            viewOriginWorld.y = worldPoint.y - visibleWorldH * 0.5f;
+            clampViewOriginToCanvas();
+
+            if (areClose(previousOrigin.x, viewOriginWorld.x)
+                && areClose(previousOrigin.y, viewOriginWorld.y))
+            {
+                return false;
+            }
+
+            updateAllWidgetViewBounds();
+            repaint();
+            notifyViewportChanged();
             return true;
         }
 
@@ -741,6 +916,7 @@ namespace Gyeol::Ui
             clampViewOriginToCanvas();
             updateAllWidgetViewBounds();
             repaint();
+            notifyViewportChanged();
         }
 
         void repaintRulerTrackerDelta(std::optional<juce::Point<float>> previousPoint,
@@ -1182,7 +1358,8 @@ namespace Gyeol::Ui
             widgetViews.reserve(document.snapshot().widgets.size());
 
             const auto& selection = document.editorState().selection;
-            const auto showWidgetHandles = selection.size() == 1;
+            const auto showSelectionVisuals = !isRunMode();
+            const auto showWidgetHandles = showSelectionVisuals && selection.size() == 1;
             const auto orderedIds = orderedWidgetIdsForCanvas();
             clampViewOriginToCanvas();
 
@@ -1213,7 +1390,7 @@ namespace Gyeol::Ui
                 if (!isWidgetEffectivelyVisible(widget->id))
                     continue;
 
-                const auto isSelected = containsWidgetId(selection, widget->id);
+                const auto isSelected = showSelectionVisuals && containsWidgetId(selection, widget->id);
                 const auto* group = findGroupByMember(widget->id);
                 const auto isGrouped = group != nullptr;
                 const auto groupedInActiveEdit = isGrouped
@@ -1341,6 +1518,7 @@ namespace Gyeol::Ui
             }
 
             notifyStateChanged();
+            notifyViewportChanged();
         }
 
         void syncSelectionFromDocument()
@@ -1808,6 +1986,17 @@ namespace Gyeol::Ui
 
             grabKeyboardFocus();
 
+            if (isRunMode())
+            {
+                if (juce::KeyPress::isKeyCurrentlyDown(juce::KeyPress::spaceKey))
+                {
+                    panState.active = true;
+                    panState.startMouse = event.position;
+                    panState.startViewOriginWorld = viewOriginWorld;
+                }
+                return;
+            }
+
             if (isPointInTopRuler(event.position) || isPointInLeftRuler(event.position))
             {
                 guideDragState = {};
@@ -1860,6 +2049,9 @@ namespace Gyeol::Ui
         {
             setMouseTrackerPoint(event.position);
 
+            if (isRunMode() && !panState.active)
+                return;
+
             if (guideDragState.active)
             {
                 const auto previousPreviewInViewport = guideDragState.previewInViewport;
@@ -1880,11 +2072,14 @@ namespace Gyeol::Ui
 
             if (panState.active)
             {
+                const auto previousOrigin = viewOriginWorld;
                 const auto delta = event.position - panState.startMouse;
                 viewOriginWorld = panState.startViewOriginWorld - juce::Point<float>(delta.x / zoomLevel, delta.y / zoomLevel);
                 clampViewOriginToCanvas();
                 updateAllWidgetViewBounds();
                 repaint();
+                if (!areClose(previousOrigin.x, viewOriginWorld.x) || !areClose(previousOrigin.y, viewOriginWorld.y))
+                    notifyViewportChanged();
                 return;
             }
 
@@ -1907,6 +2102,9 @@ namespace Gyeol::Ui
         void mouseUp(const juce::MouseEvent& event) override
         {
             setMouseTrackerPoint(event.position);
+
+            if (isRunMode() && !panState.active)
+                return;
 
             if (guideDragState.active)
             {
@@ -1952,6 +2150,9 @@ namespace Gyeol::Ui
 
         void mouseDoubleClick(const juce::MouseEvent& event) override
         {
+            if (isRunMode())
+                return;
+
             setMouseTrackerPoint(event.position);
 
             if (!event.mods.isLeftButtonDown())
@@ -1989,6 +2190,9 @@ namespace Gyeol::Ui
 
         bool keyPressed(const juce::KeyPress& key) override
         {
+            if (isRunMode())
+                return false;
+
             const auto mods = key.getModifiers();
             const auto keyCode = key.getKeyCode();
             const auto isZ = keyCode == 'z' || keyCode == 'Z';
@@ -2111,6 +2315,15 @@ namespace Gyeol::Ui
             juce::String displayName;
             juce::String mime;
             AssetKind kind = AssetKind::file;
+        };
+
+        struct RuntimeInteractionState
+        {
+            bool active = false;
+            WidgetId widgetId = kRootId;
+            WidgetType widgetType = WidgetType::button;
+            juce::Point<float> startMouse;
+            double startValue = 0.0;
         };
 
         std::optional<juce::String> extractWidgetLibraryTypeKey(const juce::var& description) const
@@ -3028,6 +3241,504 @@ namespace Gyeol::Ui
             return selectionResizeHandleBounds(selectionBounds).contains(canvasPoint);
         }
 
+        static double readFiniteNumericProperty(const PropertyBag& props,
+                                                const juce::Identifier& key,
+                                                double fallback) noexcept
+        {
+            const auto raw = props.getWithDefault(key, juce::var(fallback));
+            if (!raw.isInt() && !raw.isInt64() && !raw.isDouble())
+                return fallback;
+
+            const auto value = static_cast<double>(raw);
+            return std::isfinite(value) ? value : fallback;
+        }
+
+        bool runtimeApplySetProps(const SetPropsAction& action)
+        {
+            if (isRunMode() || (interactionModeValue == InteractionMode::preview && previewBindingSimulationEnabled))
+                return document.previewSetProps(action);
+            return document.setProps(action);
+        }
+
+        bool runtimeApplySetBounds(const SetBoundsAction& action)
+        {
+            if (isRunMode() || (interactionModeValue == InteractionMode::preview && previewBindingSimulationEnabled))
+                return document.previewSetBounds(action);
+            return document.setBounds(action);
+        }
+
+        bool runtimeSetWidgetProperty(WidgetId widgetId, const juce::Identifier& key, const juce::var& value)
+        {
+            if (widgetId <= kRootId)
+                return false;
+
+            SetPropsAction action;
+            action.kind = NodeKind::widget;
+            action.ids = { widgetId };
+            WidgetPropsPatch patch;
+            patch.patch.set(key, value);
+            action.patch = std::move(patch);
+            return runtimeApplySetProps(action);
+        }
+
+        void seedRuntimeParamsFromDocument()
+        {
+            const auto& snapshot = document.snapshot();
+            for (const auto& param : snapshot.runtimeParams)
+            {
+                const auto result = runtimeParamBridge.set(param.key, param.defaultValue, {});
+                if (!result.wasOk())
+                    emitRuntimeLog("Run Param",
+                                   "seed failed key=" + param.key.trim()
+                                       + " message=" + result.message);
+            }
+        }
+
+        bool applyRuntimePropertyBindings()
+        {
+            if (!(isRunMode() || (interactionModeValue == InteractionMode::preview && previewBindingSimulationEnabled)))
+                return false;
+
+            const auto& snapshot = document.snapshot();
+            if (snapshot.propertyBindings.empty())
+                return false;
+
+            bool changed = false;
+            int failureCount = 0;
+            juce::String firstFailure;
+            const auto isIdentifierLike = [](const juce::String& text) noexcept
+            {
+                const auto trimmed = text.trim();
+                if (trimmed.isEmpty())
+                    return false;
+
+                auto isStart = [](juce::juce_wchar ch) noexcept
+                {
+                    return (ch >= 'a' && ch <= 'z')
+                        || (ch >= 'A' && ch <= 'Z')
+                        || ch == '_';
+                };
+
+                auto isBody = [isStart](juce::juce_wchar ch) noexcept
+                {
+                    return isStart(ch)
+                        || (ch >= '0' && ch <= '9')
+                        || ch == '.';
+                };
+
+                if (!isStart(trimmed[0]))
+                    return false;
+
+                for (int i = 1; i < trimmed.length(); ++i)
+                {
+                    if (!isBody(trimmed[i]))
+                        return false;
+                }
+
+                return true;
+            };
+
+            for (const auto& binding : snapshot.propertyBindings)
+            {
+                if (!binding.enabled)
+                    continue;
+
+                const auto propertyKeyText = binding.targetProperty.trim();
+                if (propertyKeyText.isEmpty())
+                    continue;
+
+                if (!isIdentifierLike(propertyKeyText))
+                {
+                    ++failureCount;
+                    if (firstFailure.isEmpty())
+                        firstFailure = "binding#" + juce::String(binding.id) + " invalid targetProperty";
+                    continue;
+                }
+
+                const auto* targetWidget = findWidgetModel(binding.targetWidgetId);
+                if (targetWidget == nullptr)
+                {
+                    ++failureCount;
+                    if (firstFailure.isEmpty())
+                        firstFailure = "binding#" + juce::String(binding.id) + " missing target widget";
+                    continue;
+                }
+
+                const auto evaluation = Runtime::PropertyBindingResolver::evaluateExpression(binding.expression,
+                                                                                              runtimeParamBridge.values());
+                if (!evaluation.success)
+                {
+                    ++failureCount;
+                    if (firstFailure.isEmpty())
+                    {
+                        firstFailure = "binding#" + juce::String(binding.id)
+                                     + " eval failed: " + evaluation.error;
+                    }
+                    continue;
+                }
+
+                changed = runtimeSetWidgetProperty(binding.targetWidgetId,
+                                                   juce::Identifier(propertyKeyText),
+                                                   juce::var(evaluation.value))
+                       || changed;
+            }
+
+            if (failureCount > 0)
+            {
+                const auto digest = "failed=" + juce::String(failureCount)
+                                  + " first=" + firstFailure;
+                if (digest != lastRuntimeBindingFailureDigest)
+                {
+                    emitRuntimeLog("Run Binding", digest);
+                    lastRuntimeBindingFailureDigest = digest;
+                }
+            }
+            else
+            {
+                lastRuntimeBindingFailureDigest.clear();
+            }
+
+            return changed;
+        }
+
+        bool runtimeSetSliderValueFromPointer(WidgetId widgetId,
+                                              juce::Point<float> localPoint,
+                                              double* valueOut = nullptr)
+        {
+            const auto* widget = findWidgetModel(widgetId);
+            const auto* view = findWidgetView(widgetId);
+            if (widget == nullptr || view == nullptr)
+                return false;
+
+            auto rangeMin = readFiniteNumericProperty(widget->properties, "slider.rangeMin", 0.0);
+            auto rangeMax = readFiniteNumericProperty(widget->properties, "slider.rangeMax", 1.0);
+            if (rangeMax <= rangeMin)
+                rangeMax = rangeMin + 1.0;
+
+            auto step = readFiniteNumericProperty(widget->properties, "slider.step", 0.0);
+            if (step < 0.0 || !std::isfinite(step))
+                step = 0.0;
+
+            const auto style = widget->properties.getWithDefault("slider.style", juce::var("linearHorizontal"))
+                                  .toString()
+                                  .trim()
+                                  .toLowerCase();
+            const auto vertical = style.contains("vertical");
+
+            const auto localBounds = view->getLocalBounds().toFloat();
+            if (localBounds.getWidth() <= 0.0f || localBounds.getHeight() <= 0.0f)
+                return false;
+
+            const auto xNorm = juce::jlimit(0.0, 1.0, static_cast<double>(localPoint.x / localBounds.getWidth()));
+            const auto yNorm = juce::jlimit(0.0, 1.0, static_cast<double>(localPoint.y / localBounds.getHeight()));
+            auto normalized = vertical ? (1.0 - yNorm) : xNorm;
+
+            auto nextValue = rangeMin + (rangeMax - rangeMin) * normalized;
+            if (step > 0.0)
+                nextValue = rangeMin + std::round((nextValue - rangeMin) / step) * step;
+            nextValue = juce::jlimit(rangeMin, rangeMax, nextValue);
+
+            if (valueOut != nullptr)
+                *valueOut = nextValue;
+
+            const auto currentValue = readFiniteNumericProperty(widget->properties,
+                                                                "value",
+                                                                rangeMin + (rangeMax - rangeMin) * 0.5);
+            if (std::abs(currentValue - nextValue) <= 0.000001)
+                return false;
+
+            return runtimeSetWidgetProperty(widgetId, "value", juce::var(nextValue));
+        }
+
+        double runtimeCurrentSliderValue(WidgetId widgetId) const noexcept
+        {
+            const auto* widget = findWidgetModel(widgetId);
+            if (widget == nullptr)
+                return 0.0;
+
+            auto rangeMin = readFiniteNumericProperty(widget->properties, "slider.rangeMin", 0.0);
+            auto rangeMax = readFiniteNumericProperty(widget->properties, "slider.rangeMax", 1.0);
+            if (rangeMax <= rangeMin)
+                rangeMax = rangeMin + 1.0;
+            return juce::jlimit(rangeMin,
+                                rangeMax,
+                                readFiniteNumericProperty(widget->properties,
+                                                          "value",
+                                                          rangeMin + (rangeMax - rangeMin) * 0.5));
+        }
+
+        double runtimeCurrentKnobValue(WidgetId widgetId) const noexcept
+        {
+            const auto* widget = findWidgetModel(widgetId);
+            if (widget == nullptr)
+                return 0.0;
+
+            auto rangeMin = readFiniteNumericProperty(widget->properties, "knob.rangeMin", 0.0);
+            auto rangeMax = readFiniteNumericProperty(widget->properties, "knob.rangeMax", 1.0);
+            if (rangeMax <= rangeMin)
+                rangeMax = rangeMin + 1.0;
+            return juce::jlimit(rangeMin,
+                                rangeMax,
+                                readFiniteNumericProperty(widget->properties,
+                                                          "value",
+                                                          rangeMin + (rangeMax - rangeMin) * 0.5));
+        }
+
+        bool runtimeSetKnobValueFromDrag(WidgetId widgetId,
+                                         juce::Point<float> startMouse,
+                                         juce::Point<float> currentMouse,
+                                         double startValue,
+                                         double* valueOut = nullptr)
+        {
+            const auto* widget = findWidgetModel(widgetId);
+            if (widget == nullptr)
+                return false;
+
+            auto rangeMin = readFiniteNumericProperty(widget->properties, "knob.rangeMin", 0.0);
+            auto rangeMax = readFiniteNumericProperty(widget->properties, "knob.rangeMax", 1.0);
+            if (rangeMax <= rangeMin)
+                rangeMax = rangeMin + 1.0;
+
+            auto step = readFiniteNumericProperty(widget->properties, "knob.step", 0.0);
+            if (step < 0.0 || !std::isfinite(step))
+                step = 0.0;
+
+            const auto deltaY = static_cast<double>(startMouse.y - currentMouse.y);
+            const auto range = rangeMax - rangeMin;
+            auto nextValue = startValue + (range * deltaY / 140.0);
+            if (step > 0.0)
+                nextValue = rangeMin + std::round((nextValue - rangeMin) / step) * step;
+            nextValue = juce::jlimit(rangeMin, rangeMax, nextValue);
+
+            if (valueOut != nullptr)
+                *valueOut = nextValue;
+
+            if (std::abs(runtimeCurrentKnobValue(widgetId) - nextValue) <= 0.000001)
+                return false;
+
+            return runtimeSetWidgetProperty(widgetId, "value", juce::var(nextValue));
+        }
+
+        static int comboItemCountFromText(const juce::String& source)
+        {
+            juce::StringArray items;
+            items.addLines(source);
+            for (int i = items.size() - 1; i >= 0; --i)
+            {
+                const auto trimmed = items[i].trim();
+                if (trimmed.isEmpty())
+                    items.remove(i);
+                else
+                    items.set(i, trimmed);
+            }
+            return items.size();
+        }
+
+        bool runtimeAdvanceComboSelection(WidgetId widgetId, int* selectedIndexOut = nullptr)
+        {
+            const auto* widget = findWidgetModel(widgetId);
+            if (widget == nullptr)
+                return false;
+
+            const auto count = comboItemCountFromText(widget->properties.getWithDefault("combo.items",
+                                                                                         juce::var("Item 1\nItem 2\nItem 3"))
+                                                          .toString());
+            if (count <= 0)
+                return false;
+
+            auto selectedIndex = static_cast<int>(widget->properties.getWithDefault("combo.selectedIndex", juce::var(1)));
+            if (selectedIndex < 1 || selectedIndex > count)
+                selectedIndex = 1;
+            else
+                selectedIndex = (selectedIndex % count) + 1;
+
+            if (selectedIndexOut != nullptr)
+                *selectedIndexOut = selectedIndex;
+
+            return runtimeSetWidgetProperty(widgetId, "combo.selectedIndex", selectedIndex);
+        }
+
+        bool dispatchRuntimeEvent(WidgetId sourceWidgetId, const juce::String& eventKey, const juce::var& payload = {})
+        {
+            Runtime::RuntimeActionExecutor::Context context;
+            context.paramBridge = &runtimeParamBridge;
+            context.applySetProps = [this](const SetPropsAction& action)
+            {
+                return runtimeApplySetProps(action);
+            };
+            context.applySetBounds = [this](const SetBoundsAction& action)
+            {
+                return runtimeApplySetBounds(action);
+            };
+            if (const auto* messageManager = juce::MessageManager::getInstanceWithoutCreating();
+                messageManager != nullptr && messageManager->isThisTheMessageThread())
+            {
+                context.dispatchThread = Runtime::RuntimeDispatchThread::uiMessage;
+            }
+            else
+            {
+                // Default non-message dispatch path to realtime-safe policy (UI mutation blocked).
+                context.dispatchThread = Runtime::RuntimeDispatchThread::realtimeAudio;
+            }
+
+            const auto previousParamRevision = runtimeParamBridge.revision();
+            const auto report = runtimeBindingEngine.dispatchEvent(document.snapshot(),
+                                                                   sourceWidgetId,
+                                                                   eventKey,
+                                                                   payload,
+                                                                   runtimeActionExecutor,
+                                                                   context);
+
+            if (runtimeDiagnostics.shouldLogEvent(report))
+                emitRuntimeLog("Run Event", runtimeDiagnostics.formatEventSummary(report, payload));
+
+            auto documentChanged = report.documentChanged;
+            if (runtimeParamBridge.revision() != previousParamRevision)
+                documentChanged = applyRuntimePropertyBindings() || documentChanged;
+
+            return documentChanged;
+        }
+
+        bool isEventInsideWidgetBounds(WidgetId widgetId, const juce::MouseEvent* event) const
+        {
+            if (event == nullptr)
+                return false;
+
+            const auto* view = findWidgetView(widgetId);
+            if (view == nullptr)
+                return false;
+
+            const auto ownerPoint = event->getEventRelativeTo(const_cast<CanvasComponent*>(this)).position;
+            return view->getBounds().toFloat().contains(ownerPoint);
+        }
+
+        void handleWidgetRuntimeMouseDown(WidgetId id, const juce::MouseEvent& event)
+        {
+            runtimeInteraction = {};
+
+            const auto* widget = findWidgetModel(id);
+            if (widget == nullptr)
+                return;
+            if (!isWidgetEffectivelyVisible(id) || isWidgetEffectivelyLocked(id))
+                return;
+
+            runtimeInteraction.active = true;
+            runtimeInteraction.widgetId = id;
+            runtimeInteraction.widgetType = widget->type;
+            runtimeInteraction.startMouse = event.position;
+            runtimeInteraction.startValue = 0.0;
+
+            auto changed = false;
+            if (widget->type == WidgetType::button)
+            {
+                changed = dispatchRuntimeEvent(id, "onPress", true) || changed;
+            }
+            else if (widget->type == WidgetType::slider)
+            {
+                double value = runtimeCurrentSliderValue(id);
+                changed = runtimeSetSliderValueFromPointer(id, event.position, &value) || changed;
+                changed = dispatchRuntimeEvent(id, "onValueChanged", value) || changed;
+            }
+            else if (widget->type == WidgetType::knob)
+            {
+                runtimeInteraction.startValue = runtimeCurrentKnobValue(id);
+            }
+
+            if (changed)
+                refreshFromDocument();
+        }
+
+        void handleWidgetRuntimeMouseDrag(WidgetId id, const juce::MouseEvent& event)
+        {
+            if (!runtimeInteraction.active || runtimeInteraction.widgetId != id)
+                return;
+
+            auto changed = false;
+            if (runtimeInteraction.widgetType == WidgetType::slider)
+            {
+                double value = runtimeCurrentSliderValue(id);
+                changed = runtimeSetSliderValueFromPointer(id, event.position, &value) || changed;
+                changed = dispatchRuntimeEvent(id, "onValueChanged", value) || changed;
+            }
+            else if (runtimeInteraction.widgetType == WidgetType::knob)
+            {
+                double value = runtimeCurrentKnobValue(id);
+                changed = runtimeSetKnobValueFromDrag(id,
+                                                      runtimeInteraction.startMouse,
+                                                      event.position,
+                                                      runtimeInteraction.startValue,
+                                                      &value)
+                          || changed;
+                changed = dispatchRuntimeEvent(id, "onValueChanged", value) || changed;
+            }
+
+            if (changed)
+                refreshFromDocument();
+        }
+
+        void handleWidgetRuntimeMouseUp(WidgetId id, const juce::MouseEvent* event)
+        {
+            if (!runtimeInteraction.active || runtimeInteraction.widgetId != id)
+                return;
+
+            const auto releasedInside = isEventInsideWidgetBounds(id, event);
+            auto changed = false;
+
+            if (runtimeInteraction.widgetType == WidgetType::button)
+            {
+                changed = dispatchRuntimeEvent(id, "onRelease", releasedInside) || changed;
+                if (releasedInside)
+                    changed = dispatchRuntimeEvent(id, "onClick", true) || changed;
+            }
+            else if (runtimeInteraction.widgetType == WidgetType::toggle)
+            {
+                if (releasedInside)
+                {
+                    const auto* widget = findWidgetModel(id);
+                    const auto currentState = widget != nullptr
+                                                  ? static_cast<bool>(widget->properties.getWithDefault("state", juce::var(false)))
+                                                  : false;
+                    const auto nextState = !currentState;
+                    changed = runtimeSetWidgetProperty(id, "state", nextState) || changed;
+                    changed = dispatchRuntimeEvent(id, "onClick", nextState) || changed;
+                    changed = dispatchRuntimeEvent(id, "onToggleChanged", nextState) || changed;
+                }
+            }
+            else if (runtimeInteraction.widgetType == WidgetType::slider)
+            {
+                double value = runtimeCurrentSliderValue(id);
+                if (event != nullptr)
+                    changed = runtimeSetSliderValueFromPointer(id, event->position, &value) || changed;
+                changed = dispatchRuntimeEvent(id, "onValueCommit", value) || changed;
+            }
+            else if (runtimeInteraction.widgetType == WidgetType::knob)
+            {
+                double value = runtimeCurrentKnobValue(id);
+                if (event != nullptr)
+                    changed = runtimeSetKnobValueFromDrag(id,
+                                                          runtimeInteraction.startMouse,
+                                                          event->position,
+                                                          runtimeInteraction.startValue,
+                                                          &value)
+                              || changed;
+                changed = dispatchRuntimeEvent(id, "onValueCommit", value) || changed;
+            }
+            else if (runtimeInteraction.widgetType == WidgetType::comboBox)
+            {
+                if (releasedInside)
+                {
+                    int selectedIndex = 0;
+                    changed = runtimeAdvanceComboSelection(id, &selectedIndex) || changed;
+                    changed = dispatchRuntimeEvent(id, "onSelectionChanged", selectedIndex) || changed;
+                }
+            }
+
+            runtimeInteraction = {};
+
+            if (changed)
+                refreshFromDocument();
+        }
+
         bool beginDragForSelection(WidgetId anchorId, DragMode mode, juce::Point<float> startMouse)
         {
             auto dragIds = document.editorState().selection;
@@ -3107,6 +3818,13 @@ namespace Gyeol::Ui
 
             if (!event.mods.isLeftButtonDown())
                 return;
+
+            if (isRunMode())
+            {
+                handleWidgetRuntimeMouseDown(id, event);
+                return;
+            }
+
             if (!isWidgetEffectivelyVisible(id) || isWidgetEffectivelyLocked(id))
                 return;
 
@@ -3196,6 +3914,12 @@ namespace Gyeol::Ui
 
         void handleWidgetMouseDrag(WidgetId id, const juce::MouseEvent& event)
         {
+            if (isRunMode())
+            {
+                handleWidgetRuntimeMouseDrag(id, event);
+                return;
+            }
+
             if (!dragState.active || dragState.anchorWidgetId != id)
                 return;
 
@@ -3569,8 +4293,14 @@ namespace Gyeol::Ui
             }
         }
 
-        void handleWidgetMouseUp(WidgetId id)
+        void handleWidgetMouseUp(WidgetId id, const juce::MouseEvent* event = nullptr)
         {
+            if (isRunMode())
+            {
+                handleWidgetRuntimeMouseUp(id, event);
+                return;
+            }
+
             if (!dragState.active || dragState.anchorWidgetId != id)
                 return;
 
@@ -3684,8 +4414,31 @@ namespace Gyeol::Ui
                 onStateChanged();
         }
 
+        void notifyViewportChanged()
+        {
+            if (onViewportChanged != nullptr)
+                onViewportChanged();
+        }
+
+        void emitRuntimeLog(const juce::String& action, const juce::String& detail)
+        {
+            if (onRuntimeLog != nullptr)
+                onRuntimeLog(action, detail);
+        }
+
         void refreshAltPreviewState()
         {
+            if (isRunMode())
+            {
+                if (altPreviewEnabled || normalizeSelectionAfterAltReleasePending)
+                {
+                    altPreviewEnabled = false;
+                    normalizeSelectionAfterAltReleasePending = false;
+                    repaint();
+                }
+                return;
+            }
+
             const auto wasAltDown = altPreviewEnabled;
             const auto nextAltDown = juce::ModifierKeys::getCurrentModifiersRealtime().isAltDown();
             if (altPreviewEnabled == nextAltDown)
@@ -3738,7 +4491,8 @@ namespace Gyeol::Ui
 
             const auto previousSelection = lastSelectionSnapshot;
             const auto& selection = document.editorState().selection;
-            const auto showWidgetHandles = selection.size() == 1;
+            const auto showSelectionVisuals = !isRunMode();
+            const auto showWidgetHandles = showSelectionVisuals && selection.size() == 1;
 
             bool hasDirtyBounds = false;
             juce::Rectangle<float> dirtyBounds;
@@ -3758,7 +4512,7 @@ namespace Gyeol::Ui
 
             for (auto& view : widgetViews)
             {
-                const auto isSelected = containsWidgetId(selection, view->widgetId());
+                const auto isSelected = showSelectionVisuals && containsWidgetId(selection, view->widgetId());
                 const auto* group = findGroupByMember(view->widgetId());
                 const auto isGrouped = group != nullptr;
                 const auto groupedInActiveEdit = isGrouped
@@ -3840,6 +4594,7 @@ namespace Gyeol::Ui
             notifyStateChanged();
         }
 
+    public:
         struct PerfStats
         {
             uint64_t refreshCount = 0;
@@ -3860,6 +4615,12 @@ namespace Gyeol::Ui
             int lastSelectionCount = 0;
         };
 
+        const PerfStats& performanceStats() const noexcept
+        {
+            return perf;
+        }
+
+    private:
         static constexpr double slowCanvasRefreshLogThresholdMs = 8.0;
         static constexpr double slowCanvasPaintLogThresholdMs = 8.0;
         static constexpr double slowCanvasSelectionSyncLogThresholdMs = 4.0;
@@ -3870,6 +4631,8 @@ namespace Gyeol::Ui
         CanvasRenderer renderer;
         std::vector<std::unique_ptr<WidgetComponent>> widgetViews;
         std::function<void()> onStateChanged;
+        std::function<void()> onViewportChanged;
+        std::function<void(const juce::String&, const juce::String&)> onRuntimeLog;
         std::function<std::optional<WidgetId>()> activeLayerResolver;
         std::function<void(const juce::String&, juce::Point<float>)> onWidgetLibraryDrop;
         float zoomLevel = 1.0f;
@@ -3883,6 +4646,13 @@ namespace Gyeol::Ui
         std::vector<Guide> transientSnapGuides;
         std::vector<Interaction::SmartSpacingHint> transientSmartSpacingHints;
         GuideDragState guideDragState;
+        RuntimeInteractionState runtimeInteraction;
+        Runtime::RuntimeParamBridge runtimeParamBridge;
+        Runtime::RuntimeDiagnostics runtimeDiagnostics;
+        Runtime::RuntimeActionExecutor runtimeActionExecutor;
+        Runtime::RuntimeBindingEngine runtimeBindingEngine;
+        InteractionMode interactionModeValue = InteractionMode::preview;
+        bool previewBindingSimulationEnabled = false;
         bool widgetLibraryDropPreviewActive = false;
         juce::Point<float> widgetLibraryDropPreviewView;
         bool assetDropPreviewActive = false;
@@ -3896,6 +4666,7 @@ namespace Gyeol::Ui
         bool altPreviewEnabled = false;
         bool normalizeSelectionAfterAltReleasePending = false;
         std::vector<WidgetId> lastSelectionSnapshot;
+        juce::String lastRuntimeBindingFailureDigest;
         PerfStats perf;
 
         friend class WidgetComponent;
@@ -3911,9 +4682,9 @@ namespace Gyeol::Ui
         owner.handleWidgetMouseDrag(widget.id, event);
     }
 
-    void WidgetComponent::mouseUp(const juce::MouseEvent&)
+    void WidgetComponent::mouseUp(const juce::MouseEvent& event)
     {
-        owner.handleWidgetMouseUp(widget.id);
+        owner.handleWidgetMouseUp(widget.id, &event);
     }
 
     void WidgetComponent::mouseDoubleClick(const juce::MouseEvent& event)
@@ -3959,6 +4730,7 @@ namespace Gyeol
               widgetFactory(widgetRegistry),
               canvas(docHandle, widgetFactory),
               gridSnapPanel(),
+              navigatorPanel(),
               layerTreePanel(docHandle, widgetFactory),
               widgetLibraryPanel(widgetRegistry),
               assetsPanel(docHandle, widgetFactory),
@@ -3968,6 +4740,7 @@ namespace Gyeol
               eventActionPanel(docHandle, widgetRegistry),
               validationPanel(docHandle, widgetRegistry),
               exportPreviewPanel(),
+              performancePanel(),
               historyPanel(),
               deleteSelected("Delete"),
               groupSelected("Group"),
@@ -3976,7 +4749,9 @@ namespace Gyeol
               dumpJsonButton("Dump JSON"),
               exportJuceButton("Export JUCE"),
               undoButton("Undo"),
-              redoButton("Redo")
+              redoButton("Redo"),
+              previewModeButton("Preview"),
+              runModeButton("Run")
         {
             owner.setWantsKeyboardFocus(true);
 
@@ -3985,6 +4760,7 @@ namespace Gyeol
             leftPanels.addTab("Library", juce::Colour::fromRGB(24, 28, 34), &widgetLibraryPanel, false);
             leftPanels.addTab("Assets", juce::Colour::fromRGB(24, 28, 34), &assetsPanel, false);
             leftPanels.addTab("Grid/Snap", juce::Colour::fromRGB(24, 28, 34), &gridSnapPanel, false);
+            leftPanels.addTab("Navigator", juce::Colour::fromRGB(24, 28, 34), &navigatorPanel, false);
             leftPanels.setCurrentTabIndex(0, juce::dontSendNotification);
 
             rightPanels.setTabBarDepth(30);
@@ -3992,6 +4768,7 @@ namespace Gyeol
             rightPanels.addTab("Event/Action", juce::Colour::fromRGB(24, 28, 34), &eventActionPanel, false);
             rightPanels.addTab("Validation", juce::Colour::fromRGB(24, 28, 34), &validationPanel, false);
             rightPanels.addTab("Export Preview", juce::Colour::fromRGB(24, 28, 34), &exportPreviewPanel, false);
+            rightPanels.addTab("Performance", juce::Colour::fromRGB(24, 28, 34), &performancePanel, false);
             rightPanels.setCurrentTabIndex(0, juce::dontSendNotification);
 
             owner.addAndMakeVisible(leftPanels);
@@ -4012,6 +4789,18 @@ namespace Gyeol
                                            {
                                                handleCanvasStateChanged();
                                            });
+            canvas.setViewportChangedCallback([this]
+                                              {
+                                                  refreshViewDiagnosticsPanels();
+                                              });
+            canvas.setRuntimeLogCallback([this](const juce::String& action, const juce::String& detail)
+                                         {
+                                             appendHistoryEntry(action, detail);
+                                         });
+            navigatorPanel.setNavigateRequestedCallback([this](juce::Point<float> worldPoint)
+                                                        {
+                                                            canvas.focusWorldPoint(worldPoint);
+                                                        });
 
             layerTreePanel.setSelectionChangedCallback([this](std::vector<WidgetId> selection)
                                                        {
@@ -4120,7 +4909,7 @@ namespace Gyeol
                                                         {
                                                             validationPanel.markDirty();
                                                             refreshToolbarState();
-                                                            appendHistoryEntry("Runtime Binding", "Event/Action panel");
+                                                            appendHistoryEntry("Runtime State", "Event/Action panel");
                                                             requestDeferredUiRefresh(false, true);
                                                         });
             validationPanel.setAutoRefreshEnabled(true);
@@ -4182,7 +4971,14 @@ namespace Gyeol
             owner.addAndMakeVisible(exportJuceButton);
             owner.addAndMakeVisible(undoButton);
             owner.addAndMakeVisible(redoButton);
+            owner.addAndMakeVisible(previewModeButton);
+            owner.addAndMakeVisible(runModeButton);
+            owner.addAndMakeVisible(previewBindingSimToggle);
             owner.addAndMakeVisible(shortcutHint);
+
+            previewModeButton.setClickingTogglesState(true);
+            runModeButton.setClickingTogglesState(true);
+            previewBindingSimToggle.setClickingTogglesState(true);
 
             deleteSelected.onClick = [this]
             {
@@ -4249,11 +5045,44 @@ namespace Gyeol
                 performRedoFromToolbar();
             };
 
-            shortcutHint.setText("Del: delete  Ctrl/Cmd+G: group  Ctrl/Cmd+Shift+G: ungroup  Ctrl/Cmd+Alt+Arrows/H/V: align  Ctrl/Cmd+Alt+Shift+H/V: distribute  Ctrl/Cmd+[ ]: layer order  Ctrl/Cmd+Z/Y: undo/redo",
-                                 juce::dontSendNotification);
+            previewModeButton.onClick = [this]
+            {
+                if (suppressModeToggleCallbacks)
+                    return;
+                setEditorMode(Ui::CanvasComponent::InteractionMode::preview);
+            };
+
+            runModeButton.onClick = [this]
+            {
+                if (suppressModeToggleCallbacks)
+                    return;
+                if (canvas.isRunMode())
+                    setEditorMode(Ui::CanvasComponent::InteractionMode::preview);
+                else
+                    setEditorMode(Ui::CanvasComponent::InteractionMode::run);
+            };
+
+            previewBindingSimToggle.onClick = [this]
+            {
+                if (suppressPreviewBindingToggleCallbacks)
+                    return;
+
+                if (canvas.isRunMode())
+                {
+                    suppressPreviewBindingToggleCallbacks = true;
+                    previewBindingSimToggle.setToggleState(false, juce::dontSendNotification);
+                    suppressPreviewBindingToggleCallbacks = false;
+                    return;
+                }
+
+                setPreviewBindingSimulation(previewBindingSimToggle.getToggleState());
+            };
+
             shortcutHint.setJustificationType(juce::Justification::centredRight);
             shortcutHint.setColour(juce::Label::textColourId, juce::Colour::fromRGB(170, 175, 186));
             shortcutHint.setInterceptsMouseClicks(false, false);
+            updateShortcutHintForMode();
+            setEditorMode(Ui::CanvasComponent::InteractionMode::preview);
 
             refreshAllPanelsFromDocument();
         }
@@ -4299,6 +5128,9 @@ namespace Gyeol
             place(exportJuceButton, 104);
             place(undoButton, 66);
             place(redoButton, 66);
+            place(previewModeButton, 78);
+            place(runModeButton, 58);
+            place(previewBindingSimToggle, 86);
 
             shortcutHint.setBounds(toolbar);
 
@@ -4314,12 +5146,35 @@ namespace Gyeol
             rightPanels.setBounds(rightPanelBounds);
             canvas.setBounds(content);
             historyPanel.setBounds(historyBounds);
+            refreshViewDiagnosticsPanels();
         }
 
         bool keyPressed(const juce::KeyPress& key)
         {
-            const auto mods = key.getModifiers();
             const auto keyCode = key.getKeyCode();
+
+            if (previewBindingSimulationActive && !canvas.isRunMode())
+            {
+                if (!key.getModifiers().isAnyModifierKeyDown() && keyCode == juce::KeyPress::escapeKey)
+                {
+                    setPreviewBindingSimulation(false);
+                    return true;
+                }
+
+                return true;
+            }
+
+            if (canvas.isRunMode())
+            {
+                if (!key.getModifiers().isAnyModifierKeyDown() && key.getKeyCode() == juce::KeyPress::escapeKey)
+                {
+                    setEditorMode(Ui::CanvasComponent::InteractionMode::preview);
+                    return true;
+                }
+                return canvas.keyPressed(key);
+            }
+
+            const auto mods = key.getModifiers();
             const auto isLeft = keyCode == juce::KeyPress::leftKey;
             const auto isRight = keyCode == juce::KeyPress::rightKey;
             const auto isUp = keyCode == juce::KeyPress::upKey;
@@ -4388,15 +5243,74 @@ namespace Gyeol
         }
 
     private:
+        void refreshNavigatorSceneFromDocument()
+        {
+            const auto& snapshot = docHandle.snapshot();
+            const auto& selection = docHandle.editorState().selection;
+            std::unordered_set<WidgetId> selectedWidgetIds(selection.begin(), selection.end());
+
+            std::vector<Ui::Panels::NavigatorPanel::SceneItem> items;
+            items.reserve(snapshot.widgets.size());
+            for (const auto& widget : snapshot.widgets)
+            {
+                Ui::Panels::NavigatorPanel::SceneItem item;
+                item.bounds = widget.bounds;
+                item.selected = selectedWidgetIds.count(widget.id) > 0;
+                item.visible = widget.visible;
+                item.locked = widget.locked;
+                items.push_back(std::move(item));
+            }
+
+            navigatorPanel.setScene(canvas.canvasWorldBounds(), std::move(items));
+        }
+
+        void refreshViewDiagnosticsPanels()
+        {
+            navigatorPanel.setViewState(canvas.visibleWorldBounds(), canvas.currentZoomLevel());
+
+            Ui::Panels::PerformancePanel::Snapshot perfSnapshot;
+            const auto& perf = canvas.performanceStats();
+            const auto& documentSnapshot = docHandle.snapshot();
+            perfSnapshot.refreshCount = perf.refreshCount;
+            perfSnapshot.paintCount = perf.paintCount;
+            perfSnapshot.selectionSyncCount = perf.selectionSyncCount;
+            perfSnapshot.dragPreviewUpdateCount = perf.dragPreviewUpdateCount;
+            perfSnapshot.refreshRequestedPartialRepaintCount = perf.refreshRequestedPartialRepaintCount;
+            perfSnapshot.refreshRequestedFullRepaintCount = perf.refreshRequestedFullRepaintCount;
+            perfSnapshot.selectionSyncRequestedPartialRepaintCount = perf.selectionSyncRequestedPartialRepaintCount;
+            perfSnapshot.lastRefreshMs = perf.lastRefreshMs;
+            perfSnapshot.maxRefreshMs = perf.maxRefreshMs;
+            perfSnapshot.lastPaintMs = perf.lastPaintMs;
+            perfSnapshot.maxPaintMs = perf.maxPaintMs;
+            perfSnapshot.lastSelectionSyncMs = perf.lastSelectionSyncMs;
+            perfSnapshot.maxSelectionSyncMs = perf.maxSelectionSyncMs;
+            perfSnapshot.lastDirtyAreaPx = perf.lastDirtyAreaPx;
+            perfSnapshot.widgetViewCount = perf.lastWidgetViewCount;
+            perfSnapshot.selectionCount = perf.lastSelectionCount;
+            perfSnapshot.documentWidgetCount = static_cast<int>(documentSnapshot.widgets.size());
+            perfSnapshot.documentGroupCount = static_cast<int>(documentSnapshot.groups.size());
+            perfSnapshot.documentLayerCount = static_cast<int>(documentSnapshot.layers.size());
+            perfSnapshot.documentAssetCount = static_cast<int>(documentSnapshot.assets.size());
+            perfSnapshot.zoomLevel = canvas.currentZoomLevel();
+            perfSnapshot.viewOriginWorld = canvas.currentViewOriginWorld();
+            perfSnapshot.visibleWorldBounds = canvas.visibleWorldBounds();
+            perfSnapshot.deferredRefreshRequestCount = deferredRefreshRequestCount;
+            perfSnapshot.deferredRefreshCoalescedCount = deferredRefreshCoalescedCount;
+            perfSnapshot.deferredRefreshFlushCount = deferredRefreshFlushCount;
+            performancePanel.setSnapshot(perfSnapshot);
+        }
+
         void refreshAllPanelsFromDocument()
         {
             canvas.refreshFromDocument();
             layerTreePanel.refreshFromDocument();
             widgetLibraryPanel.refreshFromRegistry();
             assetsPanel.refreshFromDocument();
+            refreshNavigatorSceneFromDocument();
             eventActionPanel.refreshFromDocument();
             validationPanel.refreshValidation();
             exportPreviewPanel.markDirty();
+            refreshViewDiagnosticsPanels();
             refreshToolbarState();
             syncInspectorTargetFromState();
             historyPanel.setStackState(docHandle.undoDepth(), docHandle.redoDepth(), docHandle.historySerial());
@@ -4976,6 +5890,10 @@ namespace Gyeol
                 eventActionPanel.refreshFromDocument();
             if (shouldSyncAssets)
                 assetsPanel.refreshFromDocument();
+            if (shouldRefreshLayerTree || shouldSyncInspector || shouldSyncEventAction || shouldSyncAssets)
+                refreshNavigatorSceneFromDocument();
+
+            refreshViewDiagnosticsPanels();
 
             if (deferredRefreshFlushCount % 120 == 0)
             {
@@ -5362,6 +6280,8 @@ namespace Gyeol
         {
             refreshToolbarState();
             requestDeferredUiRefresh(true, true);
+            refreshNavigatorSceneFromDocument();
+            refreshViewDiagnosticsPanels();
 
             const auto nextDigest = computeDocumentDigest();
             const auto changed = nextDigest != lastDocumentDigest;
@@ -5380,6 +6300,9 @@ namespace Gyeol
 
         void performUndoFromToolbar()
         {
+            if (canvas.isRunMode())
+                return;
+
             suppressNextCanvasMutationHistory = true;
             if (canvas.performUndo())
                 appendHistoryEntry("Undo", "Toolbar");
@@ -5389,6 +6312,9 @@ namespace Gyeol
 
         void performRedoFromToolbar()
         {
+            if (canvas.isRunMode())
+                return;
+
             suppressNextCanvasMutationHistory = true;
             if (canvas.performRedo())
                 appendHistoryEntry("Redo", "Toolbar");
@@ -5398,6 +6324,9 @@ namespace Gyeol
 
         void performUndoFromHistoryPanel()
         {
+            if (canvas.isRunMode())
+                return;
+
             suppressNextCanvasMutationHistory = true;
             if (canvas.performUndo())
                 appendHistoryEntry("Undo", "History panel");
@@ -5407,6 +6336,9 @@ namespace Gyeol
 
         void performRedoFromHistoryPanel()
         {
+            if (canvas.isRunMode())
+                return;
+
             suppressNextCanvasMutationHistory = true;
             if (canvas.performRedo())
                 appendHistoryEntry("Redo", "History panel");
@@ -5414,15 +6346,129 @@ namespace Gyeol
                 suppressNextCanvasMutationHistory = false;
         }
 
+        void updateShortcutHintForMode()
+        {
+            const auto previewText =
+                "Preview: Del delete  Ctrl/Cmd+G group  Ctrl/Cmd+Shift+G ungroup  Ctrl/Cmd+Alt+Arrows/H/V align  Ctrl/Cmd+Alt+Shift+H/V distribute  Ctrl/Cmd+[ ] layer order  Ctrl/Cmd+Z/Y undo/redo";
+            const auto previewSimText =
+                "Preview(Sim Bind): bindings simulated as temporary preview. Toggle off to rollback.";
+            const auto runText =
+                "Run: interact with widgets, runtimeBindings execute, click Run again or Esc to return Preview(rollback)";
+            if (canvas.isRunMode())
+                shortcutHint.setText(runText, juce::dontSendNotification);
+            else if (previewBindingSimulationActive)
+                shortcutHint.setText(previewSimText, juce::dontSendNotification);
+            else
+                shortcutHint.setText(previewText, juce::dontSendNotification);
+        }
+
+        void setPreviewBindingSimulation(bool enabled)
+        {
+            if (previewBindingSimulationActive == enabled)
+                return;
+
+            if (enabled && canvas.isRunMode())
+                return;
+
+            if (enabled)
+            {
+                if (!docHandle.beginCoalescedEdit(previewBindingSimCoalescedEditKey))
+                {
+                    DBG("[Gyeol][PreviewSim] beginCoalescedEdit failed");
+                    return;
+                }
+            }
+            else
+            {
+                if (!docHandle.endCoalescedEdit(previewBindingSimCoalescedEditKey, false))
+                    DBG("[Gyeol][PreviewSim] rollback failed");
+            }
+
+            previewBindingSimulationActive = enabled;
+            canvas.setPreviewBindingSimulationEnabled(enabled);
+            canvas.setEnabled(!previewBindingSimulationActive || canvas.isRunMode());
+
+            suppressPreviewBindingToggleCallbacks = true;
+            previewBindingSimToggle.setToggleState(previewBindingSimulationActive, juce::dontSendNotification);
+            suppressPreviewBindingToggleCallbacks = false;
+
+            const auto interactionLocked = canvas.isRunMode() || previewBindingSimulationActive;
+            leftPanels.setEnabled(!interactionLocked);
+            rightPanels.setEnabled(!interactionLocked);
+            gridSnapPanel.setEnabled(!interactionLocked);
+
+            updateShortcutHintForMode();
+            refreshToolbarState();
+            refreshAllPanelsFromDocument();
+        }
+
+        void setEditorMode(Ui::CanvasComponent::InteractionMode mode)
+        {
+            if (mode == Ui::CanvasComponent::InteractionMode::run && previewBindingSimulationActive)
+                setPreviewBindingSimulation(false);
+
+            const auto previousMode = canvas.interactionMode();
+            const auto modeChanged = previousMode != mode;
+
+            if (modeChanged && mode == Ui::CanvasComponent::InteractionMode::run)
+            {
+                if (!docHandle.beginCoalescedEdit(runSessionCoalescedEditKey))
+                    DBG("[Gyeol][RunMode] beginCoalescedEdit failed");
+            }
+            else if (modeChanged && previousMode == Ui::CanvasComponent::InteractionMode::run)
+            {
+                if (!docHandle.endCoalescedEdit(runSessionCoalescedEditKey, false))
+                    DBG("[Gyeol][RunMode] rollback failed");
+            }
+
+            canvas.setInteractionMode(mode);
+            canvas.setEnabled(!previewBindingSimulationActive || canvas.isRunMode());
+
+            suppressModeToggleCallbacks = true;
+            previewModeButton.setToggleState(mode == Ui::CanvasComponent::InteractionMode::preview,
+                                             juce::dontSendNotification);
+            runModeButton.setToggleState(mode == Ui::CanvasComponent::InteractionMode::run,
+                                         juce::dontSendNotification);
+            suppressModeToggleCallbacks = false;
+
+            const auto interactionLocked = canvas.isRunMode() || previewBindingSimulationActive;
+            leftPanels.setEnabled(!interactionLocked);
+            rightPanels.setEnabled(!interactionLocked);
+            gridSnapPanel.setEnabled(!interactionLocked);
+            historyPanel.setEnabled(true);
+
+            updateShortcutHintForMode();
+            refreshAllPanelsFromDocument();
+            refreshToolbarState();
+            syncInspectorTargetFromState();
+            requestDeferredUiRefresh(false, true);
+        }
+
         void refreshToolbarState()
         {
-            deleteSelected.setEnabled(!docHandle.editorState().selection.empty());
-            groupSelected.setEnabled(canvas.canGroupSelection());
-            ungroupSelected.setEnabled(canvas.canUngroupSelection());
-            arrangeMenuButton.setEnabled(docHandle.editorState().selection.size() >= 2);
-            undoButton.setEnabled(docHandle.canUndo());
-            redoButton.setEnabled(docHandle.canRedo());
-            historyPanel.setCanUndoRedo(docHandle.canUndo(), docHandle.canRedo());
+            const auto runMode = canvas.isRunMode();
+            const auto interactionLocked = runMode || previewBindingSimulationActive;
+
+            for (auto& entry : createButtons)
+            {
+                if (entry.button != nullptr)
+                    entry.button->setEnabled(!interactionLocked);
+            }
+
+            deleteSelected.setEnabled(!interactionLocked && !docHandle.editorState().selection.empty());
+            groupSelected.setEnabled(!interactionLocked && canvas.canGroupSelection());
+            ungroupSelected.setEnabled(!interactionLocked && canvas.canUngroupSelection());
+            arrangeMenuButton.setEnabled(!interactionLocked && docHandle.editorState().selection.size() >= 2);
+            dumpJsonButton.setEnabled(!interactionLocked);
+            exportJuceButton.setEnabled(!interactionLocked);
+            undoButton.setEnabled(!interactionLocked && docHandle.canUndo());
+            redoButton.setEnabled(!interactionLocked && docHandle.canRedo());
+            historyPanel.setCanUndoRedo(!interactionLocked && docHandle.canUndo(),
+                                        !interactionLocked && docHandle.canRedo());
+            previewBindingSimToggle.setEnabled(!runMode);
+            suppressPreviewBindingToggleCallbacks = true;
+            previewBindingSimToggle.setToggleState(previewBindingSimulationActive, juce::dontSendNotification);
+            suppressPreviewBindingToggleCallbacks = false;
             historyPanel.setStackState(docHandle.undoDepth(), docHandle.redoDepth(), docHandle.historySerial());
         }
 
@@ -5431,6 +6477,8 @@ namespace Gyeol
         static constexpr int layerPanelWidth = 300;
         static constexpr int rightPanelWidth = 360;
         static constexpr int historyPanelHeight = 190;
+        static constexpr const char* runSessionCoalescedEditKey = "gyeol.run.preview-session";
+        static constexpr const char* previewBindingSimCoalescedEditKey = "gyeol.preview.binding-sim";
 
         DocumentHandle docHandle;
         Widgets::WidgetRegistry widgetRegistry;
@@ -5439,6 +6487,7 @@ namespace Gyeol
         Ui::Interaction::AlignDistributeEngine alignDistributeEngine;
         Ui::Interaction::LayerOrderEngine layerOrderEngine;
         Ui::Panels::GridSnapPanel gridSnapPanel;
+        Ui::Panels::NavigatorPanel navigatorPanel;
         Ui::Panels::LayerTreePanel layerTreePanel;
         Ui::Panels::WidgetLibraryPanel widgetLibraryPanel;
         Ui::Panels::AssetsPanel assetsPanel;
@@ -5448,6 +6497,7 @@ namespace Gyeol
         Ui::Panels::EventActionPanel eventActionPanel;
         Ui::Panels::ValidationPanel validationPanel;
         Ui::Panels::ExportPreviewPanel exportPreviewPanel;
+        Ui::Panels::PerformancePanel performancePanel;
         Ui::Panels::HistoryPanel historyPanel;
         std::optional<WidgetId> activeLayerOverrideId;
         std::uint64_t lastDocumentDigest = 0;
@@ -5461,7 +6511,13 @@ namespace Gyeol
         juce::TextButton exportJuceButton;
         juce::TextButton undoButton;
         juce::TextButton redoButton;
+        juce::TextButton previewModeButton;
+        juce::TextButton runModeButton;
+        juce::ToggleButton previewBindingSimToggle { "Sim Bind" };
         juce::Label shortcutHint;
+        bool suppressModeToggleCallbacks = false;
+        bool suppressPreviewBindingToggleCallbacks = false;
+        bool previewBindingSimulationActive = false;
         bool pendingLayerTreeRefresh = false;
         bool pendingInspectorSync = false;
         bool pendingEventActionSync = false;

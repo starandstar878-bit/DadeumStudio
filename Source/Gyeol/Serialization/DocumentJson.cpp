@@ -1016,6 +1016,135 @@ namespace
         return juce::Result::ok();
     }
 
+    juce::var serializeRuntimeParam(const Gyeol::RuntimeParamModel& param)
+    {
+        auto object = std::make_unique<juce::DynamicObject>();
+        object->setProperty("key", param.key);
+        object->setProperty("type", Gyeol::runtimeParamValueTypeToKey(param.type));
+        object->setProperty("default", param.defaultValue);
+        object->setProperty("description", param.description);
+        object->setProperty("exposed", param.exposed);
+        return juce::var(object.release());
+    }
+
+    juce::Result parseRuntimeParam(const juce::var& value, Gyeol::RuntimeParamModel& outParam)
+    {
+        const auto* object = value.getDynamicObject();
+        if (object == nullptr)
+            return juce::Result::fail("runtimeParams[] must be object");
+
+        const auto& props = object->getProperties();
+        if (!props.contains("key") || !props.contains("type"))
+            return juce::Result::fail("runtimeParams[] requires key/type");
+
+        const auto parsedType = Gyeol::runtimeParamValueTypeFromKey(props["type"].toString());
+        if (!parsedType.has_value())
+            return juce::Result::fail("runtimeParams[].type is invalid");
+
+        Gyeol::RuntimeParamModel param;
+        param.key = props["key"].toString().trim();
+        param.type = *parsedType;
+        param.description = props.contains("description") ? props["description"].toString() : juce::String();
+        param.exposed = true;
+        if (props.contains("exposed"))
+        {
+            if (!props["exposed"].isBool())
+                return juce::Result::fail("runtimeParams[].exposed must be bool");
+            param.exposed = static_cast<bool>(props["exposed"]);
+        }
+
+        if (props.contains("default"))
+        {
+            param.defaultValue = props["default"];
+        }
+        else
+        {
+            if (param.type == Gyeol::RuntimeParamValueType::number)
+                param.defaultValue = 0.0;
+            else if (param.type == Gyeol::RuntimeParamValueType::boolean)
+                param.defaultValue = false;
+            else
+                param.defaultValue = juce::String();
+        }
+
+        switch (param.type)
+        {
+            case Gyeol::RuntimeParamValueType::number:
+            {
+                if (!Gyeol::isNumericVar(param.defaultValue))
+                    return juce::Result::fail("runtimeParams[].default must be numeric for number type");
+                const auto numeric = static_cast<double>(param.defaultValue);
+                if (!std::isfinite(numeric))
+                    return juce::Result::fail("runtimeParams[].default must be finite for number type");
+                break;
+            }
+            case Gyeol::RuntimeParamValueType::boolean:
+                if (!param.defaultValue.isBool())
+                    return juce::Result::fail("runtimeParams[].default must be bool for boolean type");
+                break;
+            case Gyeol::RuntimeParamValueType::string:
+                if (!param.defaultValue.isString())
+                    return juce::Result::fail("runtimeParams[].default must be string for string type");
+                break;
+        }
+
+        outParam = std::move(param);
+        return juce::Result::ok();
+    }
+
+    juce::var serializePropertyBinding(const Gyeol::PropertyBindingModel& binding)
+    {
+        auto object = std::make_unique<juce::DynamicObject>();
+        object->setProperty("id", Gyeol::widgetIdToJsonString(binding.id));
+        object->setProperty("name", binding.name);
+        object->setProperty("enabled", binding.enabled);
+        object->setProperty("targetWidgetId", Gyeol::widgetIdToJsonString(binding.targetWidgetId));
+        object->setProperty("targetProperty", binding.targetProperty);
+        object->setProperty("expression", binding.expression);
+        return juce::var(object.release());
+    }
+
+    juce::Result parsePropertyBinding(const juce::var& value, Gyeol::PropertyBindingModel& outBinding)
+    {
+        const auto* object = value.getDynamicObject();
+        if (object == nullptr)
+            return juce::Result::fail("propertyBindings[] must be object");
+
+        const auto& props = object->getProperties();
+        if (!props.contains("id")
+            || !props.contains("targetWidgetId")
+            || !props.contains("targetProperty")
+            || !props.contains("expression"))
+        {
+            return juce::Result::fail("propertyBindings[] requires id/targetWidgetId/targetProperty/expression");
+        }
+
+        const auto parsedId = Gyeol::widgetIdFromJsonString(props["id"].toString());
+        if (!parsedId.has_value() || *parsedId <= Gyeol::kRootId)
+            return juce::Result::fail("propertyBindings[].id must be positive int64 encoded as string");
+
+        const auto parsedTargetWidgetId = Gyeol::widgetIdFromJsonString(props["targetWidgetId"].toString());
+        if (!parsedTargetWidgetId.has_value() || *parsedTargetWidgetId <= Gyeol::kRootId)
+            return juce::Result::fail("propertyBindings[].targetWidgetId must be positive int64 encoded as string");
+
+        Gyeol::PropertyBindingModel binding;
+        binding.id = *parsedId;
+        binding.name = props.contains("name") ? props["name"].toString() : juce::String();
+        binding.enabled = true;
+        if (props.contains("enabled"))
+        {
+            if (!props["enabled"].isBool())
+                return juce::Result::fail("propertyBindings[].enabled must be bool");
+            binding.enabled = static_cast<bool>(props["enabled"]);
+        }
+        binding.targetWidgetId = *parsedTargetWidgetId;
+        binding.targetProperty = props["targetProperty"].toString().trim();
+        binding.expression = props["expression"].toString().trim();
+
+        outBinding = std::move(binding);
+        return juce::Result::ok();
+    }
+
     juce::var serializeSelection(const Gyeol::EditorStateModel& editorState)
     {
         juce::Array<juce::var> selectionArray;
@@ -1118,6 +1247,16 @@ namespace Gyeol::Serialization
         for (const auto& asset : document.assets)
             assetArray.add(serializeAsset(asset));
         root->setProperty("assets", juce::var(assetArray));
+
+        juce::Array<juce::var> runtimeParamArray;
+        for (const auto& param : document.runtimeParams)
+            runtimeParamArray.add(serializeRuntimeParam(param));
+        root->setProperty("runtimeParams", juce::var(runtimeParamArray));
+
+        juce::Array<juce::var> propertyBindingArray;
+        for (const auto& binding : document.propertyBindings)
+            propertyBindingArray.add(serializePropertyBinding(binding));
+        root->setProperty("propertyBindings", juce::var(propertyBindingArray));
 
         juce::Array<juce::var> runtimeBindingArray;
         for (const auto& binding : document.runtimeBindings)
@@ -1246,6 +1385,48 @@ namespace Gyeol::Serialization
         else
         {
             nextDocument.assets.clear();
+        }
+
+        if (rootProps.contains("runtimeParams"))
+        {
+            const auto* paramsArray = rootProps["runtimeParams"].getArray();
+            if (paramsArray == nullptr)
+                return juce::Result::fail("runtimeParams must be array when present");
+
+            nextDocument.runtimeParams.reserve(static_cast<size_t>(paramsArray->size()));
+            for (const auto& paramValue : *paramsArray)
+            {
+                RuntimeParamModel param;
+                const auto paramResult = parseRuntimeParam(paramValue, param);
+                if (paramResult.failed())
+                    return paramResult;
+                nextDocument.runtimeParams.push_back(std::move(param));
+            }
+        }
+        else
+        {
+            nextDocument.runtimeParams.clear();
+        }
+
+        if (rootProps.contains("propertyBindings"))
+        {
+            const auto* propertyBindingsArray = rootProps["propertyBindings"].getArray();
+            if (propertyBindingsArray == nullptr)
+                return juce::Result::fail("propertyBindings must be array when present");
+
+            nextDocument.propertyBindings.reserve(static_cast<size_t>(propertyBindingsArray->size()));
+            for (const auto& propertyBindingValue : *propertyBindingsArray)
+            {
+                PropertyBindingModel propertyBinding;
+                const auto propertyBindingResult = parsePropertyBinding(propertyBindingValue, propertyBinding);
+                if (propertyBindingResult.failed())
+                    return propertyBindingResult;
+                nextDocument.propertyBindings.push_back(std::move(propertyBinding));
+            }
+        }
+        else
+        {
+            nextDocument.propertyBindings.clear();
         }
 
         if (rootProps.contains("runtimeBindings"))

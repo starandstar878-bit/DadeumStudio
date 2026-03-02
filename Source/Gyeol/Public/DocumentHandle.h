@@ -34,6 +34,8 @@ namespace Gyeol
         bool reorder(ReorderAction action);
         bool setAssets(std::vector<AssetModel> assets);
         bool replaceAssetRefKey(const juce::String& oldRefKey, const juce::String& newRefKey);
+        bool setRuntimeParams(std::vector<RuntimeParamModel> params);
+        bool setPropertyBindings(std::vector<PropertyBindingModel> bindings);
         bool setRuntimeBindings(std::vector<RuntimeBindingModel> bindings);
 
         bool beginCoalescedEdit(const juce::String& key);

@@ -1,10 +1,13 @@
 
 #include "Gyeol/Editor/Panels/PropertyPanel.h"
 #include "Gyeol/Editor/Panels/PropertyEditorFactory.h"
+#include "Gyeol/Runtime/PropertyBindingResolver.h"
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Gyeol::Ui::Panels
 {
@@ -1184,9 +1187,170 @@ namespace Gyeol::Ui::Panels
                      });
 
         buildCommonWidgetProperties(widgets);
+        buildWidgetBindingSummary(widgets);
 
         if (!multiSelection)
             addInfoRow("Type", widgetTypeLabel(widgetFactory, widgets.front().type));
+    }
+
+    void PropertyPanel::buildWidgetBindingSummary(const std::vector<WidgetRef>& widgets)
+    {
+        addSectionHeader("Property Bindings");
+
+        if (widgets.empty())
+        {
+            addInfoRow("Status", "No target widget");
+            return;
+        }
+
+        std::unordered_set<WidgetId> targetIds;
+        targetIds.reserve(widgets.size());
+        for (const auto& widget : widgets)
+            targetIds.insert(widget.id);
+
+        std::vector<const PropertyBindingModel*> matchedBindings;
+        matchedBindings.reserve(document.snapshot().propertyBindings.size());
+
+        std::map<juce::String, juce::var> runtimeParamDefaults;
+        for (const auto& param : document.snapshot().runtimeParams)
+        {
+            const auto key = param.key.trim();
+            if (key.isNotEmpty() && runtimeParamDefaults.find(key) == runtimeParamDefaults.end())
+                runtimeParamDefaults.emplace(key, param.defaultValue);
+        }
+
+        const auto isIdentifierLike = [](const juce::String& text) noexcept
+        {
+            const auto trimmed = text.trim();
+            if (trimmed.isEmpty())
+                return false;
+
+            const auto isStart = [](juce::juce_wchar ch) noexcept
+            {
+                return (ch >= 'a' && ch <= 'z')
+                    || (ch >= 'A' && ch <= 'Z')
+                    || ch == '_';
+            };
+
+            const auto isBody = [isStart](juce::juce_wchar ch) noexcept
+            {
+                return isStart(ch)
+                    || (ch >= '0' && ch <= '9')
+                    || ch == '.';
+            };
+
+            if (!isStart(trimmed[0]))
+                return false;
+
+            for (int i = 1; i < trimmed.length(); ++i)
+            {
+                if (!isBody(trimmed[i]))
+                    return false;
+            }
+
+            return true;
+        };
+
+        const auto validateBinding = [this, &runtimeParamDefaults, &isIdentifierLike](const PropertyBindingModel& binding) -> juce::String
+        {
+            const auto& snapshot = document.snapshot();
+            const auto widgetIt = std::find_if(snapshot.widgets.begin(),
+                                               snapshot.widgets.end(),
+                                               [&binding](const WidgetModel& widget)
+                                               {
+                                                   return widget.id == binding.targetWidgetId;
+                                               });
+            if (widgetIt == snapshot.widgets.end())
+                return "missing target widget";
+
+            const auto propertyText = binding.targetProperty.trim();
+            if (propertyText.isEmpty())
+                return "empty target property";
+            if (!isIdentifierLike(propertyText))
+                return "invalid target property";
+
+            const auto propertyKey = juce::Identifier(propertyText);
+            const auto* spec = widgetFactory.propertySpecFor(widgetIt->type, propertyKey);
+            const auto hasCurrentValue = widgetIt->properties.contains(propertyKey);
+            if (spec == nullptr && !hasCurrentValue)
+                return "target property not found";
+
+            if (spec != nullptr)
+            {
+                const auto kind = spec->kind;
+                const auto supported = kind == Widgets::WidgetPropertyKind::number
+                                    || kind == Widgets::WidgetPropertyKind::integer
+                                    || kind == Widgets::WidgetPropertyKind::boolean;
+                if (!supported)
+                    return "target type not bindable";
+            }
+            else if (hasCurrentValue)
+            {
+                const auto& currentValue = widgetIt->properties[propertyKey];
+                if (!(currentValue.isBool() || isNumericVar(currentValue)))
+                    return "target type mismatch";
+            }
+
+            const auto expression = binding.expression.trim();
+            if (expression.isEmpty())
+                return "empty expression";
+
+            const auto eval = Runtime::PropertyBindingResolver::evaluateExpression(expression, runtimeParamDefaults);
+            if (!eval.success)
+                return "expression: " + eval.error;
+
+            return {};
+        };
+
+        int enabledCount = 0;
+        int errorCount = 0;
+        for (const auto& binding : document.snapshot().propertyBindings)
+        {
+            if (targetIds.count(binding.targetWidgetId) == 0)
+                continue;
+
+            matchedBindings.push_back(&binding);
+            if (binding.enabled)
+                ++enabledCount;
+            if (validateBinding(binding).isNotEmpty())
+                ++errorCount;
+        }
+
+        addInfoRow("Count",
+                   juce::String(static_cast<int>(matchedBindings.size()))
+                       + " (" + juce::String(enabledCount) + " enabled, "
+                       + juce::String(errorCount) + " errors)");
+
+        if (matchedBindings.empty())
+        {
+            addInfoRow("Status", "No property bindings for current selection");
+            return;
+        }
+
+        constexpr size_t kMaxPreviewRows = 4;
+        const auto previewCount = std::min(kMaxPreviewRows, matchedBindings.size());
+
+        for (size_t i = 0; i < previewCount; ++i)
+        {
+            const auto* binding = matchedBindings[i];
+            jassert(binding != nullptr);
+            if (binding == nullptr)
+                continue;
+
+            const auto errorText = validateBinding(*binding);
+            const auto label = "#" + juce::String(binding->id);
+            const auto state = errorText.isNotEmpty() ? "[ERR] "
+                              : (binding->enabled ? "[ON] " : "[OFF] ");
+            auto value = state + binding->targetProperty.trim() + " <- " + binding->expression.trim();
+            if (binding->name.trim().isNotEmpty())
+                value = binding->name.trim() + " | " + value;
+            if (errorText.isNotEmpty())
+                value += " | " + errorText;
+            addInfoRow(label, value);
+        }
+
+        if (matchedBindings.size() > previewCount)
+            addInfoRow("More", juce::String(static_cast<int>(matchedBindings.size() - previewCount)) + " additional bindings");
     }
 
     void PropertyPanel::buildCommonWidgetProperties(const std::vector<WidgetRef>& widgets)

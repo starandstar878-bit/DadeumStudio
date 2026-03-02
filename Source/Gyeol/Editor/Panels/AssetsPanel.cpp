@@ -1,4 +1,4 @@
-﻿#include "Gyeol/Editor/Panels/AssetsPanel.h"
+#include "Gyeol/Editor/Panels/AssetsPanel.h"
 
 #include <algorithm>
 #include <array>
@@ -31,10 +31,11 @@ namespace Gyeol::Ui::Panels
 
         bool isSupportedImportExtension(const juce::String& extension)
         {
-            static const std::array<juce::String, 25> allowed {
+            static const std::array<juce::String, 31> allowed {
                 "png", "jpg", "jpeg", "bmp", "gif", "svg", "webp",
                 "ttf", "otf", "woff", "woff2",
                 "wav", "aif", "aiff", "ogg", "flac", "mp3",
+                "mp4", "mov", "m4v", "avi", "mkv", "webm",
                 "json", "xml", "txt", "csv", "bin",
                 "ico", "tga", "pdf"
             };
@@ -49,6 +50,23 @@ namespace Gyeol::Ui::Panels
             const auto normalized = extension.trim().toLowerCase();
             return std::find(audioExtensions.begin(), audioExtensions.end(), normalized) != audioExtensions.end();
         }
+
+        bool isSupportedVideoExtension(const juce::String& extension)
+        {
+            static const std::array<juce::String, 6> videoExtensions { "mp4", "mov", "m4v", "avi", "mkv", "webm" };
+            const auto normalized = extension.trim().toLowerCase();
+            return std::find(videoExtensions.begin(), videoExtensions.end(), normalized) != videoExtensions.end();
+        }
+
+        juce::String normalizeAssetStoragePath(const juce::String& value)
+        {
+            auto normalized = value.trim().replaceCharacter('\\', '/');
+            while (normalized.contains("//"))
+                normalized = normalized.replace("//", "/");
+            while (normalized.startsWith("./"))
+                normalized = normalized.substring(2);
+            return normalized;
+        }
     }
 
     class AssetsPanel::RowComponent final : public juce::Component
@@ -57,6 +75,8 @@ namespace Gyeol::Ui::Panels
         explicit RowComponent(AssetsPanel& ownerIn)
             : owner(ownerIn)
         {
+            setAccessible(false);
+
             kindBadge.setJustificationType(juce::Justification::centred);
             kindBadge.setFont(juce::FontOptions(9.0f, juce::Font::bold));
             kindBadge.setColour(juce::Label::textColourId, juce::Colours::black.withAlpha(0.8f));
@@ -110,10 +130,14 @@ namespace Gyeol::Ui::Panels
 
             showThumbnail = asset.kind == AssetKind::image;
             thumbnail = showThumbnail ? owner.getImageThumbnailForAsset(asset) : juce::Image();
+            showFontPreview = asset.kind == AssetKind::font;
+            fontTypeface = showFontPreview ? owner.getFontPreviewTypefaceForAsset(asset) : juce::Typeface::Ptr();
+            showVideoPreview = AssetsPanel::isVideoAsset(asset);
 
             showAudioPreview = owner.audioPreviewAvailable && AssetsPanel::isAudioAsset(asset);
-            const auto previewPlaying = showAudioPreview && owner.isAssetPreviewPlaying(asset.id);
-            previewButton.setVisible(showAudioPreview);
+            const auto previewPlaying = owner.isAssetPreviewPlaying(asset.id);
+            const auto showPreviewButton = showAudioPreview || showVideoPreview;
+            previewButton.setVisible(showPreviewButton);
             previewButton.setButtonText(previewPlaying ? "Stop" : "Play");
 
             resized();
@@ -161,6 +185,36 @@ namespace Gyeol::Ui::Panels
                     g.drawFittedText("N/A", thumbnailBounds, juce::Justification::centred, 1);
                 }
             }
+            else if ((showFontPreview || showVideoPreview) && !thumbnailBounds.isEmpty())
+            {
+                const auto previewBounds = thumbnailBounds.toFloat();
+                g.setColour(juce::Colour::fromRGB(16, 20, 26));
+                g.fillRoundedRectangle(previewBounds, 4.0f);
+                g.setColour(juce::Colour::fromRGB(62, 70, 84));
+                g.drawRoundedRectangle(previewBounds, 4.0f, 1.0f);
+
+                if (showFontPreview)
+                {
+                    auto previewOptions = juce::FontOptions(15.0f);
+                    if (fontTypeface != nullptr)
+                    {
+                        previewOptions = juce::FontOptions(15.0f)
+                                             .withName({})
+                                             .withStyle({})
+                                             .withTypeface(fontTypeface);
+                    }
+                    juce::Font previewFont(previewOptions);
+                    g.setFont(previewFont);
+                    g.setColour(juce::Colour::fromRGB(222, 230, 242));
+                    g.drawFittedText("Aa", thumbnailBounds.reduced(2), juce::Justification::centred, 1);
+                }
+                else
+                {
+                    g.setColour(juce::Colour::fromRGB(128, 148, 176));
+                    g.setFont(juce::FontOptions(8.5f, juce::Font::bold));
+                    g.drawFittedText("VIDEO", thumbnailBounds.reduced(2), juce::Justification::centred, 1);
+                }
+            }
 
             if (!usageBadgeBounds.isEmpty())
             {
@@ -183,7 +237,7 @@ namespace Gyeol::Ui::Panels
         {
             auto area = getLocalBounds().reduced(8, 5);
 
-            if (showThumbnail)
+            if (showThumbnail || showFontPreview || showVideoPreview)
             {
                 thumbnailBounds = area.removeFromLeft(40).reduced(0, 2);
                 area.removeFromLeft(8);
@@ -193,7 +247,7 @@ namespace Gyeol::Ui::Panels
                 thumbnailBounds = {};
             }
 
-            if (showAudioPreview)
+            if (showAudioPreview || showVideoPreview)
             {
                 auto buttonArea = area.removeFromRight(52);
                 buttonArea = buttonArea.withTrimmedTop(8).withTrimmedBottom(8);
@@ -241,6 +295,8 @@ namespace Gyeol::Ui::Panels
         bool rowSelected = false;
         bool dragStarted = false;
         bool showThumbnail = false;
+        bool showFontPreview = false;
+        bool showVideoPreview = false;
         bool showAudioPreview = false;
         bool excludedFromExport = false;
         int usageCount = 0;
@@ -249,6 +305,7 @@ namespace Gyeol::Ui::Panels
         juce::Rectangle<int> thumbnailBounds;
         juce::Rectangle<int> usageBadgeBounds;
         juce::Image thumbnail;
+        juce::Typeface::Ptr fontTypeface;
 
         juce::Label kindBadge;
         juce::Label nameLabel;
@@ -413,6 +470,21 @@ namespace Gyeol::Ui::Panels
         usageList.setColour(juce::ListBox::outlineColourId, juce::Colour::fromRGB(44, 52, 66));
         addAndMakeVisible(usageList);
 
+        videoPreviewLabel.setText("Video Preview", juce::dontSendNotification);
+        videoPreviewLabel.setJustificationType(juce::Justification::centredLeft);
+        videoPreviewLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+        videoPreviewLabel.setColour(juce::Label::textColourId, juce::Colour::fromRGB(178, 188, 202));
+        videoPreviewLabel.setVisible(false);
+        addAndMakeVisible(videoPreviewLabel);
+
+        videoPreviewStopButton.onClick = [this] { stopAudioPreview(); };
+        videoPreviewStopButton.setVisible(false);
+        addAndMakeVisible(videoPreviewStopButton);
+
+        videoPreview = std::make_unique<juce::VideoComponent>(true);
+        videoPreview->setVisible(false);
+        addAndMakeVisible(*videoPreview);
+
         statusLabel.setColour(juce::Label::textColourId, kInfo);
         statusLabel.setJustificationType(juce::Justification::centredLeft);
         statusLabel.setText("Ready", juce::dontSendNotification);
@@ -448,6 +520,7 @@ namespace Gyeol::Ui::Panels
     {
         assets = document.snapshot().assets;
         thumbnailCache.clear();
+        fontPreviewCache.clear();
         rebuildUsageIndex();
 
         if (previewAssetId > kRootId)
@@ -528,11 +601,15 @@ namespace Gyeol::Ui::Panels
 
         constexpr int usageTitleHeight = 18;
         constexpr int usageListHeight = 96;
+        constexpr int videoTitleHeight = 18;
+        constexpr int videoBodyHeight = 120;
         constexpr int refEditorHeight = 24;
         constexpr int bottomButtonsHeight = 24;
         constexpr int statusHeight = 18;
+        const int videoPreviewReserved = videoPreviewVisible ? (4 + videoTitleHeight + 4 + videoBodyHeight) : 0;
 
         const int reserved = 6
+                           + videoPreviewReserved
                            + refEditorHeight + 4
                            + bottomButtonsHeight + 4
                            + usageTitleHeight + 4
@@ -541,6 +618,26 @@ namespace Gyeol::Ui::Panels
 
         area.removeFromTop(6);
         listBox.setBounds(area.removeFromTop(juce::jmax(96, area.getHeight() - reserved)));
+
+        if (videoPreviewVisible)
+        {
+            area.removeFromTop(4);
+            auto videoTitleRow = area.removeFromTop(videoTitleHeight);
+            videoPreviewStopButton.setBounds(videoTitleRow.removeFromRight(88));
+            videoTitleRow.removeFromRight(4);
+            videoPreviewLabel.setBounds(videoTitleRow);
+
+            area.removeFromTop(4);
+            if (videoPreview != nullptr)
+                videoPreview->setBounds(area.removeFromTop(videoBodyHeight));
+        }
+        else
+        {
+            videoPreviewLabel.setBounds({});
+            videoPreviewStopButton.setBounds({});
+            if (videoPreview != nullptr)
+                videoPreview->setBounds({});
+        }
 
         area.removeFromTop(4);
         refKeyEditor.setBounds(area.removeFromTop(refEditorHeight));
@@ -627,6 +724,20 @@ namespace Gyeol::Ui::Panels
         if (previewAssetId <= kRootId)
         {
             stopTimer();
+            return;
+        }
+
+        if (videoPreviewVisible)
+        {
+            if (videoPreview != nullptr && videoPreview->isVideoOpen())
+            {
+                const auto duration = videoPreview->getVideoDuration();
+                const auto position = videoPreview->getPlayPosition();
+                if (duration <= 0.0 || position + 0.05 < duration)
+                    return;
+            }
+
+            stopAudioPreview();
             return;
         }
 
@@ -1004,7 +1115,29 @@ namespace Gyeol::Ui::Panels
     {
         if (!document.setAssets(assets))
         {
-            setStatus("No document change.", kInfo);
+            // Keep panel state authoritative to the document when commit is rejected
+            // (e.g. active coalesced edit finalization failure). Without this sync,
+            // the panel can show a transient local-only list.
+            assets = document.snapshot().assets;
+            thumbnailCache.clear();
+            fontPreviewCache.clear();
+            juce::ImageCache::releaseUnusedImages();
+            rebuildUsageIndex();
+
+            if (previewAssetId > kRootId)
+            {
+                const auto stillExists = std::any_of(assets.begin(),
+                                                     assets.end(),
+                                                     [this](const AssetModel& asset)
+                                                     {
+                                                         return asset.id == previewAssetId;
+                                                     });
+                if (!stillExists)
+                    stopAudioPreview();
+            }
+
+            rebuildVisibleAssets();
+            setStatus("Asset commit rejected. Re-synced from document.", kWarn);
             return false;
         }
 
@@ -1201,9 +1334,10 @@ namespace Gyeol::Ui::Panels
         const auto oldMime = asset.mimeType;
 
         asset.kind = inferAssetKindFromFile(sourceFile);
-        asset.relativePath = normalizeRelativePath(resolveRelativePath(sourceFile));
+        asset.relativePath = resolveRelativePath(sourceFile);
         asset.mimeType = inferMimeTypeFromFile(sourceFile);
         thumbnailCache.clear();
+        fontPreviewCache.clear();
         juce::ImageCache::releaseUnusedImages();
         if (previewAssetId == asset.id)
             stopAudioPreview();
@@ -1280,9 +1414,10 @@ namespace Gyeol::Ui::Panels
                                             }
 
                                             it->kind = inferAssetKindFromFile(file);
-                                            it->relativePath = normalizeRelativePath(resolveRelativePath(file));
+                                            it->relativePath = resolveRelativePath(file);
                                             it->mimeType = inferMimeTypeFromFile(file);
                                             safe->thumbnailCache.clear();
+                                            safe->fontPreviewCache.clear();
                                             if (safe->previewAssetId == targetAssetId)
                                                 safe->stopAudioPreview();
 
@@ -1661,7 +1796,7 @@ namespace Gyeol::Ui::Panels
                                                 if (asset.kind == AssetKind::colorPreset)
                                                     continue;
 
-                                                const auto normalizedCurrent = normalizeRelativePath(asset.relativePath);
+                                                const auto normalizedCurrent = normalizeAssetStoragePath(asset.relativePath);
                                                 if (normalizedCurrent.isEmpty())
                                                     continue;
 
@@ -1687,7 +1822,7 @@ namespace Gyeol::Ui::Panels
                                                 int bestScore = -1;
                                                 for (const auto& candidate : found->second)
                                                 {
-                                                    auto candidateRelative = normalizeRelativePath(candidate.getRelativePathFrom(searchRoot))
+                                                    auto candidateRelative = normalizeAssetStoragePath(candidate.getRelativePathFrom(searchRoot))
                                                                  .toLowerCase();
                                                     int score = 0;
                                                     if (candidateRelative.equalsIgnoreCase(normalizedHint))
@@ -1705,10 +1840,10 @@ namespace Gyeol::Ui::Panels
                                                     }
                                                 }
 
-                                                auto nextRelative = normalizeRelativePath(chosen.getRelativePathFrom(projectRoot)
-                                                                                              .replaceCharacter('\\', '/'));
+                                                auto nextRelative = normalizeAssetStoragePath(chosen.getRelativePathFrom(projectRoot)
+                                                                                                 .replaceCharacter('\\', '/'));
                                                 if (nextRelative.isEmpty())
-                                                    nextRelative = normalizeRelativePath(chosen.getFileName());
+                                                    nextRelative = normalizeAssetStoragePath(chosen.getFileName());
                                                 if (nextRelative.isEmpty())
                                                 {
                                                     ++unresolvedCount;
@@ -2564,10 +2699,32 @@ namespace Gyeol::Ui::Panels
 
     juce::File AssetsPanel::resolveInputFilePath(const juce::String& value) const
     {
-        if (juce::File::isAbsolutePath(value))
-            return juce::File(value);
+        const auto normalized = normalizeAssetStoragePath(value);
+        if (juce::File::isAbsolutePath(normalized))
+            return juce::File(normalized);
 
-        return resolveProjectRootDirectory().getChildFile(value);
+        const auto projectRoot = resolveProjectRootDirectory();
+        const auto projectCandidate = projectRoot.getChildFile(normalized);
+        if (projectCandidate.existsAsFile())
+            return projectCandidate;
+
+        if (normalized.startsWith(".") || normalized.startsWith(".."))
+            return projectCandidate;
+
+        const auto cwdCandidate = juce::File::getCurrentWorkingDirectory().getChildFile(normalized);
+        if (cwdCandidate.existsAsFile())
+            return cwdCandidate;
+
+        juce::Array<juce::File> roots;
+        juce::File::findFileSystemRoots(roots);
+        for (const auto& root : roots)
+        {
+            const auto candidate = root.getChildFile(normalized);
+            if (candidate.existsAsFile())
+                return candidate;
+        }
+
+        return projectCandidate;
     }
 
     juce::Image AssetsPanel::getImageThumbnailForAsset(const AssetModel& asset) const
@@ -2575,7 +2732,7 @@ namespace Gyeol::Ui::Panels
         if (asset.kind != AssetKind::image || asset.relativePath.trim().isEmpty())
             return {};
 
-        const auto cacheKey = normalizeRelativePath(asset.relativePath);
+        const auto cacheKey = normalizeAssetStoragePath(asset.relativePath);
         if (const auto found = thumbnailCache.find(cacheKey); found != thumbnailCache.end())
             return found->second;
 
@@ -2586,6 +2743,36 @@ namespace Gyeol::Ui::Panels
 
         thumbnailCache[cacheKey] = image;
         return image;
+    }
+
+    juce::Typeface::Ptr AssetsPanel::getFontPreviewTypefaceForAsset(const AssetModel& asset) const
+    {
+        if (asset.kind != AssetKind::font || asset.relativePath.trim().isEmpty())
+            return {};
+
+#if JUCE_WINDOWS
+        // Windows DirectWrite custom in-memory font loading can retain MemoryFontFileLoader
+        // instances until process shutdown, which triggers leak detector assertions in debug.
+        // Use default UI font preview on Windows to keep shutdown clean.
+        juce::ignoreUnused(asset);
+        return {};
+#else
+        const auto cacheKey = normalizeAssetStoragePath(asset.relativePath);
+        if (const auto found = fontPreviewCache.find(cacheKey); found != fontPreviewCache.end())
+            return found->second;
+
+        juce::Typeface::Ptr typeface;
+        const auto sourceFile = resolveInputFilePath(asset.relativePath);
+        if (sourceFile.existsAsFile())
+        {
+            juce::MemoryBlock data;
+            if (sourceFile.loadFileAsData(data) && data.getSize() > 0)
+                typeface = juce::Typeface::createSystemTypefaceFor(data.getData(), data.getSize());
+        }
+
+        fontPreviewCache[cacheKey] = typeface;
+        return typeface;
+#endif
     }
 
     bool AssetsPanel::isAudioAsset(const AssetModel& asset)
@@ -2603,11 +2790,30 @@ namespace Gyeol::Ui::Panels
         return isSupportedAudioExtension(extension);
     }
 
+    bool AssetsPanel::isVideoAsset(const AssetModel& asset)
+    {
+        const auto mime = asset.mimeType.trim().toLowerCase();
+        if (mime.startsWith("video/"))
+            return true;
+
+        const auto normalizedPath = asset.relativePath.trim().replaceCharacter('\\', '/');
+        const auto fileName = normalizedPath.fromLastOccurrenceOf("/", false, false);
+        juce::String extension;
+        if (const auto dotIndex = fileName.lastIndexOfChar('.'); dotIndex >= 0 && dotIndex + 1 < fileName.length())
+            extension = fileName.substring(dotIndex + 1).toLowerCase();
+
+        return isSupportedVideoExtension(extension);
+    }
+
     bool AssetsPanel::isAssetPreviewPlaying(WidgetId assetId) const
     {
-        return assetId > kRootId
-            && previewAssetId == assetId
-            && audioTransportSource.isPlaying();
+        if (assetId <= kRootId || previewAssetId != assetId)
+            return false;
+
+        if (videoPreviewVisible)
+            return videoPreview != nullptr && videoPreview->isPlaying();
+
+        return audioTransportSource.isPlaying();
     }
 
     void AssetsPanel::toggleAudioPreviewForAsset(WidgetId assetId)
@@ -2629,6 +2835,18 @@ namespace Gyeol::Ui::Panels
                                      });
         if (it == assets.end())
             return;
+
+        if (isVideoAsset(*it))
+        {
+            if (previewAssetId == assetId && videoPreviewVisible)
+            {
+                stopAudioPreview();
+                return;
+            }
+
+            startVideoPreviewForAsset(*it);
+            return;
+        }
 
         startAudioPreviewForAsset(*it);
     }
@@ -2682,17 +2900,83 @@ namespace Gyeol::Ui::Panels
         listBox.repaint();
     }
 
+    void AssetsPanel::startVideoPreviewForAsset(const AssetModel& asset)
+    {
+        if (!isVideoAsset(asset))
+        {
+            setStatus("Selected asset is not a video file.", kWarn);
+            return;
+        }
+
+        if (asset.relativePath.trim().isEmpty())
+        {
+            setStatus("Video preview failed: empty file path.", kWarn);
+            return;
+        }
+
+        const auto sourceFile = resolveInputFilePath(asset.relativePath);
+        if (!sourceFile.existsAsFile())
+        {
+            setStatus("Video preview failed: file not found.", kWarn);
+            return;
+        }
+
+        if (videoPreview == nullptr)
+        {
+            setStatus("Video preview unavailable: component failed to initialize.", kWarn);
+            return;
+        }
+
+        stopAudioPreview();
+
+        const auto loadResult = videoPreview->load(sourceFile);
+        if (loadResult.failed())
+        {
+            setStatus("Video preview failed: " + loadResult.getErrorMessage(), kWarn);
+            return;
+        }
+
+        previewAssetId = asset.id;
+        videoPreviewVisible = true;
+        updateVideoPreviewLayout();
+        videoPreview->play();
+        startTimerHz(6);
+
+        const auto displayName = asset.name.isNotEmpty() ? asset.name : asset.refKey;
+        setStatus("Previewing video: " + displayName, kInfo);
+        listBox.repaint();
+    }
+
     void AssetsPanel::stopAudioPreview()
     {
         const auto hadPreview = previewAssetId > kRootId;
         audioTransportSource.stop();
         audioTransportSource.setSource(nullptr);
         audioReaderSource.reset();
+
+        if (videoPreview != nullptr)
+        {
+            videoPreview->stop();
+            videoPreview->closeVideo();
+        }
+
+        videoPreviewVisible = false;
+        updateVideoPreviewLayout();
         previewAssetId = kRootId;
         stopTimer();
 
         if (hadPreview)
             listBox.repaint();
+    }
+
+    void AssetsPanel::updateVideoPreviewLayout()
+    {
+        const auto visible = videoPreviewVisible && videoPreview != nullptr;
+        videoPreviewLabel.setVisible(visible);
+        videoPreviewStopButton.setVisible(visible);
+        if (videoPreview != nullptr)
+            videoPreview->setVisible(visible);
+        resized();
     }
 
     bool AssetsPanel::isImportableFile(const juce::File& file)
@@ -2798,6 +3082,11 @@ namespace Gyeol::Ui::Panels
         if (ext == "ogg") return "audio/ogg";
         if (ext == "flac") return "audio/flac";
         if (ext == "mp3") return "audio/mpeg";
+        if (ext == "mp4" || ext == "m4v") return "video/mp4";
+        if (ext == "mov") return "video/quicktime";
+        if (ext == "avi") return "video/x-msvideo";
+        if (ext == "mkv") return "video/x-matroska";
+        if (ext == "webm") return "video/webm";
         if (ext == "json") return "application/json";
         return "application/octet-stream";
     }
@@ -2846,6 +3135,6 @@ namespace Gyeol::Ui::Panels
         if (relativePath.isEmpty())
             relativePath = file.getFileName();
 
-        return normalizeRelativePath(relativePath);
+        return normalizeAssetStoragePath(relativePath);
     }
 }

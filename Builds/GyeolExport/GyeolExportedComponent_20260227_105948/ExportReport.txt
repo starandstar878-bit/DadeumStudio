@@ -1,0 +1,14 @@
+Gyeol Export Report
+===================
+Component Class: GyeolExportedComponent
+Output Directory: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260227_105948
+Generated Header: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260227_105948\GyeolExportedComponent.h
+Generated Source: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260227_105948\GyeolExportedComponent.cpp
+Manifest File: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\GyeolExportedComponent_20260227_105948\export-manifest.json
+Widgets Exported: 5
+Resources Copied: 0
+Warnings: 0
+Errors: 0
+
+Issues:
+- INFO: no issues

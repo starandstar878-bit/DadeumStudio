@@ -1,7 +1,10 @@
-﻿#include "Gyeol/Editor/Panels/EventActionPanel.h"
+#include "Gyeol/Editor/Panels/EventActionPanel.h"
+
+#include "Gyeol/Runtime/PropertyBindingResolver.h"
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 
 namespace Gyeol::Ui::Panels
 {
@@ -30,6 +33,38 @@ namespace Gyeol::Ui::Panels
             if (!parsed.has_value() || *parsed <= kRootId)
                 return false;
             outId = *parsed;
+            return true;
+        }
+
+        bool isIdentifierLike(const juce::String& text) noexcept
+        {
+            const auto trimmed = text.trim();
+            if (trimmed.isEmpty())
+                return false;
+
+            const auto isStart = [](juce::juce_wchar ch) noexcept
+            {
+                return (ch >= 'a' && ch <= 'z')
+                    || (ch >= 'A' && ch <= 'Z')
+                    || ch == '_';
+            };
+
+            const auto isBody = [isStart](juce::juce_wchar ch) noexcept
+            {
+                return isStart(ch)
+                    || (ch >= '0' && ch <= '9')
+                    || ch == '.';
+            };
+
+            if (!isStart(trimmed[0]))
+                return false;
+
+            for (int i = 1; i < trimmed.length(); ++i)
+            {
+                if (!isBody(trimmed[i]))
+                    return false;
+            }
+
             return true;
         }
 
@@ -104,19 +139,74 @@ namespace Gyeol::Ui::Panels
             }
             return std::nullopt;
         }
+
+        int runtimeParamTypeToComboId(RuntimeParamValueType type) noexcept
+        {
+            switch (type)
+            {
+                case RuntimeParamValueType::number: return 1;
+                case RuntimeParamValueType::boolean: return 2;
+                case RuntimeParamValueType::string: return 3;
+            }
+
+            return 0;
+        }
+
+        std::optional<RuntimeParamValueType> runtimeParamTypeFromComboId(int id) noexcept
+        {
+            switch (id)
+            {
+                case 1: return RuntimeParamValueType::number;
+                case 2: return RuntimeParamValueType::boolean;
+                case 3: return RuntimeParamValueType::string;
+                default: break;
+            }
+
+            return std::nullopt;
+        }
+
+        std::optional<bool> parseLooseBool(const juce::String& text) noexcept
+        {
+            const auto normalized = text.trim().toLowerCase();
+            if (normalized == "true" || normalized == "1" || normalized == "on" || normalized == "yes")
+                return true;
+            if (normalized == "false" || normalized == "0" || normalized == "off" || normalized == "no")
+                return false;
+            return std::nullopt;
+        }
     }
 
     EventActionPanel::EventActionPanel(DocumentHandle& documentIn, const Widgets::WidgetRegistry& registryIn)
         : document(documentIn),
           registry(registryIn),
           bindingListModel(*this),
-          actionListModel(*this)
+          actionListModel(*this),
+          runtimeParamListModel(*this),
+          propertyBindingListModel(*this)
     {
         titleLabel.setText("Event/Action", juce::dontSendNotification);
         titleLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
         titleLabel.setColour(juce::Label::textColourId, juce::Colour::fromRGB(192, 200, 214));
         titleLabel.setJustificationType(juce::Justification::centredLeft);
         addAndMakeVisible(titleLabel);
+
+        eventModeButton.setClickingTogglesState(true);
+        eventModeButton.setRadioGroupId(0x47ea);
+        eventModeButton.onClick = [this]
+        {
+            if (!suppressCallbacks)
+                setPanelMode(PanelMode::eventAction);
+        };
+        addAndMakeVisible(eventModeButton);
+
+        stateModeButton.setClickingTogglesState(true);
+        stateModeButton.setRadioGroupId(0x47ea);
+        stateModeButton.onClick = [this]
+        {
+            if (!suppressCallbacks)
+                setPanelMode(PanelMode::stateBinding);
+        };
+        addAndMakeVisible(stateModeButton);
 
         addAndMakeVisible(sourceCombo);
         sourceCombo.onChange = [this]
@@ -273,13 +363,100 @@ namespace Gyeol::Ui::Panels
         statusLabel.setColour(juce::Label::textColourId, kStatusInfo);
         addAndMakeVisible(statusLabel);
 
+        stateHintLabel.setText("Runtime Params + Property Bindings", juce::dontSendNotification);
+        stateHintLabel.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+        stateHintLabel.setColour(juce::Label::textColourId, juce::Colour::fromRGB(174, 186, 202));
+        stateHintLabel.setJustificationType(juce::Justification::centredLeft);
+        addAndMakeVisible(stateHintLabel);
+
+        runtimeParamTitleLabel.setText("Runtime Params", juce::dontSendNotification);
+        runtimeParamTitleLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+        runtimeParamTitleLabel.setColour(juce::Label::textColourId, juce::Colour::fromRGB(188, 198, 214));
+        runtimeParamTitleLabel.setJustificationType(juce::Justification::centredLeft);
+        addAndMakeVisible(runtimeParamTitleLabel);
+
+        runtimeParamList.setModel(&runtimeParamListModel);
+        runtimeParamList.setRowHeight(26);
+        runtimeParamList.setColour(juce::ListBox::backgroundColourId, juce::Colour::fromRGB(17, 23, 31));
+        runtimeParamList.setColour(juce::ListBox::outlineColourId, juce::Colour::fromRGB(44, 52, 66));
+        addAndMakeVisible(runtimeParamList);
+
+        addRuntimeParamButton.onClick = [this] { addRuntimeParam(); };
+        deleteRuntimeParamButton.onClick = [this] { deleteRuntimeParam(); };
+        addAndMakeVisible(addRuntimeParamButton);
+        addAndMakeVisible(deleteRuntimeParamButton);
+
+        setupEditor(runtimeParamKeyEditor, "param key");
+        setupEditor(runtimeParamDefaultEditor, "default");
+        setupEditor(runtimeParamDescriptionEditor, "description");
+        runtimeParamKeyEditor.onReturnKey = [this] { applySelectedRuntimeParam(); };
+        runtimeParamKeyEditor.onFocusLost = [this] { applySelectedRuntimeParam(); };
+        runtimeParamDefaultEditor.onReturnKey = [this] { applySelectedRuntimeParam(); };
+        runtimeParamDefaultEditor.onFocusLost = [this] { applySelectedRuntimeParam(); };
+        runtimeParamDescriptionEditor.onReturnKey = [this] { applySelectedRuntimeParam(); };
+        runtimeParamDescriptionEditor.onFocusLost = [this] { applySelectedRuntimeParam(); };
+        addAndMakeVisible(runtimeParamKeyEditor);
+        addAndMakeVisible(runtimeParamDefaultEditor);
+        addAndMakeVisible(runtimeParamDescriptionEditor);
+
+        runtimeParamTypeCombo.addItem("number", 1);
+        runtimeParamTypeCombo.addItem("boolean", 2);
+        runtimeParamTypeCombo.addItem("string", 3);
+        runtimeParamTypeCombo.onChange = [this] { applySelectedRuntimeParam(); };
+        addAndMakeVisible(runtimeParamTypeCombo);
+
+        runtimeParamExposedToggle.setClickingTogglesState(true);
+        runtimeParamExposedToggle.onClick = [this] { applySelectedRuntimeParam(); };
+        addAndMakeVisible(runtimeParamExposedToggle);
+
+        propertyBindingTitleLabel.setText("Property Bindings", juce::dontSendNotification);
+        propertyBindingTitleLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+        propertyBindingTitleLabel.setColour(juce::Label::textColourId, juce::Colour::fromRGB(188, 198, 214));
+        propertyBindingTitleLabel.setJustificationType(juce::Justification::centredLeft);
+        addAndMakeVisible(propertyBindingTitleLabel);
+
+        propertyBindingList.setModel(&propertyBindingListModel);
+        propertyBindingList.setRowHeight(30);
+        propertyBindingList.setColour(juce::ListBox::backgroundColourId, juce::Colour::fromRGB(17, 23, 31));
+        propertyBindingList.setColour(juce::ListBox::outlineColourId, juce::Colour::fromRGB(44, 52, 66));
+        addAndMakeVisible(propertyBindingList);
+
+        addPropertyBindingButton.onClick = [this] { addPropertyBinding(); };
+        deletePropertyBindingButton.onClick = [this] { deletePropertyBinding(); };
+        addAndMakeVisible(addPropertyBindingButton);
+        addAndMakeVisible(deletePropertyBindingButton);
+
+        setupEditor(propertyBindingNameEditor, "link name");
+        setupEditor(propertyBindingTargetIdEditor, "targetWidgetId");
+        setupEditor(propertyBindingTargetPropertyEditor, "target property");
+        setupEditor(propertyBindingExpressionEditor, "expression (ex: A + 3*B)");
+        propertyBindingNameEditor.onReturnKey = [this] { applySelectedPropertyBinding(); };
+        propertyBindingNameEditor.onFocusLost = [this] { applySelectedPropertyBinding(); };
+        propertyBindingTargetIdEditor.onReturnKey = [this] { applySelectedPropertyBinding(); };
+        propertyBindingTargetIdEditor.onFocusLost = [this] { applySelectedPropertyBinding(); };
+        propertyBindingTargetPropertyEditor.onReturnKey = [this] { applySelectedPropertyBinding(); };
+        propertyBindingTargetPropertyEditor.onFocusLost = [this] { applySelectedPropertyBinding(); };
+        propertyBindingExpressionEditor.onReturnKey = [this] { applySelectedPropertyBinding(); };
+        propertyBindingExpressionEditor.onFocusLost = [this] { applySelectedPropertyBinding(); };
+        addAndMakeVisible(propertyBindingNameEditor);
+        addAndMakeVisible(propertyBindingTargetIdEditor);
+        addAndMakeVisible(propertyBindingTargetPropertyEditor);
+        addAndMakeVisible(propertyBindingExpressionEditor);
+
+        propertyBindingEnabledToggle.setClickingTogglesState(true);
+        propertyBindingEnabledToggle.onClick = [this] { applySelectedPropertyBinding(); };
+        addAndMakeVisible(propertyBindingEnabledToggle);
+
         refreshFromDocument();
+        setPanelMode(PanelMode::eventAction);
     }
 
     EventActionPanel::~EventActionPanel()
     {
         bindingList.setModel(nullptr);
         actionList.setModel(nullptr);
+        runtimeParamList.setModel(nullptr);
+        propertyBindingList.setModel(nullptr);
     }
 
     void EventActionPanel::setBindingsChangedCallback(std::function<void()> callback)
@@ -289,12 +466,17 @@ namespace Gyeol::Ui::Panels
 
     void EventActionPanel::refreshFromDocument()
     {
-        bindings = document.snapshot().runtimeBindings;
+        const auto& snapshot = document.snapshot();
+        bindings = snapshot.runtimeBindings;
+        runtimeParams = snapshot.runtimeParams;
+        propertyBindings = snapshot.propertyBindings;
         rebuildWidgetOptions();
         rebuildCreateCombos();
         rebuildVisibleBindings();
         restoreSelections();
         refreshDetailEditors();
+        refreshStateEditors();
+        updatePanelModeVisibility();
     }
 
     void EventActionPanel::paint(juce::Graphics& g)
@@ -308,8 +490,71 @@ namespace Gyeol::Ui::Panels
     {
         auto area = getLocalBounds().reduced(8);
 
-        titleLabel.setBounds(area.removeFromTop(20));
+        auto header = area.removeFromTop(22);
+        auto modeArea = header.removeFromRight(172);
+        titleLabel.setBounds(header);
+        eventModeButton.setBounds(modeArea.removeFromLeft(84));
+        modeArea.removeFromLeft(4);
+        stateModeButton.setBounds(modeArea.removeFromLeft(84));
         area.removeFromTop(4);
+
+        if (panelMode == PanelMode::stateBinding)
+        {
+            statusLabel.setBounds(area.removeFromBottom(18));
+            area.removeFromBottom(4);
+
+            stateHintLabel.setBounds(area.removeFromTop(18));
+            area.removeFromTop(4);
+
+            runtimeParamTitleLabel.setBounds(area.removeFromTop(18));
+            runtimeParamList.setBounds(area.removeFromTop(122));
+            area.removeFromTop(4);
+
+            auto paramButtons = area.removeFromTop(24);
+            addRuntimeParamButton.setBounds(paramButtons.removeFromLeft(94));
+            paramButtons.removeFromLeft(4);
+            deleteRuntimeParamButton.setBounds(paramButtons.removeFromLeft(104));
+            area.removeFromTop(4);
+
+            auto paramMetaA = area.removeFromTop(24);
+            runtimeParamKeyEditor.setBounds(paramMetaA.removeFromLeft(150));
+            paramMetaA.removeFromLeft(4);
+            runtimeParamTypeCombo.setBounds(paramMetaA.removeFromLeft(96));
+            paramMetaA.removeFromLeft(4);
+            runtimeParamExposedToggle.setBounds(paramMetaA);
+            area.removeFromTop(4);
+
+            auto paramMetaB = area.removeFromTop(24);
+            runtimeParamDefaultEditor.setBounds(paramMetaB.removeFromLeft(124));
+            paramMetaB.removeFromLeft(4);
+            runtimeParamDescriptionEditor.setBounds(paramMetaB);
+            area.removeFromTop(6);
+
+            propertyBindingTitleLabel.setBounds(area.removeFromTop(18));
+            propertyBindingList.setBounds(area.removeFromTop(138));
+            area.removeFromTop(4);
+
+            auto bindingButtons = area.removeFromTop(24);
+            addPropertyBindingButton.setBounds(bindingButtons.removeFromLeft(86));
+            bindingButtons.removeFromLeft(4);
+            deletePropertyBindingButton.setBounds(bindingButtons.removeFromLeft(96));
+            area.removeFromTop(4);
+
+            auto bindingMetaA = area.removeFromTop(24);
+            propertyBindingNameEditor.setBounds(bindingMetaA.removeFromLeft(160));
+            bindingMetaA.removeFromLeft(4);
+            propertyBindingEnabledToggle.setBounds(bindingMetaA);
+            area.removeFromTop(4);
+
+            auto bindingMetaB = area.removeFromTop(24);
+            propertyBindingTargetIdEditor.setBounds(bindingMetaB.removeFromLeft(124));
+            bindingMetaB.removeFromLeft(4);
+            propertyBindingTargetPropertyEditor.setBounds(bindingMetaB);
+            area.removeFromTop(4);
+
+            propertyBindingExpressionEditor.setBounds(area.removeFromTop(24));
+            return;
+        }
 
         auto topRow = area.removeFromTop(24);
         auto addBindingArea = topRow.removeFromRight(84);
@@ -459,6 +704,231 @@ namespace Gyeol::Ui::Panels
         if (binding == nullptr || row < 0 || row >= static_cast<int>(binding->actions.size()))
             return nullptr;
         return &binding->actions[static_cast<size_t>(row)];
+    }
+
+    int EventActionPanel::selectedRuntimeParamIndex() const
+    {
+        const auto row = runtimeParamList.getSelectedRow();
+        if (row < 0 || row >= static_cast<int>(runtimeParams.size()))
+            return -1;
+        return row;
+    }
+
+    RuntimeParamModel* EventActionPanel::selectedRuntimeParam()
+    {
+        const auto index = selectedRuntimeParamIndex();
+        if (index < 0 || index >= static_cast<int>(runtimeParams.size()))
+            return nullptr;
+        return &runtimeParams[static_cast<size_t>(index)];
+    }
+
+    const RuntimeParamModel* EventActionPanel::selectedRuntimeParam() const
+    {
+        const auto index = selectedRuntimeParamIndex();
+        if (index < 0 || index >= static_cast<int>(runtimeParams.size()))
+            return nullptr;
+        return &runtimeParams[static_cast<size_t>(index)];
+    }
+
+    int EventActionPanel::selectedPropertyBindingIndex() const
+    {
+        const auto row = propertyBindingList.getSelectedRow();
+        if (row < 0 || row >= static_cast<int>(propertyBindings.size()))
+            return -1;
+        return row;
+    }
+
+    PropertyBindingModel* EventActionPanel::selectedPropertyBinding()
+    {
+        const auto index = selectedPropertyBindingIndex();
+        if (index < 0 || index >= static_cast<int>(propertyBindings.size()))
+            return nullptr;
+        return &propertyBindings[static_cast<size_t>(index)];
+    }
+
+    const PropertyBindingModel* EventActionPanel::selectedPropertyBinding() const
+    {
+        const auto index = selectedPropertyBindingIndex();
+        if (index < 0 || index >= static_cast<int>(propertyBindings.size()))
+            return nullptr;
+        return &propertyBindings[static_cast<size_t>(index)];
+    }
+
+    void EventActionPanel::setPanelMode(PanelMode mode)
+    {
+        if (panelMode == mode)
+            return;
+
+        panelMode = mode;
+        updatePanelModeVisibility();
+        refreshStateEditors();
+        resized();
+        repaint();
+    }
+
+    void EventActionPanel::updatePanelModeVisibility()
+    {
+        const auto showEventAction = panelMode == PanelMode::eventAction;
+        const auto showState = panelMode == PanelMode::stateBinding;
+
+        suppressCallbacks = true;
+        eventModeButton.setToggleState(showEventAction, juce::dontSendNotification);
+        stateModeButton.setToggleState(showState, juce::dontSendNotification);
+        suppressCallbacks = false;
+
+        auto setEventVisibility = [showEventAction](juce::Component& component)
+        {
+            component.setVisible(showEventAction);
+        };
+
+        setEventVisibility(sourceCombo);
+        setEventVisibility(eventCombo);
+        setEventVisibility(addBindingButton);
+        setEventVisibility(searchEditor);
+        setEventVisibility(bindingList);
+        setEventVisibility(detailTitleLabel);
+        setEventVisibility(bindingNameEditor);
+        setEventVisibility(bindingEnabledToggle);
+        setEventVisibility(duplicateBindingButton);
+        setEventVisibility(deleteBindingButton);
+        setEventVisibility(actionList);
+        setEventVisibility(addActionButton);
+        setEventVisibility(deleteActionButton);
+        setEventVisibility(actionUpButton);
+        setEventVisibility(actionDownButton);
+        setEventVisibility(actionKindCombo);
+        setEventVisibility(paramKeyEditor);
+        setEventVisibility(valueEditor);
+        setEventVisibility(deltaEditor);
+        setEventVisibility(targetKindCombo);
+        setEventVisibility(targetIdEditor);
+        setEventVisibility(visibleCombo);
+        setEventVisibility(lockedCombo);
+        setEventVisibility(opacityEditor);
+        setEventVisibility(assetPatchKeyCombo);
+        setEventVisibility(assetPatchValueCombo);
+        setEventVisibility(patchEditor);
+        setEventVisibility(boundsXEditor);
+        setEventVisibility(boundsYEditor);
+        setEventVisibility(boundsWEditor);
+        setEventVisibility(boundsHEditor);
+
+        stateHintLabel.setVisible(showState);
+        runtimeParamTitleLabel.setVisible(showState);
+        runtimeParamList.setVisible(showState);
+        addRuntimeParamButton.setVisible(showState);
+        deleteRuntimeParamButton.setVisible(showState);
+        runtimeParamKeyEditor.setVisible(showState);
+        runtimeParamTypeCombo.setVisible(showState);
+        runtimeParamDefaultEditor.setVisible(showState);
+        runtimeParamDescriptionEditor.setVisible(showState);
+        runtimeParamExposedToggle.setVisible(showState);
+        propertyBindingTitleLabel.setVisible(showState);
+        propertyBindingList.setVisible(showState);
+        addPropertyBindingButton.setVisible(showState);
+        deletePropertyBindingButton.setVisible(showState);
+        propertyBindingNameEditor.setVisible(showState);
+        propertyBindingEnabledToggle.setVisible(showState);
+        propertyBindingTargetIdEditor.setVisible(showState);
+        propertyBindingTargetPropertyEditor.setVisible(showState);
+        propertyBindingExpressionEditor.setVisible(showState);
+    }
+
+    void EventActionPanel::refreshStateEditors()
+    {
+        suppressCallbacks = true;
+
+        runtimeParamList.updateContent();
+        runtimeParamList.repaint();
+        if (runtimeParams.empty())
+        {
+            selectedRuntimeParamRow = -1;
+            runtimeParamList.deselectAllRows();
+        }
+        else
+        {
+            selectedRuntimeParamRow = juce::jlimit(0, static_cast<int>(runtimeParams.size()) - 1, selectedRuntimeParamRow);
+            runtimeParamList.selectRow(selectedRuntimeParamRow);
+        }
+
+        const auto* selectedParam = selectedRuntimeParam();
+        const auto hasParam = selectedParam != nullptr;
+        runtimeParamKeyEditor.setEnabled(hasParam);
+        runtimeParamTypeCombo.setEnabled(hasParam);
+        runtimeParamDefaultEditor.setEnabled(hasParam);
+        runtimeParamDescriptionEditor.setEnabled(hasParam);
+        runtimeParamExposedToggle.setEnabled(hasParam);
+        deleteRuntimeParamButton.setEnabled(hasParam);
+
+        if (hasParam)
+        {
+            runtimeParamKeyEditor.setText(selectedParam->key, juce::dontSendNotification);
+            runtimeParamTypeCombo.setSelectedId(runtimeParamTypeToComboId(selectedParam->type), juce::dontSendNotification);
+            if (selectedParam->type == RuntimeParamValueType::number)
+                runtimeParamDefaultEditor.setText(juce::String(static_cast<double>(selectedParam->defaultValue), 8), juce::dontSendNotification);
+            else if (selectedParam->type == RuntimeParamValueType::boolean)
+                runtimeParamDefaultEditor.setText(static_cast<bool>(selectedParam->defaultValue) ? "true" : "false", juce::dontSendNotification);
+            else
+                runtimeParamDefaultEditor.setText(selectedParam->defaultValue.toString(), juce::dontSendNotification);
+            runtimeParamDescriptionEditor.setText(selectedParam->description, juce::dontSendNotification);
+            runtimeParamExposedToggle.setToggleState(selectedParam->exposed, juce::dontSendNotification);
+        }
+        else
+        {
+            runtimeParamKeyEditor.clear();
+            runtimeParamTypeCombo.setSelectedItemIndex(-1, juce::dontSendNotification);
+            runtimeParamDefaultEditor.clear();
+            runtimeParamDescriptionEditor.clear();
+            runtimeParamExposedToggle.setToggleState(false, juce::dontSendNotification);
+        }
+
+        propertyBindingList.updateContent();
+        propertyBindingList.repaint();
+        if (propertyBindings.empty())
+        {
+            selectedPropertyBindingRow = -1;
+            propertyBindingList.deselectAllRows();
+        }
+        else
+        {
+            selectedPropertyBindingRow = juce::jlimit(0,
+                                                      static_cast<int>(propertyBindings.size()) - 1,
+                                                      selectedPropertyBindingRow);
+            propertyBindingList.selectRow(selectedPropertyBindingRow);
+        }
+
+        const auto* selectedPropertyBindingModel = selectedPropertyBinding();
+        const auto hasPropertyBinding = selectedPropertyBindingModel != nullptr;
+        propertyBindingNameEditor.setEnabled(hasPropertyBinding);
+        propertyBindingEnabledToggle.setEnabled(hasPropertyBinding);
+        propertyBindingTargetIdEditor.setEnabled(hasPropertyBinding);
+        propertyBindingTargetPropertyEditor.setEnabled(hasPropertyBinding);
+        propertyBindingExpressionEditor.setEnabled(hasPropertyBinding);
+        deletePropertyBindingButton.setEnabled(hasPropertyBinding);
+
+        if (hasPropertyBinding)
+        {
+            propertyBindingNameEditor.setText(selectedPropertyBindingModel->name, juce::dontSendNotification);
+            propertyBindingEnabledToggle.setToggleState(selectedPropertyBindingModel->enabled, juce::dontSendNotification);
+            propertyBindingTargetIdEditor.setText(widgetIdToJsonString(selectedPropertyBindingModel->targetWidgetId),
+                                                  juce::dontSendNotification);
+            propertyBindingTargetPropertyEditor.setText(selectedPropertyBindingModel->targetProperty, juce::dontSendNotification);
+            propertyBindingExpressionEditor.setText(selectedPropertyBindingModel->expression, juce::dontSendNotification);
+
+            const auto validationError = validatePropertyBindingForUi(*selectedPropertyBindingModel);
+            if (validationError.isNotEmpty())
+                setStatus("Binding error: " + validationError, kStatusWarn);
+        }
+        else
+        {
+            propertyBindingNameEditor.clear();
+            propertyBindingEnabledToggle.setToggleState(false, juce::dontSendNotification);
+            propertyBindingTargetIdEditor.clear();
+            propertyBindingTargetPropertyEditor.clear();
+            propertyBindingExpressionEditor.clear();
+        }
+
+        suppressCallbacks = false;
     }
 
     void EventActionPanel::rebuildWidgetOptions()
@@ -1027,6 +1497,254 @@ namespace Gyeol::Ui::Panels
             setStatus("Action moved.", kStatusOk);
     }
 
+    void EventActionPanel::addRuntimeParam()
+    {
+        juce::String keyCandidate;
+        int suffix = 1;
+        while (true)
+        {
+            keyCandidate = "param." + juce::String(suffix++);
+            const auto exists = std::any_of(runtimeParams.begin(),
+                                            runtimeParams.end(),
+                                            [&keyCandidate](const RuntimeParamModel& param)
+                                            {
+                                                return param.key.equalsIgnoreCase(keyCandidate);
+                                            });
+            if (!exists)
+                break;
+        }
+
+        RuntimeParamModel param;
+        param.key = keyCandidate;
+        param.type = RuntimeParamValueType::number;
+        param.defaultValue = 0.0;
+        param.description = {};
+        param.exposed = true;
+        runtimeParams.push_back(std::move(param));
+        selectedRuntimeParamRow = static_cast<int>(runtimeParams.size()) - 1;
+
+        if (commitRuntimeParams("add-runtime-param"))
+            setStatus("Runtime param added.", kStatusOk);
+    }
+
+    void EventActionPanel::deleteRuntimeParam()
+    {
+        const auto index = selectedRuntimeParamIndex();
+        if (index < 0 || index >= static_cast<int>(runtimeParams.size()))
+            return;
+
+        runtimeParams.erase(runtimeParams.begin() + index);
+        if (runtimeParams.empty())
+            selectedRuntimeParamRow = -1;
+        else
+            selectedRuntimeParamRow = juce::jlimit(0, static_cast<int>(runtimeParams.size()) - 1, index);
+
+        if (commitRuntimeParams("delete-runtime-param"))
+            setStatus("Runtime param deleted.", kStatusOk);
+    }
+
+    void EventActionPanel::applySelectedRuntimeParam()
+    {
+        if (suppressCallbacks)
+            return;
+
+        auto* param = selectedRuntimeParam();
+        if (param == nullptr)
+            return;
+
+        const auto key = runtimeParamKeyEditor.getText().trim();
+        if (key.isEmpty())
+        {
+            setStatus("Param key is required.", kStatusError);
+            return;
+        }
+
+        const auto keyCollides = std::any_of(runtimeParams.begin(),
+                                             runtimeParams.end(),
+                                             [param, &key](const RuntimeParamModel& item)
+                                             {
+                                                 return &item != param && item.key.equalsIgnoreCase(key);
+                                             });
+        if (keyCollides)
+        {
+            setStatus("Param key must be unique.", kStatusError);
+            return;
+        }
+
+        auto parsedType = runtimeParamTypeFromComboId(runtimeParamTypeCombo.getSelectedId());
+        if (!parsedType.has_value())
+            parsedType = RuntimeParamValueType::number;
+
+        juce::var defaultValue;
+        if (*parsedType == RuntimeParamValueType::number)
+        {
+            const auto parsed = parseNumber(runtimeParamDefaultEditor.getText());
+            if (!parsed.has_value() || !std::isfinite(*parsed))
+            {
+                setStatus("Number param default must be finite number.", kStatusError);
+                return;
+            }
+
+            defaultValue = *parsed;
+        }
+        else if (*parsedType == RuntimeParamValueType::boolean)
+        {
+            const auto parsed = parseLooseBool(runtimeParamDefaultEditor.getText());
+            if (!parsed.has_value())
+            {
+                setStatus("Boolean param default must be true/false.", kStatusError);
+                return;
+            }
+
+            defaultValue = *parsed;
+        }
+        else
+        {
+            defaultValue = runtimeParamDefaultEditor.getText();
+        }
+
+        param->key = key;
+        param->type = *parsedType;
+        param->defaultValue = std::move(defaultValue);
+        param->description = runtimeParamDescriptionEditor.getText().trim();
+        param->exposed = runtimeParamExposedToggle.getToggleState();
+
+        if (commitRuntimeParams("edit-runtime-param"))
+            setStatus("Runtime param updated.", kStatusOk);
+    }
+
+    void EventActionPanel::addPropertyBinding()
+    {
+        const auto& snapshot = document.snapshot();
+        if (snapshot.widgets.empty())
+        {
+            setStatus("Add a widget first, then create property binding.", kStatusWarn);
+            return;
+        }
+
+        PropertyBindingModel binding;
+        binding.id = nextPropertyBindingId();
+        binding.name = "Binding " + juce::String(static_cast<int>(propertyBindings.size() + 1));
+        binding.enabled = true;
+        binding.targetWidgetId = snapshot.widgets.front().id;
+
+        juce::String defaultTargetProperty = "value";
+        if (const auto* valueSpec = registry.propertySpec(snapshot.widgets.front().type, "value"); valueSpec == nullptr)
+        {
+            if (const auto* specs = registry.propertySpecs(snapshot.widgets.front().type); specs != nullptr && !specs->empty())
+                defaultTargetProperty = specs->front().key.toString();
+            else if (snapshot.widgets.front().properties.size() > 0)
+                defaultTargetProperty = snapshot.widgets.front().properties.getName(0).toString();
+        }
+        binding.targetProperty = defaultTargetProperty;
+
+        if (!runtimeParams.empty() && runtimeParams.front().key.trim().isNotEmpty())
+            binding.expression = runtimeParams.front().key.trim();
+        else
+            binding.expression = "1.0";
+
+        propertyBindings.push_back(std::move(binding));
+        selectedPropertyBindingRow = static_cast<int>(propertyBindings.size()) - 1;
+
+        if (commitPropertyBindings("add-property-binding"))
+            setStatus("Property binding added.", kStatusOk);
+    }
+
+    void EventActionPanel::deletePropertyBinding()
+    {
+        const auto index = selectedPropertyBindingIndex();
+        if (index < 0 || index >= static_cast<int>(propertyBindings.size()))
+            return;
+
+        propertyBindings.erase(propertyBindings.begin() + index);
+        if (propertyBindings.empty())
+            selectedPropertyBindingRow = -1;
+        else
+            selectedPropertyBindingRow = juce::jlimit(0, static_cast<int>(propertyBindings.size()) - 1, index);
+
+        if (commitPropertyBindings("delete-property-binding"))
+            setStatus("Property binding deleted.", kStatusOk);
+    }
+
+    void EventActionPanel::applySelectedPropertyBinding()
+    {
+        if (suppressCallbacks)
+            return;
+
+        auto* binding = selectedPropertyBinding();
+        if (binding == nullptr)
+            return;
+
+        WidgetId targetWidgetId = kRootId;
+        if (!parseWidgetId(propertyBindingTargetIdEditor.getText(), targetWidgetId))
+        {
+            setStatus("Target widget id must be positive integer.", kStatusError);
+            return;
+        }
+
+        const auto& snapshot = document.snapshot();
+        const auto targetWidgetIt = std::find_if(snapshot.widgets.begin(),
+                                                 snapshot.widgets.end(),
+                                                 [targetWidgetId](const WidgetModel& widget)
+                                                 {
+                                                     return widget.id == targetWidgetId;
+                                                 });
+        if (targetWidgetIt == snapshot.widgets.end())
+        {
+            setStatus("Target widget does not exist.", kStatusError);
+            return;
+        }
+
+        const auto targetProperty = propertyBindingTargetPropertyEditor.getText().trim();
+        if (targetProperty.isEmpty())
+        {
+            setStatus("Target property is required.", kStatusError);
+            return;
+        }
+        if (!isIdentifierLike(targetProperty))
+        {
+            setStatus("Target property must be identifier-like (letters/digits/_/.).", kStatusError);
+            return;
+        }
+
+        const auto targetPropertyId = juce::Identifier(targetProperty);
+        const auto knownBySpec = registry.propertySpec(targetWidgetIt->type, targetPropertyId) != nullptr;
+        const auto existsInWidgetProps = targetWidgetIt->properties.contains(targetPropertyId);
+        if (!knownBySpec && !existsInWidgetProps)
+        {
+            setStatus("Target property is not defined on the selected widget type.", kStatusError);
+            return;
+        }
+
+        const auto expression = propertyBindingExpressionEditor.getText().trim();
+        if (expression.isEmpty())
+        {
+            setStatus("Expression is required.", kStatusError);
+            return;
+        }
+
+        auto candidate = *binding;
+        candidate.name = propertyBindingNameEditor.getText().trim();
+        candidate.enabled = propertyBindingEnabledToggle.getToggleState();
+        candidate.targetWidgetId = targetWidgetId;
+        candidate.targetProperty = targetProperty;
+        candidate.expression = expression;
+
+        const auto validationError = validatePropertyBindingForUi(candidate);
+        if (validationError.isNotEmpty())
+        {
+            setStatus("Binding error: " + validationError, kStatusError);
+            return;
+        }
+
+        *binding = std::move(candidate);
+
+        if (commitPropertyBindings("edit-property-binding"))
+            setStatus("Property binding updated.", kStatusOk);
+        else
+            setStatus("Failed to commit property binding.", kStatusError);
+    }
+
     void EventActionPanel::applyBindingMeta()
     {
         if (suppressCallbacks)
@@ -1218,6 +1936,30 @@ namespace Gyeol::Ui::Panels
         return true;
     }
 
+    bool EventActionPanel::commitRuntimeParams(const juce::String&)
+    {
+        if (!document.setRuntimeParams(runtimeParams))
+            return false;
+
+        if (onBindingsChanged != nullptr)
+            onBindingsChanged();
+
+        refreshFromDocument();
+        return true;
+    }
+
+    bool EventActionPanel::commitPropertyBindings(const juce::String&)
+    {
+        if (!document.setPropertyBindings(propertyBindings))
+            return false;
+
+        if (onBindingsChanged != nullptr)
+            onBindingsChanged();
+
+        refreshFromDocument();
+        return true;
+    }
+
     void EventActionPanel::setStatus(const juce::String& text, juce::Colour colour)
     {
         statusLabel.setText(text, juce::dontSendNotification);
@@ -1257,6 +1999,19 @@ namespace Gyeol::Ui::Panels
         for (const auto& group : snapshot.groups) maxId = std::max(maxId, group.id);
         for (const auto& layer : snapshot.layers) maxId = std::max(maxId, layer.id);
         for (const auto& binding : snapshot.runtimeBindings) maxId = std::max(maxId, binding.id);
+        return maxId + 1;
+    }
+
+    WidgetId EventActionPanel::nextPropertyBindingId() const
+    {
+        const auto& snapshot = document.snapshot();
+        WidgetId maxId = kRootId;
+        for (const auto& widget : snapshot.widgets) maxId = std::max(maxId, widget.id);
+        for (const auto& group : snapshot.groups) maxId = std::max(maxId, group.id);
+        for (const auto& layer : snapshot.layers) maxId = std::max(maxId, layer.id);
+        for (const auto& binding : snapshot.runtimeBindings) maxId = std::max(maxId, binding.id);
+        for (const auto& binding : snapshot.propertyBindings) maxId = std::max(maxId, binding.id);
+        for (const auto& binding : propertyBindings) maxId = std::max(maxId, binding.id);
         return maxId + 1;
     }
 
@@ -1315,6 +2070,66 @@ namespace Gyeol::Ui::Panels
             case RuntimeActionKind::setNodeBounds:
                 return "SetNodeBounds widget:" + juce::String(action.targetWidgetId);
         }
+        return {};
+    }
+
+    juce::String EventActionPanel::validatePropertyBindingForUi(const PropertyBindingModel& binding) const
+    {
+        const auto& snapshot = document.snapshot();
+        const auto targetWidgetIt = std::find_if(snapshot.widgets.begin(),
+                                                 snapshot.widgets.end(),
+                                                 [&binding](const WidgetModel& widget)
+                                                 {
+                                                     return widget.id == binding.targetWidgetId;
+                                                 });
+        if (targetWidgetIt == snapshot.widgets.end())
+            return "target widget does not exist";
+
+        const auto targetProperty = binding.targetProperty.trim();
+        if (targetProperty.isEmpty())
+            return "target property is required";
+        if (!isIdentifierLike(targetProperty))
+            return "target property format is invalid";
+
+        const auto targetPropertyId = juce::Identifier(targetProperty);
+        const auto* targetSpec = registry.propertySpec(targetWidgetIt->type, targetPropertyId);
+        const auto hasCurrentValue = targetWidgetIt->properties.contains(targetPropertyId);
+
+        if (targetSpec == nullptr && !hasCurrentValue)
+            return "target property not found on target widget";
+
+        if (targetSpec != nullptr)
+        {
+            const auto kind = targetSpec->kind;
+            const auto supported = kind == Widgets::WidgetPropertyKind::number
+                                || kind == Widgets::WidgetPropertyKind::integer
+                                || kind == Widgets::WidgetPropertyKind::boolean;
+            if (!supported)
+                return "target property type is not bindable (number/integer/boolean only)";
+        }
+        else if (hasCurrentValue)
+        {
+            const auto& currentValue = targetWidgetIt->properties[targetPropertyId];
+            if (!(currentValue.isBool() || isNumericVar(currentValue)))
+                return "target property type mismatch for numeric expression";
+        }
+
+        const auto expression = binding.expression.trim();
+        if (expression.isEmpty())
+            return "expression is required";
+
+        std::map<juce::String, juce::var> runtimeParamDefaults;
+        for (const auto& param : runtimeParams)
+        {
+            const auto key = param.key.trim();
+            if (key.isNotEmpty() && runtimeParamDefaults.find(key) == runtimeParamDefaults.end())
+                runtimeParamDefaults.emplace(key, param.defaultValue);
+        }
+
+        const auto evaluation = Runtime::PropertyBindingResolver::evaluateExpression(expression, runtimeParamDefaults);
+        if (!evaluation.success)
+            return "expression error: " + evaluation.error;
+
         return {};
     }
 
@@ -1565,5 +2380,112 @@ namespace Gyeol::Ui::Panels
 
         owner.selectedActionRow = lastRowSelected;
         owner.refreshDetailEditors();
+    }
+
+    int EventActionPanel::RuntimeParamListModel::getNumRows()
+    {
+        return static_cast<int>(owner.runtimeParams.size());
+    }
+
+    void EventActionPanel::RuntimeParamListModel::paintListBoxItem(int rowNumber,
+                                                                    juce::Graphics& g,
+                                                                    int width,
+                                                                    int height,
+                                                                    bool rowIsSelected)
+    {
+        if (rowNumber < 0 || rowNumber >= static_cast<int>(owner.runtimeParams.size()))
+            return;
+
+        const auto& param = owner.runtimeParams[static_cast<size_t>(rowNumber)];
+        g.setColour(rowIsSelected ? juce::Colour::fromRGB(49, 84, 142).withAlpha(0.84f)
+                                  : juce::Colour::fromRGB(23, 29, 39).withAlpha(0.62f));
+        g.fillRect(0, 0, width, height);
+        g.setColour(juce::Colour::fromRGB(44, 52, 66));
+        g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
+
+        auto row = juce::Rectangle<int>(0, 0, width, height).reduced(6, 2);
+        auto keyArea = row.removeFromLeft(juce::jmin(180, row.getWidth()));
+        const auto typeLabel = runtimeParamValueTypeToKey(param.type).toUpperCase();
+
+        g.setColour(juce::Colour::fromRGB(194, 202, 216));
+        g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
+        g.drawFittedText(param.key, keyArea, juce::Justification::centredLeft, 1);
+
+        g.setColour(juce::Colour::fromRGB(156, 166, 182));
+        g.setFont(juce::FontOptions(9.0f));
+        g.drawFittedText(typeLabel, row, juce::Justification::centredRight, 1);
+    }
+
+    void EventActionPanel::RuntimeParamListModel::selectedRowsChanged(int lastRowSelected)
+    {
+        if (owner.suppressCallbacks)
+            return;
+
+        owner.selectedRuntimeParamRow = lastRowSelected;
+        owner.refreshStateEditors();
+    }
+
+    int EventActionPanel::PropertyBindingListModel::getNumRows()
+    {
+        return static_cast<int>(owner.propertyBindings.size());
+    }
+
+    void EventActionPanel::PropertyBindingListModel::paintListBoxItem(int rowNumber,
+                                                                       juce::Graphics& g,
+                                                                       int width,
+                                                                       int height,
+                                                                       bool rowIsSelected)
+    {
+        if (rowNumber < 0 || rowNumber >= static_cast<int>(owner.propertyBindings.size()))
+            return;
+
+        const auto& binding = owner.propertyBindings[static_cast<size_t>(rowNumber)];
+        const auto validationError = owner.validatePropertyBindingForUi(binding);
+        const auto hasError = validationError.isNotEmpty();
+        g.setColour(rowIsSelected ? juce::Colour::fromRGB(49, 84, 142).withAlpha(0.84f)
+                                  : juce::Colour::fromRGB(23, 29, 39).withAlpha(0.62f));
+        g.fillRect(0, 0, width, height);
+        g.setColour(juce::Colour::fromRGB(44, 52, 66));
+        g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
+
+        auto area = juce::Rectangle<int>(0, 0, width, height).reduced(6, 3);
+        auto top = area.removeFromTop(12);
+
+        const auto statusText = !binding.enabled ? juce::String("OFF")
+                              : (hasError ? juce::String("ERR") : juce::String("ON"));
+        const auto statusColor = !binding.enabled ? juce::Colour::fromRGB(130, 136, 148)
+                               : (hasError ? juce::Colour::fromRGB(255, 124, 124)
+                                           : juce::Colour::fromRGB(112, 214, 156));
+
+        g.setColour(statusColor);
+        g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+        g.drawText(statusText, top.removeFromLeft(26), juce::Justification::centredLeft, true);
+
+        g.setColour(juce::Colour::fromRGB(196, 206, 220));
+        g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
+        const auto name = binding.name.isNotEmpty() ? binding.name : juce::String("Property Binding");
+        g.drawFittedText(name, top, juce::Justification::centredLeft, 1);
+
+        g.setColour(juce::Colour::fromRGB(156, 166, 182));
+        g.setFont(juce::FontOptions(8.8f));
+        auto detail = "widget:" + juce::String(binding.targetWidgetId)
+                    + "  " + binding.targetProperty
+                    + " <- " + binding.expression;
+        if (hasError)
+            detail += " | " + validationError;
+
+        g.drawFittedText(detail,
+                         area,
+                         juce::Justification::centredLeft,
+                         1);
+    }
+
+    void EventActionPanel::PropertyBindingListModel::selectedRowsChanged(int lastRowSelected)
+    {
+        if (owner.suppressCallbacks)
+            return;
+
+        owner.selectedPropertyBindingRow = lastRowSelected;
+        owner.refreshStateEditors();
     }
 }

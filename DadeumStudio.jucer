@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="y6gk3d" name="DadeumStudio" projectType="guiapp" useAppConfig="0"
-              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" headerPath="Source">
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" headerPath="../../Source">
   <MAINGROUP id="vqcKQd" name="DadeumStudio">
     <GROUP id="{2B42515B-7D16-20B6-BFDA-D5F355CB4814}" name="Source">
       <GROUP id="{847407AD-BCEA-C453-4D4C-6B37117F2C25}" name="Gyeol">
@@ -18,6 +18,64 @@
         <GROUP id="{EEE24E8E-D0AF-566E-91B9-4B438E6639AC}" name="Editor">
           <FILE id="hP7zLm" name="EditorHandle.cpp" compile="1" resource="0"
                 file="Source/Gyeol/Editor/EditorHandle.cpp"/>
+          <GROUP id="{B3A17A5A-5F43-44F8-9537-608EAA925101}" name="Canvas">
+            <FILE id="EdCv01" name="CanvasComponent.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Canvas/CanvasComponent.cpp"/>
+            <FILE id="EdCv02" name="CanvasRenderer.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Canvas/CanvasRenderer.cpp"/>
+            <FILE id="EdCv03" name="MarqueeSelectionOverlay.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Canvas/MarqueeSelectionOverlay.cpp"/>
+            <FILE id="EdCv04" name="SnapGuideOverlay.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Canvas/SnapGuideOverlay.cpp"/>
+            <FILE id="EdCv05" name="WidgetComponent.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Canvas/WidgetComponent.cpp"/>
+          </GROUP>
+          <GROUP id="{E11ACB27-0277-4BA2-A7C8-0CBB5A9D7C41}" name="Interaction">
+            <FILE id="EdIn01" name="AlignDistributeEngine.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Interaction/AlignDistributeEngine.cpp"/>
+            <FILE id="EdIn02" name="EditorInteractionEngine.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Interaction/EditorInteractionEngine.cpp"/>
+            <FILE id="EdIn03" name="LayerOrderEngine.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Interaction/LayerOrderEngine.cpp"/>
+            <FILE id="EdIn04" name="SelectionEngine.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Interaction/SelectionEngine.cpp"/>
+            <FILE id="EdIn05" name="SnapEngine.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Interaction/SnapEngine.cpp"/>
+          </GROUP>
+          <GROUP id="{989BF7AF-1F0D-423A-B2B4-2AD062A51395}" name="Panels">
+            <FILE id="EdPn01" name="AssetsPanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/AssetsPanel.cpp"/>
+            <FILE id="EdPn02" name="EventActionPanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/EventActionPanel.cpp"/>
+            <FILE id="EdPn03" name="ExportPreviewPanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/ExportPreviewPanel.cpp"/>
+            <FILE id="EdPn04" name="GridSnapPanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/GridSnapPanel.cpp"/>
+            <FILE id="EdPn05" name="HistoryPanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/HistoryPanel.cpp"/>
+            <FILE id="EdPn06" name="LayerTreePanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/LayerTreePanel.cpp"/>
+            <FILE id="EdPn07" name="PropertyEditorFactory.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/PropertyEditorFactory.cpp"/>
+            <FILE id="EdPn08" name="PropertyPanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/PropertyPanel.cpp"/>
+            <FILE id="EdPn09" name="ValidationPanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/ValidationPanel.cpp"/>
+            <FILE id="EdPn10" name="WidgetLibraryPanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/WidgetLibraryPanel.cpp"/>
+            <FILE id="EdPn11" name="NavigatorPanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/NavigatorPanel.cpp"/>
+            <FILE id="EdPn12" name="PerformancePanel.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Panels/PerformancePanel.cpp"/>
+          </GROUP>
+          <GROUP id="{D2D6B418-7282-44CB-8F6F-5B0C4A24E2D8}" name="Perf">
+            <FILE id="EdPf01" name="EditorPerfTracker.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Perf/EditorPerfTracker.cpp"/>
+            <FILE id="EdPf02" name="HitTestGrid.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Perf/HitTestGrid.cpp"/>
+            <FILE id="EdPf03" name="PerfReportWriter.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Perf/PerfReportWriter.cpp"/>
+          </GROUP>
         </GROUP>
         <GROUP id="{A4152B20-7D42-4CB5-8E04-83B15B4F22E1}" name="Export">
           <FILE id="A2kP9m" name="JuceComponentExport.cpp" compile="1" resource="0"
@@ -34,8 +92,28 @@
           <FILE id="x72Iuq" name="EditorHandle.h" compile="0" resource="0" file="Source/Gyeol/Public/EditorHandle.h"/>
           <FILE id="BrmwGn" name="Types.h" compile="0" resource="0" file="Source/Gyeol/Public/Types.h"/>
         </GROUP>
+        <GROUP id="{9D4BC6D4-8EFA-4862-9E70-8125657A6249}" name="Runtime">
+          <FILE id="RtBg01" name="RuntimeBindingEngine.h" compile="0" resource="0"
+                file="Source/Gyeol/Runtime/RuntimeBindingEngine.h"/>
+          <FILE id="RtBg02" name="RuntimeBindingEngine.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Runtime/RuntimeBindingEngine.cpp"/>
+          <FILE id="RtAx01" name="RuntimeActionExecutor.h" compile="0" resource="0"
+                file="Source/Gyeol/Runtime/RuntimeActionExecutor.h"/>
+          <FILE id="RtAx02" name="RuntimeActionExecutor.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Runtime/RuntimeActionExecutor.cpp"/>
+          <FILE id="RtPm01" name="RuntimeParamBridge.h" compile="0" resource="0"
+                file="Source/Gyeol/Runtime/RuntimeParamBridge.h"/>
+          <FILE id="RtPm02" name="RuntimeParamBridge.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Runtime/RuntimeParamBridge.cpp"/>
+          <FILE id="RtDi01" name="RuntimeDiagnostics.h" compile="0" resource="0"
+                file="Source/Gyeol/Runtime/RuntimeDiagnostics.h"/>
+          <FILE id="RtDi02" name="RuntimeDiagnostics.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Runtime/RuntimeDiagnostics.cpp"/>
+        </GROUP>
         <GROUP id="{D8C67FC9-5F56-00CE-534E-13138A02B71E}" name="Render"/>
         <GROUP id="{45A2F8A3-22D1-4FC4-A27A-2DB0316E56AA}" name="Widgets">
+          <FILE id="WdCpp01" name="WidgetLibraryExchange.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Widgets/WidgetLibraryExchange.cpp"/>
           <FILE id="vR5kzB" name="WidgetRegistry.h" compile="0" resource="0"
                 file="Source/Gyeol/Widgets/WidgetRegistry.h"/>
           <FILE id="VaT8Au" name="WidgetSDK.h" compile="0" resource="0" file="Source/Gyeol/Widgets/WidgetSDK.h"/>
@@ -72,6 +150,7 @@
     <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_video" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
   </MODULES>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1"/>
   <EXPORTFORMATS>
@@ -90,6 +169,7 @@
         <MODULEPATH id="juce_audio_basics" path="../../../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_devices" path="../../../../JUCE/modules"/>
         <MODULEPATH id="juce_audio_formats" path="../../../../JUCE/modules"/>
+        <MODULEPATH id="juce_video" path="../../../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2026>
   </EXPORTFORMATS>

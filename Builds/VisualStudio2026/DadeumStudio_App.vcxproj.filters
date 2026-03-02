@@ -20,6 +20,9 @@
     <Filter Include="DadeumStudio\Source\Gyeol\Serialization">
       <UniqueIdentifier>{240E537F-EE56-3737-E9A8-EF0981A36C15}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DadeumStudio\Source\Gyeol\Runtime">
+      <UniqueIdentifier>{A911D2F9-B5D1-4F60-B8A1-F3B9C5A75D11}</UniqueIdentifier>
+    </Filter>
     <Filter Include="DadeumStudio\Source\Gyeol">
       <UniqueIdentifier>{D21DC7F1-3CF4-4747-8E4F-600C17C207E4}</UniqueIdentifier>
     </Filter>
@@ -458,6 +461,18 @@
     <Filter Include="JUCE Modules\juce_gui_extra">
       <UniqueIdentifier>{A4D76113-9EDC-DA60-D89B-5BACF7F1C426}</UniqueIdentifier>
     </Filter>
+    <Filter Include="JUCE Modules\juce_video\capture">
+      <UniqueIdentifier>{CB8DF3B2-0409-6D59-C5D4-A034EBB7F973}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JUCE Modules\juce_video\native">
+      <UniqueIdentifier>{7774F72F-C951-B8AB-E927-E34AD23C52C8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JUCE Modules\juce_video\playback">
+      <UniqueIdentifier>{658BADF8-7095-C722-F9EC-9F36E8818187}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JUCE Modules\juce_video">
+      <UniqueIdentifier>{2C58F450-CD01-0231-2F16-0D4D68565164}</UniqueIdentifier>
+    </Filter>
     <Filter Include="JUCE Modules">
       <UniqueIdentifier>{FE955B6B-68AC-AA07-70D8-2413F6DB65C8}</UniqueIdentifier>
     </Filter>
@@ -477,6 +492,18 @@
     </ClCompile>
     <ClCompile Include="..\..\Source\Gyeol\Export\JuceComponentExport.cpp">
       <Filter>DadeumStudio\Source\Gyeol\Export</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gyeol\Runtime\RuntimeActionExecutor.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gyeol\Runtime\RuntimeBindingEngine.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gyeol\Runtime\RuntimeDiagnostics.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Gyeol\Runtime\RuntimeParamBridge.cpp">
+      <Filter>DadeumStudio\Source\Gyeol\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Gyeol\Serialization\DocumentJson.cpp">
       <Filter>DadeumStudio\Source\Gyeol\Serialization</Filter>
@@ -2908,6 +2935,18 @@
     <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_gui_extra\juce_gui_extra.mm">
       <Filter>JUCE Modules\juce_gui_extra</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_video\capture\juce_CameraDevice.cpp">
+      <Filter>JUCE Modules\juce_video\capture</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_video\playback\juce_VideoComponent.cpp">
+      <Filter>JUCE Modules\juce_video\playback</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_video\juce_video.cpp">
+      <Filter>JUCE Modules\juce_video</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_video\juce_video.mm">
+      <Filter>JUCE Modules\juce_video</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\JuceLibraryCode\BinaryData.cpp">
       <Filter>JUCE Library Code</Filter>
     </ClCompile>
@@ -2947,6 +2986,9 @@
     <ClCompile Include="..\..\JuceLibraryCode\include_juce_gui_extra.cpp">
       <Filter>JUCE Library Code</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\JuceLibraryCode\include_juce_video.cpp">
+      <Filter>JUCE Library Code</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Source\Gyeol\Core\Document.h">
@@ -2975,6 +3017,18 @@
     </ClInclude>
     <ClInclude Include="..\..\Source\Gyeol\Public\Types.h">
       <Filter>DadeumStudio\Source\Gyeol\Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Runtime\RuntimeActionExecutor.h">
+      <Filter>DadeumStudio\Source\Gyeol\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Runtime\RuntimeBindingEngine.h">
+      <Filter>DadeumStudio\Source\Gyeol\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Runtime\RuntimeDiagnostics.h">
+      <Filter>DadeumStudio\Source\Gyeol\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Gyeol\Runtime\RuntimeParamBridge.h">
+      <Filter>DadeumStudio\Source\Gyeol\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Gyeol\Widgets\WidgetRegistry.h">
       <Filter>DadeumStudio\Source\Gyeol\Widgets</Filter>
@@ -6299,6 +6353,36 @@
     </ClInclude>
     <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_gui_extra\juce_gui_extra.h">
       <Filter>JUCE Modules\juce_gui_extra</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_video\capture\juce_CameraDevice.h">
+      <Filter>JUCE Modules\juce_video\capture</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_video\native\juce_CameraDevice_android.h">
+      <Filter>JUCE Modules\juce_video\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_video\native\juce_CameraDevice_ios.h">
+      <Filter>JUCE Modules\juce_video\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_video\native\juce_CameraDevice_mac.h">
+      <Filter>JUCE Modules\juce_video\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_video\native\juce_CameraDevice_windows.h">
+      <Filter>JUCE Modules\juce_video\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_video\native\juce_Video_android.h">
+      <Filter>JUCE Modules\juce_video\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_video\native\juce_Video_mac.h">
+      <Filter>JUCE Modules\juce_video\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_video\native\juce_Video_windows.h">
+      <Filter>JUCE Modules\juce_video\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_video\playback\juce_VideoComponent.h">
+      <Filter>JUCE Modules\juce_video\playback</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_video\juce_video.h">
+      <Filter>JUCE Modules\juce_video</Filter>
     </ClInclude>
     <ClInclude Include="..\..\JuceLibraryCode\BinaryData.h">
       <Filter>JUCE Library Code</Filter>

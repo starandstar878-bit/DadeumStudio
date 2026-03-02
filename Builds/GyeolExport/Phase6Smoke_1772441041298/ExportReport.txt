@@ -1,0 +1,27 @@
+Gyeol Export Report
+===================
+Component Class: GyeolPhase6SmokeComponent
+Output Directory: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\Phase6Smoke_1772441041298
+Generated Header: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\Phase6Smoke_1772441041298\GyeolPhase6SmokeComponent.h
+Generated Source: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\Phase6Smoke_1772441041298\GyeolPhase6SmokeComponent.cpp
+Manifest File: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\Phase6Smoke_1772441041298\export-manifest.json
+Runtime Data File: C:\Users\stara\Desktop\DadeumStudio\Builds\GyeolExport\Phase6Smoke_1772441041298\export-runtime.json
+Widgets Exported: 3
+Assets Copied: 0
+Assets Total: 0
+Assets Reused: 0
+Assets Skipped: 0
+Assets Missing: 0
+Assets Copy Failed: 0
+Warnings: 0
+Errors: 0
+
+Assets Summary:
+- success(copied): 0
+- success(reused): 0
+- skipped(metadata): 0
+- missing: 0
+- failed(copy): 0
+
+Issues:
+- INFO: no issues

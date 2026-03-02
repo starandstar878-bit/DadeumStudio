@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Gyeol/Public/Types.h"
+#include "Gyeol/Runtime/PropertyBindingResolver.h"
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -362,6 +364,157 @@ namespace Gyeol::Core::SceneValidator
         return juce::Result::ok();
     }
 
+    inline juce::Result validateRuntimeParams(const DocumentModel& document)
+    {
+        std::unordered_set<juce::String> paramKeys;
+        paramKeys.reserve(document.runtimeParams.size());
+
+        for (const auto& param : document.runtimeParams)
+        {
+            const auto key = param.key.trim();
+            if (key.isEmpty())
+                return juce::Result::fail("runtimeParams.key must not be empty");
+
+            const auto normalizedKey = key.toLowerCase();
+            if (!paramKeys.insert(normalizedKey).second)
+                return juce::Result::fail("runtimeParams.key must be unique");
+
+            switch (param.type)
+            {
+                case RuntimeParamValueType::number:
+                {
+                    if (!isNumericVar(param.defaultValue))
+                        return juce::Result::fail("runtimeParams.defaultValue must be numeric for number type");
+                    const auto value = static_cast<double>(param.defaultValue);
+                    if (!std::isfinite(value))
+                        return juce::Result::fail("runtimeParams.defaultValue must be finite for number type");
+                    break;
+                }
+                case RuntimeParamValueType::boolean:
+                    if (!param.defaultValue.isBool())
+                        return juce::Result::fail("runtimeParams.defaultValue must be bool for boolean type");
+                    break;
+                case RuntimeParamValueType::string:
+                    if (!param.defaultValue.isString())
+                        return juce::Result::fail("runtimeParams.defaultValue must be string for string type");
+                    break;
+            }
+        }
+
+        return juce::Result::ok();
+    }
+
+    inline juce::Result validatePropertyBindings(const DocumentModel& document)
+    {
+        const auto isIdentifierLike = [](const juce::String& text) noexcept
+        {
+            const auto trimmed = text.trim();
+            if (trimmed.isEmpty())
+                return false;
+
+            const auto isStart = [](juce::juce_wchar ch) noexcept
+            {
+                return (ch >= 'a' && ch <= 'z')
+                    || (ch >= 'A' && ch <= 'Z')
+                    || ch == '_';
+            };
+
+            const auto isBody = [isStart](juce::juce_wchar ch) noexcept
+            {
+                return isStart(ch)
+                    || (ch >= '0' && ch <= '9')
+                    || ch == '.';
+            };
+
+            if (!isStart(trimmed[0]))
+                return false;
+
+            for (int i = 1; i < trimmed.length(); ++i)
+            {
+                if (!isBody(trimmed[i]))
+                    return false;
+            }
+
+            return true;
+        };
+
+        std::unordered_set<WidgetId> widgetIds;
+        widgetIds.reserve(document.widgets.size());
+        std::unordered_map<WidgetId, const WidgetModel*> widgetsById;
+        widgetsById.reserve(document.widgets.size());
+        for (const auto& widget : document.widgets)
+        {
+            widgetIds.insert(widget.id);
+            widgetsById.emplace(widget.id, &widget);
+        }
+
+        std::map<juce::String, juce::var> runtimeParamValues;
+        for (const auto& param : document.runtimeParams)
+        {
+            const auto key = param.key.trim();
+            if (key.isNotEmpty() && runtimeParamValues.find(key) == runtimeParamValues.end())
+                runtimeParamValues.emplace(key, param.defaultValue);
+        }
+
+        std::unordered_set<WidgetId> bindingIds;
+        bindingIds.reserve(document.propertyBindings.size());
+
+        for (const auto& binding : document.propertyBindings)
+        {
+            if (binding.id <= kRootId)
+                return juce::Result::fail("propertyBindings.id must be > rootId");
+            if (!bindingIds.insert(binding.id).second)
+                return juce::Result::fail("propertyBindings.id must be unique");
+            if (binding.targetWidgetId <= kRootId)
+                return juce::Result::fail("propertyBindings.targetWidgetId must be > rootId");
+            if (widgetIds.count(binding.targetWidgetId) == 0)
+                return juce::Result::fail("propertyBindings.targetWidgetId not found");
+
+            const auto widgetIt = widgetsById.find(binding.targetWidgetId);
+            if (widgetIt == widgetsById.end() || widgetIt->second == nullptr)
+                return juce::Result::fail("propertyBindings.targetWidgetId not found");
+            const auto& targetWidget = *widgetIt->second;
+
+            const auto targetProperty = binding.targetProperty.trim();
+            if (targetProperty.isEmpty())
+                return juce::Result::fail("propertyBindings.targetProperty must not be empty");
+            if (!isIdentifierLike(targetProperty))
+            {
+                return juce::Result::fail("propertyBindings.targetProperty has invalid identifier for binding id "
+                                          + juce::String(binding.id));
+            }
+
+            const auto expression = binding.expression.trim();
+            if (expression.isEmpty())
+                return juce::Result::fail("propertyBindings.expression must not be empty");
+
+            const auto targetPropertyId = juce::Identifier(targetProperty);
+            if (!targetWidget.properties.contains(targetPropertyId))
+            {
+                return juce::Result::fail("propertyBindings.targetProperty not found on target widget for binding id "
+                                          + juce::String(binding.id));
+            }
+
+            const auto& currentValue = targetWidget.properties[targetPropertyId];
+            if (!(currentValue.isBool() || isNumericVar(currentValue)))
+            {
+                return juce::Result::fail("propertyBindings.targetProperty type mismatch for binding id "
+                                          + juce::String(binding.id)
+                                          + " (number/integer/boolean only)");
+            }
+
+            const auto evaluation = Runtime::PropertyBindingResolver::evaluateExpression(expression, runtimeParamValues);
+            if (!evaluation.success)
+            {
+                return juce::Result::fail("propertyBindings.expression invalid for binding id "
+                                          + juce::String(binding.id)
+                                          + ": " + evaluation.error);
+            }
+        }
+
+        return juce::Result::ok();
+    }
+
     inline std::vector<RuntimeBindingIssue> validateRuntimeBindings(const DocumentModel& document)
     {
         std::vector<RuntimeBindingIssue> issues;
@@ -581,6 +734,14 @@ namespace Gyeol::Core::SceneValidator
             if (editorStateResult.failed())
                 return editorStateResult;
         }
+
+        const auto runtimeParamsResult = validateRuntimeParams(document);
+        if (runtimeParamsResult.failed())
+            return runtimeParamsResult;
+
+        const auto propertyBindingsResult = validatePropertyBindings(document);
+        if (propertyBindingsResult.failed())
+            return propertyBindingsResult;
 
         const auto runtimeIssues = validateRuntimeBindings(document);
         for (const auto& issue : runtimeIssues)

@@ -26,6 +26,7 @@ namespace Gyeol::Export
         juce::File generatedHeaderFile;
         juce::File generatedSourceFile;
         juce::File manifestFile;
+        juce::File runtimeDataFile;
         juce::File reportFile;
 
         int exportedWidgetCount = 0;
@@ -52,6 +53,7 @@ namespace Gyeol::Export
         juce::String componentClassName { "GyeolExportedComponent" };
         bool overwriteExistingFiles = true;
         bool writeManifestJson = true;
+        bool writeRuntimeDataJson = true;
     };
 
     juce::Result exportToJuceComponent(const DocumentModel& document,
