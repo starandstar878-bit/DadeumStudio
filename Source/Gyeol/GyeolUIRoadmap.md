@@ -60,13 +60,13 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 
 ### 3.1 상단 툴바 (Top Toolbar)
 *   **분석**: "Add Button", "Add Knob", "Delete", "Group", "Dump JSON", "Run" 등 기능이 다른 버튼들이 텍스트 형태로 빽빽하게 1차원적으로 나열되어 있습니다. 이는 기능 식별에 대한 인지 부하를 높이고 시각적 피로감을 줍니다.
-*   **개선점**: 
+*   **개선점**:
     1. 텍스트를 직관적인 **아이콘 기반 버튼**으로 교체.
     2. 기능을 논리적 그룹(예: 위젯 생성 그룹, 정렬/편집 그룹, 씬 관리/실행 그룹)으로 분리하고 여백(Separator)을 추가.
 
 ### 3.2 좌측 패널 (Left Panel - Layers, Library, Assets 등)
 *   **분석**: 여러 탭(Layers, Library, Assets...)이 상단에 꽉 차 있고, 계층형 트리 뷰(Layer 구조)의 시인성이 다소 평면적(Flat)입니다. 노드 들여쓰기가 약하고 글씨가 작아 복잡한 씬에서는 구조 파악이 어려울 수 있습니다.
-*   **개선점**: 
+*   **개선점**:
     1. 활성 탭과 비활성 탭의 명확한 시각적 대비 부여 (밑줄 하이라이트 등).
     2. 트리 뷰 인디케이터(Depth 가이드라인, 그룹 폴더 아이콘 등)를 적용하여 계층 구조 파악을 시각적으로 돕기.
 
@@ -77,38 +77,38 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
     2. 컴포넌트 자체(슬라이더, 콤보박스 등)에 모던한 커스텀 LookAndFeel 렌더러 적용을 목표.
 
 ### 3.4 우측 속성 검사기 (Right Panel - Inspector)
-*   **분석**: Transform (X, Y, W, H), Appearance, Widget Properties 등의 데이터가 단순한 직사각형 입력 필드로 끝없이 이어져 있어, 마치 스프레드시트 폼을 보는 듯한 딱딱한 구조입니다. 
-*   **개선점**: 
+*   **분석**: Transform (X, Y, W, H), Appearance, Widget Properties 등의 데이터가 단순한 직사각형 입력 필드로 끝없이 이어져 있어, 마치 스프레드시트 폼을 보는 듯한 딱딱한 구조입니다.
+*   **개선점**:
     1. 입력 필드의 높이와 패딩을 조절하여 숨 쉴 공간(Whitespace) 확보.
     2. 클릭해서 직접 타이핑하는 것을 넘어, 마우스 드래그로 수치를 조절할 수 있는 **스피너(Spinner/Drag Number)** 컨트롤 방식 도입.
     3. 체크박스 대신 스무스한 애니메이션이 들어간 **토글 스위치(Toggle Switch)** 형태 디자인 도입 검토.
 
 ### 3.5 하단 상태 바 (Bottom Status Bar)
 *   **분석**: 하단 모서리에 "History" 및 "Undo 0 | Redo 0" 텍스트가 덩그러니 놓여 있어, 넓은 가로 공간을 제대로 활용하지 못하고 있습니다.
-*   **개선점**: 
+*   **개선점**:
     1. 하단 바(Status Bar)의 시각적 경계를 명확히 하고, 왼쪽에는 현재 마우스 커서 위치의 좌표, 오른쪽에는 줌(Zoom) 비율 표시 및 컨트롤을 배치하여 공간 활용도를 높이기.
 
 ### 3.6 위젯 라이브러리 및 에셋 패널 (Widget Library & Assets - `page_0.png`)
 *   **분석**: 두 패널 모두 기능 요소들이 단순 텍스트 박스와 회색 테두리의 버튼으로 나열되어 있어 전반적으로 무미건조(Flat)합니다. 에셋 패널의 경우 작은 이미지 뷰리어가 존재하긴 하나, 공간에 비해 정보의 가독성이나 심도(Depth)가 얕습니다.
-*   **개선점**: 
+*   **개선점**:
     1. 둥글고 입체감 있는 카드(Card) 형태의 레이아웃을 도입하여 각 에셋/위젯 요소를 그리드 형태로 배치 (썸네일 위주 시각화).
     2. 요소 클릭 및 호버 시 색상이 변하거나 살짝 떠오르는 부드러운 애니메이션 스케일 적용.
 
 ### 3.7 그리드/스냅 및 네비게이터 패널 (Grid/Snap & Navigator - `page_1.png`)
 *   **분석**: 체크박스와 텍스트 필드가 여백 없이 꽉 차게 들어가 있어 답답해 보입니다. 네비게이터 창 또한 단순한 원색 네모 모양만 표시됩니다.
-*   **개선점**: 
+*   **개선점**:
     1. 체크박스를 macOS나 iOS 스타일의 **토글(Toggle) 스위치** 컨트롤로 변환.
     2. 네비게이터의 캔버스 썸네일에 부드러운 투명도와 함께 그라데이션, 그리고 캔버스의 현재 화면 비율(Zoom)과 포커스를 더 돋보이게 하는 Glow 효과 추가.
 
 ### 3.8 이벤트/액션 패널 (Event/Action - `page_2.png`)
 *   **분석**: 바인딩된 리스트와 액션들이 마치 프로그래밍의 디버그 콘솔이나 엑셀 표를 보는 듯한 짙은 색의 콤보 박스들로 길게 이어져 있습니다. 시각적 단절선(Separator)이 없어 구조 인지가 떨어집니다.
-*   **개선점**: 
+*   **개선점**:
     1. 액션과 이벤트 바인딩 항목을 개별적인 둥근 "블록(Block)" 디자인으로 감싸 시인성 강화.
     2. 액션 추가/삭제/이동 버튼을 콤팩트한 아이콘 그룹으로 모아 레이아웃 정돈.
 
 ### 3.9 검증, 익스포트 및 성능 패널 (Validation, Export, Performance - `page_3 ~ 5.png`)
 *   **분석**: 이 세 패널은 대부분이 순수한 `텍스트 기반 로깅` 화면에 가깝습니다. 경고 표시 박스가 있긴 하지만 너무 글씨가 작고, 성능 텍스트는 완전히 평면적으로 나열된 수치 데이터일 뿐입니다.
-*   **개선점**: 
+*   **개선점**:
     1. 검증 에러/경고 표시는 상태 메시지 옆에 느낌표 아이콘 등을 넣어 직관적으로 식별 가능하게 함.
     2. 성능 패널의 데이터들을 단순 텍스트가 아닌, 심플한 막대나 파이(Pie) 차트, 또는 실시간 꺾은선 그래프(Line Chart) 위젯으로 렌더링하도록 JUCE Paint 함수 오버라이딩 적용.
 
@@ -145,7 +145,7 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 ### 4.3 Right Dock 패널별 세부 설계
 1.  **[Inspector] 탭 (속성 검사기)**
     *   **역할**: 선택 객체의 기하학, 텍스트, 색상 속성을 편집.
-    *   **스타일**: Section별로(가령 Transform, Appearance 등) 접고 펼칠 수 있는 아코디언(Accordion) 스타일 적용. 
+    *   **스타일**: Section별로(가령 Transform, Appearance 등) 접고 펼칠 수 있는 아코디언(Accordion) 스타일 적용.
     *   `Transform` 등의 수치 칸에 텍스트를 감추고 마우스 드래그를 통해 조절 가능한 **스피너 기능 추가**.
     *   `Visible/Locked` 등의 불리언 값은 네모 박스 대신, 스무스한 **스위치 토글(Toggle)** 로 변환.
 2.  **[Event/Action] 탭 (이벤트/액션 연결)**
@@ -203,27 +203,27 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 - [x] Stage 1 completed: display-name priority, event-label cleanup, Korean labels in key combos.
 - [x] Stage 2 completed: target/property/param text inputs converted to ComboBox with data binding.
 - [x] Optional filtering completed: selection-based one-way filter + 'All Widgets' option + implicit pin while text editing.
-- [~] Stage 3(Visual card redesign) is partially prepared, but 12-a ~ 12-e core UI work remains.
+- [x] Stage 3(Visual card redesign) completed for EventActionPanel (12-a ~ 12-e).
 
 **코드 기준 현황 (EventActionPanel.cpp)**
 - [x] 바인딩/액션/런타임 파라미터/프로퍼티 바인딩 리스트의 데이터 편집 흐름은 동작 중.
-- [ ] `paint()`와 ListBox/Editor 색상에 `fromRGB(...)` 하드코딩이 다수 남아 있음 (`kPanelBg`, `kPanelOutline`, 각 `paintListBoxItem`).
-- [ ] 리스트 행 렌더링이 `fillRect + divider` 중심의 플랫 스타일이며 카드형 블록 레이아웃 미적용.
-- [ ] Empty State가 없어 데이터 0개일 때 빈 리스트만 표시됨.
-- [~] 섹션 타이틀 텍스트는 있으나(`Binding Detail`, `Runtime Params`, `Property Bindings`) HeaderBackground 기반 시각 분리 스타일은 미적용.
+- [x] `paint()`/ListBox/Editor 하드코딩 색상을 `getGyeolColor(...)` 기반 팔레트로 교체 완료.
+- [x] Binding/Action/RuntimeParam 리스트를 카드형 블록 렌더링으로 전환 완료.
+- [x] 바인딩/액션 리스트 Empty State 오버레이 추가 완료.
+- [x] 섹션 헤더(`Bindings`, `Actions`, `Runtime Params`, `Property Bindings`)에 HeaderBackground + divider 스타일 적용 완료.
 
 **갱신된 작업 순서 (권장)**
-- [ ] **12-a. Palette 1차 정리 (선행 작업)**: `kPanelBg`/`kPanelOutline` 및 ListBox/Editor 하드코딩 색상을 `getGyeolColor(...)`로 치환. `EventActionPanel.cpp` 내 `fromRGB(24,28,34)`/`fromRGB(40,46,56)` 계열 우선 제거.
-- [ ] **12-b. Binding ListBox 카드화**: 라운드 카드 + 좌측 이벤트 타입 컬러 바 + 제목/서브타이틀 2줄 레이아웃으로 전환. 선택 행은 AccentPrimary 보더/글로우 적용.
-- [ ] **12-c. Action/RuntimeParam 카드 스타일 통일**: 액션 타입 접두 아이콘(텍스트 기반 또는 경로 아이콘) + 카드형 배경 + 선택 상태 좌측 Accent 바 적용.
-- [ ] **12-d. Empty State 추가**: 바인딩이 0개일 때 "No events configured", 액션이 0개일 때 "No actions in this binding" 안내와 아이콘 표시.
-- [ ] **12-e. 섹션 헤더 스타일 적용**: "Bindings", "Actions", "Runtime Params", "Property Bindings" 영역에 `HeaderBackground` + 하단 `BorderDefault` 디바이더 적용.
+- [x] **12-a. Palette 1차 정리 (선행 작업)**: `kPanelBg`/`kPanelOutline` 및 ListBox/Editor 하드코딩 색상을 `getGyeolColor(...)`로 치환. `EventActionPanel.cpp` 내 `fromRGB(24,28,34)`/`fromRGB(40,46,56)` 계열 제거.
+- [x] **12-b. Binding ListBox 카드화**: 라운드 카드 + 좌측 이벤트 타입 컬러 바 + 제목/서브타이틀 2줄 레이아웃으로 전환. 선택 행 강조 보더/글로우 적용.
+- [x] **12-c. Action/RuntimeParam 카드 스타일 통일**: 액션 타입 접두 아이콘(텍스트 기반) + 카드형 배경 + 선택 상태 좌측 Accent 바 적용.
+- [x] **12-d. Empty State 추가**: 바인딩이 0개일 때 "No events configured", 액션이 0개일 때 "No actions in this binding" 안내와 아이콘 표시.
+- [x] **12-e. 섹션 헤더 스타일 적용**: "Bindings", "Actions", "Runtime Params", "Property Bindings" 영역에 `HeaderBackground` + 하단 `BorderDefault` 디바이더 적용.
 
 **12번 완료 기준 (DoD)**
-- [ ] `EventActionPanel.cpp`에서 12번 범위의 하드코딩 색상 제거 및 Palette 토큰화 완료.
-- [ ] Binding/Action/RuntimeParam 행 렌더링이 카드형 블록 스타일로 통일.
-- [ ] 빈 데이터 상태에서 안내 UI가 노출되고, Add 버튼으로 즉시 복귀 가능.
-- [ ] 섹션 헤더 시각 분리가 적용되고 선택/호버 대비가 기존 대비 명확히 개선.
+- [x] `EventActionPanel.cpp`에서 12번 범위의 하드코딩 색상 제거 및 Palette 토큰화 완료.
+- [x] Binding/Action/RuntimeParam 행 렌더링이 카드형 블록 스타일로 통일.
+- [x] 빈 데이터 상태에서 안내 UI가 노출되고, Add 버튼으로 즉시 복귀 가능.
+- [x] 섹션 헤더 시각 분리가 적용되고 선택/호버 대비가 기존 대비 명확히 개선.
 
 ---
 

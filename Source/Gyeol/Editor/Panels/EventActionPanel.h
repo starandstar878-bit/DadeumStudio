@@ -18,6 +18,7 @@ namespace Gyeol::Ui::Panels
         void setBindingsChangedCallback(std::function<void()> callback);
 
         void paint(juce::Graphics& g) override;
+        void paintOverChildren(juce::Graphics& g) override;
         void resized() override;
 
     private:
@@ -212,6 +213,7 @@ namespace Gyeol::Ui::Panels
         juce::ToggleButton showAllWidgetsToggle { "All Widgets" };
 
         juce::ListBox bindingList;
+        juce::Label bindingSectionLabel;
 
         juce::Label detailTitleLabel;
         juce::TextEditor bindingNameEditor;
@@ -220,6 +222,7 @@ namespace Gyeol::Ui::Panels
         juce::TextButton deleteBindingButton { "Delete" };
 
         juce::ListBox actionList;
+        juce::Label actionSectionLabel;
         juce::TextButton addActionButton { "+ Action" };
         juce::TextButton deleteActionButton { "Delete Action" };
         juce::TextButton actionUpButton { "Move Up" };

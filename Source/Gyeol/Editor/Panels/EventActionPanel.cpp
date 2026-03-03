@@ -1,5 +1,6 @@
 #include "Gyeol/Editor/Panels/EventActionPanel.h"
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Runtime/PropertyBindingResolver.h"
 
 #include <algorithm>
@@ -8,25 +9,109 @@
 
 namespace Gyeol::Ui::Panels {
 namespace {
-const auto kPanelBg = juce::Colour::fromRGB(24, 28, 34);
-const auto kPanelOutline = juce::Colour::fromRGB(40, 46, 56);
-const auto kStatusInfo = juce::Colour::fromRGB(160, 170, 186);
-const auto kStatusOk = juce::Colour::fromRGB(112, 214, 156);
-const auto kStatusWarn = juce::Colour::fromRGB(255, 196, 120);
-const auto kStatusError = juce::Colour::fromRGB(255, 124, 124);
+using Gyeol::GyeolPalette;
+
+juce::Colour palette(GyeolPalette id, float alpha = 1.0f) {
+  return Gyeol::getGyeolColor(id).withAlpha(alpha);
+}
+
+const auto kPanelBg = palette(GyeolPalette::PanelBackground);
+const auto kPanelOutline = palette(GyeolPalette::BorderDefault);
+const auto kStatusInfo = palette(GyeolPalette::TextSecondary);
+const auto kStatusOk = palette(GyeolPalette::ValidSuccess);
+const auto kStatusWarn = palette(GyeolPalette::ValidWarning);
+const auto kStatusError = palette(GyeolPalette::ValidError);
+
+juce::Colour eventAccent(const juce::String& eventKey) {
+  const auto key = eventKey.toLowerCase();
+  if (key.contains("click") || key.contains("press") || key.contains("release"))
+    return palette(GyeolPalette::AccentPrimary);
+  if (key.contains("toggle"))
+    return palette(GyeolPalette::ValidWarning);
+  if (key.contains("value") || key.contains("selection") || key.contains("text"))
+    return palette(GyeolPalette::ValidSuccess);
+  return palette(GyeolPalette::AccentHover);
+}
+
+juce::Colour actionAccent(RuntimeActionKind kind) {
+  switch (kind) {
+  case RuntimeActionKind::setRuntimeParam:
+    return palette(GyeolPalette::AccentPrimary);
+  case RuntimeActionKind::adjustRuntimeParam:
+    return palette(GyeolPalette::ValidSuccess);
+  case RuntimeActionKind::toggleRuntimeParam:
+    return palette(GyeolPalette::ValidWarning);
+  case RuntimeActionKind::setNodeProps:
+    return palette(GyeolPalette::AccentHover);
+  case RuntimeActionKind::setNodeBounds:
+    return palette(GyeolPalette::ValidError);
+  }
+
+  return palette(GyeolPalette::AccentPrimary);
+}
+
+juce::String actionPrefix(RuntimeActionKind kind) {
+  switch (kind) {
+  case RuntimeActionKind::setRuntimeParam:
+    return "[P] ";
+  case RuntimeActionKind::adjustRuntimeParam:
+    return "[D] ";
+  case RuntimeActionKind::toggleRuntimeParam:
+    return "[T] ";
+  case RuntimeActionKind::setNodeProps:
+    return "[S] ";
+  case RuntimeActionKind::setNodeBounds:
+    return "[B] ";
+  }
+
+  return "[?] ";
+}
+
+void drawCardBackground(juce::Graphics& g,
+                        juce::Rectangle<float> bounds,
+                        bool rowIsSelected,
+                        juce::Colour accent) {
+  if (bounds.isEmpty())
+    return;
+
+  const auto radius = 6.0f;
+  const auto fill = rowIsSelected ? palette(GyeolPalette::ControlBase, 0.96f)
+                                  : palette(GyeolPalette::ControlBase, 0.78f);
+  if (rowIsSelected) {
+    auto glowArea = bounds.expanded(1.0f);
+    g.setColour(accent.withAlpha(0.16f));
+    g.fillRoundedRectangle(glowArea, radius + 1.0f);
+  }
+
+  g.setColour(fill);
+  g.fillRoundedRectangle(bounds, radius);
+
+  g.setColour(rowIsSelected ? accent.withAlpha(0.85f)
+                            : palette(GyeolPalette::BorderDefault, 0.92f));
+  g.drawRoundedRectangle(bounds, radius, rowIsSelected ? 1.35f : 1.0f);
+}
+
+void drawLeftAccentBar(juce::Graphics& g,
+                       juce::Rectangle<float> card,
+                       juce::Colour colour,
+                       bool rowIsSelected) {
+  auto bar = card.reduced(0.0f, 2.0f).removeFromLeft(rowIsSelected ? 4.0f : 3.0f);
+  g.setColour(colour.withAlpha(rowIsSelected ? 0.95f : 0.7f));
+  g.fillRoundedRectangle(bar, 2.0f);
+}
 
 void setupEditor(juce::TextEditor &editor,
                  const juce::String &placeholder = {}) {
   editor.setMultiLine(false);
   editor.setScrollbarsShown(true);
   editor.setColour(juce::TextEditor::backgroundColourId,
-                   juce::Colour::fromRGB(28, 34, 44));
+                   palette(GyeolPalette::ControlBase));
   editor.setColour(juce::TextEditor::outlineColourId,
-                   juce::Colour::fromRGB(66, 76, 92));
+                   palette(GyeolPalette::BorderDefault));
   editor.setColour(juce::TextEditor::textColourId,
-                   juce::Colour::fromRGB(214, 222, 234));
+                   palette(GyeolPalette::TextPrimary));
   editor.setTextToShowWhenEmpty(placeholder,
-                                juce::Colour::fromRGB(124, 132, 148));
+                                palette(GyeolPalette::TextSecondary));
 }
 
 bool parseWidgetId(const juce::String &text, WidgetId &outId) noexcept {
@@ -220,7 +305,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   titleLabel.setText("Event/Action", juce::dontSendNotification);
   titleLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
   titleLabel.setColour(juce::Label::textColourId,
-                       juce::Colour::fromRGB(192, 200, 214));
+                       palette(GyeolPalette::TextPrimary));
   titleLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(titleLabel);
 
@@ -268,18 +353,34 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   };
   addAndMakeVisible(showAllWidgetsToggle);
 
+  bindingSectionLabel.setText("Bindings", juce::dontSendNotification);
+  bindingSectionLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+  bindingSectionLabel.setColour(juce::Label::textColourId,
+                                palette(GyeolPalette::TextPrimary));
+  bindingSectionLabel.setJustificationType(juce::Justification::centredLeft);
+  bindingSectionLabel.setBorderSize(juce::BorderSize<int>(0, 8, 0, 8));
+  addAndMakeVisible(bindingSectionLabel);
+
   bindingList.setModel(&bindingListModel);
-  bindingList.setRowHeight(34);
+  bindingList.setRowHeight(48);
   bindingList.setColour(juce::ListBox::backgroundColourId,
-                        juce::Colour::fromRGB(17, 23, 31));
+                        palette(GyeolPalette::CanvasBackground));
   bindingList.setColour(juce::ListBox::outlineColourId,
-                        juce::Colour::fromRGB(44, 52, 66));
+                        palette(GyeolPalette::BorderDefault));
   addAndMakeVisible(bindingList);
+
+  actionSectionLabel.setText("Actions", juce::dontSendNotification);
+  actionSectionLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+  actionSectionLabel.setColour(juce::Label::textColourId,
+                               palette(GyeolPalette::TextPrimary));
+  actionSectionLabel.setJustificationType(juce::Justification::centredLeft);
+  actionSectionLabel.setBorderSize(juce::BorderSize<int>(0, 8, 0, 8));
+  addAndMakeVisible(actionSectionLabel);
 
   detailTitleLabel.setText("Binding Detail", juce::dontSendNotification);
   detailTitleLabel.setFont(juce::FontOptions(11.0f, juce::Font::bold));
   detailTitleLabel.setColour(juce::Label::textColourId,
-                             juce::Colour::fromRGB(194, 202, 216));
+                             palette(GyeolPalette::TextPrimary));
   detailTitleLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(detailTitleLabel);
 
@@ -298,11 +399,11 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(deleteBindingButton);
 
   actionList.setModel(&actionListModel);
-  actionList.setRowHeight(26);
+  actionList.setRowHeight(40);
   actionList.setColour(juce::ListBox::backgroundColourId,
-                       juce::Colour::fromRGB(17, 23, 31));
+                       palette(GyeolPalette::CanvasBackground));
   actionList.setColour(juce::ListBox::outlineColourId,
-                       juce::Colour::fromRGB(44, 52, 66));
+                       palette(GyeolPalette::BorderDefault));
   addAndMakeVisible(actionList);
 
   addActionButton.onClick = [this] { addAction(); };
@@ -417,11 +518,11 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   patchEditor.setScrollbarsShown(true);
   patchEditor.setReturnKeyStartsNewLine(true);
   patchEditor.setColour(juce::TextEditor::backgroundColourId,
-                        juce::Colour::fromRGB(28, 34, 44));
+                        palette(GyeolPalette::ControlBase));
   patchEditor.setColour(juce::TextEditor::outlineColourId,
-                        juce::Colour::fromRGB(66, 76, 92));
+                        palette(GyeolPalette::BorderDefault));
   patchEditor.setColour(juce::TextEditor::textColourId,
-                        juce::Colour::fromRGB(214, 222, 234));
+                        palette(GyeolPalette::TextPrimary));
   patchEditor.onFocusLost = [this] { applySelectedAction(); };
   addAndMakeVisible(patchEditor);
 
@@ -433,23 +534,23 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
                          juce::dontSendNotification);
   stateHintLabel.setFont(juce::FontOptions(10.0f, juce::Font::bold));
   stateHintLabel.setColour(juce::Label::textColourId,
-                           juce::Colour::fromRGB(174, 186, 202));
+                           palette(GyeolPalette::TextSecondary));
   stateHintLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(stateHintLabel);
 
   runtimeParamTitleLabel.setText("Runtime Params", juce::dontSendNotification);
   runtimeParamTitleLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
   runtimeParamTitleLabel.setColour(juce::Label::textColourId,
-                                   juce::Colour::fromRGB(188, 198, 214));
+                                   palette(GyeolPalette::TextPrimary));
   runtimeParamTitleLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(runtimeParamTitleLabel);
 
   runtimeParamList.setModel(&runtimeParamListModel);
-  runtimeParamList.setRowHeight(26);
+  runtimeParamList.setRowHeight(40);
   runtimeParamList.setColour(juce::ListBox::backgroundColourId,
-                             juce::Colour::fromRGB(17, 23, 31));
+                             palette(GyeolPalette::CanvasBackground));
   runtimeParamList.setColour(juce::ListBox::outlineColourId,
-                             juce::Colour::fromRGB(44, 52, 66));
+                             palette(GyeolPalette::BorderDefault));
   addAndMakeVisible(runtimeParamList);
 
   addRuntimeParamButton.onClick = [this] { addRuntimeParam(); };
@@ -492,17 +593,17 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
                                     juce::dontSendNotification);
   propertyBindingTitleLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
   propertyBindingTitleLabel.setColour(juce::Label::textColourId,
-                                      juce::Colour::fromRGB(188, 198, 214));
+                                      palette(GyeolPalette::TextPrimary));
   propertyBindingTitleLabel.setJustificationType(
       juce::Justification::centredLeft);
   addAndMakeVisible(propertyBindingTitleLabel);
 
   propertyBindingList.setModel(&propertyBindingListModel);
-  propertyBindingList.setRowHeight(30);
+  propertyBindingList.setRowHeight(34);
   propertyBindingList.setColour(juce::ListBox::backgroundColourId,
-                                juce::Colour::fromRGB(17, 23, 31));
+                                palette(GyeolPalette::CanvasBackground));
   propertyBindingList.setColour(juce::ListBox::outlineColourId,
-                                juce::Colour::fromRGB(44, 52, 66));
+                                palette(GyeolPalette::BorderDefault));
   addAndMakeVisible(propertyBindingList);
 
   addPropertyBindingButton.onClick = [this] { addPropertyBinding(); };
@@ -589,6 +690,62 @@ void EventActionPanel::paint(juce::Graphics &g) {
   g.fillAll(kPanelBg);
   g.setColour(kPanelOutline);
   g.drawRect(getLocalBounds(), 1);
+
+  const auto drawSectionHeader = [&](const juce::Label& label) {
+    if (!label.isVisible())
+      return;
+
+    auto bounds = label.getBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+
+    g.setColour(palette(GyeolPalette::HeaderBackground).withAlpha(0.82f));
+    g.fillRoundedRectangle(bounds, 4.0f);
+    g.setColour(palette(GyeolPalette::BorderDefault).withAlpha(0.92f));
+    g.drawLine(bounds.getX() + 4.0f,
+               bounds.getBottom() - 0.5f,
+               bounds.getRight() - 4.0f,
+               bounds.getBottom() - 0.5f,
+               1.0f);
+  };
+
+  drawSectionHeader(bindingSectionLabel);
+  drawSectionHeader(actionSectionLabel);
+  drawSectionHeader(runtimeParamTitleLabel);
+  drawSectionHeader(propertyBindingTitleLabel);
+}
+
+void EventActionPanel::paintOverChildren(juce::Graphics &g) {
+  const auto drawEmptyState = [&](juce::Rectangle<int> bounds,
+                                  const juce::String& icon,
+                                  const juce::String& text) {
+    if (bounds.isEmpty())
+      return;
+
+    auto area = bounds.reduced(10);
+    g.setColour(palette(GyeolPalette::TextSecondary).withAlpha(0.9f));
+    g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+    g.drawFittedText(icon,
+                     area.removeFromTop(14),
+                     juce::Justification::centred,
+                     1);
+    g.setFont(juce::FontOptions(10.0f));
+    g.drawFittedText(text, area, juce::Justification::centred, 2);
+  };
+
+  if (panelMode == PanelMode::eventAction) {
+    if (visibleBindingIndices.empty() && bindingList.isVisible()) {
+      drawEmptyState(bindingList.getBounds(), "[ ]", "No events configured");
+      return;
+    }
+
+    if (actionList.isVisible()) {
+      if (const auto* binding = selectedBinding();
+          binding != nullptr && binding->actions.empty()) {
+        drawEmptyState(actionList.getBounds(), "+", "No actions in this binding");
+      }
+    }
+  }
 }
 
 void EventActionPanel::resized() {
@@ -673,8 +830,10 @@ void EventActionPanel::resized() {
   showAllWidgetsToggle.setBounds(searchRow.removeFromRight(108));
   searchRow.removeFromRight(4);
   searchEditor.setBounds(searchRow);
-  area.removeFromTop(6);
-  bindingList.setBounds(area.removeFromTop(148));
+    area.removeFromTop(4);
+  bindingSectionLabel.setBounds(area.removeFromTop(18));
+  area.removeFromTop(2);
+  bindingList.setBounds(area.removeFromTop(146));
   area.removeFromTop(6);
 
   detailTitleLabel.setBounds(area.removeFromTop(20));
@@ -690,7 +849,9 @@ void EventActionPanel::resized() {
   deleteBindingButton.setBounds(deleteArea);
 
   area.removeFromTop(4);
-  actionList.setBounds(area.removeFromTop(96));
+  actionSectionLabel.setBounds(area.removeFromTop(18));
+  area.removeFromTop(2);
+  actionList.setBounds(area.removeFromTop(102));
   area.removeFromTop(4);
 
   auto actionButtons = area.removeFromTop(24);
@@ -883,12 +1044,14 @@ void EventActionPanel::updatePanelModeVisibility() {
   setEventVisibility(addBindingButton);
   setEventVisibility(searchEditor);
   setEventVisibility(showAllWidgetsToggle);
+  setEventVisibility(bindingSectionLabel);
   setEventVisibility(bindingList);
   setEventVisibility(detailTitleLabel);
   setEventVisibility(bindingNameEditor);
   setEventVisibility(bindingEnabledToggle);
   setEventVisibility(duplicateBindingButton);
   setEventVisibility(deleteBindingButton);
+  setEventVisibility(actionSectionLabel);
   setEventVisibility(actionList);
   setEventVisibility(addActionButton);
   setEventVisibility(deleteActionButton);
@@ -2623,41 +2786,40 @@ void EventActionPanel::BindingListModel::paintListBoxItem(int rowNumber,
     return;
 
   const auto &binding = owner.bindings[static_cast<size_t>(modelIndex)];
-  g.setColour(rowIsSelected
-                  ? juce::Colour::fromRGB(49, 84, 142).withAlpha(0.84f)
-                  : juce::Colour::fromRGB(23, 29, 39).withAlpha(0.62f));
-  g.fillRect(0, 0, width, height);
-  g.setColour(juce::Colour::fromRGB(44, 52, 66));
-  g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
+  const auto accent = eventAccent(binding.eventKey);
 
-  auto area = juce::Rectangle<int>(0, 0, width, height).reduced(6, 3);
-  auto top = area.removeFromTop(13);
+  auto card = juce::Rectangle<float>(1.0f, 1.0f,
+                                     static_cast<float>(width) - 2.0f,
+                                     static_cast<float>(height) - 2.0f);
+  drawCardBackground(g, card, rowIsSelected, accent);
+  drawLeftAccentBar(g, card, accent, rowIsSelected);
 
-  g.setColour(binding.enabled ? juce::Colour::fromRGB(112, 214, 156)
-                              : juce::Colour::fromRGB(130, 136, 148));
-  g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
-  g.drawText(binding.enabled ? "ON" : "OFF", top.removeFromLeft(24),
-             juce::Justification::centredLeft, true);
+  auto area = card.toNearestInt().reduced(10, 6);
+  auto titleRow = area.removeFromTop(14);
 
-  g.setColour(juce::Colour::fromRGB(198, 206, 220));
+  g.setColour(binding.enabled ? palette(GyeolPalette::ValidSuccess)
+                              : palette(GyeolPalette::TextSecondary));
+  g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
+  g.drawText(binding.enabled ? "ON" : "OFF",
+             titleRow.removeFromLeft(30),
+             juce::Justification::centredLeft,
+             true);
+
+  g.setColour(palette(GyeolPalette::TextPrimary));
   g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
-  g.drawFittedText(binding.name.isNotEmpty() ? binding.name
-                                             : juce::String("Binding"),
-                   top, juce::Justification::centredLeft, 1);
+  const auto title = binding.name.isNotEmpty() ? binding.name : juce::String("Binding");
+  g.drawFittedText(title, titleRow, juce::Justification::centredLeft, 1);
 
-  auto sourceText = owner.findWidgetOption(binding.sourceWidgetId).has_value()
-                        ? owner.findWidgetOption(binding.sourceWidgetId)->label
-                        : ("Widget #" + juce::String(binding.sourceWidgetId));
+  const auto sourceText = owner.findWidgetOption(binding.sourceWidgetId).has_value()
+                              ? owner.findWidgetOption(binding.sourceWidgetId)->label
+                              : ("Widget #" + juce::String(binding.sourceWidgetId));
+  const auto eventText = owner.formatEventLabel(binding.sourceWidgetId, binding.eventKey);
+  const auto subtitle = sourceText + " | " + eventText + " | " +
+                        juce::String(static_cast<int>(binding.actions.size())) + " actions";
 
-  auto eventText =
-      owner.formatEventLabel(binding.sourceWidgetId, binding.eventKey);
-
-  g.setColour(juce::Colour::fromRGB(160, 170, 186));
-  g.setFont(juce::FontOptions(9.0f));
-  g.drawFittedText(sourceText + " | " + eventText + " | " +
-                       juce::String(static_cast<int>(binding.actions.size())) +
-                       " actions",
-                   area, juce::Justification::centredLeft, 1);
+  g.setColour(palette(GyeolPalette::TextSecondary));
+  g.setFont(juce::FontOptions(8.6f));
+  g.drawFittedText(subtitle, area, juce::Justification::centredLeft, 1);
 }
 
 void EventActionPanel::BindingListModel::selectedRowsChanged(
@@ -2719,22 +2881,28 @@ void EventActionPanel::ActionListModel::paintListBoxItem(int rowNumber,
       rowNumber >= static_cast<int>(binding->actions.size()))
     return;
 
-  g.setColour(rowIsSelected
-                  ? juce::Colour::fromRGB(56, 92, 152).withAlpha(0.82f)
-                  : juce::Colour::fromRGB(22, 28, 38).withAlpha(0.58f));
-  g.fillRect(0, 0, width, height);
-  g.setColour(juce::Colour::fromRGB(44, 52, 66));
-  g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
+  const auto &action = binding->actions[static_cast<size_t>(rowNumber)];
+  const auto accent = actionAccent(action.kind);
 
-  auto summary =
-      juce::String(rowNumber + 1) + ". " +
-      owner.actionSummary(binding->actions[static_cast<size_t>(rowNumber)]);
+  auto card = juce::Rectangle<float>(1.0f, 1.0f,
+                                     static_cast<float>(width) - 2.0f,
+                                     static_cast<float>(height) - 2.0f);
+  drawCardBackground(g, card, rowIsSelected, accent);
+  drawLeftAccentBar(g, card, accent, rowIsSelected);
 
-  g.setColour(juce::Colour::fromRGB(194, 202, 216));
-  g.setFont(juce::FontOptions(9.5f));
-  g.drawFittedText(summary,
-                   juce::Rectangle<int>(0, 0, width, height).reduced(6, 2),
-                   juce::Justification::centredLeft, 1);
+  auto area = card.toNearestInt().reduced(10, 6);
+  auto titleRow = area.removeFromTop(14);
+
+  const auto title = juce::String(rowNumber + 1) + ". " +
+                     actionPrefix(action.kind) + EventActionPanel::actionKindLabel(action.kind);
+  g.setColour(palette(GyeolPalette::TextPrimary));
+  g.setFont(juce::FontOptions(9.6f, juce::Font::bold));
+  g.drawFittedText(title, titleRow, juce::Justification::centredLeft, 1);
+
+  auto summary = owner.actionSummary(action);
+  g.setColour(palette(GyeolPalette::TextSecondary));
+  g.setFont(juce::FontOptions(8.6f));
+  g.drawFittedText(summary, area, juce::Justification::centredLeft, 1);
 }
 
 void EventActionPanel::ActionListModel::selectedRowsChanged(
@@ -2758,24 +2926,42 @@ void EventActionPanel::RuntimeParamListModel::paintListBoxItem(
     return;
 
   const auto &param = owner.runtimeParams[static_cast<size_t>(rowNumber)];
-  g.setColour(rowIsSelected
-                  ? juce::Colour::fromRGB(49, 84, 142).withAlpha(0.84f)
-                  : juce::Colour::fromRGB(23, 29, 39).withAlpha(0.62f));
-  g.fillRect(0, 0, width, height);
-  g.setColour(juce::Colour::fromRGB(44, 52, 66));
-  g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
 
-  auto row = juce::Rectangle<int>(0, 0, width, height).reduced(6, 2);
-  auto keyArea = row.removeFromLeft(juce::jmin(180, row.getWidth()));
-  const auto typeLabel = runtimeParamValueTypeToKey(param.type).toUpperCase();
+  juce::Colour accent = palette(GyeolPalette::AccentPrimary);
+  switch (param.type) {
+  case RuntimeParamValueType::number:
+    accent = palette(GyeolPalette::AccentPrimary);
+    break;
+  case RuntimeParamValueType::boolean:
+    accent = palette(GyeolPalette::ValidWarning);
+    break;
+  case RuntimeParamValueType::string:
+    accent = palette(GyeolPalette::ValidSuccess);
+    break;
+  }
 
-  g.setColour(juce::Colour::fromRGB(194, 202, 216));
-  g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
-  g.drawFittedText(param.key, keyArea, juce::Justification::centredLeft, 1);
+  auto card = juce::Rectangle<float>(1.0f, 1.0f,
+                                     static_cast<float>(width) - 2.0f,
+                                     static_cast<float>(height) - 2.0f);
+  drawCardBackground(g, card, rowIsSelected, accent);
+  drawLeftAccentBar(g, card, accent, rowIsSelected);
 
-  g.setColour(juce::Colour::fromRGB(156, 166, 182));
-  g.setFont(juce::FontOptions(9.0f));
-  g.drawFittedText(typeLabel, row, juce::Justification::centredRight, 1);
+  auto area = card.toNearestInt().reduced(10, 6);
+  auto titleRow = area.removeFromTop(14);
+
+  g.setColour(palette(GyeolPalette::TextPrimary));
+  g.setFont(juce::FontOptions(9.6f, juce::Font::bold));
+  g.drawFittedText(param.key, titleRow, juce::Justification::centredLeft, 1);
+
+  auto subtitle = "type: " + runtimeParamValueTypeToKey(param.type);
+  if (!param.defaultValue.isVoid())
+    subtitle += " | default: " + param.defaultValue.toString();
+  if (param.exposed)
+    subtitle += " | exposed";
+
+  g.setColour(palette(GyeolPalette::TextSecondary));
+  g.setFont(juce::FontOptions(8.6f));
+  g.drawFittedText(subtitle, area, juce::Justification::centredLeft, 1);
 }
 
 void EventActionPanel::RuntimeParamListModel::selectedRowsChanged(
@@ -2802,10 +2988,10 @@ void EventActionPanel::PropertyBindingListModel::paintListBoxItem(
   const auto validationError = owner.validatePropertyBindingForUi(binding);
   const auto hasError = validationError.isNotEmpty();
   g.setColour(rowIsSelected
-                  ? juce::Colour::fromRGB(49, 84, 142).withAlpha(0.84f)
-                  : juce::Colour::fromRGB(23, 29, 39).withAlpha(0.62f));
+                  ? palette(GyeolPalette::SelectionBackground).withAlpha(0.84f)
+                  : palette(GyeolPalette::ControlBase).withAlpha(0.62f));
   g.fillRect(0, 0, width, height);
-  g.setColour(juce::Colour::fromRGB(44, 52, 66));
+  g.setColour(palette(GyeolPalette::BorderDefault));
   g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
 
   auto area = juce::Rectangle<int>(0, 0, width, height).reduced(6, 3);
@@ -2815,23 +3001,23 @@ void EventActionPanel::PropertyBindingListModel::paintListBoxItem(
       !binding.enabled ? juce::String("OFF")
                        : (hasError ? juce::String("ERR") : juce::String("ON"));
   const auto statusColor =
-      !binding.enabled ? juce::Colour::fromRGB(130, 136, 148)
-                       : (hasError ? juce::Colour::fromRGB(255, 124, 124)
-                                   : juce::Colour::fromRGB(112, 214, 156));
+      !binding.enabled ? palette(GyeolPalette::TextSecondary)
+                       : (hasError ? palette(GyeolPalette::ValidError)
+                                   : palette(GyeolPalette::ValidSuccess));
 
   g.setColour(statusColor);
   g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
   g.drawText(statusText, top.removeFromLeft(26),
              juce::Justification::centredLeft, true);
 
-  g.setColour(juce::Colour::fromRGB(196, 206, 220));
+  g.setColour(palette(GyeolPalette::TextPrimary));
   g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
   const auto name = binding.name.isNotEmpty()
                         ? binding.name
                         : juce::String("Property Binding");
   g.drawFittedText(name, top, juce::Justification::centredLeft, 1);
 
-  g.setColour(juce::Colour::fromRGB(156, 166, 182));
+  g.setColour(palette(GyeolPalette::TextSecondary));
   g.setFont(juce::FontOptions(8.8f));
   auto detail = "widget:" + juce::String(binding.targetWidgetId) + "  " +
                 binding.targetProperty + " <- " + binding.expression;
