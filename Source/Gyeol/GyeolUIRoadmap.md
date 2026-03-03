@@ -287,11 +287,11 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 
 **현재 상태**: ToggleButton 4개(Snap/Grid View/Grid Snap/Smart Snap) + Slider 2개(Grid Size/Tolerance). 배경 `fromRGB(24,28,34)`. "Grid / Snap" 타이틀을 `g.drawText`로 직접 렌더링.
 
-- [ ] **17-a. paint 배경을 GyeolPalette로 교체**.
-- [ ] **17-b. 토글 스위치 그룹화**: 4개 토글을 2×2 그리드 또는 수평 배열로 재배치. 각 토글에 아이콘 접두사(격자 아이콘, 자석 아이콘 등) 추가.
-- [ ] **17-c. 슬라이더를 DragNumber 스타일로 교체**: 기존 JUCE 슬라이더 → Phase 1에서 구현한 DragNumber 컨트롤로 교체 (Grid Size: 1~100px, Tolerance: 0~20px).
-- [ ] **17-d. 섹션 구분 라인**: "Grid" 설정과 "Snap" 설정을 미세한 디바이더(`BorderDefault`)로 시각적 분리.
-- [ ] **17-e. 라이브 미리보기 힌트**: Grid Size 변경 시 현재 값을 실시간으로 표시하는 작은 수치 배지.
+- [x] **17-a. paint 배경을 GyeolPalette로 교체**.
+- [x] **17-b. 토글 스위치 그룹화**: 4개 토글을 2×2 그리드 또는 수평 배열로 재배치. 각 토글에 아이콘 접두사(격자 아이콘, 자석 아이콘 등) 추가.
+- [x] **17-c. 슬라이더를 DragNumber 스타일로 교체**: 기존 JUCE 슬라이더 → Phase 1에서 구현한 DragNumber 컨트롤로 교체 (Grid Size: 1~100px, Tolerance: 0~20px).
+- [x] **17-d. 섹션 구분 라인**: "Grid" 설정과 "Snap" 설정을 미세한 디바이더(`BorderDefault`)로 시각적 분리.
+- [x] **17-e. 라이브 미리보기 힌트**: Grid Size 변경 시 현재 값을 실시간으로 표시하는 작은 수치 배지.
 
 ---
 

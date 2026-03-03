@@ -23,16 +23,22 @@ namespace Gyeol::Ui::Panels
         void syncUiFromSettings();
         void applySettingsFromUi();
         void notifySettingsChanged() const;
+        void updateGridSizeBadge();
 
         Interaction::SnapSettings snapSettings;
         std::function<void(const Interaction::SnapSettings&)> onSettingsChanged;
-        juce::ToggleButton snapEnabledToggle { "Snap" };
-        juce::ToggleButton gridToggle { "Grid View" };
-        juce::ToggleButton gridSnapToggle { "Grid Snap" };
-        juce::ToggleButton smartSnapToggle { "Smart Snap" };
+        juce::ToggleButton snapEnabledToggle { "[M] Snap" };
+        juce::ToggleButton smartSnapToggle { "[*] Smart" };
+        juce::ToggleButton gridToggle { "[#] Grid" };
+        juce::ToggleButton gridSnapToggle { "[#] Grid Snap" };
         juce::Label gridSizeLabel;
         juce::Slider gridSizeSlider;
+        juce::Label gridSizeBadgeLabel;
         juce::Label toleranceLabel;
         juce::Slider toleranceSlider;
+        juce::Rectangle<int> titleBounds;
+        juce::Rectangle<int> gridSectionLabelBounds;
+        juce::Rectangle<int> snapSectionLabelBounds;
+        int sectionDividerY = -1;
     };
 }

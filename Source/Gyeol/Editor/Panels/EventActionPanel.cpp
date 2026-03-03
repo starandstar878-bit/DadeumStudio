@@ -1,4 +1,4 @@
-#include "Gyeol/Editor/Panels/EventActionPanel.h"
+﻿#include "Gyeol/Editor/Panels/EventActionPanel.h"
 
 #include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Runtime/PropertyBindingResolver.h"
@@ -474,44 +474,52 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(boundsHEditor);
 
   // 타겟 종류 콤보 — 한글
-  targetKindCombo.addItem(juce::String::fromUTF8(u8"\uC704\uC82F"), 1); // 위젯
-  targetKindCombo.addItem(juce::String::fromUTF8(u8"\uADF8\uB8F9"), 2); // 그룹
-  targetKindCombo.addItem(juce::String::fromUTF8(u8"\uB808\uC774\uC5B4"),
+  targetKindCombo.setTextWhenNothingSelected(
+      juce::String::fromUTF8(u8"대상 유형"));
+  targetKindCombo.addItem(juce::String::fromUTF8(u8"위젯"), 1); // 위젯
+  targetKindCombo.addItem(juce::String::fromUTF8(u8"그룹"), 2); // 그룹
+  targetKindCombo.addItem(juce::String::fromUTF8(u8"레이어"),
                           3); // 레이어
   targetKindCombo.onChange = [this] { applySelectedAction(); };
   addAndMakeVisible(targetKindCombo);
 
   // 보이기/잠금 콤보 — 한글
-  visibleCombo.addItem(juce::String::fromUTF8(u8"\uC720\uC9C0"), 1); // 유지
-  visibleCombo.addItem(juce::String::fromUTF8(u8"\uBCF4\uC774\uAE30"),
+  visibleCombo.setTextWhenNothingSelected(
+      juce::String::fromUTF8(u8"표시 여부"));
+  visibleCombo.addItem(juce::String::fromUTF8(u8"유지"), 1); // 유지
+  visibleCombo.addItem(juce::String::fromUTF8(u8"보이기"),
                        2); // 보이기
-  visibleCombo.addItem(juce::String::fromUTF8(u8"\uC228\uAE30\uAE30"),
+  visibleCombo.addItem(juce::String::fromUTF8(u8"숨기기"),
                        3); // 숨기기
   visibleCombo.onChange = [this] { applySelectedAction(); };
   addAndMakeVisible(visibleCombo);
 
-  lockedCombo.addItem(juce::String::fromUTF8(u8"\uC720\uC9C0"), 1); // 유지
-  lockedCombo.addItem(juce::String::fromUTF8(u8"\uC7A0\uAE08"), 2); // 잠금
-  lockedCombo.addItem(juce::String::fromUTF8(u8"\uC7A0\uAE08 \uD574\uC81C"),
+  lockedCombo.setTextWhenNothingSelected(juce::String::fromUTF8(u8"잠금 여부"));
+  lockedCombo.addItem(juce::String::fromUTF8(u8"유지"), 1); // 유지
+  lockedCombo.addItem(juce::String::fromUTF8(u8"잠금"), 2); // 잠금
+  lockedCombo.addItem(juce::String::fromUTF8(u8"잠금 해제"),
                       3); // 잠금 해제
   lockedCombo.onChange = [this] { applySelectedAction(); };
   addAndMakeVisible(lockedCombo);
 
-  assetPatchKeyCombo.setTextWhenNothingSelected("asset key");
+  assetPatchKeyCombo.setTextWhenNothingSelected(
+      juce::String::fromUTF8(u8"에셋 키"));
+  assetPatchValueCombo.setTextWhenNothingSelected(
+      juce::String::fromUTF8(u8"에셋 참조 (선택)"));
   assetPatchKeyCombo.onChange = [this] {
     if (!suppressCallbacks)
       syncAssetPatchValueEditor();
   };
-  addAndMakeVisible(assetPatchKeyCombo);
-
-  assetPatchValueCombo.setTextWhenNothingSelected("asset ref");
   assetPatchValueCombo.setEditableText(true);
   assetPatchValueCombo.onChange = [this] {
     if (!suppressCallbacks)
       applyAssetPatchValue();
   };
+  addAndMakeVisible(assetPatchKeyCombo);
   addAndMakeVisible(assetPatchValueCombo);
 
+  setupEditor(patchEditor,
+              juce::String::fromUTF8(u8"세부 JSON 속성 패치 (선택 사항)"));
   patchEditor.setMultiLine(true);
   patchEditor.setScrollbarsShown(true);
   patchEditor.setReturnKeyStartsNewLine(true);
@@ -896,20 +904,20 @@ void EventActionPanel::resized() {
 
   switch (kind) {
   case RuntimeActionKind::setRuntimeParam:
-    layoutRow(
-        {{&actionKindCombo, 168}, {&paramKeyCombo, 184}, {&valueEditor, 200}});
+    layoutRow({{&actionKindCombo, 200}});
+    layoutRow({{&paramKeyCombo, 184}, {&valueEditor, 200}});
     break;
   case RuntimeActionKind::adjustRuntimeParam:
-    layoutRow(
-        {{&actionKindCombo, 168}, {&paramKeyCombo, 188}, {&deltaEditor, 120}});
+    layoutRow({{&actionKindCombo, 200}});
+    layoutRow({{&paramKeyCombo, 188}, {&deltaEditor, 120}});
     break;
   case RuntimeActionKind::toggleRuntimeParam:
-    layoutRow({{&actionKindCombo, 168}, {&paramKeyCombo, 230}});
+    layoutRow({{&actionKindCombo, 200}});
+    layoutRow({{&paramKeyCombo, 230}});
     break;
   case RuntimeActionKind::setNodeProps:
-    layoutRow({{&actionKindCombo, 176},
-               {&targetKindCombo, 88},
-               {&targetIdCombo, 180}});
+    layoutRow({{&actionKindCombo, 200}});
+    layoutRow({{&targetKindCombo, 100}, {&targetIdCombo, 180}});
     layoutRow({{&visibleCombo, 92}, {&lockedCombo, 92}, {&opacityEditor, 100}});
     layoutRow({{&assetPatchKeyCombo, 180}, {&assetPatchValueCombo, 220}});
     if (patchEditor.isVisible()) {
@@ -918,7 +926,8 @@ void EventActionPanel::resized() {
     }
     break;
   case RuntimeActionKind::setNodeBounds:
-    layoutRow({{&actionKindCombo, 176}, {&targetIdCombo, 192}});
+    layoutRow({{&actionKindCombo, 200}});
+    layoutRow({{&targetIdCombo, 192}});
     layoutRow({{&boundsXEditor, 76},
                {&boundsYEditor, 76},
                {&boundsWEditor, 76},
@@ -1050,22 +1059,9 @@ void EventActionPanel::updatePanelModeVisibility() {
   setEventVisibility(deleteActionButton);
   setEventVisibility(actionUpButton);
   setEventVisibility(actionDownButton);
-  setEventVisibility(actionKindCombo);
-  setEventVisibility(paramKeyCombo);
-  setEventVisibility(valueEditor);
-  setEventVisibility(deltaEditor);
-  setEventVisibility(targetKindCombo);
-  setEventVisibility(targetIdCombo);
-  setEventVisibility(visibleCombo);
-  setEventVisibility(lockedCombo);
-  setEventVisibility(opacityEditor);
-  setEventVisibility(assetPatchKeyCombo);
-  setEventVisibility(assetPatchValueCombo);
-  setEventVisibility(patchEditor);
-  setEventVisibility(boundsXEditor);
-  setEventVisibility(boundsYEditor);
-  setEventVisibility(boundsWEditor);
-  setEventVisibility(boundsHEditor);
+
+  auto *action = selectedAction();
+  updateActionEditorVisibility(action, action != nullptr);
 
   stateHintLabel.setVisible(showState);
   runtimeParamTitleLabel.setVisible(showState);
@@ -1839,9 +1835,11 @@ void EventActionPanel::refreshDetailEditors() {
 
 void EventActionPanel::updateActionEditorVisibility(
     const RuntimeActionModel *action, bool hasAction) {
-  const auto setVisibility = [hasAction](juce::Component &component,
-                                         bool visibleWhenActive) {
-    component.setVisible(hasAction && visibleWhenActive);
+  const auto showEventAction = panelMode == PanelMode::eventAction;
+  const auto setVisibility = [hasAction,
+                              showEventAction](juce::Component &component,
+                                               bool visibleWhenActive) {
+    component.setVisible(showEventAction && hasAction && visibleWhenActive);
   };
 
   if (!hasAction || action == nullptr) {
