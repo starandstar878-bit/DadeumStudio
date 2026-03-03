@@ -1,11 +1,20 @@
 #include "Gyeol/Editor/Panels/HistoryPanel.h"
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
+
 #include <algorithm>
 
 namespace Gyeol::Ui::Panels
 {
     namespace
     {
+        using Gyeol::GyeolPalette;
+
+        juce::Colour palette(GyeolPalette id, float alpha = 1.0f)
+        {
+            return Gyeol::getGyeolColor(id).withAlpha(alpha);
+        }
+
         bool isUndoRedoLabel(const juce::String& action)
         {
             const auto normalized = action.trim().toLowerCase();
@@ -22,18 +31,40 @@ namespace Gyeol::Ui::Panels
                 return cleanAction;
             return cleanAction + " - " + cleanDetail;
         }
+
+        void drawClockIcon(juce::Graphics& g,
+                           juce::Rectangle<float> area,
+                           juce::Colour colour)
+        {
+            if (area.isEmpty())
+                return;
+
+            g.setColour(colour);
+            g.drawEllipse(area, 1.2f);
+
+            const auto center = area.getCentre();
+            g.drawLine(center.x,
+                       center.y,
+                       center.x,
+                       area.getY() + area.getHeight() * 0.30f,
+                       1.2f);
+            g.drawLine(center.x,
+                       center.y,
+                       area.getX() + area.getWidth() * 0.68f,
+                       center.y,
+                       1.2f);
+        }
     }
 
     HistoryPanel::HistoryPanel()
     {
         titleLabel.setText("History", juce::dontSendNotification);
         titleLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-        titleLabel.setColour(juce::Label::textColourId, juce::Colour::fromRGB(192, 200, 214));
+        titleLabel.setColour(juce::Label::textColourId, palette(GyeolPalette::TextPrimary));
         titleLabel.setJustificationType(juce::Justification::centredLeft);
         addAndMakeVisible(titleLabel);
 
-        summaryLabel.setText("Undo 0 | Redo 0", juce::dontSendNotification);
-        summaryLabel.setColour(juce::Label::textColourId, juce::Colour::fromRGB(160, 170, 186));
+        summaryLabel.setColour(juce::Label::textColourId, palette(GyeolPalette::TextSecondary));
         summaryLabel.setJustificationType(juce::Justification::centredRight);
         addAndMakeVisible(summaryLabel);
 
@@ -62,9 +93,9 @@ namespace Gyeol::Ui::Panels
         addAndMakeVisible(clearButton);
 
         listBox.setModel(this);
-        listBox.setRowHeight(26);
-        listBox.setColour(juce::ListBox::backgroundColourId, juce::Colour::fromRGB(17, 23, 31));
-        listBox.setColour(juce::ListBox::outlineColourId, juce::Colour::fromRGB(44, 52, 66));
+        listBox.setRowHeight(30);
+        listBox.setColour(juce::ListBox::backgroundColourId, palette(GyeolPalette::CanvasBackground));
+        listBox.setColour(juce::ListBox::outlineColourId, palette(GyeolPalette::BorderDefault));
         addAndMakeVisible(listBox);
 
         setCanUndoRedo(false, false);
@@ -135,50 +166,56 @@ namespace Gyeol::Ui::Panels
         cachedHistorySerial = historySerial;
 
         rows.clear();
-        rows.reserve(static_cast<size_t>(undoDepth + redoDepth + 1));
+        currentRow = -1;
 
-        int stateIndex = 0;
-        for (int i = 0; i < undoDepth; ++i)
+        const auto hasTimeline = undoDepth > 0 || redoDepth > 0;
+        if (hasTimeline)
         {
-            StackRow row;
-            const auto defaultLabel = "Applied #" + juce::String(i + 1);
-            if (i >= 0 && i < static_cast<int>(undoEventLabels.size()) && undoEventLabels[static_cast<size_t>(i)].isNotEmpty())
-                row.label = undoEventLabels[static_cast<size_t>(i)];
-            else
-                row.label = defaultLabel;
-            row.current = false;
-            row.future = false;
-            row.stateIndex = stateIndex++;
-            rows.push_back(std::move(row));
-        }
+            rows.reserve(static_cast<size_t>(undoDepth + redoDepth + 1));
 
-        StackRow current;
-        current.label = "Current State";
-        current.current = true;
-        current.future = false;
-        current.stateIndex = stateIndex++;
-        rows.push_back(std::move(current));
-        currentRow = undoDepth;
+            int stateIndex = 0;
+            for (int i = 0; i < undoDepth; ++i)
+            {
+                StackRow row;
+                const auto defaultLabel = "Applied #" + juce::String(i + 1);
+                if (i >= 0 && i < static_cast<int>(undoEventLabels.size()) && undoEventLabels[static_cast<size_t>(i)].isNotEmpty())
+                    row.label = undoEventLabels[static_cast<size_t>(i)];
+                else
+                    row.label = defaultLabel;
+                row.current = false;
+                row.future = false;
+                row.stateIndex = stateIndex++;
+                rows.push_back(std::move(row));
+            }
 
-        for (int i = 0; i < redoDepth; ++i)
-        {
-            StackRow row;
-            const auto defaultLabel = "Future #" + juce::String(i + 1);
-            const auto labelIndex = redoDepth - 1 - i; // redo top appears closest to current row
-            if (labelIndex >= 0
-                && labelIndex < static_cast<int>(redoEventLabels.size())
-                && redoEventLabels[static_cast<size_t>(labelIndex)].isNotEmpty())
+            StackRow current;
+            current.label = "Current State";
+            current.current = true;
+            current.future = false;
+            current.stateIndex = stateIndex++;
+            rows.push_back(std::move(current));
+            currentRow = undoDepth;
+
+            for (int i = 0; i < redoDepth; ++i)
             {
-                row.label = redoEventLabels[static_cast<size_t>(labelIndex)];
+                StackRow row;
+                const auto defaultLabel = "Future #" + juce::String(i + 1);
+                const auto labelIndex = redoDepth - 1 - i; // redo top appears closest to current row
+                if (labelIndex >= 0
+                    && labelIndex < static_cast<int>(redoEventLabels.size())
+                    && redoEventLabels[static_cast<size_t>(labelIndex)].isNotEmpty())
+                {
+                    row.label = redoEventLabels[static_cast<size_t>(labelIndex)];
+                }
+                else
+                {
+                    row.label = defaultLabel;
+                }
+                row.current = false;
+                row.future = true;
+                row.stateIndex = stateIndex++;
+                rows.push_back(std::move(row));
             }
-            else
-            {
-                row.label = defaultLabel;
-            }
-            row.current = false;
-            row.future = true;
-            row.stateIndex = stateIndex++;
-            rows.push_back(std::move(row));
         }
 
         listBox.updateContent();
@@ -187,9 +224,12 @@ namespace Gyeol::Ui::Panels
             listBox.selectRow(currentRow);
             listBox.scrollToEnsureRowIsOnscreen(currentRow);
         }
+        else
+        {
+            listBox.deselectAllRows();
+        }
 
-        summaryLabel.setText("Undo " + juce::String(undoDepth) + " | Redo " + juce::String(redoDepth),
-                             juce::dontSendNotification);
+        updateSummaryLabel();
         repaint();
     }
 
@@ -228,6 +268,7 @@ namespace Gyeol::Ui::Panels
 
         collapsed = shouldCollapse;
         updateCollapsedVisualState();
+        updateSummaryLabel();
         resized();
         repaint();
 
@@ -268,18 +309,53 @@ namespace Gyeol::Ui::Panels
 
     void HistoryPanel::paint(juce::Graphics& g)
     {
-        g.fillAll(juce::Colour::fromRGB(24, 28, 34));
-        g.setColour(juce::Colour::fromRGB(40, 46, 56));
+        g.fillAll(palette(GyeolPalette::PanelBackground));
+        g.setColour(palette(GyeolPalette::BorderDefault));
         g.drawRect(getLocalBounds(), 1);
+
+        if (collapsed)
+        {
+            auto badge = summaryLabel.getBounds().toFloat().reduced(2.0f, 2.0f);
+            if (!badge.isEmpty())
+            {
+                g.setColour(palette(GyeolPalette::HeaderBackground, 0.86f));
+                g.fillRoundedRectangle(badge, 5.0f);
+                g.setColour(palette(GyeolPalette::BorderDefault, 0.96f));
+                g.drawRoundedRectangle(badge, 5.0f, 1.0f);
+            }
+        }
+    }
+
+    void HistoryPanel::paintOverChildren(juce::Graphics& g)
+    {
+        if (collapsed || !listBox.isVisible() || !rows.empty())
+            return;
+
+        auto area = listBox.getBounds().reduced(10);
+        if (area.getHeight() < 44)
+            return;
+
+        auto iconSlot = area.removeFromTop(22).toFloat();
+        const auto iconArea = juce::Rectangle<float>(18.0f, 18.0f).withCentre(iconSlot.getCentre());
+        drawClockIcon(g, iconArea, palette(GyeolPalette::TextSecondary, 0.82f));
+
+        g.setColour(palette(GyeolPalette::TextSecondary, 0.90f));
+        g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+        g.drawFittedText("No history yet", area.removeFromTop(18), juce::Justification::centred, 1);
     }
 
     void HistoryPanel::resized()
     {
         auto area = getLocalBounds().reduced(8);
-        auto top = area.removeFromTop(20);
+        auto top = area.removeFromTop(22);
+
         collapseToggleButton.setBounds(top.removeFromRight(24));
-        titleLabel.setBounds(top.removeFromLeft(120));
-        summaryLabel.setBounds(top);
+        titleLabel.setBounds(top.removeFromLeft(84));
+
+        if (collapsed)
+            summaryLabel.setBounds(top.removeFromRight(172));
+        else
+            summaryLabel.setBounds(top);
 
         if (collapsed)
             return;
@@ -305,6 +381,22 @@ namespace Gyeol::Ui::Panels
         listBox.setVisible(!collapsed);
     }
 
+    void HistoryPanel::updateSummaryLabel()
+    {
+        const auto compactText =
+            "Undo " + juce::String(cachedUndoDepth)
+            + juce::String::fromUTF8(u8" \u00B7 ")
+            + "Redo " + juce::String(cachedRedoDepth);
+        const auto fullText = "Undo " + juce::String(cachedUndoDepth)
+                            + " | Redo " + juce::String(cachedRedoDepth);
+
+        summaryLabel.setText(collapsed ? compactText : fullText,
+                             juce::dontSendNotification);
+        summaryLabel.setColour(juce::Label::textColourId,
+                               collapsed ? palette(GyeolPalette::TextPrimary)
+                                         : palette(GyeolPalette::TextSecondary));
+    }
+
     int HistoryPanel::getNumRows()
     {
         return static_cast<int>(rows.size());
@@ -321,55 +413,92 @@ namespace Gyeol::Ui::Panels
 
         const auto& row = rows[static_cast<size_t>(rowNumber)];
         const auto bounds = juce::Rectangle<int>(0, 0, width, height);
+        auto card = bounds.toFloat().reduced(1.0f, 1.0f);
 
-        juce::Colour fill = juce::Colour::fromRGB(25, 31, 40);
+        juce::Colour fill = palette(GyeolPalette::ControlBase, 0.70f);
         if (row.future)
-            fill = juce::Colour::fromRGB(30, 30, 34);
+            fill = palette(GyeolPalette::ControlBase, 0.56f);
         if (row.current)
-            fill = juce::Colour::fromRGB(54, 92, 160);
+            fill = palette(GyeolPalette::ControlBase, 0.90f);
         if (rowIsSelected)
-            fill = fill.brighter(0.08f);
+            fill = fill.interpolatedWith(palette(GyeolPalette::SelectionBackground, 0.42f), 0.35f);
 
-        g.setColour(fill.withAlpha(row.current ? 0.84f : 0.60f));
-        g.fillRect(bounds);
+        g.setColour(fill);
+        g.fillRoundedRectangle(card, 4.0f);
 
-        g.setColour(juce::Colour::fromRGB(44, 52, 66));
-        g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
-
-        auto textArea = bounds.reduced(8, 4);
-        auto left = textArea.removeFromLeft(84);
+        g.setColour(palette(GyeolPalette::BorderDefault, rowIsSelected ? 0.95f : 0.72f));
+        g.drawRoundedRectangle(card, 4.0f, 1.0f);
 
         if (row.current)
         {
-            g.setColour(juce::Colour::fromRGB(112, 214, 156));
-            g.fillRoundedRectangle(juce::Rectangle<float>(static_cast<float>(left.getX()),
-                                                          static_cast<float>(left.getY() + 1),
-                                                          66.0f,
-                                                          14.0f),
-                                   3.0f);
-            g.setColour(juce::Colours::black.withAlpha(0.85f));
-            g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
-            g.drawText("CURRENT",
-                       juce::Rectangle<int>(left.getX(), left.getY() + 1, 66, 14),
-                       juce::Justification::centred,
-                       true);
+            auto glowBar = juce::Rectangle<float>(card.getX() + 1.0f,
+                                                  card.getY() + 2.0f,
+                                                  3.0f,
+                                                  card.getHeight() - 4.0f);
+            g.setColour(palette(GyeolPalette::AccentPrimary, 0.18f));
+            g.fillRoundedRectangle(glowBar.expanded(2.0f, 1.0f), 2.0f);
+            g.setColour(palette(GyeolPalette::AccentPrimary, 0.94f));
+            g.fillRoundedRectangle(glowBar, 1.6f);
+        }
+
+        const auto timelineX = 16.0f;
+        g.setColour(palette(GyeolPalette::BorderDefault, 0.86f));
+        g.drawLine(timelineX, 2.0f, timelineX, static_cast<float>(height - 2), 1.0f);
+
+        auto dotBounds = juce::Rectangle<float>(timelineX - 4.0f,
+                                                bounds.getCentreY() - 4.0f,
+                                                8.0f,
+                                                8.0f);
+        if (row.current)
+        {
+            g.setColour(palette(GyeolPalette::AccentPrimary, 0.20f));
+            g.fillEllipse(dotBounds.expanded(2.0f));
+            g.setColour(palette(GyeolPalette::AccentPrimary));
+            g.fillEllipse(dotBounds);
+            g.setColour(palette(GyeolPalette::BorderActive, 0.88f));
+            g.drawEllipse(dotBounds, 1.0f);
         }
         else if (row.future)
         {
-            g.setColour(juce::Colour::fromRGB(128, 136, 150));
-            g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
-            g.drawText("REDO", left.removeFromLeft(52), juce::Justification::centredLeft, true);
+            g.setColour(palette(GyeolPalette::TextSecondary, 0.55f));
+            g.drawEllipse(dotBounds, 1.2f);
         }
         else
         {
-            g.setColour(juce::Colour::fromRGB(130, 146, 170));
-            g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
-            g.drawText("UNDO", left.removeFromLeft(52), juce::Justification::centredLeft, true);
+            g.setColour(palette(GyeolPalette::BorderDefault, 0.95f));
+            g.drawEllipse(dotBounds, 1.2f);
         }
 
-        g.setColour(row.future ? juce::Colour::fromRGB(146, 152, 164)
-                               : juce::Colour::fromRGB(194, 202, 216));
-        g.setFont(juce::FontOptions(11.0f, row.current ? juce::Font::bold : juce::Font::plain));
+        auto textArea = bounds.reduced(28, 4);
+        auto kindArea = textArea.removeFromTop(10);
+
+        if (row.current)
+        {
+            g.setColour(palette(GyeolPalette::ValidSuccess, 0.96f));
+            g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
+            g.drawText("CURRENT", kindArea, juce::Justification::centredLeft, true);
+        }
+        else if (row.future)
+        {
+            g.setColour(palette(GyeolPalette::TextSecondary, 0.74f));
+            g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
+            g.drawText("REDO", kindArea, juce::Justification::centredLeft, true);
+        }
+        else
+        {
+            g.setColour(palette(GyeolPalette::TextSecondary, 0.86f));
+            g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
+            g.drawText("UNDO", kindArea, juce::Justification::centredLeft, true);
+        }
+
+        const auto textColour = row.current ? palette(GyeolPalette::ValidSuccess)
+                             : row.future ? palette(GyeolPalette::TextSecondary, 0.78f)
+                                          : palette(GyeolPalette::TextPrimary);
+
+        g.setColour(textColour);
+        g.setFont(juce::FontOptions(11.0f,
+                                    row.current ? juce::Font::bold
+                                                : juce::Font::plain));
         g.drawText(row.label, textArea, juce::Justification::centredLeft, true);
     }
 }

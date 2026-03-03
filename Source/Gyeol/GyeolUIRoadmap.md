@@ -231,13 +231,13 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 
 **현재 상태**: ListBox 기반 Undo/Redo 스택. `paintListBoxItem`에서 CURRENT/REDO/UNDO 배지(라벨) 렌더링 하드코딩. 배경 `fromRGB(24,28,34)` 직접 사용.
 
-- [ ] **13-a. paint 배경을 GyeolPalette로 교체**: `PanelBackground`+`BorderDefault` 사용.
-- [ ] **13-b. 행 항목을 타임라인 스타일로 리디자인**:
+- [x] **13-a. paint 배경을 GyeolPalette로 교체**: `PanelBackground`+`BorderDefault` 사용.
+- [x] **13-b. 행 항목을 타임라인 스타일로 리디자인**:
   - 좌측에 세로 타임라인 선(1px, `BorderDefault`) + 각 항목마다 원형 도트(Current=AccentPrimary 채움, Undo=보더만, Redo=흐린 보더)
   - CURRENT 행에 AccentPrimary 좌측 글로우 바 + 라벨을 `ValidSuccess` 색상으로 통일
   - REDO 행은 TextSecondary로 흐리게, UNDO 행은 TextPrimary로 일반 밝기
-- [ ] **13-c. 빈 상태(Empty State)**: 히스토리가 비어있을 때 시계 아이콘 + "No history yet" 안내.
-- [ ] **13-d. 접힌(collapsed) 상태의 미니 요약**: 접혀 있을 때 "Undo 3 · Redo 1" 형태의 한 줄 배지 표시.
+- [x] **13-c. 빈 상태(Empty State)**: 히스토리가 비어있을 때 시계 아이콘 + "No history yet" 안내.
+- [x] **13-d. 접힌(collapsed) 상태의 미니 요약**: 접혀 있을 때 "Undo 3 · Redo 1" 형태의 한 줄 배지 표시.
 
 ---
 
