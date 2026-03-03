@@ -1,9 +1,27 @@
 #include "Gyeol/Editor/Panels/NavigatorPanel.h"
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
+
 #include <algorithm>
+#include <cmath>
 
 namespace Gyeol::Ui::Panels
 {
+    namespace
+    {
+        using Gyeol::GyeolPalette;
+
+        juce::Colour palette(GyeolPalette id, float alpha = 1.0f)
+        {
+            return Gyeol::getGyeolColor(id).withAlpha(alpha);
+        }
+
+        juce::String formatZoomBadgeText(float zoomLevel)
+        {
+            return "x" + juce::String(zoomLevel, 1);
+        }
+    }
+
     NavigatorPanel::NavigatorPanel()
     {
         setWantsKeyboardFocus(false);
@@ -32,29 +50,39 @@ namespace Gyeol::Ui::Panels
 
     void NavigatorPanel::paint(juce::Graphics& g)
     {
-        g.fillAll(juce::Colour::fromRGB(24, 28, 34));
-        g.setColour(juce::Colour::fromRGB(40, 46, 56));
+        g.fillAll(palette(GyeolPalette::PanelBackground));
+        g.setColour(palette(GyeolPalette::BorderDefault));
         g.drawRect(getLocalBounds(), 1);
 
         auto headerArea = headerBounds;
-        auto headerRight = headerArea.removeFromRight(100);
-        g.setColour(juce::Colour::fromRGB(188, 195, 208));
-        g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-        g.drawText("Navigator", headerArea, juce::Justification::centredLeft, true);
+        g.setColour(palette(GyeolPalette::TextPrimary));
+        g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+        g.drawText("Navigator", headerArea.removeFromLeft(86), juce::Justification::centredLeft, true);
 
-        g.setColour(juce::Colour::fromRGB(158, 166, 182));
-        g.setFont(juce::FontOptions(10.0f));
-        g.drawText("Zoom " + juce::String(zoomLevel, 3),
-                   headerRight,
-                   juce::Justification::centredRight,
-                   true);
+        const auto zoomText = formatZoomBadgeText(zoomLevel);
+        const juce::Font badgeFont(juce::FontOptions(10.0f, juce::Font::bold));
+        const auto badgeWidth = juce::jmax(52.0f, badgeFont.getStringWidthFloat(zoomText) + 20.0f);
+        auto badgeBounds = headerArea.removeFromRight(static_cast<int>(std::ceil(badgeWidth))).toFloat().reduced(0.0f, 2.0f);
+
+        g.setColour(palette(GyeolPalette::HeaderBackground, 0.90f));
+        g.fillRoundedRectangle(badgeBounds, 6.0f);
+        g.setColour(palette(GyeolPalette::BorderDefault, 0.96f));
+        g.drawRoundedRectangle(badgeBounds, 6.0f, 1.0f);
+
+        g.setColour(palette(GyeolPalette::TextSecondary, 0.96f));
+        g.setFont(badgeFont);
+        g.drawText(zoomText, badgeBounds.toNearestInt(), juce::Justification::centred, true);
 
         const auto transform = computeMapTransform();
         const auto mapBounds = transform.mapBounds;
-        g.setColour(juce::Colour::fromRGB(16, 20, 26));
-        g.fillRoundedRectangle(mapBounds, 4.0f);
-        g.setColour(juce::Colour::fromRGB(60, 68, 82));
-        g.drawRoundedRectangle(mapBounds, 4.0f, 1.0f);
+        if (mapBounds.isEmpty())
+            return;
+
+        Gyeol::GyeolCustomLookAndFeel::drawSoftDropShadow(g, mapBounds, 10.0f, 0.22f);
+        g.setColour(palette(GyeolPalette::OverlayBackground, 0.78f));
+        g.fillRoundedRectangle(mapBounds, 6.0f);
+        g.setColour(palette(GyeolPalette::BorderDefault, 0.96f));
+        g.drawRoundedRectangle(mapBounds, 6.0f, 1.0f);
 
         if (!transform.isValid())
             return;
@@ -71,24 +99,38 @@ namespace Gyeol::Ui::Panels
             if (itemMapBounds.getWidth() <= 0.0f || itemMapBounds.getHeight() <= 0.0f)
                 continue;
 
-            itemMapBounds = itemMapBounds.expanded(0.5f, 0.5f);
-            juce::Colour fill = juce::Colour::fromRGB(98, 112, 132).withAlpha(0.46f);
+            itemMapBounds = itemMapBounds.expanded(0.4f, 0.4f);
+            if (itemMapBounds.getWidth() < 1.8f || itemMapBounds.getHeight() < 1.8f)
+                itemMapBounds = itemMapBounds.withSizeKeepingCentre(
+                    juce::jmax(itemMapBounds.getWidth(), 1.8f),
+                    juce::jmax(itemMapBounds.getHeight(), 1.8f));
+
+            juce::Colour fill = palette(GyeolPalette::ControlHover, 0.36f);
             if (item.locked)
-                fill = juce::Colour::fromRGB(124, 94, 90).withAlpha(0.55f);
+                fill = palette(GyeolPalette::ValidWarning, 0.34f);
             if (item.selected)
-                fill = juce::Colour::fromRGB(82, 146, 236).withAlpha(0.78f);
+                fill = palette(GyeolPalette::AccentPrimary, 0.78f);
+
             g.setColour(fill);
-            g.fillRect(itemMapBounds);
-            g.setColour(juce::Colours::black.withAlpha(0.35f));
-            g.drawRect(itemMapBounds, 1.0f);
+            g.fillRoundedRectangle(itemMapBounds, 2.0f);
+
+            const auto outline = item.selected ? palette(GyeolPalette::BorderActive, 0.96f)
+                                               : palette(GyeolPalette::BorderDefault, 0.74f);
+            g.setColour(outline);
+            g.drawRoundedRectangle(itemMapBounds, 2.0f, 1.0f);
         }
 
         auto viewMapBounds = transform.worldToMap(visibleWorldBounds);
         viewMapBounds = viewMapBounds.getIntersection(mapBounds);
-        g.setColour(juce::Colour::fromRGB(90, 184, 255).withAlpha(0.18f));
-        g.fillRect(viewMapBounds);
-        g.setColour(juce::Colour::fromRGB(90, 184, 255));
-        g.drawRect(viewMapBounds, 1.5f);
+        if (!viewMapBounds.isEmpty())
+        {
+            g.setColour(palette(GyeolPalette::AccentPrimary, 0.08f));
+            g.fillRoundedRectangle(viewMapBounds.expanded(2.0f, 2.0f), 3.0f);
+            g.setColour(palette(GyeolPalette::AccentPrimary, 0.18f));
+            g.fillRoundedRectangle(viewMapBounds, 2.5f);
+            g.setColour(palette(GyeolPalette::AccentPrimary, 0.96f));
+            g.drawRoundedRectangle(viewMapBounds, 2.5f, 1.5f);
+        }
 
         g.restoreState();
     }
@@ -96,7 +138,7 @@ namespace Gyeol::Ui::Panels
     void NavigatorPanel::resized()
     {
         auto area = getLocalBounds().reduced(8);
-        headerBounds = area.removeFromTop(18);
+        headerBounds = area.removeFromTop(20);
         area.removeFromTop(6);
         mapContainerBounds = area;
     }

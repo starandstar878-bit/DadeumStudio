@@ -33,6 +33,7 @@ namespace Gyeol::Ui::Panels
         void setAutoRefreshEnabled(bool enabled);
 
         void paint(juce::Graphics& g) override;
+        void paintOverChildren(juce::Graphics& g) override;
         void resized() override;
 
     private:
@@ -40,25 +41,36 @@ namespace Gyeol::Ui::Panels
         void clearPreviewEditors();
         void setStatusText(const juce::String& text, juce::Colour colour);
         juce::String normalizedClassName() const;
+        void updateFooterStatus();
+        int lineCountForText(const juce::String& text) const;
+        bool hasPreviewData() const;
+        juce::TextEditor* activeEditor() noexcept;
+        const juce::TextEditor* activeEditor() const noexcept;
+        void drawCodeGutter(juce::Graphics& g, const juce::TextEditor& editor) const;
+        void syncActiveTabState();
 
         bool dirty = true;
         bool autoRefresh = false;
+        juce::String lastGeneratedTime = "--:--:--";
 
         GeneratePreviewCallback onGeneratePreview;
         ExportRequestedCallback onExportRequested;
 
         juce::Label titleLabel;
         juce::Label statusLabel;
-        juce::Label classNameLabel;
         juce::TextEditor classNameEditor;
-        juce::ToggleButton autoRefreshToggle { "Auto" };
-        juce::TextButton refreshButton { "Generate Preview" };
-        juce::TextButton exportButton { "Export JUCE" };
+        juce::TextButton refreshButton { "Generate" };
+        juce::TextButton exportButton { "Export" };
 
         juce::TabbedComponent tabs { juce::TabbedButtonBar::TabsAtTop };
         juce::TextEditor reportEditor;
         juce::TextEditor headerEditor;
         juce::TextEditor sourceEditor;
         juce::TextEditor manifestEditor;
+        juce::Label footerLabel;
+
+        juce::Rectangle<int> tabBarBoundsInPanel;
+        juce::Rectangle<int> footerBounds;
+        int cachedActiveTabIndex = 0;
     };
 }

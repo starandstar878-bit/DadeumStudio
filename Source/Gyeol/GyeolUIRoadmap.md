@@ -245,11 +245,11 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 
 **현재 상태**: 미니맵 캔버스를 직접 `paint`로 렌더링. 헤더에 "Navigator" 텍스트 + Zoom 수치 표시. 배경 `fromRGB(24,28,34)`, 맵 영역 `fromRGB(16,20,26)`.
 
-- [ ] **14-a. paint 배경을 GyeolPalette로 교체**: `PanelBackground`, `CanvasBackground` 등 사용.
-- [ ] **14-b. 미니맵 글래스모피즘 배경**: 맵 영역 배경에 `OverlayBackground` 색상(반투명) + 라운드(6px) + 미세 보더 적용. 현재 `fromRGB(16,20,26)` → 반투명 다크 + 라운드.
-- [ ] **14-c. 뷰포트 하이라이트 개선**: 현재 파란색 사각형 → AccentPrimary의 반투명 채움(18%) + 1.5px 아웃라인 유지. 뷰포트 외곽에 미세 Glow 추가(8% alpha expanded rect).
-- [ ] **14-d. 위젯 아이템 렌더링 개선**: 선택된 위젯은 `AccentPrimary` 채움, 잠금 위젯은 `ValidWarning` 반투명. 아이템 아웃라인을 `drawRect` → `drawRoundedRectangle(1.0f)`로 교체.
-- [ ] **14-e. 줌 수치를 세련된 배지로**: "Zoom 1.000" → `×1.0` 형태의 라운드 배지(밝은 보더 + 작은 폰트).
+- [x] **14-a. paint 배경을 GyeolPalette로 교체**: `PanelBackground`, `CanvasBackground` 등 사용.
+- [x] **14-b. 미니맵 글래스모피즘 배경**: 맵 영역 배경에 `OverlayBackground` 색상(반투명) + 라운드(6px) + 미세 보더 적용. 현재 `fromRGB(16,20,26)` → 반투명 다크 + 라운드.
+- [x] **14-c. 뷰포트 하이라이트 개선**: 현재 파란색 사각형 → AccentPrimary의 반투명 채움(18%) + 1.5px 아웃라인 유지. 뷰포트 외곽에 미세 Glow 추가(8% alpha expanded rect).
+- [x] **14-d. 위젯 아이템 렌더링 개선**: 선택된 위젯은 `AccentPrimary` 채움, 잠금 위젯은 `ValidWarning` 반투명. 아이템 아웃라인을 `drawRect` → `drawRoundedRectangle(1.0f)`로 교체.
+- [x] **14-e. 줌 수치를 세련된 배지로**: "Zoom 1.000" → `×1.0` 형태의 라운드 배지(밝은 보더 + 작은 폰트).
 
 ---
 
@@ -257,17 +257,17 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 
 **현재 상태**: 순수 텍스트 기반 (`g.drawText`로 12줄 이상 통계 나열). 배경 `fromRGB(24,28,34)`. 그래프/차트 없음.
 
-- [ ] **15-a. paint 배경을 GyeolPalette로 교체**.
-- [ ] **15-b. 주요 수치를 카드형 대시보드로 재배치**:
+- [x] **15-a. paint 배경을 GyeolPalette로 교체**.
+- [x] **15-b. 주요 수치를 카드형 대시보드로 재배치**:
   - 상단 3열 카드: Refresh Hz / Paint Hz / SelectionSync Hz (큰 폰트 수치 + 작은 라벨)
   - 각 카드 배경 `HeaderBackground` 라운드 + 미세 보더
   - Hz 수치 색상: 정상(60Hz↑) → `ValidSuccess`, 경고(30~60) → `ValidWarning`, 위험(30↓) → `ValidError`
-- [ ] **15-c. 상세 통계를 접이식 섹션으로 분류**:
+- [x] **15-c. 상세 통계를 접이식 섹션으로 분류**:
   - "Timing" 섹션: last/max ms 수치
   - "Counters" 섹션: refresh/paint/selection counts
   - "Document" 섹션: widget/group/layer/asset counts
   - "Debug" 섹션: deferred refresh, dirty area
-- [ ] **15-d. 미니 바 차트(선택적)**: Refresh/Paint/SelectionSync의 last ms를 max ms 대비 비율로 표시하는 0~100% 수평 바 차트. 패널 공간이 충분할 때만 표시.
+- [x] **15-d. 미니 바 차트(선택적)**: Refresh/Paint/SelectionSync의 last ms를 max ms 대비 비율로 표시하는 0~100% 수평 바 차트. 패널 공간이 충분할 때만 표시.
 
 ---
 
@@ -275,11 +275,11 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 
 **현재 상태**: TabbedComponent(Report/Header/Source/Manifest) + TextEditor 4개. 배경 `fromRGB(24,28,34)`. 탭은 JUCE 기본 스타일.
 
-- [ ] **16-a. paint 배경을 GyeolPalette로 교체**.
-- [ ] **16-b. 탭 바 커스텀**: TabbedComponent의 탭 바를 `HeaderBackground` 배경 + 선택된 탭에 AccentPrimary 하단 인디케이터(3px 라운드 바) + 미선택 탭은 TextSecondary.
-- [ ] **16-c. TextEditor를 코드 에디터 풍으로**: 각 TextEditor에 monospace 폰트 적용 + 라인넘버 영역 배경색 차별화(더 어두운 배경). 읽기 전용이므로 포커스 보더 제거.
-- [ ] **16-d. 상태 바 통합**: 하단에 "Generated at HH:MM:SS" + "Lines: NNN" 표시하는 미세한 1줄 상태 바.
-- [ ] **16-e. 빈 상태(Empty State)**: 미리보기 생성 전 → 코드 아이콘(`< />`) + "Click Generate to preview export" 안내.
+- [x] **16-a. paint 배경을 GyeolPalette로 교체**.
+- [x] **16-b. 탭 바 커스텀**: TabbedComponent의 탭 바를 `HeaderBackground` 배경 + 선택된 탭에 AccentPrimary 하단 인디케이터(3px 라운드 바) + 미선택 탭은 TextSecondary.
+- [x] **16-c. TextEditor를 코드 에디터 풍으로**: 각 TextEditor에 monospace 폰트 적용 + 라인넘버 영역 배경색 차별화(더 어두운 배경). 읽기 전용이므로 포커스 보더 제거.
+- [x] **16-d. 상태 바 통합**: 하단에 "Generated at HH:MM:SS" + "Lines: NNN" 표시하는 미세한 1줄 상태 바.
+- [x] **16-e. 빈 상태(Empty State)**: 미리보기 생성 전 → 코드 아이콘(`< />`) + "Click Generate to preview export" 안내.
 
 ---
 

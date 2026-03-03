@@ -1,9 +1,20 @@
 #include "Gyeol/Editor/Panels/ExportPreviewPanel.h"
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
+
+#include <cmath>
+
 namespace Gyeol::Ui::Panels
 {
     namespace
     {
+        using Gyeol::GyeolPalette;
+
+        juce::Colour palette(GyeolPalette id, float alpha = 1.0f)
+        {
+            return Gyeol::getGyeolColor(id).withAlpha(alpha);
+        }
+
         void setupReadOnlyEditor(juce::TextEditor& editor)
         {
             editor.setMultiLine(true);
@@ -11,10 +22,13 @@ namespace Gyeol::Ui::Panels
             editor.setScrollbarsShown(true);
             editor.setCaretVisible(false);
             editor.setPopupMenuEnabled(true);
-            editor.setFont(juce::FontOptions("Consolas", 12.0f, juce::Font::plain));
-            editor.setColour(juce::TextEditor::backgroundColourId, juce::Colour::fromRGB(17, 23, 31));
-            editor.setColour(juce::TextEditor::outlineColourId, juce::Colour::fromRGB(44, 52, 66));
-            editor.setColour(juce::TextEditor::textColourId, juce::Colour::fromRGB(196, 206, 222));
+            editor.setFont(juce::FontOptions("Consolas", 11.5f, juce::Font::plain));
+            editor.setBorder(juce::BorderSize<int>(0, 36, 0, 0));
+            editor.setColour(juce::TextEditor::backgroundColourId, palette(GyeolPalette::ControlBase));
+            editor.setColour(juce::TextEditor::outlineColourId, palette(GyeolPalette::BorderDefault));
+            editor.setColour(juce::TextEditor::focusedOutlineColourId, palette(GyeolPalette::BorderDefault));
+            editor.setColour(juce::TextEditor::textColourId, palette(GyeolPalette::TextPrimary));
+            editor.setColour(juce::TextEditor::highlightColourId, palette(GyeolPalette::SelectionBackground, 0.85f));
         }
     }
 
@@ -22,19 +36,15 @@ namespace Gyeol::Ui::Panels
     {
         titleLabel.setText("Export Preview", juce::dontSendNotification);
         titleLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-        titleLabel.setColour(juce::Label::textColourId, juce::Colour::fromRGB(192, 200, 214));
+        titleLabel.setColour(juce::Label::textColourId, palette(GyeolPalette::TextPrimary));
         titleLabel.setJustificationType(juce::Justification::centredLeft);
         addAndMakeVisible(titleLabel);
 
-        setStatusText("Stale", juce::Colour::fromRGB(160, 170, 186));
+        setStatusText("Stale", palette(GyeolPalette::TextSecondary));
         addAndMakeVisible(statusLabel);
 
-        classNameLabel.setText("Class", juce::dontSendNotification);
-        classNameLabel.setColour(juce::Label::textColourId, juce::Colour::fromRGB(170, 180, 196));
-        classNameLabel.setJustificationType(juce::Justification::centredLeft);
-        addAndMakeVisible(classNameLabel);
-
         classNameEditor.setText("GyeolExportedComponent", juce::dontSendNotification);
+        classNameEditor.setTextToShowWhenEmpty("ComponentClassName", palette(GyeolPalette::TextSecondary));
         classNameEditor.setInputRestrictions(128, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
         classNameEditor.onTextChange = [this]
         {
@@ -48,20 +58,14 @@ namespace Gyeol::Ui::Panels
         };
         addAndMakeVisible(classNameEditor);
 
-        autoRefreshToggle.setClickingTogglesState(true);
-        autoRefreshToggle.setToggleState(autoRefresh, juce::dontSendNotification);
-        autoRefreshToggle.onClick = [this]
-        {
-            setAutoRefreshEnabled(autoRefreshToggle.getToggleState());
-        };
-        addAndMakeVisible(autoRefreshToggle);
-
+        refreshButton.setButtonText("Generate");
         refreshButton.onClick = [this]
         {
             refreshPreview();
         };
         addAndMakeVisible(refreshButton);
 
+        exportButton.setButtonText("Export");
         exportButton.onClick = [this]
         {
             if (onExportRequested != nullptr)
@@ -74,13 +78,28 @@ namespace Gyeol::Ui::Panels
         setupReadOnlyEditor(sourceEditor);
         setupReadOnlyEditor(manifestEditor);
 
-        tabs.setTabBarDepth(28);
-        tabs.addTab("Report", juce::Colour::fromRGB(24, 28, 34), &reportEditor, false);
-        tabs.addTab("Header", juce::Colour::fromRGB(24, 28, 34), &headerEditor, false);
-        tabs.addTab("Source", juce::Colour::fromRGB(24, 28, 34), &sourceEditor, false);
-        tabs.addTab("Manifest", juce::Colour::fromRGB(24, 28, 34), &manifestEditor, false);
+        tabs.setTabBarDepth(30);
+        tabs.setOutline(0);
+        tabs.setColour(juce::TabbedButtonBar::tabOutlineColourId, palette(GyeolPalette::BorderDefault));
+        tabs.setColour(juce::TabbedButtonBar::frontOutlineColourId, palette(GyeolPalette::BorderDefault));
+        tabs.setColour(juce::TabbedButtonBar::frontTextColourId, palette(GyeolPalette::TextPrimary));
+        tabs.setColour(juce::TabbedButtonBar::tabTextColourId, palette(GyeolPalette::TextSecondary));
+        tabs.setColour(juce::TabbedComponent::backgroundColourId, palette(GyeolPalette::PanelBackground));
+        tabs.setColour(juce::TabbedComponent::outlineColourId, palette(GyeolPalette::BorderDefault));
+
+        tabs.addTab("Report", palette(GyeolPalette::PanelBackground), &reportEditor, false);
+        tabs.addTab("Header", palette(GyeolPalette::PanelBackground), &headerEditor, false);
+        tabs.addTab("Source", palette(GyeolPalette::PanelBackground), &sourceEditor, false);
+        tabs.addTab("Manifest", palette(GyeolPalette::PanelBackground), &manifestEditor, false);
         tabs.setCurrentTabIndex(0, juce::dontSendNotification);
+        cachedActiveTabIndex = tabs.getCurrentTabIndex();
         addAndMakeVisible(tabs);
+
+        footerLabel.setJustificationType(juce::Justification::centredLeft);
+        footerLabel.setColour(juce::Label::textColourId, palette(GyeolPalette::TextSecondary));
+        addAndMakeVisible(footerLabel);
+
+        updateFooterStatus();
     }
 
     ExportPreviewPanel::~ExportPreviewPanel() = default;
@@ -101,7 +120,9 @@ namespace Gyeol::Ui::Panels
         if (autoRefresh)
             refreshPreview();
         else
-            setStatusText("Stale (Generate Preview)", juce::Colour::fromRGB(160, 170, 186));
+            setStatusText("Stale (Generate)", palette(GyeolPalette::TextSecondary));
+
+        updateFooterStatus();
     }
 
     void ExportPreviewPanel::refreshPreview()
@@ -109,7 +130,7 @@ namespace Gyeol::Ui::Panels
         if (onGeneratePreview == nullptr)
         {
             clearPreviewEditors();
-            setStatusText("Preview callback is not connected", juce::Colour::fromRGB(255, 166, 96));
+            setStatusText("Preview callback is not connected", palette(GyeolPalette::ValidWarning));
             return;
         }
 
@@ -118,13 +139,15 @@ namespace Gyeol::Ui::Panels
         if (result.failed())
         {
             clearPreviewEditors();
-            setStatusText("Preview failed: " + result.getErrorMessage(), juce::Colour::fromRGB(255, 122, 122));
+            setStatusText("Preview failed: " + result.getErrorMessage(), palette(GyeolPalette::ValidError));
             return;
         }
 
         applyPreviewData(data);
         dirty = false;
-        setStatusText("Preview generated", juce::Colour::fromRGB(112, 214, 156));
+        lastGeneratedTime = juce::Time::getCurrentTime().formatted("%H:%M:%S");
+        setStatusText("Preview generated", palette(GyeolPalette::ValidSuccess));
+        updateFooterStatus();
     }
 
     bool ExportPreviewPanel::autoRefreshEnabled() const noexcept
@@ -135,16 +158,77 @@ namespace Gyeol::Ui::Panels
     void ExportPreviewPanel::setAutoRefreshEnabled(bool enabled)
     {
         autoRefresh = enabled;
-        autoRefreshToggle.setToggleState(autoRefresh, juce::dontSendNotification);
         if (autoRefresh && dirty)
             refreshPreview();
     }
 
     void ExportPreviewPanel::paint(juce::Graphics& g)
     {
-        g.fillAll(juce::Colour::fromRGB(24, 28, 34));
-        g.setColour(juce::Colour::fromRGB(40, 46, 56));
+        syncActiveTabState();
+
+        g.fillAll(palette(GyeolPalette::PanelBackground));
+        g.setColour(palette(GyeolPalette::BorderDefault));
         g.drawRect(getLocalBounds(), 1);
+
+        if (!tabBarBoundsInPanel.isEmpty())
+        {
+            auto tabBar = tabBarBoundsInPanel.toFloat().reduced(0.0f, 1.0f);
+            g.setColour(palette(GyeolPalette::HeaderBackground, 0.86f));
+            g.fillRoundedRectangle(tabBar, 6.0f);
+            g.setColour(palette(GyeolPalette::BorderDefault, 0.88f));
+            g.drawRoundedRectangle(tabBar, 6.0f, 1.0f);
+
+            const auto tabCount = juce::jmax(1, tabs.getNumTabs());
+            const auto tabWidth = tabBarBoundsInPanel.getWidth() / tabCount;
+            const auto active = juce::jlimit(0, tabCount - 1, tabs.getCurrentTabIndex());
+            const auto indicatorWidth = juce::jmax(24, tabWidth - 20);
+            const auto indicatorX = tabBarBoundsInPanel.getX() + active * tabWidth + (tabWidth - indicatorWidth) / 2;
+
+            auto indicator = juce::Rectangle<float>(static_cast<float>(indicatorX),
+                                                    static_cast<float>(tabBarBoundsInPanel.getBottom() - 4),
+                                                    static_cast<float>(indicatorWidth),
+                                                    3.0f);
+            g.setColour(palette(GyeolPalette::AccentPrimary));
+            g.fillRoundedRectangle(indicator, 2.0f);
+        }
+
+        if (!footerBounds.isEmpty())
+        {
+            auto footer = footerBounds.toFloat().reduced(0.0f, 1.0f);
+            g.setColour(palette(GyeolPalette::HeaderBackground, 0.72f));
+            g.fillRoundedRectangle(footer, 4.0f);
+            g.setColour(palette(GyeolPalette::BorderDefault, 0.86f));
+            g.drawRoundedRectangle(footer, 4.0f, 1.0f);
+        }
+    }
+
+    void ExportPreviewPanel::paintOverChildren(juce::Graphics& g)
+    {
+        syncActiveTabState();
+
+        drawCodeGutter(g, reportEditor);
+        drawCodeGutter(g, headerEditor);
+        drawCodeGutter(g, sourceEditor);
+        drawCodeGutter(g, manifestEditor);
+
+        if (hasPreviewData())
+            return;
+
+        auto emptyArea = tabs.getBounds().reduced(10);
+        emptyArea.removeFromTop(tabs.getTabBarDepth());
+        if (emptyArea.getHeight() < 48)
+            return;
+
+        g.setColour(palette(GyeolPalette::TextSecondary, 0.94f));
+        g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        g.drawText("< />", emptyArea.removeFromTop(20), juce::Justification::centred, true);
+
+        g.setColour(palette(GyeolPalette::TextSecondary, 0.90f));
+        g.setFont(juce::FontOptions(10.2f));
+        g.drawText("Click Generate to preview export",
+                   emptyArea.removeFromTop(18),
+                   juce::Justification::centred,
+                   true);
     }
 
     void ExportPreviewPanel::resized()
@@ -156,20 +240,23 @@ namespace Gyeol::Ui::Panels
         statusLabel.setBounds(row0);
 
         area.removeFromTop(4);
-        auto row1 = area.removeFromTop(24);
-        classNameLabel.setBounds(row1.removeFromLeft(40));
-        classNameEditor.setBounds(row1.removeFromLeft(170));
-        row1.removeFromLeft(6);
-        autoRefreshToggle.setBounds(row1.removeFromLeft(54));
-
-        area.removeFromTop(4);
-        auto row2 = area.removeFromTop(24);
-        refreshButton.setBounds(row2.removeFromLeft(136));
-        row2.removeFromLeft(6);
-        exportButton.setBounds(row2.removeFromLeft(96));
+        auto controls = area.removeFromTop(24);
+        constexpr int buttonWidth = 72;
+        exportButton.setBounds(controls.removeFromRight(buttonWidth));
+        controls.removeFromRight(6);
+        refreshButton.setBounds(controls.removeFromRight(buttonWidth));
+        controls.removeFromRight(8);
+        classNameEditor.setBounds(controls);
 
         area.removeFromTop(6);
+        footerBounds = area.removeFromBottom(18);
+        footerLabel.setBounds(footerBounds.reduced(6, 0));
+
         tabs.setBounds(area);
+        tabBarBoundsInPanel = tabs.getBounds();
+        tabBarBoundsInPanel.setHeight(tabs.getTabBarDepth());
+
+        updateFooterStatus();
     }
 
     void ExportPreviewPanel::applyPreviewData(const PreviewData& data)
@@ -181,6 +268,8 @@ namespace Gyeol::Ui::Panels
 
         if (data.outputPath.isNotEmpty())
             reportEditor.setText(data.reportText + "\n\n[Output]\n" + data.outputPath, juce::dontSendNotification);
+
+        updateFooterStatus();
     }
 
     void ExportPreviewPanel::clearPreviewEditors()
@@ -189,6 +278,8 @@ namespace Gyeol::Ui::Panels
         headerEditor.clear();
         sourceEditor.clear();
         manifestEditor.clear();
+        lastGeneratedTime = "--:--:--";
+        updateFooterStatus();
     }
 
     void ExportPreviewPanel::setStatusText(const juce::String& text, juce::Colour colour)
@@ -204,5 +295,103 @@ namespace Gyeol::Ui::Panels
         if (legal.isEmpty())
             return "GyeolExportedComponent";
         return legal;
+    }
+
+    void ExportPreviewPanel::updateFooterStatus()
+    {
+        const auto* editor = activeEditor();
+        const auto lines = editor != nullptr ? lineCountForText(editor->getText()) : 0;
+        footerLabel.setText("Generated at " + lastGeneratedTime + "  |  Lines: " + juce::String(lines),
+                            juce::dontSendNotification);
+    }
+
+    int ExportPreviewPanel::lineCountForText(const juce::String& text) const
+    {
+        if (text.isEmpty())
+            return 0;
+
+        int lineCount = 1;
+        for (int i = 0; i < text.length(); ++i)
+        {
+            if (text[i] == '\n')
+                ++lineCount;
+        }
+        return lineCount;
+    }
+
+    bool ExportPreviewPanel::hasPreviewData() const
+    {
+        return reportEditor.getText().isNotEmpty()
+            || headerEditor.getText().isNotEmpty()
+            || sourceEditor.getText().isNotEmpty()
+            || manifestEditor.getText().isNotEmpty();
+    }
+
+    juce::TextEditor* ExportPreviewPanel::activeEditor() noexcept
+    {
+        switch (tabs.getCurrentTabIndex())
+        {
+            case 0: return &reportEditor;
+            case 1: return &headerEditor;
+            case 2: return &sourceEditor;
+            case 3: return &manifestEditor;
+            default: return &reportEditor;
+        }
+    }
+
+    const juce::TextEditor* ExportPreviewPanel::activeEditor() const noexcept
+    {
+        return const_cast<ExportPreviewPanel*>(this)->activeEditor();
+    }
+
+    void ExportPreviewPanel::syncActiveTabState()
+    {
+        const auto activeIndex = tabs.getCurrentTabIndex();
+        if (activeIndex == cachedActiveTabIndex)
+            return;
+
+        cachedActiveTabIndex = activeIndex;
+        updateFooterStatus();
+    }
+
+    void ExportPreviewPanel::drawCodeGutter(juce::Graphics& g, const juce::TextEditor& editor) const
+    {
+        if (!editor.isVisible())
+            return;
+
+        auto bounds = editor.getBounds();
+        constexpr int gutterWidth = 34;
+        auto gutter = bounds.removeFromLeft(gutterWidth).reduced(1, 1);
+        if (gutter.isEmpty())
+            return;
+
+        g.setColour(palette(GyeolPalette::CanvasBackground, 0.95f));
+        g.fillRoundedRectangle(gutter.toFloat(), 3.0f);
+        g.setColour(palette(GyeolPalette::BorderDefault, 0.82f));
+        g.drawLine(static_cast<float>(gutter.getRight()) + 0.5f,
+                   static_cast<float>(gutter.getY()),
+                   static_cast<float>(gutter.getRight()) + 0.5f,
+                   static_cast<float>(gutter.getBottom()),
+                   1.0f);
+
+        const auto lineCount = lineCountForText(editor.getText());
+        if (lineCount <= 0)
+            return;
+
+        const auto lineHeight = editor.getFont().getHeight() + 1.5f;
+        const auto maxVisible = juce::jmax(1, static_cast<int>((gutter.getHeight() - 4) / lineHeight));
+        const auto drawCount = juce::jmin(lineCount, maxVisible);
+
+        g.setColour(palette(GyeolPalette::TextSecondary, 0.88f));
+        g.setFont(juce::FontOptions(9.0f));
+
+        for (int i = 0; i < drawCount; ++i)
+        {
+            const auto y = gutter.getY() + 2 + static_cast<int>(std::floor(i * lineHeight));
+            g.drawText(juce::String(i + 1),
+                       juce::Rectangle<int>(gutter.getX() + 2, y, gutter.getWidth() - 5, static_cast<int>(lineHeight) + 1),
+                       juce::Justification::centredRight,
+                       true);
+        }
     }
 }

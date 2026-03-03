@@ -753,9 +753,10 @@ void EventActionPanel::resized() {
   stateModeButton.setBounds(modeArea.removeFromLeft(84));
   area.removeFromTop(4);
 
+  statusLabel.setBounds(area.removeFromBottom(18));
+  area.removeFromBottom(4);
+
   if (panelMode == PanelMode::stateBinding) {
-    statusLabel.setBounds(area.removeFromBottom(18));
-    area.removeFromBottom(4);
 
     stateHintLabel.setBounds(area.removeFromTop(18));
     area.removeFromTop(4);
@@ -924,8 +925,6 @@ void EventActionPanel::resized() {
                {&boundsHEditor, 76}});
     break;
   }
-
-  statusLabel.setBounds(area.removeFromTop(18));
 }
 
 int EventActionPanel::selectedBindingModelIndex() const {
