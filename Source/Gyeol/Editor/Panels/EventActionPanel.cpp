@@ -1,4 +1,4 @@
-#include "Gyeol/Editor/Panels/EventActionPanel.h"
+﻿#include "Gyeol/Editor/Panels/EventActionPanel.h"
 
 #include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Runtime/PropertyBindingResolver.h"
@@ -1470,7 +1470,30 @@ bool EventActionPanel::hasImplicitPinFocus() const {
   if (focused == nullptr || !isParentOf(focused))
     return false;
 
-  return dynamic_cast<juce::TextEditor *>(focused) != nullptr;
+  if (dynamic_cast<juce::TextEditor *>(focused) != nullptr)
+    return true;
+
+  if (auto *label = dynamic_cast<juce::Label *>(focused);
+      label != nullptr && label->isBeingEdited()) {
+    return true;
+  }
+
+  // Editable ComboBox는 내부 Label/TextEditor가 포커스를 가지므로
+  // 부모 체인을 타고 올라가며 편집 가능한 ComboBox 여부를 확인한다.
+  for (auto *node = focused; node != nullptr && node != this;
+       node = node->getParentComponent()) {
+    if (auto *combo = dynamic_cast<juce::ComboBox *>(node);
+        combo != nullptr && combo->isTextEditable()) {
+      return true;
+    }
+
+    if (auto *label = dynamic_cast<juce::Label *>(node);
+        label != nullptr && label->isBeingEdited()) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 void EventActionPanel::rebuildVisibleBindings() {
@@ -3036,3 +3059,4 @@ void EventActionPanel::PropertyBindingListModel::selectedRowsChanged(
   owner.refreshStateEditors();
 }
 } // namespace Gyeol::Ui::Panels
+
