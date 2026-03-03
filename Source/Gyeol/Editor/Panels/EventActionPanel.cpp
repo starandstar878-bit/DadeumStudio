@@ -22,13 +22,14 @@ const auto kStatusOk = palette(GyeolPalette::ValidSuccess);
 const auto kStatusWarn = palette(GyeolPalette::ValidWarning);
 const auto kStatusError = palette(GyeolPalette::ValidError);
 
-juce::Colour eventAccent(const juce::String& eventKey) {
+juce::Colour eventAccent(const juce::String &eventKey) {
   const auto key = eventKey.toLowerCase();
   if (key.contains("click") || key.contains("press") || key.contains("release"))
     return palette(GyeolPalette::AccentPrimary);
   if (key.contains("toggle"))
     return palette(GyeolPalette::ValidWarning);
-  if (key.contains("value") || key.contains("selection") || key.contains("text"))
+  if (key.contains("value") || key.contains("selection") ||
+      key.contains("text"))
     return palette(GyeolPalette::ValidSuccess);
   return palette(GyeolPalette::AccentHover);
 }
@@ -67,10 +68,8 @@ juce::String actionPrefix(RuntimeActionKind kind) {
   return "[?] ";
 }
 
-void drawCardBackground(juce::Graphics& g,
-                        juce::Rectangle<float> bounds,
-                        bool rowIsSelected,
-                        juce::Colour accent) {
+void drawCardBackground(juce::Graphics &g, juce::Rectangle<float> bounds,
+                        bool rowIsSelected, juce::Colour accent) {
   if (bounds.isEmpty())
     return;
 
@@ -91,11 +90,10 @@ void drawCardBackground(juce::Graphics& g,
   g.drawRoundedRectangle(bounds, radius, rowIsSelected ? 1.35f : 1.0f);
 }
 
-void drawLeftAccentBar(juce::Graphics& g,
-                       juce::Rectangle<float> card,
-                       juce::Colour colour,
-                       bool rowIsSelected) {
-  auto bar = card.reduced(0.0f, 2.0f).removeFromLeft(rowIsSelected ? 4.0f : 3.0f);
+void drawLeftAccentBar(juce::Graphics &g, juce::Rectangle<float> card,
+                       juce::Colour colour, bool rowIsSelected) {
+  auto bar =
+      card.reduced(0.0f, 2.0f).removeFromLeft(rowIsSelected ? 4.0f : 3.0f);
   g.setColour(colour.withAlpha(rowIsSelected ? 0.95f : 0.7f));
   g.fillRoundedRectangle(bar, 2.0f);
 }
@@ -626,8 +624,8 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
     if (suppressCallbacks)
       return;
 
-    const auto selectedTargetId = selectedWidgetIdFromCombo(
-        propertyBindingTargetIdCombo);
+    const auto selectedTargetId =
+        selectedWidgetIdFromCombo(propertyBindingTargetIdCombo);
     if (selectedTargetId.has_value()) {
       rebuildPropertyBindingTargetPropertyOptions(*selectedTargetId, {});
     } else {
@@ -677,8 +675,8 @@ void EventActionPanel::refreshFromDocument() {
   runtimeParams = snapshot.runtimeParams;
   propertyBindings = snapshot.propertyBindings;
   rebuildWidgetOptions();
-  syncSelectionFilter();
-  rebuildCreateCombos();
+  const bool filterChanged = syncSelectionFilter();
+  rebuildCreateCombos(filterChanged);
   rebuildVisibleBindings();
   restoreSelections();
   refreshDetailEditors();
@@ -691,7 +689,7 @@ void EventActionPanel::paint(juce::Graphics &g) {
   g.setColour(kPanelOutline);
   g.drawRect(getLocalBounds(), 1);
 
-  const auto drawSectionHeader = [&](const juce::Label& label) {
+  const auto drawSectionHeader = [&](const juce::Label &label) {
     if (!label.isVisible())
       return;
 
@@ -702,11 +700,8 @@ void EventActionPanel::paint(juce::Graphics &g) {
     g.setColour(palette(GyeolPalette::HeaderBackground).withAlpha(0.82f));
     g.fillRoundedRectangle(bounds, 4.0f);
     g.setColour(palette(GyeolPalette::BorderDefault).withAlpha(0.92f));
-    g.drawLine(bounds.getX() + 4.0f,
-               bounds.getBottom() - 0.5f,
-               bounds.getRight() - 4.0f,
-               bounds.getBottom() - 0.5f,
-               1.0f);
+    g.drawLine(bounds.getX() + 4.0f, bounds.getBottom() - 0.5f,
+               bounds.getRight() - 4.0f, bounds.getBottom() - 0.5f, 1.0f);
   };
 
   drawSectionHeader(bindingSectionLabel);
@@ -717,17 +712,15 @@ void EventActionPanel::paint(juce::Graphics &g) {
 
 void EventActionPanel::paintOverChildren(juce::Graphics &g) {
   const auto drawEmptyState = [&](juce::Rectangle<int> bounds,
-                                  const juce::String& icon,
-                                  const juce::String& text) {
+                                  const juce::String &icon,
+                                  const juce::String &text) {
     if (bounds.isEmpty())
       return;
 
     auto area = bounds.reduced(10);
     g.setColour(palette(GyeolPalette::TextSecondary).withAlpha(0.9f));
     g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
-    g.drawFittedText(icon,
-                     area.removeFromTop(14),
-                     juce::Justification::centred,
+    g.drawFittedText(icon, area.removeFromTop(14), juce::Justification::centred,
                      1);
     g.setFont(juce::FontOptions(10.0f));
     g.drawFittedText(text, area, juce::Justification::centred, 2);
@@ -740,9 +733,10 @@ void EventActionPanel::paintOverChildren(juce::Graphics &g) {
     }
 
     if (actionList.isVisible()) {
-      if (const auto* binding = selectedBinding();
+      if (const auto *binding = selectedBinding();
           binding != nullptr && binding->actions.empty()) {
-        drawEmptyState(actionList.getBounds(), "+", "No actions in this binding");
+        drawEmptyState(actionList.getBounds(), "+",
+                       "No actions in this binding");
       }
     }
   }
@@ -830,7 +824,7 @@ void EventActionPanel::resized() {
   showAllWidgetsToggle.setBounds(searchRow.removeFromRight(108));
   searchRow.removeFromRight(4);
   searchEditor.setBounds(searchRow);
-    area.removeFromTop(4);
+  area.removeFromTop(4);
   bindingSectionLabel.setBounds(area.removeFromTop(18));
   area.removeFromTop(2);
   bindingList.setBounds(area.removeFromTop(146));
@@ -1190,8 +1184,8 @@ void EventActionPanel::refreshStateEditors() {
     propertyBindingNameEditor.clear();
     propertyBindingEnabledToggle.setToggleState(false,
                                                 juce::dontSendNotification);
-    propertyBindingTargetIdCombo.setSelectedItemIndex(-1,
-                                                      juce::dontSendNotification);
+    propertyBindingTargetIdCombo.setSelectedItemIndex(
+        -1, juce::dontSendNotification);
     rebuildPropertyBindingTargetPropertyOptions(kRootId, {});
     propertyBindingExpressionEditor.clear();
   }
@@ -1279,8 +1273,8 @@ void EventActionPanel::rebuildPropertyBindingTargetOptions() {
   if (previousTargetId.has_value())
     selectWidgetIdInCombo(propertyBindingTargetIdCombo, *previousTargetId);
   else
-    propertyBindingTargetIdCombo.setSelectedItemIndex(-1,
-                                                       juce::dontSendNotification);
+    propertyBindingTargetIdCombo.setSelectedItemIndex(
+        -1, juce::dontSendNotification);
 }
 
 void EventActionPanel::rebuildPropertyBindingTargetPropertyOptions(
@@ -1347,8 +1341,7 @@ void EventActionPanel::rebuildPropertyBindingTargetPropertyOptions(
   if (preferredProperty.isNotEmpty()) {
     const auto it =
         std::find(propertyBindingTargetPropertyKeys.begin(),
-                  propertyBindingTargetPropertyKeys.end(),
-                  preferredProperty);
+                  propertyBindingTargetPropertyKeys.end(), preferredProperty);
     if (it != propertyBindingTargetPropertyKeys.end()) {
       const auto index = static_cast<int>(
           std::distance(propertyBindingTargetPropertyKeys.begin(), it));
@@ -1378,9 +1371,9 @@ EventActionPanel::selectedWidgetIdFromCombo(const juce::ComboBox &combo) const {
 
 void EventActionPanel::selectWidgetIdInCombo(juce::ComboBox &combo,
                                              WidgetId id) {
-  const auto it =
-      std::find_if(widgetOptions.begin(), widgetOptions.end(),
-                   [id](const WidgetOption &option) { return option.id == id; });
+  const auto it = std::find_if(
+      widgetOptions.begin(), widgetOptions.end(),
+      [id](const WidgetOption &option) { return option.id == id; });
   if (it == widgetOptions.end()) {
     combo.setSelectedItemIndex(-1, juce::dontSendNotification);
     return;
@@ -1390,7 +1383,8 @@ void EventActionPanel::selectWidgetIdInCombo(juce::ComboBox &combo,
   combo.setSelectedItemIndex(index, juce::dontSendNotification);
 }
 
-juce::String EventActionPanel::selectedPropertyBindingTargetPropertyKey() const {
+juce::String
+EventActionPanel::selectedPropertyBindingTargetPropertyKey() const {
   const auto index = propertyBindingTargetPropertyCombo.getSelectedItemIndex();
   if (index >= 0 &&
       index < static_cast<int>(propertyBindingTargetPropertyKeys.size())) {
@@ -1399,8 +1393,7 @@ juce::String EventActionPanel::selectedPropertyBindingTargetPropertyKey() const 
 
   return propertyBindingTargetPropertyCombo.getText().trim();
 }
-
-void EventActionPanel::rebuildCreateCombos() {
+void EventActionPanel::rebuildCreateCombos(bool forceSelectionMatch) {
   const auto previousSourceIndex = sourceCombo.getSelectedItemIndex();
 
   suppressCallbacks = true;
@@ -1410,9 +1403,13 @@ void EventActionPanel::rebuildCreateCombos() {
     sourceCombo.addItem(source.label, sourceItemId++);
 
   if (!widgetOptions.empty()) {
-    const auto safeIndex = juce::jlimit(
-        0, static_cast<int>(widgetOptions.size()) - 1, previousSourceIndex);
-    sourceCombo.setSelectedItemIndex(safeIndex, juce::dontSendNotification);
+    if (forceSelectionMatch && selectionFilterWidgetId > kRootId) {
+      selectWidgetIdInCombo(sourceCombo, selectionFilterWidgetId);
+    } else {
+      const auto safeIndex = juce::jlimit(
+          0, static_cast<int>(widgetOptions.size()) - 1, previousSourceIndex);
+      sourceCombo.setSelectedItemIndex(safeIndex, juce::dontSendNotification);
+    }
   }
 
   eventCombo.clear(juce::dontSendNotification);
@@ -1431,16 +1428,17 @@ void EventActionPanel::rebuildCreateCombos() {
   suppressCallbacks = false;
 }
 
-void EventActionPanel::syncSelectionFilter() {
+bool EventActionPanel::syncSelectionFilter() {
   const auto &selection = document.editorState().selection;
   if (selection == lastEditorSelection)
-    return;
+    return false;
 
   if (!showAllWidgetsToggle.getToggleState() && hasImplicitPinFocus())
-    return;
+    return false;
 
   lastEditorSelection = selection;
   selectionFilterWidgetId = selection.empty() ? kRootId : selection.front();
+  return true;
 }
 
 bool EventActionPanel::bindingMatchesSelectionFilter(
@@ -1460,7 +1458,8 @@ bool EventActionPanel::bindingMatchesSelectionFilter(
                                 action.target.id == selectionFilterWidgetId;
                        }
                        if (action.kind == RuntimeActionKind::setNodeBounds)
-                         return action.targetWidgetId == selectionFilterWidgetId;
+                         return action.targetWidgetId ==
+                                selectionFilterWidgetId;
                        return false;
                      });
 }
@@ -1493,9 +1492,9 @@ bool EventActionPanel::isTextEditorPendingCommit(
   if (editor == &opacityEditor) {
     if (action == nullptr || action->kind != RuntimeActionKind::setNodeProps)
       return false;
-    const auto expected =
-        action->opacity.has_value() ? juce::String(*action->opacity, 4)
-                                    : juce::String();
+    const auto expected = action->opacity.has_value()
+                              ? juce::String(*action->opacity, 4)
+                              : juce::String();
     return editor->getText().trim() != expected;
   }
 
@@ -1575,7 +1574,8 @@ bool EventActionPanel::isTextEditorPendingCommit(
   return false;
 }
 
-bool EventActionPanel::isComboBoxPendingCommit(const juce::ComboBox *combo) const {
+bool EventActionPanel::isComboBoxPendingCommit(
+    const juce::ComboBox *combo) const {
   if (combo == nullptr || !combo->isTextEditable())
     return false;
 
@@ -1584,9 +1584,10 @@ bool EventActionPanel::isComboBoxPendingCommit(const juce::ComboBox *combo) cons
     if (action == nullptr)
       return false;
 
-    const auto isParamAction = action->kind == RuntimeActionKind::setRuntimeParam ||
-                               action->kind == RuntimeActionKind::adjustRuntimeParam ||
-                               action->kind == RuntimeActionKind::toggleRuntimeParam;
+    const auto isParamAction =
+        action->kind == RuntimeActionKind::setRuntimeParam ||
+        action->kind == RuntimeActionKind::adjustRuntimeParam ||
+        action->kind == RuntimeActionKind::toggleRuntimeParam;
     return isParamAction && combo->getText().trim() != action->paramKey;
   }
 
@@ -1633,8 +1634,9 @@ bool EventActionPanel::hasImplicitPinFocus() const {
     return true;
   }
 
-  // Editable ComboBox keeps a child Label/TextEditor focused while typing.
-  // Walk up the parent chain and pin only when text edits are pending.
+  // Editable ComboBox keeps a child Label/TextEditor focused while
+  // typing. Walk up the parent chain and pin only when text edits are
+  // pending.
   for (auto *node = focused; node != nullptr && node != this;
        node = node->getParentComponent()) {
     if (auto *combo = dynamic_cast<juce::ComboBox *>(node);
@@ -1780,8 +1782,9 @@ void EventActionPanel::refreshDetailEditors() {
     targetKindCombo.setSelectedId(nodeKindToComboId(action->target.kind),
                                   juce::dontSendNotification);
     const auto targetIdForEditor =
-        action->kind == RuntimeActionKind::setNodeBounds ? action->targetWidgetId
-                                                         : action->target.id;
+        action->kind == RuntimeActionKind::setNodeBounds
+            ? action->targetWidgetId
+            : action->target.id;
     selectWidgetIdInCombo(targetIdCombo, targetIdForEditor);
     visibleCombo.setSelectedId(
         !action->visible.has_value() ? 1 : (*action->visible ? 2 : 3),
@@ -1874,7 +1877,7 @@ void EventActionPanel::updateActionEditorVisibility(
   const auto isSetNodeBounds = action->kind == RuntimeActionKind::setNodeBounds;
 
   setVisibility(paramKeyCombo, isSetRuntimeParam || isAdjustRuntimeParam ||
-                                  isToggleRuntimeParam);
+                                   isToggleRuntimeParam);
   setVisibility(valueEditor, isSetRuntimeParam);
   setVisibility(deltaEditor, isAdjustRuntimeParam);
   setVisibility(targetKindCombo, isSetNodeProps);
@@ -2454,7 +2457,8 @@ void EventActionPanel::applyActionKind() {
   *action = makeDefaultAction(*parsedKind, binding->sourceWidgetId);
   selectedActionRow = selectedRow >= 0 ? selectedRow : selectedActionRow;
 
-  // Ensure the action list/detail are redrawn immediately with the new kind.
+  // Ensure the action list/detail are redrawn immediately with the new
+  // kind.
   actionList.updateContent();
   actionList.repaint();
   bindingList.repaint();
@@ -2465,7 +2469,8 @@ void EventActionPanel::applyActionKind() {
     return;
   }
 
-  // Document commit failed; rollback local edits to keep UI/model consistent.
+  // Document commit failed; rollback local edits to keep UI/model
+  // consistent.
   setStatus("Failed to commit action kind update.", kStatusError);
   refreshFromDocument();
 }
@@ -2795,7 +2800,8 @@ juce::String EventActionPanel::validatePropertyBindingForUi(
                            kind == Widgets::WidgetPropertyKind::integer ||
                            kind == Widgets::WidgetPropertyKind::boolean;
     if (!supported)
-      return "target property type is not bindable (number/integer/boolean "
+      return "target property type is not bindable "
+             "(number/integer/boolean "
              "only)";
   } else if (hasCurrentValue) {
     const auto &currentValue = targetWidgetIt->properties[targetPropertyId];
@@ -2967,9 +2973,9 @@ void EventActionPanel::BindingListModel::paintListBoxItem(int rowNumber,
   const auto &binding = owner.bindings[static_cast<size_t>(modelIndex)];
   const auto accent = eventAccent(binding.eventKey);
 
-  auto card = juce::Rectangle<float>(1.0f, 1.0f,
-                                     static_cast<float>(width) - 2.0f,
-                                     static_cast<float>(height) - 2.0f);
+  auto card =
+      juce::Rectangle<float>(1.0f, 1.0f, static_cast<float>(width) - 2.0f,
+                             static_cast<float>(height) - 2.0f);
   drawCardBackground(g, card, rowIsSelected, accent);
   drawLeftAccentBar(g, card, accent, rowIsSelected);
 
@@ -2979,22 +2985,24 @@ void EventActionPanel::BindingListModel::paintListBoxItem(int rowNumber,
   g.setColour(binding.enabled ? palette(GyeolPalette::ValidSuccess)
                               : palette(GyeolPalette::TextSecondary));
   g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
-  g.drawText(binding.enabled ? "ON" : "OFF",
-             titleRow.removeFromLeft(30),
-             juce::Justification::centredLeft,
-             true);
+  g.drawText(binding.enabled ? "ON" : "OFF", titleRow.removeFromLeft(30),
+             juce::Justification::centredLeft, true);
 
   g.setColour(palette(GyeolPalette::TextPrimary));
   g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
-  const auto title = binding.name.isNotEmpty() ? binding.name : juce::String("Binding");
+  const auto title =
+      binding.name.isNotEmpty() ? binding.name : juce::String("Binding");
   g.drawFittedText(title, titleRow, juce::Justification::centredLeft, 1);
 
-  const auto sourceText = owner.findWidgetOption(binding.sourceWidgetId).has_value()
-                              ? owner.findWidgetOption(binding.sourceWidgetId)->label
-                              : ("Widget #" + juce::String(binding.sourceWidgetId));
-  const auto eventText = owner.formatEventLabel(binding.sourceWidgetId, binding.eventKey);
+  const auto sourceText =
+      owner.findWidgetOption(binding.sourceWidgetId).has_value()
+          ? owner.findWidgetOption(binding.sourceWidgetId)->label
+          : ("Widget #" + juce::String(binding.sourceWidgetId));
+  const auto eventText =
+      owner.formatEventLabel(binding.sourceWidgetId, binding.eventKey);
   const auto subtitle = sourceText + " | " + eventText + " | " +
-                        juce::String(static_cast<int>(binding.actions.size())) + " actions";
+                        juce::String(static_cast<int>(binding.actions.size())) +
+                        " actions";
 
   g.setColour(palette(GyeolPalette::TextSecondary));
   g.setFont(juce::FontOptions(8.6f));
@@ -3063,9 +3071,9 @@ void EventActionPanel::ActionListModel::paintListBoxItem(int rowNumber,
   const auto &action = binding->actions[static_cast<size_t>(rowNumber)];
   const auto accent = actionAccent(action.kind);
 
-  auto card = juce::Rectangle<float>(1.0f, 1.0f,
-                                     static_cast<float>(width) - 2.0f,
-                                     static_cast<float>(height) - 2.0f);
+  auto card =
+      juce::Rectangle<float>(1.0f, 1.0f, static_cast<float>(width) - 2.0f,
+                             static_cast<float>(height) - 2.0f);
   drawCardBackground(g, card, rowIsSelected, accent);
   drawLeftAccentBar(g, card, accent, rowIsSelected);
 
@@ -3073,7 +3081,8 @@ void EventActionPanel::ActionListModel::paintListBoxItem(int rowNumber,
   auto titleRow = area.removeFromTop(14);
 
   const auto title = juce::String(rowNumber + 1) + ". " +
-                     actionPrefix(action.kind) + EventActionPanel::actionKindLabel(action.kind);
+                     actionPrefix(action.kind) +
+                     EventActionPanel::actionKindLabel(action.kind);
   g.setColour(palette(GyeolPalette::TextPrimary));
   g.setFont(juce::FontOptions(9.6f, juce::Font::bold));
   g.drawFittedText(title, titleRow, juce::Justification::centredLeft, 1);
@@ -3119,9 +3128,9 @@ void EventActionPanel::RuntimeParamListModel::paintListBoxItem(
     break;
   }
 
-  auto card = juce::Rectangle<float>(1.0f, 1.0f,
-                                     static_cast<float>(width) - 2.0f,
-                                     static_cast<float>(height) - 2.0f);
+  auto card =
+      juce::Rectangle<float>(1.0f, 1.0f, static_cast<float>(width) - 2.0f,
+                             static_cast<float>(height) - 2.0f);
   drawCardBackground(g, card, rowIsSelected, accent);
   drawLeftAccentBar(g, card, accent, rowIsSelected);
 
@@ -3215,4 +3224,3 @@ void EventActionPanel::PropertyBindingListModel::selectedRowsChanged(
   owner.refreshStateEditors();
 }
 } // namespace Gyeol::Ui::Panels
-
