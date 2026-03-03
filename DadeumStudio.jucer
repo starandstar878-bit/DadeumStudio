@@ -3,6 +3,13 @@
 <JUCERPROJECT id="y6gk3d" name="DadeumStudio" projectType="guiapp" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" headerPath="../../Source">
   <MAINGROUP id="vqcKQd" name="DadeumStudio">
+    <GROUP id="{6CFB0255-C6FF-C9CE-B519-1660E235B545}" name="Resources">
+      <GROUP id="{394F6A46-F2C4-7C1C-466C-D0DF526B7681}" name="Fonts">
+        <GROUP id="{43E9973C-E609-DB1B-0F7B-9CAC2A386266}" name="NanumSquareRound"/>
+        <GROUP id="{EF343CE2-E3B9-7ED8-98D9-03B561B36C61}" name="Nunito"/>
+        <FILE id="NcDQjl" name="FONTS_README.md" compile="0" resource="1" file="Resources/Fonts/FONTS_README.md"/>
+      </GROUP>
+    </GROUP>
     <GROUP id="{2B42515B-7D16-20B6-BFDA-D5F355CB4814}" name="Source">
       <GROUP id="{847407AD-BCEA-C453-4D4C-6B37117F2C25}" name="Gyeol">
         <GROUP id="{3133118F-526F-25B2-D1E8-1DD14A3237CC}" name="Core">
@@ -16,6 +23,10 @@
                 file="Source/Gyeol/Core/SceneValidator.h"/>
         </GROUP>
         <GROUP id="{EEE24E8E-D0AF-566E-91B9-4B438E6639AC}" name="Editor">
+          <FILE id="EdClAF" name="GyeolCustomLookAndFeel.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Editor/GyeolCustomLookAndFeel.cpp"/>
+          <FILE id="EdClAH" name="GyeolCustomLookAndFeel.h" compile="0" resource="0"
+                file="Source/Gyeol/Editor/GyeolCustomLookAndFeel.h"/>
           <FILE id="hP7zLm" name="EditorHandle.cpp" compile="1" resource="0"
                 file="Source/Gyeol/Editor/EditorHandle.cpp"/>
           <GROUP id="{B3A17A5A-5F43-44F8-9537-608EAA925101}" name="Canvas">
@@ -39,12 +50,10 @@
                   file="Source/Gyeol/Editor/Interaction/LayerOrderEngine.cpp"/>
             <FILE id="EdIn04" name="SelectionEngine.cpp" compile="1" resource="0"
                   file="Source/Gyeol/Editor/Interaction/SelectionEngine.cpp"/>
-            <FILE id="EdIn05" name="SnapEngine.cpp" compile="1" resource="0"
-                  file="Source/Gyeol/Editor/Interaction/SnapEngine.cpp"/>
+            <FILE id="EdIn05" name="SnapEngine.cpp" compile="1" resource="0" file="Source/Gyeol/Editor/Interaction/SnapEngine.cpp"/>
           </GROUP>
           <GROUP id="{989BF7AF-1F0D-423A-B2B4-2AD062A51395}" name="Panels">
-            <FILE id="EdPn01" name="AssetsPanel.cpp" compile="1" resource="0"
-                  file="Source/Gyeol/Editor/Panels/AssetsPanel.cpp"/>
+            <FILE id="EdPn01" name="AssetsPanel.cpp" compile="1" resource="0" file="Source/Gyeol/Editor/Panels/AssetsPanel.cpp"/>
             <FILE id="EdPn02" name="EventActionPanel.cpp" compile="1" resource="0"
                   file="Source/Gyeol/Editor/Panels/EventActionPanel.cpp"/>
             <FILE id="EdPn03" name="ExportPreviewPanel.cpp" compile="1" resource="0"
@@ -71,8 +80,7 @@
           <GROUP id="{D2D6B418-7282-44CB-8F6F-5B0C4A24E2D8}" name="Perf">
             <FILE id="EdPf01" name="EditorPerfTracker.cpp" compile="1" resource="0"
                   file="Source/Gyeol/Editor/Perf/EditorPerfTracker.cpp"/>
-            <FILE id="EdPf02" name="HitTestGrid.cpp" compile="1" resource="0"
-                  file="Source/Gyeol/Editor/Perf/HitTestGrid.cpp"/>
+            <FILE id="EdPf02" name="HitTestGrid.cpp" compile="1" resource="0" file="Source/Gyeol/Editor/Perf/HitTestGrid.cpp"/>
             <FILE id="EdPf03" name="PerfReportWriter.cpp" compile="1" resource="0"
                   file="Source/Gyeol/Editor/Perf/PerfReportWriter.cpp"/>
           </GROUP>
@@ -133,6 +141,25 @@
         <FILE id="Lcfbl1" name="Gyeol Roadmap.md" compile="0" resource="1"
               file="Source/Gyeol/Gyeol Roadmap.md"/>
         <FILE id="rabDSP" name="Gyeol.h" compile="0" resource="0" file="Source/Gyeol/Gyeol.h"/>
+      </GROUP>
+      <GROUP id="{F0A1B2C3-D4E5-6789-ABCD-EF0123456789}" name="Resources">
+        <GROUP id="{F0A1B2C3-D4E5-6789-ABCD-EF0123456788}" name="Fonts">
+          <GROUP id="{F0A1B2C3-D4E5-6789-ABCD-EF0123456787}" name="Nunito">
+            <FILE id="FtNu01" name="Nunito-Regular.ttf" compile="0" resource="1"
+                  file="Resources/Fonts/Nunito/Nunito-Regular.ttf"/>
+            <FILE id="FtNu02" name="Nunito-Bold.ttf" compile="0" resource="1" file="Resources/Fonts/Nunito/Nunito-Bold.ttf"/>
+          </GROUP>
+          <GROUP id="{F0A1B2C3-D4E5-6789-ABCD-EF0123456786}" name="NanumSquareRound">
+            <FILE id="FtNs01" name="NanumSquareRoundR.ttf" compile="0" resource="1"
+                  file="Resources/Fonts/NanumSquareRound/NanumSquareRoundR.ttf"/>
+            <FILE id="FtNs02" name="NanumSquareRoundB.ttf" compile="0" resource="1"
+                  file="Resources/Fonts/NanumSquareRound/NanumSquareRoundB.ttf"/>
+            <FILE id="FtNs03" name="NanumSquareRoundL.ttf" compile="0" resource="1"
+                  file="Resources/Fonts/NanumSquareRound/NanumSquareRoundL.ttf"/>
+            <FILE id="FtNs04" name="NanumSquareRoundEB.ttf" compile="0" resource="1"
+                  file="Resources/Fonts/NanumSquareRound/NanumSquareRoundEB.ttf"/>
+          </GROUP>
+        </GROUP>
       </GROUP>
       <FILE id="NgKvms" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
       <FILE id="WPLVWS" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>

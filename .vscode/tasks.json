@@ -1,0 +1,36 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Debug",
+            "type": "process",
+            "command": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\MSBuild\\Current\\Bin\\amd64\\MSBuild.exe",
+            "args": [
+                "${workspaceFolder}\\Builds\\VisualStudio2026\\DadeumStudio.sln",
+                "/m",
+                "/t:Build",
+                "/p:Configuration=Debug",
+                "/p:Platform=x64"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Build Release",
+            "type": "process",
+            "command": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\MSBuild\\Current\\Bin\\amd64\\MSBuild.exe",
+            "args": [
+                "${workspaceFolder}\\Builds\\VisualStudio2026\\DadeumStudio.sln",
+                "/m",
+                "/t:Build",
+                "/p:Configuration=Release",
+                "/p:Platform=x64"
+            ],
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}

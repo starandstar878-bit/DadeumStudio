@@ -112,8 +112,19 @@ namespace Gyeol::Ui::Panels
         const PropertyBindingModel* selectedPropertyBinding() const;
 
         void rebuildWidgetOptions();
+        void rebuildRuntimeParamKeyOptions();
+        void rebuildActionTargetOptions();
+        void rebuildPropertyBindingTargetOptions();
+        void rebuildPropertyBindingTargetPropertyOptions(WidgetId targetWidgetId,
+                                                         const juce::String& selectedProperty = {});
+        std::optional<WidgetId> selectedWidgetIdFromCombo(const juce::ComboBox& combo) const;
+        void selectWidgetIdInCombo(juce::ComboBox& combo, WidgetId id);
+        juce::String selectedPropertyBindingTargetPropertyKey() const;
         void rebuildCreateCombos();
         void rebuildVisibleBindings();
+        void syncSelectionFilter();
+        bool bindingMatchesSelectionFilter(const RuntimeBindingModel& binding) const;
+        bool hasImplicitPinFocus() const;
         void restoreSelections();
         void refreshDetailEditors();
         void refreshStateEditors();
@@ -188,6 +199,8 @@ namespace Gyeol::Ui::Panels
         int selectedRuntimeParamRow = -1;
         int selectedPropertyBindingRow = -1;
         bool suppressCallbacks = false;
+        WidgetId selectionFilterWidgetId = kRootId;
+        std::vector<WidgetId> lastEditorSelection;
 
         juce::Label titleLabel;
         juce::TextButton eventModeButton { "Events" };
@@ -196,6 +209,7 @@ namespace Gyeol::Ui::Panels
         juce::ComboBox eventCombo;
         juce::TextButton addBindingButton { "+ Binding" };
         juce::TextEditor searchEditor;
+        juce::ToggleButton showAllWidgetsToggle { "All Widgets" };
 
         juce::ListBox bindingList;
 
@@ -212,11 +226,11 @@ namespace Gyeol::Ui::Panels
         juce::TextButton actionDownButton { "Move Down" };
 
         juce::ComboBox actionKindCombo;
-        juce::TextEditor paramKeyEditor;
+        juce::ComboBox paramKeyCombo;
         juce::TextEditor valueEditor;
         juce::TextEditor deltaEditor;
         juce::ComboBox targetKindCombo;
-        juce::TextEditor targetIdEditor;
+        juce::ComboBox targetIdCombo;
         juce::ComboBox visibleCombo;
         juce::ComboBox lockedCombo;
         juce::TextEditor opacityEditor;
@@ -248,9 +262,10 @@ namespace Gyeol::Ui::Panels
         juce::TextButton deletePropertyBindingButton { "Delete Link" };
         juce::TextEditor propertyBindingNameEditor;
         juce::ToggleButton propertyBindingEnabledToggle { "Enabled" };
-        juce::TextEditor propertyBindingTargetIdEditor;
-        juce::TextEditor propertyBindingTargetPropertyEditor;
+        juce::ComboBox propertyBindingTargetIdCombo;
+        juce::ComboBox propertyBindingTargetPropertyCombo;
         juce::TextEditor propertyBindingExpressionEditor;
+        std::vector<juce::String> propertyBindingTargetPropertyKeys;
 
         juce::Label statusLabel;
     };

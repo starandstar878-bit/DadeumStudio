@@ -8,11 +8,32 @@
 
 namespace BinaryData
 {
+    extern const char*   FONTS_README_md;
+    const int            FONTS_README_mdSize = 1927;
+
     extern const char*   Gyeol_Roadmap_md;
-    const int            Gyeol_Roadmap_mdSize = 11970;
+    const int            Gyeol_Roadmap_mdSize = 15311;
+
+    extern const char*   NunitoRegular_ttf;
+    const int            NunitoRegular_ttfSize = 132200;
+
+    extern const char*   NunitoBold_ttf;
+    const int            NunitoBold_ttfSize = 132148;
+
+    extern const char*   NanumSquareRoundR_ttf;
+    const int            NanumSquareRoundR_ttfSize = 1063276;
+
+    extern const char*   NanumSquareRoundB_ttf;
+    const int            NanumSquareRoundB_ttfSize = 1030948;
+
+    extern const char*   NanumSquareRoundL_ttf;
+    const int            NanumSquareRoundL_ttfSize = 1015112;
+
+    extern const char*   NanumSquareRoundEB_ttf;
+    const int            NanumSquareRoundEB_ttfSize = 1029388;
 
     // Number of elements in the namedResourceList and originalFileNames arrays.
-    const int namedResourceListSize = 1;
+    const int namedResourceListSize = 8;
 
     // Points to the start of a list of resource names.
     extern const char* namedResourceList[];

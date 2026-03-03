@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug DadeumStudio (C++)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/Builds/VisualStudio2026/x64/Debug/App/DadeumStudio.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "terminal": "integrated",
+            "preLaunchTask": "Build Debug"
+        },
+        {
+            "name": "Release DadeumStudio (C++)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/Builds/VisualStudio2026/x64/Release/App/DadeumStudio.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "terminal": "integrated",
+            "preLaunchTask": "Build Release"
+        }
+    ]
+}
