@@ -1,4 +1,4 @@
-﻿#include "Gyeol/Editor/Panels/EventActionPanel.h"
+#include "Gyeol/Editor/Panels/EventActionPanel.h"
 
 #include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Runtime/PropertyBindingResolver.h"
@@ -1465,25 +1465,181 @@ bool EventActionPanel::bindingMatchesSelectionFilter(
                      });
 }
 
+bool EventActionPanel::isTextEditorPendingCommit(
+    const juce::TextEditor *editor) const {
+  if (editor == nullptr || editor == &searchEditor)
+    return false;
+
+  if (editor == &bindingNameEditor) {
+    const auto *binding = selectedBinding();
+    return binding != nullptr && editor->getText().trim() != binding->name;
+  }
+
+  const auto *action = selectedAction();
+  if (editor == &valueEditor) {
+    if (action == nullptr || action->kind != RuntimeActionKind::setRuntimeParam)
+      return false;
+    return editor->getText().trim() != runtimeValueToString(action->value);
+  }
+
+  if (editor == &deltaEditor) {
+    if (action == nullptr ||
+        action->kind != RuntimeActionKind::adjustRuntimeParam) {
+      return false;
+    }
+    return editor->getText().trim() != juce::String(action->delta, 6);
+  }
+
+  if (editor == &opacityEditor) {
+    if (action == nullptr || action->kind != RuntimeActionKind::setNodeProps)
+      return false;
+    const auto expected =
+        action->opacity.has_value() ? juce::String(*action->opacity, 4)
+                                    : juce::String();
+    return editor->getText().trim() != expected;
+  }
+
+  if (editor == &patchEditor) {
+    if (action == nullptr || action->kind != RuntimeActionKind::setNodeProps)
+      return false;
+    const auto expected =
+        action->patch.size() > 0
+            ? juce::JSON::toString(patchToVar(action->patch), true)
+            : juce::String();
+    return editor->getText() != expected;
+  }
+
+  if (editor == &boundsXEditor) {
+    if (action == nullptr || action->kind != RuntimeActionKind::setNodeBounds)
+      return false;
+    return editor->getText().trim() != juce::String(action->bounds.getX(), 4);
+  }
+
+  if (editor == &boundsYEditor) {
+    if (action == nullptr || action->kind != RuntimeActionKind::setNodeBounds)
+      return false;
+    return editor->getText().trim() != juce::String(action->bounds.getY(), 4);
+  }
+
+  if (editor == &boundsWEditor) {
+    if (action == nullptr || action->kind != RuntimeActionKind::setNodeBounds)
+      return false;
+    return editor->getText().trim() !=
+           juce::String(action->bounds.getWidth(), 4);
+  }
+
+  if (editor == &boundsHEditor) {
+    if (action == nullptr || action->kind != RuntimeActionKind::setNodeBounds)
+      return false;
+    return editor->getText().trim() !=
+           juce::String(action->bounds.getHeight(), 4);
+  }
+
+  if (editor == &runtimeParamKeyEditor) {
+    const auto *param = selectedRuntimeParam();
+    return param != nullptr && editor->getText().trim() != param->key;
+  }
+
+  if (editor == &runtimeParamDefaultEditor) {
+    const auto *param = selectedRuntimeParam();
+    if (param == nullptr)
+      return false;
+
+    if (param->type == RuntimeParamValueType::number) {
+      return editor->getText().trim() !=
+             juce::String(static_cast<double>(param->defaultValue), 8);
+    }
+    if (param->type == RuntimeParamValueType::boolean) {
+      return editor->getText().trim() !=
+             (static_cast<bool>(param->defaultValue) ? "true" : "false");
+    }
+    return editor->getText() != param->defaultValue.toString();
+  }
+
+  if (editor == &runtimeParamDescriptionEditor) {
+    const auto *param = selectedRuntimeParam();
+    return param != nullptr && editor->getText().trim() != param->description;
+  }
+
+  if (editor == &propertyBindingNameEditor) {
+    const auto *binding = selectedPropertyBinding();
+    return binding != nullptr && editor->getText().trim() != binding->name;
+  }
+
+  if (editor == &propertyBindingExpressionEditor) {
+    const auto *binding = selectedPropertyBinding();
+    return binding != nullptr &&
+           editor->getText().trim() != binding->expression;
+  }
+
+  return false;
+}
+
+bool EventActionPanel::isComboBoxPendingCommit(const juce::ComboBox *combo) const {
+  if (combo == nullptr || !combo->isTextEditable())
+    return false;
+
+  if (combo == &paramKeyCombo) {
+    const auto *action = selectedAction();
+    if (action == nullptr)
+      return false;
+
+    const auto isParamAction = action->kind == RuntimeActionKind::setRuntimeParam ||
+                               action->kind == RuntimeActionKind::adjustRuntimeParam ||
+                               action->kind == RuntimeActionKind::toggleRuntimeParam;
+    return isParamAction && combo->getText().trim() != action->paramKey;
+  }
+
+  if (combo == &assetPatchValueCombo) {
+    const auto *action = selectedAction();
+    if (action == nullptr || action->kind != RuntimeActionKind::setNodeProps ||
+        assetPatchKeys.empty()) {
+      return false;
+    }
+
+    const auto keyIndex = assetPatchKeyCombo.getSelectedItemIndex();
+    if (keyIndex < 0 || keyIndex >= static_cast<int>(assetPatchKeys.size()))
+      return false;
+
+    auto selectedRef = combo->getText().trim();
+    const auto selectedIndex = combo->getSelectedItemIndex();
+    if (selectedIndex >= 0 &&
+        selectedIndex < static_cast<int>(assetPatchValues.size())) {
+      selectedRef = assetPatchValues[static_cast<size_t>(selectedIndex)];
+    }
+
+    const auto key = assetPatchKeys[static_cast<size_t>(keyIndex)];
+    const auto *patchValue = action->patch.getVarPointer(key);
+    const auto expected =
+        patchValue != nullptr ? patchValue->toString().trim() : juce::String();
+    return selectedRef != expected;
+  }
+
+  return false;
+}
+
 bool EventActionPanel::hasImplicitPinFocus() const {
   auto *focused = juce::Component::getCurrentlyFocusedComponent();
   if (focused == nullptr || !isParentOf(focused))
     return false;
 
-  if (dynamic_cast<juce::TextEditor *>(focused) != nullptr)
+  if (auto *editor = dynamic_cast<juce::TextEditor *>(focused);
+      editor != nullptr && isTextEditorPendingCommit(editor)) {
     return true;
+  }
 
   if (auto *label = dynamic_cast<juce::Label *>(focused);
       label != nullptr && label->isBeingEdited()) {
     return true;
   }
 
-  // Editable ComboBox는 내부 Label/TextEditor가 포커스를 가지므로
-  // 부모 체인을 타고 올라가며 편집 가능한 ComboBox 여부를 확인한다.
+  // Editable ComboBox keeps a child Label/TextEditor focused while typing.
+  // Walk up the parent chain and pin only when text edits are pending.
   for (auto *node = focused; node != nullptr && node != this;
        node = node->getParentComponent()) {
     if (auto *combo = dynamic_cast<juce::ComboBox *>(node);
-        combo != nullptr && combo->isTextEditable()) {
+        combo != nullptr && combo->isTextEditable() &&
+        isComboBoxPendingCommit(combo)) {
       return true;
     }
 

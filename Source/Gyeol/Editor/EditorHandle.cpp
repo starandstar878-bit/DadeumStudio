@@ -4511,6 +4511,7 @@ public:
 
           docHandle.setSelection(std::move(selection));
           canvas.syncSelectionFromDocument();
+          requestDeferredUiRefresh(true, true);
           refreshToolbarState();
           syncInspectorTargetFromState();
         });

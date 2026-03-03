@@ -126,6 +126,8 @@ namespace Gyeol::Ui::Panels
         void syncSelectionFilter();
         bool bindingMatchesSelectionFilter(const RuntimeBindingModel& binding) const;
         bool hasImplicitPinFocus() const;
+        bool isTextEditorPendingCommit(const juce::TextEditor* editor) const;
+        bool isComboBoxPendingCommit(const juce::ComboBox* combo) const;
         void restoreSelections();
         void refreshDetailEditors();
         void refreshStateEditors();
