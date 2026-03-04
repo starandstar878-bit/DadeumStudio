@@ -4466,8 +4466,6 @@ public:
                       &widgetLibraryPanel, false);
     leftPanels.addTab("Assets", juce::Colour::fromRGB(24, 28, 34), &assetsPanel,
                       false);
-    leftPanels.addTab("Grid/Snap", juce::Colour::fromRGB(24, 28, 34),
-                      &gridSnapPanel, false);
     leftPanels.setCurrentTabIndex(0, juce::dontSendNotification);
 
     rightPanels.setTabBarDepth(30);
@@ -4488,6 +4486,7 @@ public:
     owner.addChildComponent(navigatorPanel);
     owner.addAndMakeVisible(rightPanels);
     owner.addAndMakeVisible(historyPanel);
+    owner.addChildComponent(gridSnapPanel);
     canvas.setActiveLayerResolver([this] { return resolveActiveLayerId(); });
     canvas.setWidgetLibraryDropCallback(
         [this](const juce::String &typeKey, juce::Point<float> worldPosition) {
@@ -4498,6 +4497,7 @@ public:
         [this](const Ui::Interaction::SnapSettings &settings) {
           canvas.setSnapSettings(settings);
         });
+    gridSnapPanel.setVisible(false);
     canvas.setStateChangedCallback([this] { handleCanvasStateChanged(); });
     canvas.setViewportChangedCallback(
         [this] { refreshViewDiagnosticsPanels(); });
@@ -4679,6 +4679,7 @@ public:
     owner.addAndMakeVisible(previewModeButton);
     owner.addAndMakeVisible(runModeButton);
     owner.addAndMakeVisible(previewBindingSimToggle);
+    owner.addAndMakeVisible(gridSnapMenuButton);
     owner.addAndMakeVisible(shortcutHint);
 
     deleteSelected.setTooltip("Delete");
@@ -4752,6 +4753,14 @@ public:
         setEditorMode(Ui::CanvasComponent::InteractionMode::preview);
       else
         setEditorMode(Ui::CanvasComponent::InteractionMode::run);
+    };
+
+    gridSnapMenuButton.onClick = [this] {
+      gridSnapPanel.setVisible(!gridSnapPanel.isVisible());
+      if (gridSnapPanel.isVisible()) {
+        gridSnapPanel.setBounds(gridSnapMenuButton.getRight() - 220,
+                                toolbarHeight + 4, 220, 160);
+      }
     };
 
     previewBindingSimToggle.onClick = [this] {
@@ -4838,6 +4847,7 @@ public:
     place(previewModeButton, 88);
     place(runModeButton, 76);
     place(previewBindingSimToggle, 86);
+    place(gridSnapMenuButton, 64);
 
     shortcutHint.setBounds(toolbar);
 
@@ -4861,6 +4871,11 @@ public:
     navigatorPanel.setBounds(content.getRight() - navSize - margin,
                              content.getBottom() - navSize - margin, navSize,
                              navSize);
+
+    if (gridSnapPanel.isVisible()) {
+      gridSnapPanel.setBounds(gridSnapMenuButton.getRight() - 220,
+                              toolbarHeight + 4, 220, 160);
+    }
 
     refreshViewDiagnosticsPanels();
   }
@@ -6190,6 +6205,7 @@ private:
     historyPanel.setCanUndoRedo(!interactionLocked && docHandle.canUndo(),
                                 !interactionLocked && docHandle.canRedo());
     previewBindingSimToggle.setEnabled(!runMode);
+    gridSnapMenuButton.setEnabled(!interactionLocked);
     suppressPreviewBindingToggleCallbacks = true;
     previewBindingSimToggle.setToggleState(previewBindingSimulationActive,
                                            juce::dontSendNotification);
@@ -6242,6 +6258,7 @@ private:
   juce::TextButton previewModeButton;
   juce::TextButton runModeButton;
   juce::ToggleButton previewBindingSimToggle{"Sim Bind"};
+  juce::TextButton gridSnapMenuButton{"# Grid"};
   juce::Label shortcutHint;
   bool suppressModeToggleCallbacks = false;
   bool suppressPreviewBindingToggleCallbacks = false;

@@ -10,6 +10,20 @@
 #include <unordered_set>
 
 namespace {
+juce::Colour palette(Gyeol::GyeolPalette id, float alpha = 1.0f) {
+  return Gyeol::getGyeolColor(id).withAlpha(alpha);
+}
+
+juce::Font makePanelFont(const juce::Component &component, float height,
+                         bool bold) {
+  if (auto *lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel *>(
+          &component.getLookAndFeel());
+      lf != nullptr)
+    return lf->makeFont(height, bold);
+
+  auto fallback = juce::Font(juce::FontOptions(height));
+  return bold ? fallback.boldened() : fallback;
+}
 void logLayerTreeDnd(const juce::String &message) {
   DBG("[Gyeol][LayerTreeDnD] " + message);
 }
@@ -213,27 +227,27 @@ public:
   void paintItem(juce::Graphics &g, int width, int height) override {
     lastPaintWidth = width;
     if (isSelected()) {
-      g.setColour(getGyeolColor(GyeolPalette::SelectionBackground));
+      g.setColour(palette(Gyeol::GyeolPalette::SelectionBackground));
       g.fillRoundedRectangle(
           juce::Rectangle<float>(1.0f, 1.0f, static_cast<float>(width - 2),
                                  static_cast<float>(height - 2)),
           6.0f);
     }
 
-    juce::Colour text = getGyeolColor(GyeolPalette::TextPrimary);
+    juce::Colour text = palette(Gyeol::GyeolPalette::TextPrimary);
     float fontSize = 11.5f;
     int fontWeight = juce::Font::plain;
     if (modelNode.kind == ModelNodeKind::layer) {
-      text = getGyeolColor(GyeolPalette::AccentPrimary);
+      text = palette(Gyeol::GyeolPalette::AccentPrimary);
       fontSize = 12.0f;
       fontWeight = juce::Font::bold;
     } else if (modelNode.kind == ModelNodeKind::group) {
-      text = getGyeolColor(GyeolPalette::ValidWarning);
+      text = palette(Gyeol::GyeolPalette::ValidWarning);
       fontWeight = juce::Font::bold;
     }
 
     g.setColour(text);
-    g.setFont(juce::FontOptions(fontSize, fontWeight));
+    g.setFont(makePanelFont(owner, fontSize, fontWeight == juce::Font::bold));
     g.drawFittedText(
         modelNode.label,
         juce::Rectangle<int>(0, 0, width - 40, height).reduced(6, 1),
@@ -250,8 +264,8 @@ public:
     // Vector Eye Icon
     g.setColour(
         modelNode.visible
-            ? getGyeolColor(GyeolPalette::ValidSuccess)
-            : getGyeolColor(GyeolPalette::TextDisabled).withAlpha(0.3f));
+            ? palette(Gyeol::GyeolPalette::ValidSuccess)
+            : palette(Gyeol::GyeolPalette::TextDisabled).withAlpha(0.3f));
 
     juce::Path eyePath;
     eyePath.startNewSubPath(visibleBounds.getX() + 2.0f,
@@ -275,8 +289,8 @@ public:
     // Vector Padlock Icon
     g.setColour(
         modelNode.locked
-            ? getGyeolColor(GyeolPalette::ValidWarning)
-            : getGyeolColor(GyeolPalette::TextDisabled).withAlpha(0.3f));
+            ? palette(Gyeol::GyeolPalette::ValidWarning)
+            : palette(Gyeol::GyeolPalette::TextDisabled).withAlpha(0.3f));
     if (modelNode.locked) {
       juce::Path lockBody;
       lockBody.addRoundedRectangle(lockedBounds.getCentreX() - 3.5f,
@@ -357,7 +371,7 @@ LayerTreePanel::LayerTreePanel(DocumentHandle &documentIn,
 
   addAndMakeVisible(searchBox);
   searchBox.setTextToShowWhenEmpty("Search layers...",
-                                   getGyeolColor(GyeolPalette::TextSecondary));
+                                   palette(Gyeol::GyeolPalette::TextSecondary));
   searchBox.onTextChange = [this] {
     pendingRefreshReason = RefreshReason::searchChanged;
     refreshFromDocument();
@@ -367,11 +381,11 @@ LayerTreePanel::LayerTreePanel(DocumentHandle &documentIn,
   treeView.setRootItemVisible(false);
   treeView.setMultiSelectEnabled(false);
   treeView.setDefaultOpenness(true);
-  treeView.setIndentSize(18); // 노드 간 뎁스 선명화를 위한 들여쓰기 증가
+  treeView.setIndentSize(18); // ?몃뱶 媛??곸뒪 ?좊챸?붾? ?꾪븳 ?ㅼ뿬?곌린 利앷?
   treeView.setColour(juce::TreeView::backgroundColourId,
-                     getGyeolColor(GyeolPalette::PanelBackground));
+                     palette(Gyeol::GyeolPalette::PanelBackground));
   treeView.setColour(juce::TreeView::linesColourId,
-                     getGyeolColor(GyeolPalette::TextDisabled).withAlpha(0.3f));
+                     palette(Gyeol::GyeolPalette::TextDisabled).withAlpha(0.3f));
   treeView.addMouseListener(this, true);
 
   pendingRefreshReason = RefreshReason::initial;
@@ -612,8 +626,8 @@ void LayerTreePanel::resized() {
 }
 
 void LayerTreePanel::paint(juce::Graphics &g) {
-  g.fillAll(getGyeolColor(GyeolPalette::PanelBackground));
-  g.setColour(getGyeolColor(GyeolPalette::BorderDefault));
+  g.fillAll(palette(Gyeol::GyeolPalette::PanelBackground));
+  g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
   g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 6.0f, 1.0f);
 }
 
@@ -623,7 +637,7 @@ void LayerTreePanel::paintOverChildren(juce::Graphics &g) {
 
   const auto marker =
       dropPreview->markerBounds.translated(treeView.getX(), treeView.getY());
-  const auto accent = getGyeolColor(GyeolPalette::AccentPrimary);
+  const auto accent = palette(Gyeol::GyeolPalette::AccentPrimary);
   if (dropPreview->placement == Interaction::LayerDropPlacement::into) {
     g.setColour(accent.withAlpha(0.2f));
     g.fillRoundedRectangle(marker.toFloat().reduced(1.0f), 6.0f);

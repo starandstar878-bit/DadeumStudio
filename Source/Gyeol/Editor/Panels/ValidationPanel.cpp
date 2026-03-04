@@ -1,6 +1,7 @@
 #include "Gyeol/Editor/Panels/ValidationPanel.h"
 
 #include "Gyeol/Core/SceneValidator.h"
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include <algorithm>
 #include <cmath>
 #include <unordered_map>
@@ -8,6 +9,23 @@
 
 namespace Gyeol::Ui::Panels {
 namespace {
+using Gyeol::GyeolPalette;
+
+juce::Colour palette(GyeolPalette id, float alpha = 1.0f) {
+  return Gyeol::getGyeolColor(id).withAlpha(alpha);
+}
+
+juce::Font makePanelFont(const juce::Component &component, float height,
+                         bool bold) {
+  if (auto *lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel *>(
+          &component.getLookAndFeel());
+      lf != nullptr)
+    return lf->makeFont(height, bold);
+
+  auto fallback = juce::Font(juce::FontOptions(height));
+  return bold ? fallback.boldened() : fallback;
+}
+
 juce::File resolveProjectRootDirectory() {
   auto projectRoot = juce::File::getCurrentWorkingDirectory();
   for (int depth = 0; depth < 10; ++depth) {
@@ -90,15 +108,15 @@ ValidationPanel::ValidationPanel(DocumentHandle &documentIn,
                                  const Widgets::WidgetRegistry &registryIn)
     : document(documentIn), registry(registryIn) {
   titleLabel.setText("Validation", juce::dontSendNotification);
-  titleLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+  titleLabel.setFont(makePanelFont(*this, 12.0f, true));
   titleLabel.setColour(juce::Label::textColourId,
-                       juce::Colour::fromRGB(192, 200, 214));
+                       palette(GyeolPalette::TextPrimary));
   titleLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(titleLabel);
 
   summaryLabel.setText("Stale", juce::dontSendNotification);
   summaryLabel.setColour(juce::Label::textColourId,
-                         juce::Colour::fromRGB(160, 170, 186));
+                         palette(GyeolPalette::TextSecondary));
   summaryLabel.setJustificationType(juce::Justification::centredRight);
   addAndMakeVisible(summaryLabel);
 
@@ -115,9 +133,9 @@ ValidationPanel::ValidationPanel(DocumentHandle &documentIn,
   listBox.setModel(this);
   listBox.setRowHeight(40);
   listBox.setColour(juce::ListBox::backgroundColourId,
-                    juce::Colour::fromRGB(17, 23, 31));
+                    palette(GyeolPalette::CanvasBackground));
   listBox.setColour(juce::ListBox::outlineColourId,
-                    juce::Colour::fromRGB(44, 52, 66));
+                    palette(GyeolPalette::BorderDefault));
   addAndMakeVisible(listBox);
 }
 
@@ -170,11 +188,11 @@ void ValidationPanel::setAutoRefreshEnabled(bool enabled) {
 }
 
 void ValidationPanel::paint(juce::Graphics &g) {
-  g.fillAll(juce::Colour::fromRGB(24, 28, 34));
-  g.setColour(juce::Colour::fromRGB(40, 46, 56));
+  g.fillAll(palette(GyeolPalette::PanelBackground));
+  g.setColour(palette(GyeolPalette::BorderDefault));
   g.drawRect(getLocalBounds(), 1);
 
-  // Phase 3: 이슈 없을 때 빈 상태 안내
+  // Phase 3: ?댁뒋 ?놁쓣 ??鍮??곹깭 ?덈궡
   const bool allClear =
       issues.empty() ||
       (issues.size() == 1 && issues[0].severity == IssueSeverity::info);
@@ -184,21 +202,21 @@ void ValidationPanel::paint(juce::Graphics &g) {
       auto centerX = area.getCentreX();
       auto centerY = area.getCentreY() - 8.0f;
 
-      // 체크마크 아이콘
+      // 泥댄겕留덊겕 ?꾩씠肄?
       juce::Path checkPath;
       checkPath.startNewSubPath(centerX - 10.0f, centerY);
       checkPath.lineTo(centerX - 3.0f, centerY + 7.0f);
       checkPath.lineTo(centerX + 10.0f, centerY - 6.0f);
 
-      g.setColour(juce::Colour::fromRGBA(152, 195, 121, 30));
+      g.setColour(palette(GyeolPalette::ValidSuccess, 0.12f));
       g.fillEllipse(centerX - 18.0f, centerY - 15.0f, 36.0f, 36.0f);
-      g.setColour(juce::Colour::fromRGBA(152, 195, 121, 170));
+      g.setColour(palette(GyeolPalette::ValidSuccess, 0.67f));
       g.strokePath(checkPath,
                    juce::PathStrokeType(2.5f, juce::PathStrokeType::curved,
                                         juce::PathStrokeType::rounded));
 
-      g.setColour(juce::Colour::fromRGB(138, 146, 163));
-      g.setFont(juce::FontOptions(11.5f));
+      g.setColour(palette(GyeolPalette::TextSecondary));
+      g.setFont(makePanelFont(*this, 11.5f, false));
       g.drawText(
           "All checks passed",
           juce::Rectangle<int>(0, (int)(centerY + 18.0f), getWidth(), 18),
@@ -234,12 +252,12 @@ void ValidationPanel::paintListBoxItem(int rowNumber, juce::Graphics &g,
   const auto &issue = issues[static_cast<size_t>(rowNumber)];
   const auto bounds = juce::Rectangle<int>(0, 0, width, height);
 
-  const auto baseFill = rowIsSelected ? juce::Colour::fromRGB(49, 84, 142)
-                                      : juce::Colour::fromRGB(24, 30, 40);
+  const auto baseFill = rowIsSelected ? palette(GyeolPalette::AccentPrimary)
+                                      : palette(GyeolPalette::ControlBase);
   g.setColour(baseFill.withAlpha(rowIsSelected ? 0.84f : 0.62f));
   g.fillRect(bounds);
 
-  g.setColour(juce::Colour::fromRGB(44, 52, 66));
+  g.setColour(palette(GyeolPalette::BorderDefault));
   g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
 
   auto textArea = bounds.reduced(8, 4);
@@ -253,20 +271,20 @@ void ValidationPanel::paintListBoxItem(int rowNumber, juce::Graphics &g,
                              12.0f),
       3.0f);
   g.setColour(juce::Colours::black.withAlpha(0.8f));
-  g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+  g.setFont(makePanelFont(*this, 9.0f, true));
   g.drawText(labelForSeverity(issue.severity),
              juce::Rectangle<int>(header.getX(), header.getY() + 1, 50, 12),
              juce::Justification::centred, true);
 
-  g.setColour(juce::Colour::fromRGB(194, 202, 216));
-  g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+  g.setColour(palette(GyeolPalette::TextPrimary));
+  g.setFont(makePanelFont(*this, 11.0f, true));
   g.drawText(issue.title,
              juce::Rectangle<int>(header.getX() + 56, header.getY(),
                                   header.getWidth() - 56, header.getHeight()),
              juce::Justification::centredLeft, true);
 
-  g.setColour(juce::Colour::fromRGB(162, 172, 188));
-  g.setFont(juce::FontOptions(10.5f));
+  g.setColour(palette(GyeolPalette::TextSecondary));
+  g.setFont(makePanelFont(*this, 10.5f, false));
   g.drawText(issue.message, textArea, juce::Justification::centredLeft, true);
 }
 
@@ -441,14 +459,14 @@ void ValidationPanel::pushIssue(IssueSeverity severity,
 juce::Colour ValidationPanel::colorForSeverity(IssueSeverity severity) {
   switch (severity) {
   case IssueSeverity::info:
-    return juce::Colour::fromRGB(86, 168, 255);
+    return palette(GyeolPalette::AccentPrimary);
   case IssueSeverity::warning:
-    return juce::Colour::fromRGB(255, 198, 92);
+    return palette(GyeolPalette::ValidWarning);
   case IssueSeverity::error:
-    return juce::Colour::fromRGB(255, 112, 112);
+    return palette(GyeolPalette::ValidError);
   }
 
-  return juce::Colour::fromRGB(128, 136, 150);
+  return palette(GyeolPalette::TextDisabled);
 }
 
 juce::String ValidationPanel::labelForSeverity(IssueSeverity severity) {

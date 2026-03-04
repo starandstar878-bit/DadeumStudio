@@ -1,4 +1,5 @@
 #include "Gyeol/Editor/Panels/AssetsPanel.h"
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 
 #include <algorithm>
 #include <array>
@@ -11,12 +12,29 @@
 
 namespace Gyeol::Ui::Panels {
 namespace {
-const auto kPanelBg = juce::Colour::fromRGB(24, 28, 34);
-const auto kPanelOutline = juce::Colour::fromRGB(40, 46, 56);
-const auto kInfo = juce::Colour::fromRGB(160, 170, 186);
-const auto kOk = juce::Colour::fromRGB(112, 214, 156);
-const auto kWarn = juce::Colour::fromRGB(255, 196, 120);
-const auto kError = juce::Colour::fromRGB(255, 124, 124);
+using Gyeol::GyeolPalette;
+
+juce::Colour palette(GyeolPalette id, float alpha = 1.0f) {
+  return Gyeol::getGyeolColor(id).withAlpha(alpha);
+}
+
+juce::Font makePanelFont(const juce::Component &component, float height,
+                         bool bold) {
+  if (auto *lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel *>(
+          &component.getLookAndFeel());
+      lf != nullptr)
+    return lf->makeFont(height, bold);
+
+  auto fallback = juce::Font(juce::FontOptions(height));
+  return bold ? fallback.boldened() : fallback;
+}
+
+const auto kPanelBg = palette(GyeolPalette::PanelBackground);
+const auto kPanelOutline = palette(GyeolPalette::BorderDefault);
+const auto kInfo = palette(GyeolPalette::TextSecondary);
+const auto kOk = palette(GyeolPalette::ValidSuccess);
+const auto kWarn = palette(GyeolPalette::ValidWarning);
+const auto kError = palette(GyeolPalette::ValidError);
 constexpr auto kPackageSchema = "gyeol.assets.package";
 constexpr auto kPackageManifestFile = "assets-manifest.json";
 
@@ -73,35 +91,35 @@ public:
     addAndMakeVisible(thumbnailBackground);
 
     kindBadge.setJustificationType(juce::Justification::centred);
-    kindBadge.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+    kindBadge.setFont(makePanelFont(*this, 9.0f, true));
     kindBadge.setColour(juce::Label::textColourId,
                         juce::Colours::black.withAlpha(0.8f));
     kindBadge.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(kindBadge);
 
     nameLabel.setJustificationType(juce::Justification::centred);
-    nameLabel.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+    nameLabel.setFont(makePanelFont(*this, 11.0f, true));
     nameLabel.setColour(juce::Label::textColourId,
-                        juce::Colour::fromRGB(194, 202, 216));
+                        palette(GyeolPalette::TextPrimary));
     nameLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(nameLabel);
 
     detailLabel.setJustificationType(juce::Justification::centred);
-    detailLabel.setFont(juce::FontOptions(10.0f));
+    detailLabel.setFont(makePanelFont(*this, 10.0f, false));
     detailLabel.setColour(juce::Label::textColourId,
-                          juce::Colour::fromRGB(160, 170, 186));
+                          palette(GyeolPalette::TextSecondary));
     detailLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(detailLabel);
 
     previewButton.setTriggeredOnMouseDown(false);
     previewButton.setColour(juce::TextButton::buttonColourId,
-                            juce::Colour::fromRGB(58, 96, 144));
+                            palette(GyeolPalette::AccentPrimary));
     previewButton.setColour(juce::TextButton::buttonOnColourId,
-                            juce::Colour::fromRGB(214, 108, 84));
+                            palette(GyeolPalette::ValidError));
     previewButton.setColour(juce::TextButton::textColourOffId,
-                            juce::Colour::fromRGB(228, 236, 248));
+                            palette(GyeolPalette::TextPrimary));
     previewButton.setColour(juce::TextButton::textColourOnId,
-                            juce::Colour::fromRGB(248, 236, 232));
+                            palette(GyeolPalette::TextPrimary));
     previewButton.onClick = [this] {
       if (assetId > kRootId)
         owner.toggleAudioPreviewForAsset(assetId);
@@ -164,22 +182,22 @@ public:
     const auto isHovered = isMouseOverOrDragging();
 
     const auto fill = rowSelected
-                          ? juce::Colour::fromRGB(49, 84, 142)
-                          : (isHovered ? juce::Colour::fromRGB(34, 40, 50)
-                                       : juce::Colour::fromRGB(24, 30, 40));
+                          ? palette(GyeolPalette::AccentPrimary)
+                          : (isHovered ? palette(GyeolPalette::ControlHover)
+                                       : palette(GyeolPalette::ControlBase));
     g.setColour(
         fill.withAlpha(rowSelected ? 0.84f : (isHovered ? 0.8f : 0.62f)));
     g.fillRoundedRectangle(area, 6.0f);
 
-    g.setColour(rowSelected ? juce::Colour::fromRGB(80, 120, 200)
-                            : juce::Colour::fromRGB(44, 52, 66));
+    g.setColour(rowSelected ? palette(GyeolPalette::AccentPrimary)
+                            : palette(GyeolPalette::BorderDefault));
     g.drawRoundedRectangle(area, 6.0f, rowSelected ? 1.5f : 1.0f);
 
     if (showThumbnail && !thumbnailBounds.isEmpty()) {
       const auto thumbBounds = thumbnailBounds.toFloat();
-      g.setColour(juce::Colour::fromRGB(16, 20, 26));
+      g.setColour(palette(GyeolPalette::CanvasBackground));
       g.fillRoundedRectangle(thumbBounds, 4.0f);
-      g.setColour(juce::Colour::fromRGB(62, 70, 84));
+      g.setColour(palette(GyeolPalette::BorderActive));
       g.drawRoundedRectangle(thumbBounds, 4.0f, 1.0f);
 
       if (thumbnail.isValid()) {
@@ -190,54 +208,50 @@ public:
                 juce::RectanglePlacement::onlyReduceInSize,
             false);
       } else {
-        g.setColour(juce::Colour::fromRGB(108, 118, 132));
-        g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+        g.setColour(palette(GyeolPalette::TextDisabled));
+        g.setFont(makePanelFont(*this, 11.0f, true));
         g.drawFittedText("N/A", thumbnailBounds, juce::Justification::centred,
                          1);
       }
     } else if ((showFontPreview || showVideoPreview) &&
                !thumbnailBounds.isEmpty()) {
       const auto previewBounds = thumbnailBounds.toFloat();
-      g.setColour(juce::Colour::fromRGB(16, 20, 26));
+      g.setColour(palette(GyeolPalette::CanvasBackground));
       g.fillRoundedRectangle(previewBounds, 4.0f);
-      g.setColour(juce::Colour::fromRGB(62, 70, 84));
+      g.setColour(palette(GyeolPalette::BorderActive));
       g.drawRoundedRectangle(previewBounds, 4.0f, 1.0f);
 
       if (showFontPreview) {
-        auto previewOptions = juce::FontOptions(24.0f);
-        if (fontTypeface != nullptr) {
-          previewOptions =
-              juce::FontOptions(24.0f).withName({}).withStyle({}).withTypeface(
-                  fontTypeface);
-        }
-        juce::Font previewFont(previewOptions);
+        auto previewFont = makePanelFont(*this, 24.0f, false);
+        if (fontTypeface != nullptr)
+          previewFont = juce::Font(fontTypeface).withHeight(24.0f);
         g.setFont(previewFont);
-        g.setColour(juce::Colour::fromRGB(222, 230, 242));
+        g.setColour(palette(GyeolPalette::TextPrimary));
         g.drawFittedText("Aa", thumbnailBounds.reduced(4),
                          juce::Justification::centred, 1);
       } else {
-        g.setColour(juce::Colour::fromRGB(128, 148, 176));
-        g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        g.setColour(palette(GyeolPalette::TextSecondary));
+        g.setFont(makePanelFont(*this, 12.0f, true));
         g.drawFittedText("VIDEO", thumbnailBounds.reduced(4),
                          juce::Justification::centred, 1);
       }
     } else if (badgeColor != juce::Colour()) {
       const auto previewBounds = thumbnailBounds.toFloat();
-      g.setColour(juce::Colour::fromRGB(16, 20, 26));
+      g.setColour(palette(GyeolPalette::CanvasBackground));
       g.fillRoundedRectangle(previewBounds, 4.0f);
 
       g.setColour(badgeColor.withAlpha(0.2f));
       g.fillRoundedRectangle(previewBounds.reduced(2.0f), 4.0f);
 
-      g.setColour(juce::Colour::fromRGB(62, 70, 84));
+      g.setColour(palette(GyeolPalette::BorderActive));
       g.drawRoundedRectangle(previewBounds, 4.0f, 1.0f);
 
       g.setColour(badgeColor.withAlpha(0.8f));
-      g.setFont(juce::FontOptions(20.0f, juce::Font::bold));
+      g.setFont(makePanelFont(*this, 20.0f, true));
       juce::String iconText = "?";
-      if (badgeColor == juce::Colour::fromRGB(255, 186, 96))
+      if (badgeColor == palette(GyeolPalette::ValidWarning))
         iconText = "C";
-      else if (badgeColor == juce::Colour::fromRGB(146, 214, 168))
+      else if (badgeColor == palette(GyeolPalette::ValidSuccess))
         iconText = "F";
       g.drawFittedText(iconText, thumbnailBounds, juce::Justification::centred,
                        1);
@@ -245,15 +259,15 @@ public:
 
     if (!usageBadgeBounds.isEmpty()) {
       const auto hasUsage = usageCount > 0;
-      const auto useBadgeFill = hasUsage ? juce::Colour::fromRGB(84, 166, 118)
-                                         : juce::Colour::fromRGB(74, 82, 98);
+      const auto useBadgeFill = hasUsage ? palette(GyeolPalette::ValidSuccess)
+                                         : palette(GyeolPalette::BorderActive);
       g.setColour(useBadgeFill.withAlpha(0.9f));
       g.fillRoundedRectangle(usageBadgeBounds.toFloat(), 3.0f);
       g.setColour(juce::Colours::black.withAlpha(0.55f));
       g.drawRoundedRectangle(usageBadgeBounds.toFloat(), 3.0f, 1.0f);
 
-      g.setColour(juce::Colour::fromRGB(236, 242, 248));
-      g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+      g.setColour(palette(GyeolPalette::TextPrimary));
+      g.setFont(makePanelFont(*this, 9.0f, true));
       const auto text = "USED " + juce::String(usageCount);
       g.drawFittedText(text, usageBadgeBounds.reduced(2, 1),
                        juce::Justification::centred, 1);
@@ -318,7 +332,7 @@ private:
   bool excludedFromExport = false;
   int usageCount = 0;
   juce::Point<int> dragStart;
-  juce::Colour badgeColor{juce::Colour::fromRGB(150, 160, 176)};
+  juce::Colour badgeColor{palette(GyeolPalette::TextSecondary)};
   juce::Rectangle<int> thumbnailBounds;
   juce::Rectangle<int> usageBadgeBounds;
   juce::Image thumbnail;
@@ -347,21 +361,21 @@ public:
 
     const auto &entry =
         owner.selectedAssetUsageEntries[static_cast<size_t>(rowNumber)];
-    const auto fill = rowIsSelected ? juce::Colour::fromRGB(49, 84, 142)
-                                    : juce::Colour::fromRGB(25, 31, 40);
+    const auto fill = rowIsSelected ? palette(GyeolPalette::AccentPrimary)
+                                    : palette(GyeolPalette::ControlBase);
     g.setColour(fill.withAlpha(rowIsSelected ? 0.84f : 0.62f));
     g.fillRect(0, 0, width, height);
 
-    g.setColour(juce::Colour::fromRGB(44, 52, 66));
+    g.setColour(palette(GyeolPalette::BorderDefault));
     g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
 
-    g.setColour(juce::Colour::fromRGB(206, 216, 232));
-    g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+    g.setColour(palette(GyeolPalette::TextPrimary));
+    g.setFont(makePanelFont(*this, 10.5f, true));
     g.drawFittedText(entry.widgetLabel + " - " + entry.propertyLabel, 8, 2,
                      width - 16, 14, juce::Justification::centredLeft, 1);
 
-    g.setColour(juce::Colour::fromRGB(158, 170, 188));
-    g.setFont(juce::FontOptions(9.5f));
+    g.setColour(palette(GyeolPalette::TextSecondary));
+    g.setFont(makePanelFont(*this, 9.5f, false));
     g.drawFittedText(entry.contextLabel, 8, 16, width - 16,
                      juce::jmax(10, height - 18),
                      juce::Justification::centredLeft, 1);
@@ -379,9 +393,9 @@ AssetsPanel::AssetsPanel(DocumentHandle &documentIn,
                          const Widgets::WidgetFactory &widgetFactoryIn)
     : document(documentIn), widgetFactory(widgetFactoryIn) {
   titleLabel.setText("Assets", juce::dontSendNotification);
-  titleLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+  titleLabel.setFont(makePanelFont(*this, 12.0f, true));
   titleLabel.setColour(juce::Label::textColourId,
-                       juce::Colour::fromRGB(192, 200, 214));
+                       palette(GyeolPalette::TextPrimary));
   titleLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(titleLabel);
 
@@ -404,13 +418,13 @@ AssetsPanel::AssetsPanel(DocumentHandle &documentIn,
   searchEditor.setMultiLine(false);
   searchEditor.setScrollbarsShown(true);
   searchEditor.setTextToShowWhenEmpty("Search name/ref/path...",
-                                      juce::Colour::fromRGB(124, 132, 148));
+                                      palette(GyeolPalette::TextDisabled));
   searchEditor.setColour(juce::TextEditor::backgroundColourId,
-                         juce::Colour::fromRGB(28, 34, 44));
+                         palette(GyeolPalette::ControlBase));
   searchEditor.setColour(juce::TextEditor::outlineColourId,
-                         juce::Colour::fromRGB(66, 76, 92));
+                         palette(GyeolPalette::BorderActive));
   searchEditor.setColour(juce::TextEditor::textColourId,
-                         juce::Colour::fromRGB(214, 222, 234));
+                         palette(GyeolPalette::TextPrimary));
   searchEditor.onTextChange = [this] { rebuildVisibleAssets(); };
   addAndMakeVisible(searchEditor);
 
@@ -444,13 +458,13 @@ AssetsPanel::AssetsPanel(DocumentHandle &documentIn,
   refKeyEditor.setMultiLine(false);
   refKeyEditor.setScrollbarsShown(true);
   refKeyEditor.setTextToShowWhenEmpty("asset.refKey",
-                                      juce::Colour::fromRGB(124, 132, 148));
+                                      palette(GyeolPalette::TextDisabled));
   refKeyEditor.setColour(juce::TextEditor::backgroundColourId,
-                         juce::Colour::fromRGB(28, 34, 44));
+                         palette(GyeolPalette::ControlBase));
   refKeyEditor.setColour(juce::TextEditor::outlineColourId,
-                         juce::Colour::fromRGB(66, 76, 92));
+                         palette(GyeolPalette::BorderActive));
   refKeyEditor.setColour(juce::TextEditor::textColourId,
-                         juce::Colour::fromRGB(214, 222, 234));
+                         palette(GyeolPalette::TextPrimary));
   refKeyEditor.onReturnKey = [this] { applyRefKeyEdit(); };
   addAndMakeVisible(refKeyEditor);
 
@@ -461,25 +475,25 @@ AssetsPanel::AssetsPanel(DocumentHandle &documentIn,
 
   usageTitleLabel.setText("Usage Trace", juce::dontSendNotification);
   usageTitleLabel.setJustificationType(juce::Justification::centredLeft);
-  usageTitleLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+  usageTitleLabel.setFont(makePanelFont(*this, 10.5f, true));
   usageTitleLabel.setColour(juce::Label::textColourId,
-                            juce::Colour::fromRGB(178, 188, 202));
+                            palette(GyeolPalette::TextSecondary));
   addAndMakeVisible(usageTitleLabel);
 
   usageListModel = std::make_unique<UsageListModel>(*this);
   usageList.setModel(usageListModel.get());
   usageList.setRowHeight(32);
   usageList.setColour(juce::ListBox::backgroundColourId,
-                      juce::Colour::fromRGB(17, 23, 31));
+                      palette(GyeolPalette::CanvasBackground));
   usageList.setColour(juce::ListBox::outlineColourId,
-                      juce::Colour::fromRGB(44, 52, 66));
+                      palette(GyeolPalette::BorderDefault));
   addAndMakeVisible(usageList);
 
   videoPreviewLabel.setText("Video Preview", juce::dontSendNotification);
   videoPreviewLabel.setJustificationType(juce::Justification::centredLeft);
-  videoPreviewLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+  videoPreviewLabel.setFont(makePanelFont(*this, 10.5f, true));
   videoPreviewLabel.setColour(juce::Label::textColourId,
-                              juce::Colour::fromRGB(178, 188, 202));
+                              palette(GyeolPalette::TextSecondary));
   videoPreviewLabel.setVisible(false);
   addAndMakeVisible(videoPreviewLabel);
 
@@ -553,9 +567,9 @@ void AssetsPanel::paint(juce::Graphics &g) {
   g.drawRect(getLocalBounds(), 1);
 
   if (fileDragHovering) {
-    g.setColour(juce::Colour::fromRGBA(84, 212, 255, 36));
+    g.setColour(palette(GyeolPalette::AccentPrimary, 0.14f));
     g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(3.0f), 5.0f);
-    g.setColour(juce::Colour::fromRGBA(84, 212, 255, 200));
+    g.setColour(palette(GyeolPalette::AccentPrimary, 0.78f));
     g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(3.5f), 5.0f,
                            1.3f);
   }
@@ -2996,16 +3010,16 @@ juce::String AssetsPanel::kindLabel(AssetKind kind) {
 juce::Colour AssetsPanel::kindColor(AssetKind kind) {
   switch (kind) {
   case AssetKind::image:
-    return juce::Colour::fromRGB(111, 177, 255);
+    return palette(GyeolPalette::AccentHover);
   case AssetKind::font:
-    return juce::Colour::fromRGB(189, 152, 255);
+    return palette(GyeolPalette::AccentPrimary);
   case AssetKind::colorPreset:
-    return juce::Colour::fromRGB(255, 186, 96);
+    return palette(GyeolPalette::ValidWarning);
   case AssetKind::file:
-    return juce::Colour::fromRGB(146, 214, 168);
+    return palette(GyeolPalette::ValidSuccess);
   }
 
-  return juce::Colour::fromRGB(150, 160, 176);
+  return palette(GyeolPalette::TextSecondary);
 }
 
 juce::String AssetsPanel::resolveRelativePath(const juce::File &file) {

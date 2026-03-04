@@ -4,19 +4,37 @@
 #include <algorithm>
 
 namespace Gyeol::Ui::Panels {
+namespace {
+using Gyeol::GyeolPalette;
+
+juce::Colour palette(GyeolPalette id, float alpha = 1.0f) {
+  return Gyeol::getGyeolColor(id).withAlpha(alpha);
+}
+
+juce::Font makePanelFont(const juce::Component &component, float height,
+                         bool bold) {
+  if (auto *lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel *>(
+          &component.getLookAndFeel());
+      lf != nullptr)
+    return lf->makeFont(height, bold);
+
+  auto fallback = juce::Font(juce::FontOptions(height));
+  return bold ? fallback.boldened() : fallback;
+}
+} // namespace
 class WidgetLibraryPanel::CardComponent final : public juce::Component {
 public:
   explicit CardComponent(WidgetLibraryPanel &ownerIn) : owner(ownerIn) {
     iconLabel.setJustificationType(juce::Justification::centred);
-    iconLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+    iconLabel.setFont(makePanelFont(*this, 16.0f, true));
     iconLabel.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(iconLabel);
 
     nameLabel.setJustificationType(juce::Justification::centred);
-    nameLabel.setFont(juce::FontOptions(11.0f, juce::Font::plain));
+    nameLabel.setFont(makePanelFont(*this, 11.0f, false));
     nameLabel.setInterceptsMouseClicks(false, false);
     nameLabel.setColour(juce::Label::textColourId,
-                        getGyeolColor(GyeolPalette::TextPrimary));
+                        palette(GyeolPalette::TextPrimary));
     addAndMakeVisible(nameLabel);
 
     favoriteToggle.setButtonText("");
@@ -37,7 +55,7 @@ public:
     iconColor =
         item.descriptor != nullptr
             ? WidgetLibraryPanel::iconColorForDescriptor(*item.descriptor)
-            : getGyeolColor(GyeolPalette::TextSecondary);
+            : palette(GyeolPalette::TextSecondary);
 
     const auto displayName = item.descriptor != nullptr
                                  ? (item.descriptor->displayName.isNotEmpty()
@@ -67,33 +85,33 @@ public:
     auto area = getLocalBounds().toFloat();
     const bool isHovered = isMouseOverOrDragging();
 
-    // Soft & Clean: 부드러운 배경 및 라운딩
-    g.setColour(isHovered ? getGyeolColor(GyeolPalette::ControlHover)
-                          : getGyeolColor(GyeolPalette::ControlBase));
+    // Soft & Clean: 遺?쒕윭??諛곌꼍 諛??쇱슫??
+    g.setColour(isHovered ? palette(GyeolPalette::ControlHover)
+                          : palette(GyeolPalette::ControlBase));
     g.fillRoundedRectangle(area, 8.0f);
 
     if (isHovered) {
-      g.setColour(getGyeolColor(GyeolPalette::BorderActive).withAlpha(0.6f));
+      g.setColour(palette(GyeolPalette::BorderActive).withAlpha(0.6f));
       g.drawRoundedRectangle(area, 8.0f, 1.5f);
     } else {
-      g.setColour(getGyeolColor(GyeolPalette::BorderDefault));
+      g.setColour(palette(GyeolPalette::BorderDefault));
       g.drawRoundedRectangle(area, 8.0f, 1.0f);
     }
 
-    // 아이콘 영역 상단 (큰 컨테이너)
+    // ?꾩씠肄??곸뿭 ?곷떒 (??而⑦뀒?대꼫)
     auto iconContainer = area.removeFromTop(area.getHeight() * 0.65f);
 
-    // 외곽 테두리 (아이콘의 뒷 배경 박스)
+    // ?멸낸 ?뚮몢由?(?꾩씠肄섏쓽 ??諛곌꼍 諛뺤뒪)
     auto iconInnerBox = iconContainer.reduced(12.0f);
-    g.setColour(juce::Colour::fromRGB(isHovered ? 25 : 20, isHovered ? 30 : 25,
-                                      isHovered ? 40 : 33));
+    g.setColour(isHovered ? palette(GyeolPalette::CanvasBackground)
+                          : palette(GyeolPalette::ControlDown));
     g.fillRoundedRectangle(iconInnerBox, 6.0f);
 
     if (isHovered) {
-      g.setColour(getGyeolColor(GyeolPalette::BorderActive).withAlpha(0.3f));
+      g.setColour(palette(GyeolPalette::BorderActive).withAlpha(0.3f));
       g.drawRoundedRectangle(iconInnerBox, 6.0f, 1.0f);
     } else {
-      g.setColour(getGyeolColor(GyeolPalette::BorderDefault).withAlpha(0.5f));
+      g.setColour(palette(GyeolPalette::BorderDefault).withAlpha(0.5f));
       g.drawRoundedRectangle(iconInnerBox, 6.0f, 1.0f);
     }
 
@@ -114,7 +132,7 @@ public:
       }
     }
 
-    // 즐겨찾기 별모양 그리기
+    // 利먭꺼李얘린 蹂꾨え??洹몃━湲?
     auto favArea = favoriteToggle.getBounds().toFloat();
     if (favoriteToggle.getToggleState() || isMouseOver(true)) {
       juce::Path star;
@@ -122,7 +140,7 @@ public:
                    favArea.getWidth() * 0.2f, favArea.getWidth() * 0.45f);
       g.setColour(favoriteToggle.getToggleState()
                       ? juce::Colours::gold
-                      : getGyeolColor(GyeolPalette::TextSecondary));
+                      : palette(GyeolPalette::TextSecondary));
       g.fillPath(star);
     }
   }
@@ -171,7 +189,7 @@ private:
   bool dragStarted = false;
   juce::Point<int> dragStartPoint;
   juce::String currentTypeKey;
-  juce::Colour iconColor{juce::Colour::fromRGB(86, 96, 116)};
+  juce::Colour iconColor{palette(GyeolPalette::TextDisabled)};
 
   juce::Label iconLabel;
   juce::Label nameLabel;
@@ -190,9 +208,9 @@ WidgetLibraryPanel::WidgetLibraryPanel(
   loadSettings();
 
   titleLabel.setText("Widget Library", juce::dontSendNotification);
-  titleLabel.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+  titleLabel.setFont(makePanelFont(*this, 13.0f, true));
   titleLabel.setColour(juce::Label::textColourId,
-                       getGyeolColor(GyeolPalette::TextPrimary));
+                       palette(GyeolPalette::TextPrimary));
   titleLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(titleLabel);
 
@@ -200,7 +218,7 @@ WidgetLibraryPanel::WidgetLibraryPanel(
   categoryBox.onChange = [this] { rebuildVisibleItems(); };
 
   searchBox.setTextToShowWhenEmpty("Search widgets...",
-                                   getGyeolColor(GyeolPalette::TextSecondary));
+                                   palette(GyeolPalette::TextSecondary));
   searchBox.onTextChange = [this] { rebuildVisibleItems(); };
   addAndMakeVisible(searchBox);
 
@@ -247,8 +265,8 @@ void WidgetLibraryPanel::setFavoriteToggledCallback(
 }
 
 void WidgetLibraryPanel::paint(juce::Graphics &g) {
-  g.fillAll(getGyeolColor(GyeolPalette::PanelBackground));
-  g.setColour(getGyeolColor(GyeolPalette::BorderDefault));
+  g.fillAll(palette(GyeolPalette::PanelBackground));
+  g.setColour(palette(GyeolPalette::BorderDefault));
   g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 6.0f, 1.0f);
 }
 
@@ -265,7 +283,7 @@ void WidgetLibraryPanel::resized() {
   searchBox.setBounds(bounds.removeFromTop(24));
   bounds.removeFromTop(6);
 
-  bounds.removeFromBottom(4); // 약간의 하단 여백
+  bounds.removeFromBottom(4); // ?쎄컙???섎떒 ?щ갚
 
   viewport.setBounds(bounds);
   if (contentComp != nullptr) {
@@ -278,12 +296,12 @@ void WidgetLibraryPanel::updateGridLayout() {
     return;
   const int viewportWidth = viewport.getMaximumVisibleWidth();
   const int padding = 12;
-  const int itemWidth = 100; // 가로 크기 고정 (100px)
+  const int itemWidth = 100; // 媛濡??ш린 怨좎젙 (100px)
   const int numColumns =
       std::max(1, (viewportWidth - padding) / (itemWidth + padding));
   const int dynamicPadding =
       (viewportWidth - (numColumns * itemWidth)) / (numColumns + 1);
-  const int itemHeight = 110; // 세로 크기 고정 (110px)
+  const int itemHeight = 110; // ?몃줈 ?ш린 怨좎젙 (110px)
 
   int row = 0;
   int col = 0;
@@ -603,13 +621,13 @@ juce::Colour WidgetLibraryPanel::iconColorForDescriptor(
   const auto normalizedCategory =
       normalizeCategory(descriptor.category).toLowerCase();
   if (normalizedCategory == "input")
-    return juce::Colour::fromRGB(72, 154, 236);
+    return palette(GyeolPalette::AccentPrimary);
   if (normalizedCategory == "display")
-    return juce::Colour::fromRGB(80, 198, 145);
+    return palette(GyeolPalette::ValidSuccess);
   if (normalizedCategory == "text")
-    return juce::Colour::fromRGB(218, 156, 90);
+    return palette(GyeolPalette::ValidWarning);
   if (normalizedCategory == "control")
-    return juce::Colour::fromRGB(154, 132, 234);
-  return juce::Colour::fromRGB(108, 122, 148);
+    return palette(GyeolPalette::AccentHover);
+  return palette(GyeolPalette::TextDisabled);
 }
 } // namespace Gyeol::Ui::Panels

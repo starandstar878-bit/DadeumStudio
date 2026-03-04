@@ -138,6 +138,11 @@ private:
   void applyBindingMeta();
   void applyActionKind();
   void applySelectedAction();
+  void rebuildActionTargetPropertyOptions(
+      WidgetId targetId, const juce::String &selectedPropertyKey = {});
+  juce::String selectedActionTargetPropertyKey() const;
+  void rebuildDynamicPropEditor();
+  juce::var getDynamicPropValue() const;
 
   bool commitBindings(const juce::String &reason);
   bool commitRuntimeParams(const juce::String &reason);
@@ -225,9 +230,18 @@ private:
   juce::TextEditor deltaEditor;
   juce::ComboBox targetKindCombo;
   juce::ComboBox targetIdCombo;
+  // 대상 속성 선택
+  juce::Label targetPropertyLabel;
+  juce::ComboBox targetPropertyCombo;
+  std::vector<juce::String> targetPropertyKeys;
+  // visible/locked/opacity 전용 콘트롤
   juce::ComboBox visibleCombo;
   juce::ComboBox lockedCombo;
   juce::TextEditor opacityEditor;
+  // 동적 편집기 (속성 kind에 따라 PropertyEditorFactory가 생성)
+  juce::Label dynamicPropLabel;
+  std::unique_ptr<juce::Component> dynamicPropEditor;
+  std::optional<Widgets::WidgetPropertySpec> currentDynamicPropSpec;
   juce::ComboBox assetPatchKeyCombo;
   juce::ComboBox assetPatchValueCombo;
   juce::TextEditor patchEditor;

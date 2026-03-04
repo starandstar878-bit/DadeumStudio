@@ -1,6 +1,7 @@
 
 #include "Gyeol/Editor/Panels/PropertyPanel.h"
 #include "Gyeol/Editor/Panels/PropertyEditorFactory.h"
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Runtime/PropertyBindingResolver.h"
 
 #include <algorithm>
@@ -11,6 +12,23 @@
 
 namespace Gyeol::Ui::Panels {
 namespace {
+using Gyeol::GyeolPalette;
+
+juce::Colour palette(GyeolPalette id, float alpha = 1.0f) {
+  return Gyeol::getGyeolColor(id).withAlpha(alpha);
+}
+
+juce::Font makePanelFont(const juce::Component &component, float height,
+                         bool bold) {
+  if (auto *lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel *>(
+          &component.getLookAndFeel());
+      lf != nullptr)
+    return lf->makeFont(height, bold);
+
+  auto fallback = juce::Font(juce::FontOptions(height));
+  return bold ? fallback.boldened() : fallback;
+}
+
 constexpr float kValueEpsilon = 0.0001f;
 
 juce::String widgetTypeLabel(const Widgets::WidgetFactory &widgetFactory,
@@ -54,15 +72,15 @@ PropertyPanel::PropertyPanel(DocumentHandle &documentIn,
                              const Widgets::WidgetFactory &widgetFactoryIn)
     : document(documentIn), widgetFactory(widgetFactoryIn) {
   titleLabel.setJustificationType(juce::Justification::centredLeft);
-  titleLabel.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+  titleLabel.setFont(makePanelFont(*this, 13.0f, true));
   titleLabel.setColour(juce::Label::textColourId,
-                       juce::Colour::fromRGB(220, 228, 236));
+                       palette(GyeolPalette::TextPrimary));
   addAndMakeVisible(titleLabel);
 
   subtitleLabel.setJustificationType(juce::Justification::centredLeft);
-  subtitleLabel.setFont(juce::FontOptions(11.0f));
+  subtitleLabel.setFont(makePanelFont(*this, 11.0f, false));
   subtitleLabel.setColour(juce::Label::textColourId,
-                          juce::Colour::fromRGB(160, 170, 184));
+                          palette(GyeolPalette::TextSecondary));
   addAndMakeVisible(subtitleLabel);
 
   showAdvancedToggle.setClickingTogglesState(true);
@@ -120,8 +138,8 @@ void PropertyPanel::refreshFromDocument() {
 }
 
 void PropertyPanel::paint(juce::Graphics &g) {
-  g.fillAll(juce::Colour::fromRGB(24, 28, 34));
-  g.setColour(juce::Colour::fromRGB(38, 45, 56));
+  g.fillAll(palette(GyeolPalette::PanelBackground));
+  g.setColour(palette(GyeolPalette::BorderDefault));
   g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 5.0f, 1.0f);
 }
 
@@ -180,13 +198,13 @@ void PropertyPanel::addSectionHeader(const juce::String &text) {
   auto button = std::make_unique<juce::TextButton>();
   button->setButtonText((isExpanded ? "v " : "> ") + text);
   button->setColour(juce::TextButton::buttonColourId,
-                    juce::Colour::fromRGB(36, 42, 54));
+                    palette(GyeolPalette::ControlHover));
   button->setColour(juce::TextButton::buttonOnColourId,
-                    juce::Colour::fromRGB(36, 42, 54));
+                    palette(GyeolPalette::ControlHover));
   button->setColour(juce::TextButton::textColourOffId,
-                    juce::Colour::fromRGB(210, 220, 230));
+                    palette(GyeolPalette::TextPrimary));
   button->setColour(juce::TextButton::textColourOnId,
-                    juce::Colour::fromRGB(210, 220, 230));
+                    palette(GyeolPalette::TextPrimary));
   button->setTriggeredOnMouseDown(false);
   button->onClick = [this, text] {
     if (collapsedSections.count(text) > 0) {
@@ -232,13 +250,13 @@ void PropertyPanel::addExpanderRow(const juce::String &label, bool expanded,
   auto button = std::make_unique<juce::TextButton>();
   button->setButtonText((expanded ? "v " : "> ") + label);
   button->setColour(juce::TextButton::buttonColourId,
-                    juce::Colour::fromRGB(28, 34, 44));
+                    palette(GyeolPalette::ControlBase));
   button->setColour(juce::TextButton::buttonOnColourId,
-                    juce::Colour::fromRGB(28, 34, 44));
+                    palette(GyeolPalette::ControlBase));
   button->setColour(juce::TextButton::textColourOffId,
-                    juce::Colour::fromRGB(185, 195, 210));
+                    palette(GyeolPalette::TextPrimary));
   button->setColour(juce::TextButton::textColourOnId,
-                    juce::Colour::fromRGB(185, 195, 210));
+                    palette(GyeolPalette::TextPrimary));
   button->setTriggeredOnMouseDown(false);
   button->onClick = std::move(onToggle);
   content.addAndMakeVisible(*button);
@@ -261,9 +279,9 @@ void PropertyPanel::addEditorRow(
 
   auto label = std::make_unique<juce::Label>();
   label->setText(spec.label, juce::dontSendNotification);
-  label->setFont(juce::FontOptions(11.0f));
+  label->setFont(makePanelFont(*this, 11.0f, false));
   label->setColour(juce::Label::textColourId,
-                   juce::Colour::fromRGB(185, 195, 210));
+                   palette(GyeolPalette::TextPrimary));
   label->setJustificationType(juce::Justification::centredLeft);
   content.addAndMakeVisible(*label);
 
@@ -747,7 +765,7 @@ std::vector<Widgets::WidgetPropertySpec> PropertyPanel::commonPropertySpecs(
 void PropertyPanel::buildNoneContent() {
   addSectionHeader("Inspector");
 
-  // Phase 3: 빈 상태(Empty State) - 미려한 안내 UI
+  // Phase 3: 鍮??곹깭(Empty State) - 誘몃젮???덈궡 UI
   auto emptyStateComp = std::make_unique<juce::Component>();
 
   class EmptyStateRenderer : public juce::Component {
@@ -757,7 +775,7 @@ void PropertyPanel::buildNoneContent() {
       auto centerX = area.getCentreX();
       auto centerY = area.getCentreY() - 10.0f;
 
-      // 커서 아이콘 (간소화된 화살표 형태)
+      // 而ㅼ꽌 ?꾩씠肄?(媛꾩냼?붾맂 ?붿궡???뺥깭)
       juce::Path cursorPath;
       cursorPath.startNewSubPath(centerX - 8.0f, centerY - 16.0f);
       cursorPath.lineTo(centerX - 8.0f, centerY + 8.0f);
@@ -769,24 +787,24 @@ void PropertyPanel::buildNoneContent() {
       cursorPath.closeSubPath();
 
       // Glow
-      g.setColour(juce::Colour::fromRGBA(90, 156, 255, 25));
+      g.setColour(palette(GyeolPalette::AccentPrimary, 0.10f));
       g.fillEllipse(centerX - 20.0f, centerY - 24.0f, 40.0f, 40.0f);
 
       // Icon
-      g.setColour(juce::Colour::fromRGBA(90, 156, 255, 90));
+      g.setColour(palette(GyeolPalette::AccentPrimary, 0.35f));
       g.fillPath(cursorPath);
-      g.setColour(juce::Colour::fromRGBA(90, 156, 255, 160));
+      g.setColour(palette(GyeolPalette::AccentPrimary, 0.63f));
       g.strokePath(cursorPath, juce::PathStrokeType(1.2f));
 
       // Text
-      g.setColour(juce::Colour::fromRGB(138, 146, 163));
-      g.setFont(juce::FontOptions(12.0f));
+      g.setColour(palette(GyeolPalette::TextSecondary));
+      g.setFont(makePanelFont(*this, 12.0f, false));
       g.drawText(
           "No selection",
           juce::Rectangle<int>(0, (int)(centerY + 18.0f), getWidth(), 18),
           juce::Justification::centred, true);
-      g.setColour(juce::Colour::fromRGB(100, 108, 124));
-      g.setFont(juce::FontOptions(10.5f));
+      g.setColour(palette(GyeolPalette::TextDisabled));
+      g.setFont(makePanelFont(*this, 10.5f, false));
       g.drawText(
           "Select a widget on canvas",
           juce::Rectangle<int>(0, (int)(centerY + 36.0f), getWidth(), 16),

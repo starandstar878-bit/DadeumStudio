@@ -54,6 +54,27 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 
 ---
 
+### Phase 5: True Responsive Layout Engine (V5)
+*   **Breakpoint-driven dock reflow**: Reconfigure Left/Right/Bottom dock layout by window classes (>=1600, 1200-1599, 900-1199, <900).
+*   **Canvas-first narrow mode**: In narrow widths, secondary panels move to tabs/overlays so the canvas remains the primary focus.
+*   **Hard constraints for panel sizes**: Unify min/max bounds and prevent split ratio collapse at extreme window sizes.
+*   **Layout profile persistence**: Save and restore dock states per window size class.
+### Phase 6: Adaptive Density and Input UX (V6)
+*   **Density presets**: Add Compact, Comfortable, Spacious modes that globally scale spacing, row height, and font size.
+*   **Automatic control compaction**: Convert long label rows into icon+tooltip or popover editors when width is limited.
+*   **HiDPI-safe component sizing**: Standardize control sizing rules for 125%/150%/200% scaling.
+*   **Keyboard-first editing loop**: Normalize Tab/Enter/Escape/Arrow behavior across panels.
+### Phase 7: Workflow Acceleration Layer (V7)
+*   **Command Palette**: Single entry point for actions, panel navigation, and editing commands.
+*   **Quick Switcher**: Jump rapidly to recent widgets/panels/sections.
+*   **Context-aware suggested actions**: Surface high-probability actions for the current selection state.
+*   **Shortcut map and conflict inspector**: Provide shortcut discoverability and collision resolution UI.
+### Phase 8: Theme Variants, Accessibility, and UI Quality Gates (V8)
+*   **Theme variants from one token system**: Deep Dark, Light, and High Contrast.
+*   **Accessibility baseline**: Reduced motion, focus visibility, minimum contrast, scalable typography.
+*   **Visual regression automation**: Snapshot compare key panels during CI to block UI regressions.
+*   **UI performance telemetry**: Track paint/layout/input latency per panel for continuous optimization.
+
 ## 3. 현재 레이아웃 분석 및 개선점 (Screenshot Review)
 
 제공된 실행 화면(Screenshot)을 바탕으로 분석한 현재 UI의 형태와 주요 개선 과제입니다.
@@ -302,3 +323,42 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 - [ ] **18-c. 패널 공통 base class 검토**: 반복되는 paint 패턴(`fillAll` + `drawRect`)을 공통 유틸리티 또는 base class로 추출하는 것을 검토.
 - [ ] **18-d. 접근성(Accessibility) 기본 속성 설정**: 각 인터랙티브 컴포넌트에 `setTitle`/`setDescription` 추가.
 
+---
+
+**Phase 5+: Advanced Responsive Modern UI Checklist**
+
+### 19. Responsive Dock and Breakpoint Engine
+- [ ] **19-a. Define 4 breakpoint classes**: >=1600, 1200-1599, 900-1199, <900.
+- [ ] **19-b. Implement auto dock reflow**: Re-layout on resize while preserving min width/height constraints.
+- [ ] **19-c. Add narrow overlay mode**: Convert side docks into temporary overlays for small widths.
+- [ ] **19-d. Persist layout by profile**: Save/restore dock state per breakpoint class.
+
+### 20. Adaptive Density System
+- [ ] **20-a. Tokenize density values**: spacing, row height, control height, and typography scale.
+- [ ] **20-b. Ship 3 density presets**: Compact, Comfortable, Spacious.
+- [ ] **20-c. Add width-based compaction rules**: 2-column to 1-column fallback, iconized labels, popover editors.
+- [ ] **20-d. Validate HiDPI behavior**: verify no clipping at 125%/150%/200%.
+
+### 21. Command Palette and Keyboard-first Workflow
+- [ ] **21-a. Implement Command Palette (Ctrl/Cmd+K)**: search and execute actions.
+- [ ] **21-b. Implement Quick Switcher (Ctrl/Cmd+P)**: jump to widgets/panels/sections.
+- [ ] **21-c. Standardize keyboard navigation contract**: Tab, Enter, Escape, Arrow behaviors.
+- [ ] **21-d. Add shortcut conflict detection and editor**.
+
+### 22. Theme Variants and Accessibility
+- [ ] **22-a. Add 3 themes**: Deep Dark, Light, High Contrast.
+- [ ] **22-b. Add reduced-motion option**: global animation intensity and duration scaling.
+- [ ] **22-c. Add accessibility checks**: contrast, focus visibility, hit target size.
+- [ ] **22-d. Expand semantic metadata**: title/description coverage on interactive components.
+
+### 23. Responsive Performance Optimization
+- [ ] **23-a. Add per-panel layout/paint telemetry hooks**.
+- [ ] **23-b. Throttle expensive relayout during live resize**.
+- [ ] **23-c. Expand list/tree virtualization usage**.
+- [ ] **23-d. Add low-end rendering quality mode**.
+
+### 24. Visual Regression and UI Quality Gate
+- [ ] **24-a. Capture baseline snapshots for key panels**.
+- [ ] **24-b. Add pixel-diff CI checks with tolerance thresholds**.
+- [ ] **24-c. Run snapshot tests on multiple viewport profiles**.
+- [ ] **24-d. Link release checklist to CI quality gate**.

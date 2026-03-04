@@ -15,6 +15,16 @@ namespace Gyeol::Ui::Panels
             return Gyeol::getGyeolColor(id).withAlpha(alpha);
         }
 
+        juce::Font makePanelFont(const juce::Component& component, float height, bool bold)
+        {
+            if (auto* lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel*>(&component.getLookAndFeel());
+                lf != nullptr)
+                return lf->makeFont(height, bold);
+
+            auto fallback = juce::Font(juce::FontOptions(height));
+            return bold ? fallback.boldened() : fallback;
+        }
+
         bool isUndoRedoLabel(const juce::String& action)
         {
             const auto normalized = action.trim().toLowerCase();
@@ -59,7 +69,7 @@ namespace Gyeol::Ui::Panels
     HistoryPanel::HistoryPanel()
     {
         titleLabel.setText("History", juce::dontSendNotification);
-        titleLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        titleLabel.setFont(makePanelFont(*this, 12.0f, true));
         titleLabel.setColour(juce::Label::textColourId, palette(GyeolPalette::TextPrimary));
         titleLabel.setJustificationType(juce::Justification::centredLeft);
         addAndMakeVisible(titleLabel);
@@ -340,7 +350,7 @@ namespace Gyeol::Ui::Panels
         drawClockIcon(g, iconArea, palette(GyeolPalette::TextSecondary, 0.82f));
 
         g.setColour(palette(GyeolPalette::TextSecondary, 0.90f));
-        g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+        g.setFont(makePanelFont(*this, 10.5f, true));
         g.drawFittedText("No history yet", area.removeFromTop(18), juce::Justification::centred, 1);
     }
 
@@ -475,19 +485,19 @@ namespace Gyeol::Ui::Panels
         if (row.current)
         {
             g.setColour(palette(GyeolPalette::ValidSuccess, 0.96f));
-            g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
+            g.setFont(makePanelFont(*this, 8.8f, true));
             g.drawText("CURRENT", kindArea, juce::Justification::centredLeft, true);
         }
         else if (row.future)
         {
             g.setColour(palette(GyeolPalette::TextSecondary, 0.74f));
-            g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
+            g.setFont(makePanelFont(*this, 8.8f, true));
             g.drawText("REDO", kindArea, juce::Justification::centredLeft, true);
         }
         else
         {
             g.setColour(palette(GyeolPalette::TextSecondary, 0.86f));
-            g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
+            g.setFont(makePanelFont(*this, 8.8f, true));
             g.drawText("UNDO", kindArea, juce::Justification::centredLeft, true);
         }
 
@@ -496,9 +506,7 @@ namespace Gyeol::Ui::Panels
                                           : palette(GyeolPalette::TextPrimary);
 
         g.setColour(textColour);
-        g.setFont(juce::FontOptions(11.0f,
-                                    row.current ? juce::Font::bold
-                                                : juce::Font::plain));
+        g.setFont(makePanelFont(*this, 11.0f, row.current));
         g.drawText(row.label, textArea, juce::Justification::centredLeft, true);
     }
 }

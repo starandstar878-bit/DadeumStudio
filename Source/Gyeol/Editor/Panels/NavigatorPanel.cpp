@@ -13,6 +13,17 @@ juce::Colour palette(GyeolPalette id, float alpha = 1.0f) {
   return Gyeol::getGyeolColor(id).withAlpha(alpha);
 }
 
+juce::Font makePanelFont(const juce::Component &component, float height,
+                         bool bold) {
+  if (auto *lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel *>(
+          &component.getLookAndFeel());
+      lf != nullptr)
+    return lf->makeFont(height, bold);
+
+  auto fallback = juce::Font(juce::FontOptions(height));
+  return bold ? fallback.boldened() : fallback;
+}
+
 juce::String formatZoomBadgeText(float zoomLevel) {
   return "x" + juce::String(zoomLevel, 1);
 }
@@ -106,7 +117,7 @@ void NavigatorPanel::paint(juce::Graphics &g) {
   }
 
   const auto zoomText = formatZoomBadgeText(zoomLevel);
-  const juce::Font badgeFont(juce::FontOptions(10.0f, juce::Font::bold));
+  const auto badgeFont = makePanelFont(*this, 10.0f, true);
   const auto badgeWidth =
       juce::jmax(44.0f, badgeFont.getStringWidthFloat(zoomText) + 12.0f);
 

@@ -1,4 +1,5 @@
 #include "Gyeol/Editor/Panels/PropertyEditorFactory.h"
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 
 #include <array>
 #include <cerrno>
@@ -11,6 +12,12 @@
 
 namespace Gyeol::Ui::Panels {
 namespace {
+using Gyeol::GyeolPalette;
+
+juce::Colour palette(GyeolPalette id, float alpha = 1.0f) {
+  return Gyeol::getGyeolColor(id).withAlpha(alpha);
+}
+
 constexpr double kNumberEpsilon = 0.0000001;
 
 bool parseStrictDouble(const juce::String &text, double &outValue) {
@@ -292,8 +299,8 @@ public:
     if (!dragHovering)
       return;
 
-    const auto accent = dragAllowed ? juce::Colour::fromRGB(86, 156, 255)
-                                    : juce::Colour::fromRGB(226, 92, 92);
+    const auto accent = dragAllowed ? palette(GyeolPalette::AccentPrimary)
+                                    : palette(GyeolPalette::ValidError);
     const auto bounds = getLocalBounds().toFloat().reduced(0.5f);
 
     g.setColour(accent.withAlpha(0.20f));
@@ -336,15 +343,15 @@ createTextEditor(const EditorBuildSpec &buildSpec,
 
   editor->setText(safeInitialText, false);
   editor->setTextToShowWhenEmpty(placeholder,
-                                 juce::Colour::fromRGB(128, 136, 148));
+                                 palette(GyeolPalette::TextDisabled));
   editor->setColour(juce::TextEditor::backgroundColourId,
-                    juce::Colour::fromRGB(27, 33, 42));
+                    palette(GyeolPalette::ControlBase));
   editor->setColour(juce::TextEditor::outlineColourId,
-                    juce::Colour::fromRGB(62, 74, 92));
+                    palette(GyeolPalette::BorderActive));
   editor->setColour(juce::TextEditor::focusedOutlineColourId,
-                    juce::Colour::fromRGB(78, 156, 255));
+                    palette(GyeolPalette::AccentPrimary));
   editor->setColour(juce::TextEditor::textColourId,
-                    juce::Colour::fromRGB(222, 228, 236));
+                    palette(GyeolPalette::TextPrimary));
   editor->setReadOnly(buildSpec.readOnly || buildSpec.spec.readOnly);
 
   if (buildSpec.readOnly || buildSpec.spec.readOnly)

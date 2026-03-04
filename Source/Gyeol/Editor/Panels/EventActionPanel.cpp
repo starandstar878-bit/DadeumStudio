@@ -1,4 +1,4 @@
-﻿#include "Gyeol/Editor/Panels/EventActionPanel.h"
+#include "Gyeol/Editor/Panels/EventActionPanel.h"
 
 #include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Editor/Panels/PropertyEditorFactory.h"
@@ -14,6 +14,17 @@ using Gyeol::GyeolPalette;
 
 juce::Colour palette(GyeolPalette id, float alpha = 1.0f) {
   return Gyeol::getGyeolColor(id).withAlpha(alpha);
+}
+
+juce::Font makePanelFont(const juce::Component &component, float height,
+                         bool bold) {
+  if (auto *lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel *>(
+          &component.getLookAndFeel());
+      lf != nullptr)
+    return lf->makeFont(height, bold);
+
+  auto fallback = juce::Font(juce::FontOptions(height));
+  return bold ? fallback.boldened() : fallback;
 }
 
 const auto kPanelBg = palette(GyeolPalette::PanelBackground);
@@ -173,17 +184,17 @@ juce::String eventDisplayLabelKo(const juce::String &eventKey) {
   return {};
 }
 
-// 위젯 표시 이름: properties["name"] 우선, 없으면 타입명 + ID
+// ?袁⑹졐 ??뽯뻻 ??已? properties["name"] ?怨쀪퐨, ??곸몵筌?????낆구 + ID
 juce::String widgetDisplayName(const WidgetModel &widget,
                                const Widgets::WidgetRegistry &registry) {
-  // 사용자가 name 속성을 설정한 경우 우선 사용
+  // ????癒? name ??욧쉐????쇱젟??野껋럩???怨쀪퐨 ????
   if (widget.properties.contains("name")) {
     const auto name = widget.properties["name"].toString().trim();
     if (name.isNotEmpty())
       return name + " (#" + juce::String(widget.id) + ")";
   }
 
-  // 기본값: 타입 표시명 + ID
+  // 疫꿸퀡??첎? ??????뽯뻻筌?+ ID
   juce::String typeLabel = "Widget";
   if (const auto *descriptor = registry.find(widget.type);
       descriptor != nullptr) {
@@ -302,7 +313,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
       actionListModel(*this), runtimeParamListModel(*this),
       propertyBindingListModel(*this) {
   titleLabel.setText("Event/Action", juce::dontSendNotification);
-  titleLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+  titleLabel.setFont(makePanelFont(*this, 12.0f, true));
   titleLabel.setColour(juce::Label::textColourId,
                        palette(GyeolPalette::TextPrimary));
   titleLabel.setJustificationType(juce::Justification::centredLeft);
@@ -353,7 +364,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(showAllWidgetsToggle);
 
   bindingSectionLabel.setText("Bindings", juce::dontSendNotification);
-  bindingSectionLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+  bindingSectionLabel.setFont(makePanelFont(*this, 10.5f, true));
   bindingSectionLabel.setColour(juce::Label::textColourId,
                                 palette(GyeolPalette::TextPrimary));
   bindingSectionLabel.setJustificationType(juce::Justification::centredLeft);
@@ -369,7 +380,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(bindingList);
 
   actionSectionLabel.setText("Actions", juce::dontSendNotification);
-  actionSectionLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+  actionSectionLabel.setFont(makePanelFont(*this, 10.5f, true));
   actionSectionLabel.setColour(juce::Label::textColourId,
                                palette(GyeolPalette::TextPrimary));
   actionSectionLabel.setJustificationType(juce::Justification::centredLeft);
@@ -377,7 +388,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(actionSectionLabel);
 
   detailTitleLabel.setText("Binding Detail", juce::dontSendNotification);
-  detailTitleLabel.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+  detailTitleLabel.setFont(makePanelFont(*this, 11.0f, true));
   detailTitleLabel.setColour(juce::Label::textColourId,
                              palette(GyeolPalette::TextPrimary));
   detailTitleLabel.setJustificationType(juce::Justification::centredLeft);
@@ -414,21 +425,21 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(actionUpButton);
   addAndMakeVisible(actionDownButton);
 
-  // 액션 종류 콤보 — 한글 레이블
+  // ??る??ル굝履??꾠끇??? ??? ??됱뵠??
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uC124\uC815"),
-      1); // 파라미터 설정
+      1); // ???뵬沃섎챸苑???쇱젟
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uC870\uC815"),
-      2); // 파라미터 조정
+      2); // ???뵬沃섎챸苑?鈺곌퀣??
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uD1A0\uAE00"),
-      3); // 파라미터 토글
+      3); // ???뵬沃섎챸苑??醫?
   actionKindCombo.addItem(juce::String::fromUTF8(u8"\uC18D\uC131 \uBCC0\uACBD"),
-                          4); // 속성 변경
+                          4); // ??욧쉐 癰궰野?
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uC704\uCE58/\uD06C\uAE30 \uBCC0\uACBD"),
-      5); // 위치/크기 변경
+      5); // ?袁⑺뒄/??由?癰궰野?
   actionKindCombo.onChange = [this] { applyActionKind(); };
   addAndMakeVisible(actionKindCombo);
 
@@ -475,24 +486,24 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(boundsWEditor);
   addAndMakeVisible(boundsHEditor);
 
-  // 타겟 종류 콤보 — 한글
+  // ??野??ル굝履??꾠끇??? ???
   targetKindCombo.setTextWhenNothingSelected(
-      juce::String::fromUTF8(u8"대상 유형"));
-  targetKindCombo.addItem(juce::String::fromUTF8(u8"위젯"), 1); // 위젯
-  targetKindCombo.addItem(juce::String::fromUTF8(u8"그룹"), 2); // 그룹
-  targetKindCombo.addItem(juce::String::fromUTF8(u8"레이어"),
-                          3); // 레이어
+      juce::String::fromUTF8(u8"?????醫륁굨"));
+  targetKindCombo.addItem(juce::String::fromUTF8(u8"?袁⑹졐"), 1); // ?袁⑹졐
+  targetKindCombo.addItem(juce::String::fromUTF8(u8"域밸챶竊?), 2); // 域밸챶竊?
+  targetKindCombo.addItem(juce::String::fromUTF8(u8"??됱뵠??),
+                          3); // ??됱뵠??
   targetKindCombo.onChange = [this] { applySelectedAction(); };
   addAndMakeVisible(targetKindCombo);
 
-  // 대상 속성 선택 콤보박스
-  targetPropertyLabel.setText(juce::String::fromUTF8(u8"속성:"),
+  // ??????욧쉐 ?醫뤾문 ?꾠끇?ヨ쳸類ㅻ뮞
+  targetPropertyLabel.setText(juce::String::fromUTF8(u8"??욧쉐:"),
                               juce::dontSendNotification);
   targetPropertyLabel.setJustificationType(juce::Justification::centredRight);
   addAndMakeVisible(targetPropertyLabel);
 
   targetPropertyCombo.setTextWhenNothingSelected(
-      juce::String::fromUTF8(u8"속성 선택"));
+      juce::String::fromUTF8(u8"??욧쉐 ?醫뤾문"));
   targetPropertyCombo.onChange = [this] {
     if (suppressCallbacks)
       return;
@@ -514,34 +525,34 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
     resized();
   };
 
-  // 동적 편집기 레이블
+  // ??덉읅 ?紐꾩춿疫???됱뵠??
   dynamicPropLabel.setJustificationType(juce::Justification::centredRight);
   addAndMakeVisible(dynamicPropLabel);
   dynamicPropLabel.setVisible(false);
 
-  // 보이기/잠금 콤보 — 한글
+  // 癰귣똻?졿묾??醫됲닊 ?꾠끇??? ???
   visibleCombo.setTextWhenNothingSelected(
-      juce::String::fromUTF8(u8"표시 여부"));
-  visibleCombo.addItem(juce::String::fromUTF8(u8"유지"), 1); // 유지
-  visibleCombo.addItem(juce::String::fromUTF8(u8"보이기"),
-                       2); // 보이기
-  visibleCombo.addItem(juce::String::fromUTF8(u8"숨기기"),
-                       3); // 숨기기
+      juce::String::fromUTF8(u8"??뽯뻻 ???"));
+  visibleCombo.addItem(juce::String::fromUTF8(u8"?醫?"), 1); // ?醫?
+  visibleCombo.addItem(juce::String::fromUTF8(u8"癰귣똻?졿묾?),
+                       2); // 癰귣똻?졿묾?
+  visibleCombo.addItem(juce::String::fromUTF8(u8"??ｋ┛疫?),
+                       3); // ??ｋ┛疫?
   visibleCombo.onChange = [this] { applySelectedAction(); };
   addAndMakeVisible(visibleCombo);
 
-  lockedCombo.setTextWhenNothingSelected(juce::String::fromUTF8(u8"잠금 여부"));
-  lockedCombo.addItem(juce::String::fromUTF8(u8"유지"), 1); // 유지
-  lockedCombo.addItem(juce::String::fromUTF8(u8"잠금"), 2); // 잠금
-  lockedCombo.addItem(juce::String::fromUTF8(u8"잠금 해제"),
-                      3); // 잠금 해제
+  lockedCombo.setTextWhenNothingSelected(juce::String::fromUTF8(u8"?醫됲닊 ???"));
+  lockedCombo.addItem(juce::String::fromUTF8(u8"?醫?"), 1); // ?醫?
+  lockedCombo.addItem(juce::String::fromUTF8(u8"?醫됲닊"), 2); // ?醫됲닊
+  lockedCombo.addItem(juce::String::fromUTF8(u8"?醫됲닊 ??곸젫"),
+                      3); // ?醫됲닊 ??곸젫
   lockedCombo.onChange = [this] { applySelectedAction(); };
   addAndMakeVisible(lockedCombo);
 
   assetPatchKeyCombo.setTextWhenNothingSelected(
-      juce::String::fromUTF8(u8"에셋 키"));
+      juce::String::fromUTF8(u8"?癒????));
   assetPatchValueCombo.setTextWhenNothingSelected(
-      juce::String::fromUTF8(u8"에셋 참조 (선택)"));
+      juce::String::fromUTF8(u8"?癒??筌〓챷??(?醫뤾문)"));
   assetPatchKeyCombo.onChange = [this] {
     if (!suppressCallbacks)
       syncAssetPatchValueEditor();
@@ -555,7 +566,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(assetPatchValueCombo);
 
   setupEditor(patchEditor,
-              juce::String::fromUTF8(u8"세부 JSON 속성 패치 (선택 사항)"));
+              juce::String::fromUTF8(u8"?紐? JSON ??욧쉐 ??ν뒄 (?醫뤾문 ??鍮?"));
   patchEditor.setMultiLine(true);
   patchEditor.setScrollbarsShown(true);
   patchEditor.setReturnKeyStartsNewLine(true);
@@ -574,14 +585,14 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
 
   stateHintLabel.setText("Runtime Params + Property Bindings",
                          juce::dontSendNotification);
-  stateHintLabel.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+  stateHintLabel.setFont(makePanelFont(*this, 10.0f, true));
   stateHintLabel.setColour(juce::Label::textColourId,
                            palette(GyeolPalette::TextSecondary));
   stateHintLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(stateHintLabel);
 
   runtimeParamTitleLabel.setText("Runtime Params", juce::dontSendNotification);
-  runtimeParamTitleLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+  runtimeParamTitleLabel.setFont(makePanelFont(*this, 10.5f, true));
   runtimeParamTitleLabel.setColour(juce::Label::textColourId,
                                    palette(GyeolPalette::TextPrimary));
   runtimeParamTitleLabel.setJustificationType(juce::Justification::centredLeft);
@@ -633,7 +644,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
 
   propertyBindingTitleLabel.setText("Property Bindings",
                                     juce::dontSendNotification);
-  propertyBindingTitleLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+  propertyBindingTitleLabel.setFont(makePanelFont(*this, 10.5f, true));
   propertyBindingTitleLabel.setColour(juce::Label::textColourId,
                                       palette(GyeolPalette::TextPrimary));
   propertyBindingTitleLabel.setJustificationType(
@@ -763,10 +774,10 @@ void EventActionPanel::paintOverChildren(juce::Graphics &g) {
 
     auto area = bounds.reduced(10);
     g.setColour(palette(GyeolPalette::TextSecondary).withAlpha(0.9f));
-    g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+    g.setFont(makePanelFont(*this, 10.5f, true));
     g.drawFittedText(icon, area.removeFromTop(14), juce::Justification::centred,
                      1);
-    g.setFont(juce::FontOptions(10.0f));
+    g.setFont(makePanelFont(*this, 10.0f, false));
     g.drawFittedText(text, area, juce::Justification::centred, 2);
   };
 
@@ -1244,7 +1255,7 @@ void EventActionPanel::rebuildWidgetOptions() {
         descriptor != nullptr) {
       option.events = descriptor->runtimeEvents;
     }
-    // 사용자 지정 이름(properties["name"]) 우선, 없으면 타입명 + ID
+    // ?????筌왖????已?properties["name"]) ?怨쀪퐨, ??곸몵筌?????낆구 + ID
     option.label = widgetDisplayName(widget, registry);
     widgetOptions.push_back(std::move(option));
   }
@@ -1395,9 +1406,9 @@ void EventActionPanel::rebuildPropertyBindingTargetPropertyOptions(
         0, juce::dontSendNotification);
 }
 
-// ─────────────────────────────────────────────────────────
-// Action 대상 위젯의 속성 목록을 targetPropertyCombo에 구성
-// ─────────────────────────────────────────────────────────
+// ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+// Action ?????袁⑹졐????욧쉐 筌뤴뫖以??targetPropertyCombo???닌딄쉐
+// ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 void EventActionPanel::rebuildActionTargetPropertyOptions(
     WidgetId targetWidgetId, const juce::String &selectedProperty) {
   suppressCallbacks = true;
@@ -1417,12 +1428,12 @@ void EventActionPanel::rebuildActionTargetPropertyOptions(
       targetPropertyKeys.push_back(key);
     };
 
-    // 공통 속성 (항상 표시)
-    addItem("visible", juce::String::fromUTF8(u8"표시 여부"));
-    addItem("locked", juce::String::fromUTF8(u8"잠금 여부"));
-    addItem("opacity", juce::String::fromUTF8(u8"불투명도"));
+    // ?⑤벏????욧쉐 (??湲???뽯뻻)
+    addItem("visible", juce::String::fromUTF8(u8"??뽯뻻 ???"));
+    addItem("locked", juce::String::fromUTF8(u8"?醫됲닊 ???"));
+    addItem("opacity", juce::String::fromUTF8(u8"?븍뜇?억쭗?낅즲"));
 
-    // 위젯 타입별 spec 속성
+    // ?袁⑹졐 ????낇?spec ??욧쉐
     const auto &snapshot = document.snapshot();
     const auto wIt =
         std::find_if(snapshot.widgets.begin(), snapshot.widgets.end(),
@@ -1439,20 +1450,20 @@ void EventActionPanel::rebuildActionTargetPropertyOptions(
           addItem(key, disp);
         }
       }
-      // PropertyBag 에 직접 저장된 키도 추가
+      // PropertyBag ??筌욊낯?????貫留???삳즲 ?곕떽?
       for (int i = 0; i < wIt->properties.size(); ++i)
         addItem(wIt->properties.getName(i).toString().trim(),
                 wIt->properties.getName(i).toString().trim());
     }
 
-    // 이전 선택 키가 목록에 없으면 custom으로 추가
+    // ??곸읈 ?醫뤾문 ??? 筌뤴뫖以????곸몵筌?custom??곗쨮 ?곕떽?
     const auto pref = selectedProperty.trim();
     if (pref.isNotEmpty() &&
         std::find(targetPropertyKeys.begin(), targetPropertyKeys.end(), pref) ==
             targetPropertyKeys.end())
       addItem(pref, pref + " (custom)");
 
-    // 선택 복원
+    // ?醫뤾문 癰귣벊??
     if (pref.isNotEmpty()) {
       const auto it =
           std::find(targetPropertyKeys.begin(), targetPropertyKeys.end(), pref);
@@ -1475,7 +1486,7 @@ juce::String EventActionPanel::selectedActionTargetPropertyKey() const {
   return {};
 }
 
-// 선택된 속성 spec에 맞는 동적 편집기를 생성/교체
+// ?醫뤾문????욧쉐 spec??筌띿쉶????덉읅 ?紐꾩춿疫꿸퀡? ??밴쉐/?대Ŋ猿?
 void EventActionPanel::rebuildDynamicPropEditor() {
   const auto selectedProp = selectedActionTargetPropertyKey();
   if (selectedProp.isEmpty() || selectedProp == "visible" ||
@@ -1489,25 +1500,25 @@ void EventActionPanel::rebuildDynamicPropEditor() {
     return;
   }
 
-  // 이미 같은 spec 이면 재생성 불필요
+  // ??? 揶쏆늿? spec ??????源???븍뜇釉??
   if (currentDynamicPropSpec.has_value() &&
       currentDynamicPropSpec->key.toString() == selectedProp &&
       dynamicPropEditor != nullptr)
     return;
 
-  // 편집기 파괴
+  // ?紐꾩춿疫????댘
   if (dynamicPropEditor != nullptr) {
     removeChildComponent(dynamicPropEditor.get());
     dynamicPropEditor.reset();
   }
   currentDynamicPropSpec.reset();
 
-  // 위젯 타입 조회
+  // ?袁⑹졐 ????鈺곌퀬??
   const auto targetId = selectedWidgetIdFromCombo(targetIdCombo);
   Widgets::WidgetPropertySpec spec;
   spec.key = juce::Identifier(selectedProp);
   spec.label = selectedProp;
-  spec.kind = Widgets::WidgetPropertyKind::text; // 기본값
+  spec.kind = Widgets::WidgetPropertyKind::text; // 疫꿸퀡??첎?
 
   if (targetId.has_value() && *targetId > kRootId) {
     const auto &snapshot = document.snapshot();
@@ -1521,7 +1532,7 @@ void EventActionPanel::rebuildDynamicPropEditor() {
     }
   }
 
-  // 현재 값 읽기
+  // ?袁⑹삺 揶???꾨┛
   juce::var currentValue;
   const auto *action = selectedAction();
   if (action != nullptr) {
@@ -1535,7 +1546,7 @@ void EventActionPanel::rebuildDynamicPropEditor() {
   Ui::Panels::EditorBuildSpec buildSpec;
   buildSpec.spec = spec;
   buildSpec.value = currentValue;
-  buildSpec.onPreview = nullptr; // 실시간 미리보기 불필요
+  buildSpec.onPreview = nullptr; // ??쇰뻻揶?沃섎챶?곮퉪?용┛ ?븍뜇釉??
   buildSpec.onCommit = [this](const juce::var &) { applySelectedAction(); };
   buildSpec.onCancel = nullptr;
 
@@ -1545,13 +1556,13 @@ void EventActionPanel::rebuildDynamicPropEditor() {
     addAndMakeVisible(*dynamicPropEditor);
   currentDynamicPropSpec = spec;
 
-  // 레이블 텍스트
+  // ??됱뵠????용뮞??
   dynamicPropLabel.setText(spec.label.isNotEmpty() ? spec.label : selectedProp,
                            juce::dontSendNotification);
   dynamicPropLabel.setVisible(true);
 }
 
-// 동적 편집기에서 현재 값을 읽어 반환
+// ??덉읅 ?紐꾩춿疫꿸퀣肉???袁⑹삺 揶쏅?????뚮선 獄쏆꼹??
 juce::var EventActionPanel::getDynamicPropValue() const {
   if (dynamicPropEditor == nullptr || !currentDynamicPropSpec.has_value())
     return {};
@@ -2004,9 +2015,9 @@ void EventActionPanel::refreshDetailEditors() {
             : action->target.id;
     selectWidgetIdInCombo(targetIdCombo, targetIdForEditor);
 
-    // setNodeProps: 속성 목록 재구성 후 현재 저장된 속성 키를 선택
+    // setNodeProps: ??욧쉐 筌뤴뫖以?????????袁⑹삺 ???貫留???욧쉐 ??? ?醫뤾문
     if (action->kind == RuntimeActionKind::setNodeProps) {
-      // 저장된 patch 키 중 첫번째를 preferred key로 사용
+      // ???貫留?patch ??餓?筌ｃ꺂苡뀐쭪紐? preferred key嚥?????
       juce::String prefKey;
       if (action->visible.has_value())
         prefKey = "visible";
@@ -2187,7 +2198,7 @@ void EventActionPanel::updateActionEditorVisibility(
     setVisibility(assetPatchKeyCombo, false);
     setVisibility(assetPatchValueCombo, isAsset);
 
-    // patchEditor를 공통 속성(visible, locked, opacity)이 아니면 무조건 표시
+    // patchEditor???⑤벏????욧쉐(visible, locked, opacity)???袁⑤빍筌??얜똻?쒎쳞???뽯뻻
     const auto showPatch =
         !selProp.isEmpty() && !isVisible && !isLocked && !isOpacity;
     setVisibility(patchEditor, showPatch);
@@ -2895,7 +2906,7 @@ void EventActionPanel::applySelectedAction() {
 
     action->patch = std::move(patch);
 
-    // 저장 직후, 만약 포커스가 patchEditor에 있지 않다면 글씨도 최신화
+    // ????筌욊낱?? 筌띾슣鍮???鍮??? patchEditor????? ??낅뼄筌?疫꼲??ㅻ즲 筌ㅼ뮇???
     if (!patchEditor.hasKeyboardFocus(true)) {
       const auto newJson =
           action->patch.size() > 0
@@ -3052,13 +3063,13 @@ EventActionPanel::findWidgetOption(WidgetId id) const {
 
 juce::String EventActionPanel::formatEventLabel(
     const Widgets::RuntimeEventSpec &eventSpec) const {
-  // 기술 키(onClick 등)를 괄호로 노출하지 않고 사용자 친화적 이름만 표시
+  // 疫꿸퀣????onClick ?????욧쑵?뉑에??紐꾪뀱??? ??꾪??????燁살뮉?????已ワ쭕???뽯뻻
   const auto koLabel = eventDisplayLabelKo(eventSpec.key);
   if (koLabel.isNotEmpty())
     return koLabel;
   if (eventSpec.displayLabel.trim().isNotEmpty())
     return eventSpec.displayLabel.trim();
-  return eventSpec.key; // 번역 없는 경우만 원본 키 표시
+  return eventSpec.key; // 甕곕뜆肉???용뮉 野껋럩??쭕??癒?궚 ????뽯뻻
 }
 
 juce::String
@@ -3080,7 +3091,7 @@ EventActionPanel::formatEventLabel(WidgetId sourceWidgetId,
 
 juce::String
 EventActionPanel::actionSummary(const RuntimeActionModel &action) const {
-  // 위젯 ID를 사용자 이름으로 변환하는 헬퍼
+  // ?袁⑹졐 ID?????????已??곗쨮 癰궰??묐릭??????
   const auto widgetName = [this](WidgetId id) -> juce::String {
     const auto &widgets = document.snapshot().widgets;
     const auto it =
@@ -3335,12 +3346,12 @@ void EventActionPanel::BindingListModel::paintListBoxItem(int rowNumber,
 
   g.setColour(binding.enabled ? palette(GyeolPalette::ValidSuccess)
                               : palette(GyeolPalette::TextSecondary));
-  g.setFont(juce::FontOptions(10.3f, juce::Font::bold));
+  g.setFont(makePanelFont(owner, 10.3f, true));
   g.drawText(binding.enabled ? "ON" : "OFF", titleRow.removeFromLeft(30),
              juce::Justification::centredLeft, true);
 
   g.setColour(palette(GyeolPalette::TextPrimary));
-  g.setFont(juce::FontOptions(11.5f, juce::Font::bold));
+  g.setFont(makePanelFont(owner, 11.5f, true));
   const auto title =
       binding.name.isNotEmpty() ? binding.name : juce::String("Binding");
   g.drawFittedText(title, titleRow, juce::Justification::centredLeft, 1);
@@ -3356,7 +3367,7 @@ void EventActionPanel::BindingListModel::paintListBoxItem(int rowNumber,
                         " actions";
 
   g.setColour(palette(GyeolPalette::TextSecondary));
-  g.setFont(juce::FontOptions(10.1f));
+  g.setFont(makePanelFont(owner, 10.1f, false));
   g.drawFittedText(subtitle, area, juce::Justification::centredLeft, 1);
 }
 
@@ -3450,12 +3461,12 @@ void EventActionPanel::ActionListModel::paintListBoxItem(int rowNumber,
   const auto title =
       juce::String(rowNumber + 1) + ". " + getKoLabel(action.kind);
   g.setColour(palette(GyeolPalette::TextPrimary));
-  g.setFont(juce::FontOptions(11.1f, juce::Font::bold));
+  g.setFont(makePanelFont(owner, 11.1f, true));
   g.drawFittedText(title, titleRow, juce::Justification::centredLeft, 1);
 
   auto summary = owner.actionSummary(action);
   g.setColour(palette(GyeolPalette::TextSecondary));
-  g.setFont(juce::FontOptions(10.1f));
+  g.setFont(makePanelFont(owner, 10.1f, false));
   g.drawFittedText(summary, area, juce::Justification::centredLeft, 1);
 }
 
@@ -3504,7 +3515,7 @@ void EventActionPanel::RuntimeParamListModel::paintListBoxItem(
   auto titleRow = area.removeFromTop(18);
 
   g.setColour(palette(GyeolPalette::TextPrimary));
-  g.setFont(juce::FontOptions(11.1f, juce::Font::bold));
+  g.setFont(makePanelFont(owner, 11.1f, true));
   g.drawFittedText(param.key, titleRow, juce::Justification::centredLeft, 1);
 
   auto subtitle = "type: " + runtimeParamValueTypeToKey(param.type);
@@ -3514,7 +3525,7 @@ void EventActionPanel::RuntimeParamListModel::paintListBoxItem(
     subtitle += " | exposed";
 
   g.setColour(palette(GyeolPalette::TextSecondary));
-  g.setFont(juce::FontOptions(10.1f));
+  g.setFont(makePanelFont(owner, 10.1f, false));
   g.drawFittedText(subtitle, area, juce::Justification::centredLeft, 1);
 }
 
@@ -3560,19 +3571,19 @@ void EventActionPanel::PropertyBindingListModel::paintListBoxItem(
                                    : palette(GyeolPalette::ValidSuccess));
 
   g.setColour(statusColor);
-  g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+  g.setFont(makePanelFont(owner, 10.5f, true));
   g.drawText(statusText, top.removeFromLeft(26),
              juce::Justification::centredLeft, true);
 
   g.setColour(palette(GyeolPalette::TextPrimary));
-  g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+  g.setFont(makePanelFont(owner, 11.0f, true));
   const auto name = binding.name.isNotEmpty()
                         ? binding.name
                         : juce::String("Property Binding");
   g.drawFittedText(name, top, juce::Justification::centredLeft, 1);
 
   g.setColour(palette(GyeolPalette::TextSecondary));
-  g.setFont(juce::FontOptions(10.3f));
+  g.setFont(makePanelFont(owner, 10.3f, false));
   auto detail = "widget:" + juce::String(binding.targetWidgetId) + "  " +
                 binding.targetProperty + " <- " + binding.expression;
   if (hasError)

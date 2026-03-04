@@ -16,6 +16,16 @@ namespace Gyeol::Ui::Panels
             return Gyeol::getGyeolColor(id).withAlpha(alpha);
         }
 
+        juce::Font makePanelFont(const juce::Component& component, float height, bool bold)
+        {
+            if (auto* lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel*>(&component.getLookAndFeel());
+                lf != nullptr)
+                return lf->makeFont(height, bold);
+
+            auto fallback = juce::Font(juce::FontOptions(height));
+            return bold ? fallback.boldened() : fallback;
+        }
+
         juce::String formatMs(double value)
         {
             return juce::String(value, 3) + " ms";
@@ -62,7 +72,7 @@ namespace Gyeol::Ui::Panels
             area = getLocalBounds().reduced(8);
 
         g.setColour(palette(GyeolPalette::TextPrimary));
-        g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        g.setFont(makePanelFont(*this, 12.0f, true));
         g.drawText("Performance", area.removeFromTop(18), juce::Justification::centredLeft, true);
 
         area.removeFromTop(5);
@@ -87,11 +97,11 @@ namespace Gyeol::Ui::Panels
 
             auto text = bounds.reduced(8, 6);
             g.setColour(palette(GyeolPalette::TextSecondary));
-            g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
+            g.setFont(makePanelFont(*this, 9.5f, true));
             g.drawText(label, text.removeFromTop(14), juce::Justification::centredLeft, true);
 
             g.setColour(valueColour);
-            g.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+            g.setFont(makePanelFont(*this, 16.0f, true));
             g.drawText(juce::String(hz, 1) + " Hz", text, juce::Justification::centredLeft, true);
         };
 
@@ -117,7 +127,7 @@ namespace Gyeol::Ui::Panels
 
             auto chartInner = chartArea.reduced(8, 6);
             g.setColour(palette(GyeolPalette::TextSecondary));
-            g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+            g.setFont(makePanelFont(*this, 9.0f, true));
             g.drawText("Last ms vs Max ms", chartInner.removeFromTop(12), juce::Justification::centredLeft, true);
 
             const auto msScale = std::max({ snapshot.maxRefreshMs,
@@ -137,7 +147,7 @@ namespace Gyeol::Ui::Panels
                 auto barArea = row.reduced(0, 2);
 
                 g.setColour(palette(GyeolPalette::TextSecondary, 0.9f));
-                g.setFont(juce::FontOptions(8.6f));
+                g.setFont(makePanelFont(*this, 8.6f, false));
                 g.drawText(label, nameArea, juce::Justification::centredLeft, true);
 
                 g.setColour(palette(GyeolPalette::ControlBase, 0.92f));
@@ -177,11 +187,11 @@ namespace Gyeol::Ui::Panels
 
             auto text = section.reduced(8, 5);
             g.setColour(palette(GyeolPalette::TextPrimary));
-            g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
+            g.setFont(makePanelFont(*this, 9.5f, true));
             g.drawText(title, text.removeFromTop(12), juce::Justification::centredLeft, true);
 
             g.setColour(palette(GyeolPalette::TextSecondary, 0.94f));
-            g.setFont(juce::FontOptions(9.2f));
+            g.setFont(makePanelFont(*this, 9.2f, false));
             for (int i = 0; i < lines.size(); ++i)
             {
                 auto row = text.removeFromTop(13);
