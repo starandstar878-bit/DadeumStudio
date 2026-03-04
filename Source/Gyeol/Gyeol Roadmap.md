@@ -86,11 +86,52 @@
 - [x] Navigator Panel
 
 ### 패널별 남은 보완
-- [ ] Event/Action: `paramKey` 자동완성/검색, 키보드 편집 흐름 개선
-- [ ] Event/Action: 사용자 친화 라벨/입력 UI 정리
-- [ ] Validation: 카테고리 필터, 경고 클릭 포커스 강화, Quick Fix
-- [ ] Navigator: 오버레이 배치(캔버스 우상단/우하단) 여부 결정
-- [ ] Performance: 표시 주기/지표 UX 튜닝(이벤트+저주기 타이머 하이브리드 검토)
+
+#### Event/Action 패널
+> 현재 구조: 바인딩 리스트 → 액션 리스트 → 상세 에디터 (PanelMode: eventAction / stateBinding)
+
+**🧭 탐색 및 발견성 (Discoverability)**
+- [ ] **바인딩 카드에 요약 정보 추가**: 현재 리스트 행에는 이름만 표시됨. 이벤트 소스 위젯명 + 이벤트 키 + 액션 수를 한 행에 2줄 형태(카드形)로 노출해 클릭 없이도 내용 파악 가능하게 개선
+- [ ] **액션 리스트 행 요약화**: 액션 종류(아이콘) + 대상 위젯명 + 핵심 파라미터 값을 한 줄에 표시. 현재 `paintListBoxItem`에서 텍스트만 출력하는 구조 개선
+- [ ] **검색 필터 기능 강화**: `searchEditor`는 있으나 필터링 대상이 명확하지 않음. 바인딩 이름/소스 위젯명/이벤트 키 전체를 대상으로 검색되도록 `rebuildVisibleBindings` 로직 확장
+- [ ] **이벤트 종류별 색상 태그**: `onClick` / `onValueChanged` / `onToggleChanged` 등 이벤트 종류에 따라 바인딩 카드 좌측 컬러 바를 구분해 한눈에 식별 가능하게 처리
+
+**⌨️ 키보드 편집 흐름**
+- [ ] **Tab 순서 통일**: 현재 `sourceCombo → eventCombo → add버튼` 간 Tab 포커스가 자연스럽지 않음. `sourceCombo → eventCombo → bindingNameEditor → enabledToggle` 순서로 Tab 흐름 정규화
+- [ ] **Enter로 커밋, Escape로 취소**: `valueEditor`, `deltaEditor`, `boundsXYWH` 등 텍스트 에디터 전체에 Enter = 적용, Escape = 원복 동작 일관 적용 (현재 포커스 해제 시에만 적용되는 경우 있음)
+- [ ] **액션 리스트 방향키 네비게이션**: Up/Down 키로 액션 선택, Ctrl+Up/Down으로 순서 변경 지원 (현재 버튼 클릭만 가능)
+- [ ] **Del / Backspace로 선택 항목 삭제**: 바인딩/액션 리스트에서 행 선택 후 Delete 키 지원
+
+**🔁 데이터 편집 효율**
+- [ ] **paramKey 콤보 실시간 필터**: `paramKeyCombo`에서 키를 입력하면 일치하는 파라미터 이름을 필터링해 보여주는 검색형 콤보박스로 전환 (위젯이 많은 문서에서 스크롤 없이 찾기 위함)
+- [ ] **바인딩 활성화 토글(Enabled)을 카드에 직접 노출**: 현재 상세 편집 후에야 boolen 상태 확인 가능. 바인딩 리스트 행 우측에 미니 토글로 즉시 on/off 제어
+- [ ] **액션 복제(Duplicate) 단축키**: `duplicateBindingButton`은 있으나 단축키 없음. Ctrl+D로 선택된 바인딩 복제 지원
+- [ ] **바인딩/액션 일괄 복사 (Binding → 다른 위젯)**: 선택한 바인딩을 다른 소스 위젯으로 복사하는 "Clone to…" 기능 추가
+
+**⚡ 자원/성능 측면**
+- [ ] **`refreshFromDocument` 호출 최소화**: 현재 문서 갱신 시마다 전체 리빌드 (`rebuildWidgetOptions`, `rebuildCreateCombos` 등). 선택 변경 없이도 무조건 호출되는 케이스를 dirty flag로 막아 불필요한 콤보 재구성 방지
+- [ ] **`rebuildVisibleBindings` 지연 실행**: 검색 텍스트 입력 시 매 키 입력마다 호출. 타이핑 50ms 디바운스 후 실행으로 변경
+- [ ] **ListBox 가상화**: `BindingListModel`, `ActionListModel` 등 행 수가 많아지면 모든 행을 paint. 100건 이상 바인딩에서도 빠르게 동작하도록 `ListBox::setRowHeight` + 가상화 확인 및 최적화
+- [ ] **`dynamicPropEditor` 재생성 억제**: 액션 선택 시 `rebuildDynamicPropEditor()`가 매번 `std::unique_ptr` 재할당. 동일한 `WidgetPropertySpec`이면 에디터를 재사용하도록 캐시 조건 추가
+
+**✅ 검증 및 피드백**
+- [ ] **인라인 유효성 오류 표시**: 현재 하단 `statusLabel`에만 오류를 출력. 오류가 있는 필드 옆에 작은 경고 아이콘(⚠)을 표시해 어느 필드가 문제인지 즉시 파악 가능하게 개선
+- [ ] **`paramKey` 미존재 경고**: `setRuntimeParam` 액션에서 선택한 `paramKey`가 State 탭에 정의된 파라미터 목록에 없을 경우, 해당 콤보에 노란색 테두리 + 툴팁 경고 표시
+- [ ] **속성 바인딩 식(expression) 실시간 프리뷰**: `propertyBindingExpressionEditor`에 식 입력 시 현재 파라미터 기본값 기준으로 계산 결과를 에디터 아래 작은 라벨로 즉시 표시 (예: `param_volume * 100` → `"= 75.0"`)
+- [ ] **무효 바인딩 시각적 구분**: 참조 위젯이 삭제되거나 이벤트 키가 없어진 경우 해당 바인딩 카드를 흐리게 처리 + 우측에 삭제 유도 버튼 노출
+
+#### Validation 패널
+- [ ] 카테고리 필터 (오류/경고/정보 별 토글)
+- [ ] 경고 항목 클릭 시 해당 위젯 자동 포커스/선택 강화
+- [ ] Quick Fix 버튼 (예: 누락 에셋 경고에서 바로 파일 선택)
+
+#### Navigator 패널
+- [x] 오버레이 배치 (캔버스 우측 하단 원형 플로팅 오버레이로 이번 세션 완료)
+- [ ] 드래그로 오버레이 위치 재배치 (핀 위치 기억)
+
+#### Performance 패널
+- [ ] 표시 주기 UX 튜닝 (이벤트+저주기 타이머 하이브리드 검토)
+- [ ] 실시간 꺾은선 그래프 (paint ms 히스토리 시각화)
 
 ---
 
