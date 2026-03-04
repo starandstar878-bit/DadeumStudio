@@ -1,4 +1,4 @@
-﻿#include "GyeolCustomLookAndFeel.h"
+#include "GyeolCustomLookAndFeel.h"
 
 #include <BinaryData.h>
 
