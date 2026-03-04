@@ -30,10 +30,9 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
-#include <memory>
 #include <map>
+#include <memory>
 #include <optional>
-#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -47,9 +46,8 @@ juce::Colour palette(GyeolPalette id, float alpha = 1.0f) {
 
 juce::Font makePanelFont(const juce::Component &component, float height,
                          bool bold = false) {
-  if (const auto *lf =
-          dynamic_cast<const Gyeol::GyeolCustomLookAndFeel *>(
-              &component.getLookAndFeel());
+  if (const auto *lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel *>(
+          &component.getLookAndFeel());
       lf != nullptr) {
     return lf->makeFont(height, bold);
   }
@@ -251,7 +249,8 @@ public:
     g.restoreState();
 
     if (selected) {
-      // Phase 3: ³×¿Â Glow ¿Ü°û¼± (¹Ù±ù¡æ¾ÈÀ¸·Î ¿©·¯ ·¹ÀÌ¾î)
+      // Phase 3: ï¿½×¿ï¿½ Glow ï¿½Ü°ï¿½ï¿½ï¿½ (ï¿½Ù±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+      // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¾ï¿½)
       g.setColour(selectionOutline.withAlpha(0.08f));
       g.drawRoundedRectangle(body.expanded(3.0f), 7.0f, 4.0f);
       g.setColour(selectionOutline.withAlpha(0.15f));
@@ -265,7 +264,7 @@ public:
         const auto handleRadius =
             std::min(handle.getWidth(), handle.getHeight()) * 0.5f;
 
-        // Phase 3: ¸®»çÀÌÁî ÇÚµéÀ» ¿øÇü + Glow·Î ±³Ã¼
+        // Phase 3: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ + Glowï¿½ï¿½ ï¿½ï¿½Ã¼
         if (resizeHandleHot) {
           g.setColour(selectionOutline.withAlpha(0.15f));
           g.fillEllipse(handleCenter.x - handleRadius - 3.0f,
@@ -278,7 +277,7 @@ public:
         g.fillEllipse(handleCenter.x - handleRadius,
                       handleCenter.y - handleRadius, handleRadius * 2.0f,
                       handleRadius * 2.0f);
-        // Èò»ö ³»ºÎ ¿ø
+        // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½
         g.setColour(juce::Colours::white);
         g.fillEllipse(handleCenter.x - handleRadius * 0.35f,
                       handleCenter.y - handleRadius * 0.35f,
@@ -1551,11 +1550,13 @@ public:
       const auto minorStep = std::max(1.0f, snapSettings.gridSize);
       const auto majorStep = minorStep * 4.0f;
 
-      // Phase 3: ÁÜ ·¹º§¿¡ µû¸¥ ±×¸®µå ÆäÀÌµå¾Æ¿ô
-      // ÁÜÀÌ ÀÛ¾ÆÁú¼ö·Ï ±×¸®µå°¡ ¿¶¾îÁ®¼­ ½Ã°¢Àû ³ëÀÌÁî¸¦ ÁÙÀÓ
+      // Phase 3: ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½×¸ï¿½ï¿½ï¿½
+      // ï¿½ï¿½ï¿½Ìµï¿½Æ¿ï¿½
+      // ï¿½ï¿½ï¿½ï¿½ ï¿½Û¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½×¸ï¿½ï¿½å°¡
+      // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½î¸¦ ï¿½ï¿½ï¿½ï¿½
       const auto gridFade =
           juce::jlimit(0.0f, 1.0f,
-                       (zoomLevel - 0.3f) / 0.5f); // 0.3 ÀÌÇÏ¿¡¼­ ¿ÏÀü Åõ¸í
+                       (zoomLevel - 0.3f) / 0.5f); // 0.3 ï¿½ï¿½ï¿½Ï¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
       const auto minorAlpha = static_cast<juce::uint8>(
           juce::jlimit(0.0f, 255.0f, 12.0f * gridFade));
       const auto majorAlpha = static_cast<juce::uint8>(
@@ -1762,7 +1763,7 @@ public:
     if (computeCurrentSelectionUnionBounds(selectionBounds)) {
       const auto outline = juce::Colour::fromRGB(78, 156, 255);
 
-      // Phase 3: ³×¿Â Glow ¿Ü°û¼± (¸ÖÆ¼ ¼¿·º¼Ç)
+      // Phase 3: ï¿½×¿ï¿½ Glow ï¿½Ü°ï¿½ï¿½ï¿½ (ï¿½ï¿½Æ¼ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
       g.setColour(outline.withAlpha(0.06f));
       g.drawRoundedRectangle(selectionBounds.expanded(2.5f), 7.0f, 4.0f);
       g.setColour(outline.withAlpha(0.12f));
@@ -1770,7 +1771,7 @@ public:
       g.setColour(outline);
       g.drawRoundedRectangle(selectionBounds.reduced(0.5f), 5.0f, 1.5f);
 
-      // Phase 3: ¸®»çÀÌÁî ÇÚµé ¿øÇü + Glow
+      // Phase 3: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½ + Glow
       const auto handle = selectionResizeHandleBounds(selectionBounds);
       const auto handleCenter = handle.getCentre();
       const auto handleRadius =
@@ -4526,20 +4527,20 @@ public:
         runModeButton(juce::CharPointer_UTF8("\xE2\x96\xB6"
                                              " Run")) {
     owner.setWantsKeyboardFocus(true);
-    owner.setFocusContainerType(juce::Component::FocusContainerType::focusContainer);
+    owner.setFocusContainerType(
+        juce::Component::FocusContainerType::focusContainer);
 
     initializeSettingsFile();
     loadUiSettings();
     applyThemeState();
-
 
     leftPanels.setTabBarDepth(30);
     leftPanels.addTab("Layers", palette(GyeolPalette::PanelBackground),
                       &layerTreePanel, false);
     leftPanels.addTab("Library", palette(GyeolPalette::PanelBackground),
                       &widgetLibraryPanel, false);
-    leftPanels.addTab("Assets", palette(GyeolPalette::PanelBackground), &assetsPanel,
-                      false);
+    leftPanels.addTab("Assets", palette(GyeolPalette::PanelBackground),
+                      &assetsPanel, false);
     leftPanels.setCurrentTabIndex(0, juce::dontSendNotification);
 
     rightPanels.setTabBarDepth(30);
@@ -4860,9 +4861,8 @@ public:
       menu.addItem(5, "Density: Comfortable");
       menu.addItem(6, "Density: Spacious");
       menu.addSeparator();
-      menu.addItem(7,
-                   reducedMotionEnabled ? "Reduced Motion: On"
-                                        : "Reduced Motion: Off");
+      menu.addItem(7, reducedMotionEnabled ? "Reduced Motion: On"
+                                           : "Reduced Motion: Off");
       menu.addItem(8, lowEndRenderingMode ? "Low-End Rendering: On"
                                           : "Low-End Rendering: Off");
       menu.addSeparator();
@@ -4961,7 +4961,6 @@ public:
       setPreviewBindingSimulation(previewBindingSimToggle.getToggleState());
     };
 
-
     rebuildShortcutBindings();
     applyAccessibilityMetadata();
     applyVirtualizationHints();
@@ -5001,8 +5000,9 @@ public:
                          static_cast<float>(toolbarBounds.getRight()));
 
     for (int x : separatorXs) {
-      g.drawVerticalLine(x, static_cast<float>(toolbarBounds.getY() + tokens.spacing),
-                         static_cast<float>(toolbarBounds.getBottom() - tokens.spacing));
+      g.drawVerticalLine(
+          x, static_cast<float>(toolbarBounds.getY() + tokens.spacing),
+          static_cast<float>(toolbarBounds.getBottom() - tokens.spacing));
     }
 
     if (breakpointClass == BreakpointClass::narrow) {
@@ -5047,8 +5047,10 @@ public:
 
     auto place = [&toolbar, tokens](juce::Button &button, int width) {
       auto slot = toolbar.removeFromLeft(width);
-      const auto controlHeight = juce::jmin(tokens.controlHeight, slot.getHeight());
-      const auto controlY = slot.getY() + (slot.getHeight() - controlHeight) / 2;
+      const auto controlHeight =
+          juce::jmin(tokens.controlHeight, slot.getHeight());
+      const auto controlY =
+          slot.getY() + (slot.getHeight() - controlHeight) / 2;
       button.setBounds(slot.withY(controlY).withHeight(controlHeight));
       toolbar.removeFromLeft(tokens.spacing);
     };
@@ -5071,15 +5073,19 @@ public:
     place(arrangeMenuButton, iconButtonWidth);
 
     addSeparator();
-    place(dumpJsonButton, compactToolbar ? compactButtonWidth : compactButtonWidth + tokens.spacing);
-    place(exportJuceButton, compactToolbar ? compactButtonWidth : compactButtonWidth + tokens.spacing);
+    place(dumpJsonButton, compactToolbar ? compactButtonWidth
+                                         : compactButtonWidth + tokens.spacing);
+    place(exportJuceButton, compactToolbar
+                                ? compactButtonWidth
+                                : compactButtonWidth + tokens.spacing);
 
     addSeparator();
     place(previewModeButton, modeButtonWidth);
     place(runModeButton, modeButtonWidth);
     place(previewBindingSimToggle, modeButtonWidth + tokens.spacing);
-    place(gridSnapMenuButton,
-          compactToolbar ? compactButtonWidth : compactButtonWidth + tokens.spacing);
+    place(gridSnapMenuButton, compactToolbar
+                                  ? compactButtonWidth
+                                  : compactButtonWidth + tokens.spacing);
 
     addSeparator();
     place(leftDockButton, compactButtonWidth);
@@ -5092,13 +5098,13 @@ public:
     lastContentBounds = content;
 
     const auto minLeft = juce::roundToInt(200.0f * uiScaleFactor());
-    const auto maxLeft =
-        juce::jmax(minLeft, juce::jmin(juce::roundToInt(420.0f * uiScaleFactor()),
-                                       juce::roundToInt(content.getWidth() * 0.62f)));
+    const auto maxLeft = juce::jmax(
+        minLeft, juce::jmin(juce::roundToInt(420.0f * uiScaleFactor()),
+                            juce::roundToInt(content.getWidth() * 0.62f)));
     const auto minRight = juce::roundToInt(250.0f * uiScaleFactor());
-    const auto maxRight =
-        juce::jmax(minRight, juce::jmin(juce::roundToInt(520.0f * uiScaleFactor()),
-                                        juce::roundToInt(content.getWidth() * 0.68f)));
+    const auto maxRight = juce::jmax(
+        minRight, juce::jmin(juce::roundToInt(520.0f * uiScaleFactor()),
+                             juce::roundToInt(content.getWidth() * 0.68f)));
 
     profile.leftWidth = juce::jlimit(minLeft, maxLeft, profile.leftWidth);
     profile.rightWidth = juce::jlimit(minRight, maxRight, profile.rightWidth);
@@ -5117,7 +5123,8 @@ public:
 
     panelLayoutTelemetryMs.clear();
     const auto setBoundsWithTelemetry =
-        [this](juce::Component &component, const juce::Rectangle<int> &nextBounds,
+        [this](juce::Component &component,
+               const juce::Rectangle<int> &nextBounds,
                const juce::String &name) {
           const auto beginMs = juce::Time::getMillisecondCounterHiRes();
           component.setBounds(nextBounds);
@@ -5138,7 +5145,8 @@ public:
       if (profile.leftOverlayOpen) {
         auto overlayBounds = content.reduced(tokens.spacing);
         const auto overlayWidth = juce::jlimit(
-            minLeft, juce::jmax(minLeft, content.getWidth() - tokens.spacing * 8),
+            minLeft,
+            juce::jmax(minLeft, content.getWidth() - tokens.spacing * 8),
             profile.leftWidth);
         overlayBounds.setWidth(overlayWidth);
         setBoundsWithTelemetry(leftPanels, overlayBounds, "leftOverlay");
@@ -5148,7 +5156,8 @@ public:
       if (profile.rightOverlayOpen) {
         auto overlayBounds = content.reduced(tokens.spacing);
         const auto overlayWidth = juce::jlimit(
-            minRight, juce::jmax(minRight, content.getWidth() - tokens.spacing * 8),
+            minRight,
+            juce::jmax(minRight, content.getWidth() - tokens.spacing * 8),
             profile.rightWidth);
         overlayBounds.setWidth(overlayWidth);
         overlayBounds.setX(content.getRight() - overlayWidth - tokens.spacing);
@@ -5175,7 +5184,8 @@ public:
               juce::jmax(minRight, content.getWidth() - tokens.spacing * 8),
               profile.rightWidth);
           overlayBounds.setWidth(overlayWidth);
-          overlayBounds.setX(content.getRight() - overlayWidth - tokens.spacing);
+          overlayBounds.setX(content.getRight() - overlayWidth -
+                             tokens.spacing);
           setBoundsWithTelemetry(rightPanels, overlayBounds, "rightOverlay");
           rightPanels.setVisible(true);
           rightPanels.toFront(false);
@@ -5199,8 +5209,9 @@ public:
 
     auto navBounds = canvas.getBounds();
     navBounds.setSize(tokens.navSize, tokens.navSize);
-    navBounds.setPosition(canvas.getRight() - tokens.navSize - tokens.spacing * 4,
-                          canvas.getBottom() - tokens.navSize - tokens.spacing * 4);
+    navBounds.setPosition(
+        canvas.getRight() - tokens.navSize - tokens.spacing * 4,
+        canvas.getBottom() - tokens.navSize - tokens.spacing * 4);
     setBoundsWithTelemetry(navigatorPanel, navBounds, "navigator");
 
     if (gridSnapPanel.isVisible()) {
@@ -5224,22 +5235,22 @@ public:
     else if (!isUpdatePending())
       triggerAsyncUpdate();
 
-    lastLayoutMs =
-        juce::Time::getMillisecondCounterHiRes() - layoutStartMs;
+    lastLayoutMs = juce::Time::getMillisecondCounterHiRes() - layoutStartMs;
   }
   bool keyPressed(const juce::KeyPress &key) {
     const auto keyCode = key.getKeyCode();
     const auto mods = key.getModifiers();
+    const auto *focused = juce::Component::getCurrentlyFocusedComponent();
 
     if (triggerRegisteredShortcut(key))
       return true;
 
     if (keyCode == juce::KeyPress::tabKey) {
+      if (focused != nullptr && isTextInputComponent(focused))
+        return false;
       owner.moveKeyboardFocusToSibling(!mods.isShiftDown());
       return true;
     }
-
-    const auto *focused = juce::Component::getCurrentlyFocusedComponent();
     if (!mods.isAnyModifierKeyDown() && keyCode == juce::KeyPress::returnKey &&
         focused != nullptr) {
       if (auto *focusedButton = dynamic_cast<juce::Button *>(
@@ -5251,7 +5262,8 @@ public:
 
     if (!mods.isAnyModifierKeyDown() && keyCode == juce::KeyPress::escapeKey) {
       auto &profile = activeLayoutProfile();
-      const auto hadOverlays = profile.leftOverlayOpen || profile.rightOverlayOpen;
+      const auto hadOverlays =
+          profile.leftOverlayOpen || profile.rightOverlayOpen;
       if (hadOverlays) {
         profile.leftOverlayOpen = false;
         profile.rightOverlayOpen = false;
@@ -5271,14 +5283,19 @@ public:
     if (!mods.isAnyModifierKeyDown() && focused != nullptr &&
         !isTextInputComponent(focused) &&
         (keyCode == juce::KeyPress::leftKey ||
-         keyCode == juce::KeyPress::rightKey)) {
-      const auto delta = keyCode == juce::KeyPress::leftKey ? -1 : 1;
-      auto cycleTabs = [delta](juce::TabbedComponent &tabs) {
+         keyCode == juce::KeyPress::rightKey ||
+         keyCode == juce::KeyPress::upKey ||
+         keyCode == juce::KeyPress::downKey)) {
+      const auto step = (keyCode == juce::KeyPress::rightKey ||
+                         keyCode == juce::KeyPress::downKey)
+                            ? 1
+                            : -1;
+      auto cycleTabs = [step](juce::TabbedComponent &tabs) {
         const auto count = tabs.getNumTabs();
         if (count <= 0)
           return;
         const auto current = tabs.getCurrentTabIndex();
-        auto next = current + delta;
+        auto next = current + step;
         if (next < 0)
           next = count - 1;
         if (next >= count)
@@ -5286,12 +5303,26 @@ public:
         tabs.setCurrentTabIndex(next, juce::sendNotification);
       };
 
-      if (leftPanels.hasKeyboardFocus(true)) {
+      const auto isFocusedOnTabHeader = [focused](juce::TabbedComponent &tabs) {
+        if (focused == &tabs)
+          return true;
+
+        const auto &tabBar = tabs.getTabbedButtonBar();
+        const auto *current = focused;
+        while (current != nullptr) {
+          if (current == &tabBar)
+            return true;
+          current = current->getParentComponent();
+        }
+        return false;
+      };
+
+      if (isFocusedOnTabHeader(leftPanels)) {
         cycleTabs(leftPanels);
         return true;
       }
 
-      if (rightPanels.hasKeyboardFocus(true)) {
+      if (isFocusedOnTabHeader(rightPanels)) {
         cycleTabs(rightPanels);
         return true;
       }
@@ -5419,9 +5450,8 @@ private:
     const auto visWorld = canvas.visibleWorldBounds();
     const auto canWorld = canvas.canvasWorldBounds();
     const bool shouldShowNavigator =
-        !lowEndRenderingMode &&
-        (canWorld.getWidth() > visWorld.getWidth() ||
-         canWorld.getHeight() > visWorld.getHeight());
+        !lowEndRenderingMode && (canWorld.getWidth() > visWorld.getWidth() ||
+                                 canWorld.getHeight() > visWorld.getHeight());
     navigatorPanel.setVisible(shouldShowNavigator);
 
     Ui::Panels::PerformancePanel::Snapshot perfSnapshot;
@@ -6779,8 +6809,10 @@ private:
       break;
     case BreakpointClass::narrow:
     default:
-      profile.leftWidth = juce::roundToInt(static_cast<float>(bounds.getWidth()) * 0.72f);
-      profile.rightWidth = juce::roundToInt(static_cast<float>(bounds.getWidth()) * 0.72f);
+      profile.leftWidth =
+          juce::roundToInt(static_cast<float>(bounds.getWidth()) * 0.72f);
+      profile.rightWidth =
+          juce::roundToInt(static_cast<float>(bounds.getWidth()) * 0.72f);
       profile.historyHeight = 140;
       break;
     }
@@ -6794,16 +6826,14 @@ private:
     if (auto it = layoutProfiles.find(key); it != layoutProfiles.end())
       return it->second;
 
-    return layoutProfiles
-        .emplace(key, defaultLayoutProfileFor(bp, bounds))
+    return layoutProfiles.emplace(key, defaultLayoutProfileFor(bp, bounds))
         .first->second;
   }
 
   LayoutProfile &activeLayoutProfile() {
-    return ensureLayoutProfile(breakpointClass,
-                               lastContentBounds.isEmpty()
-                                   ? owner.getLocalBounds()
-                                   : lastContentBounds);
+    return ensureLayoutProfile(breakpointClass, lastContentBounds.isEmpty()
+                                                    ? owner.getLocalBounds()
+                                                    : lastContentBounds);
   }
 
   void initializeSettingsFile() {
@@ -6842,20 +6872,24 @@ private:
     if (densityRaw >= 0 && densityRaw <= 2)
       densityPreset = static_cast<DensityPreset>(densityRaw);
 
-    reducedMotionEnabled = settingsFile->getBoolValue("ui.reducedMotion", false);
-    lowEndRenderingMode = settingsFile->getBoolValue("ui.lowEndRendering", false);
+    reducedMotionEnabled =
+        settingsFile->getBoolValue("ui.reducedMotion", false);
+    lowEndRenderingMode =
+        settingsFile->getBoolValue("ui.lowEndRendering", false);
 
     const auto currentBounds = owner.getLocalBounds();
     for (const auto bp : {BreakpointClass::wide, BreakpointClass::desktop,
                           BreakpointClass::tablet, BreakpointClass::narrow}) {
       auto profile = defaultLayoutProfileFor(bp, currentBounds);
       const auto prefix = "layout." + breakpointToken(bp) + ".";
-      profile.leftWidth = settingsFile->getIntValue(prefix + "leftWidth", profile.leftWidth);
-      profile.rightWidth = settingsFile->getIntValue(prefix + "rightWidth", profile.rightWidth);
-      profile.historyHeight =
-          settingsFile->getIntValue(prefix + "historyHeight", profile.historyHeight);
-      profile.leftDockVisible =
-          settingsFile->getBoolValue(prefix + "leftDockVisible", profile.leftDockVisible);
+      profile.leftWidth =
+          settingsFile->getIntValue(prefix + "leftWidth", profile.leftWidth);
+      profile.rightWidth =
+          settingsFile->getIntValue(prefix + "rightWidth", profile.rightWidth);
+      profile.historyHeight = settingsFile->getIntValue(
+          prefix + "historyHeight", profile.historyHeight);
+      profile.leftDockVisible = settingsFile->getBoolValue(
+          prefix + "leftDockVisible", profile.leftDockVisible);
       profile.rightDockVisible = settingsFile->getBoolValue(
           prefix + "rightDockVisible", profile.rightDockVisible);
       profile.leftOverlayOpen =
@@ -6900,19 +6934,22 @@ private:
       settingsFile->setValue(prefix + "leftWidth", profile.leftWidth);
       settingsFile->setValue(prefix + "rightWidth", profile.rightWidth);
       settingsFile->setValue(prefix + "historyHeight", profile.historyHeight);
-      settingsFile->setValue(prefix + "leftDockVisible", profile.leftDockVisible);
-      settingsFile->setValue(prefix + "rightDockVisible", profile.rightDockVisible);
-      settingsFile->setValue(prefix + "leftOverlayOpen", profile.leftOverlayOpen);
-      settingsFile->setValue(prefix + "rightOverlayOpen", profile.rightOverlayOpen);
+      settingsFile->setValue(prefix + "leftDockVisible",
+                             profile.leftDockVisible);
+      settingsFile->setValue(prefix + "rightDockVisible",
+                             profile.rightDockVisible);
+      settingsFile->setValue(prefix + "leftOverlayOpen",
+                             profile.leftOverlayOpen);
+      settingsFile->setValue(prefix + "rightOverlayOpen",
+                             profile.rightOverlayOpen);
     }
 
     for (const auto &binding : shortcutBindings) {
       const auto key = "shortcut." + binding.id;
       const auto effective = binding.userKey;
-      settingsFile->setValue(key,
-                             effective.isValid()
-                                 ? effective.getTextDescription()
-                                 : juce::String());
+      settingsFile->setValue(key, effective.isValid()
+                                      ? effective.getTextDescription()
+                                      : juce::String());
     }
 
     settingsFile->saveIfNeeded();
@@ -6935,7 +6972,7 @@ private:
   }
 
   void applyDensityTypography(const DensityTokens &tokens,
-                             bool forceSingleColumnEditors) {
+                              bool forceSingleColumnEditors) {
     leftPanels.setTabBarDepth(tokens.tabDepth);
     rightPanels.setTabBarDepth(tokens.tabDepth);
     historyPanel.setRowHeight(tokens.rowHeight);
@@ -6947,15 +6984,19 @@ private:
     const auto compactToolbar = width < 1280;
     const auto iconToolbar = width < 1050;
 
-    dumpJsonButton.setButtonText(iconToolbar ? "{}" : (compactToolbar ? "JSON" : "{ }"));
-    exportJuceButton.setButtonText(iconToolbar ? "EX" : (compactToolbar ? "Export" : "?"));
-    previewModeButton.setButtonText(iconToolbar ? "P" : (compactToolbar ? "Preview" : "? Preview"));
+    dumpJsonButton.setButtonText(
+        iconToolbar ? "{}" : (compactToolbar ? "JSON" : "{ }"));
+    exportJuceButton.setButtonText(
+        iconToolbar ? "EX" : (compactToolbar ? "Export" : "?"));
+    previewModeButton.setButtonText(
+        iconToolbar ? "P" : (compactToolbar ? "Preview" : "? Preview"));
     const auto runModeLabel =
         iconToolbar
             ? juce::String("R")
             : (compactToolbar ? juce::String("Run") : juce::String("Run >"));
     runModeButton.setButtonText(runModeLabel);
-    gridSnapMenuButton.setButtonText(iconToolbar ? "#" : (compactToolbar ? "Grid" : "# Grid"));
+    gridSnapMenuButton.setButtonText(
+        iconToolbar ? "#" : (compactToolbar ? "Grid" : "# Grid"));
     leftDockButton.setButtonText(iconToolbar ? "L" : "Dock L");
     rightDockButton.setButtonText(
         iconToolbar ? (forceSingleColumnEditorsActive ? "E" : "R")
@@ -6993,7 +7034,8 @@ private:
     leftPanels.setTitle("Left Dock");
     leftPanels.setDescription("Layers, widget library, and assets tabs.");
     rightPanels.setTitle("Right Dock");
-    rightPanels.setDescription("Inspector, event, validation, export and performance tabs.");
+    rightPanels.setDescription(
+        "Inspector, event, validation, export and performance tabs.");
     canvas.setTitle("Canvas");
     canvas.setDescription("Main design surface for widget editing.");
 
@@ -7004,11 +7046,11 @@ private:
       }
     }
 
-    for (auto *button : {&deleteSelected, &groupSelected, &ungroupSelected,
-                         &arrangeMenuButton, &dumpJsonButton, &exportJuceButton,
-                         &undoButton, &redoButton, &previewModeButton,
-                         &runModeButton, &gridSnapMenuButton, &leftDockButton,
-                         &rightDockButton, &uiMenuButton}) {
+    for (auto *button :
+         {&deleteSelected, &groupSelected, &ungroupSelected, &arrangeMenuButton,
+          &dumpJsonButton, &exportJuceButton, &undoButton, &redoButton,
+          &previewModeButton, &runModeButton, &gridSnapMenuButton,
+          &leftDockButton, &rightDockButton, &uiMenuButton}) {
       button->setTitle(button->getTooltip());
       button->setDescription(button->getTooltip());
     }
@@ -7079,9 +7121,9 @@ private:
 
   void toggleDockVisibility(bool leftDock) {
     auto &profile = activeLayoutProfile();
-    const auto rightPopoverMode =
-        !leftDock && breakpointClass != BreakpointClass::narrow &&
-        forceSingleColumnEditorsActive;
+    const auto rightPopoverMode = !leftDock &&
+                                  breakpointClass != BreakpointClass::narrow &&
+                                  forceSingleColumnEditorsActive;
 
     if (breakpointClass == BreakpointClass::narrow) {
       if (leftDock) {
@@ -7111,25 +7153,24 @@ private:
   void rebuildShortcutBindings() {
     shortcutBindings.clear();
 
-    const auto addBinding = [this](juce::String id, juce::String label,
-                                   juce::String keywords,
-                                   juce::KeyPress defaultKey,
-                                   std::function<void()> action) {
-      ShortcutBinding binding;
-      binding.id = std::move(id);
-      binding.label = std::move(label);
-      binding.keywords = std::move(keywords);
-      binding.defaultKey = defaultKey;
-      binding.action = std::move(action);
-      shortcutBindings.push_back(std::move(binding));
-    };
+    const auto addBinding =
+        [this](juce::String id, juce::String label, juce::String keywords,
+               juce::KeyPress defaultKey, std::function<void()> action) {
+          ShortcutBinding binding;
+          binding.id = std::move(id);
+          binding.label = std::move(label);
+          binding.keywords = std::move(keywords);
+          binding.defaultKey = defaultKey;
+          binding.action = std::move(action);
+          shortcutBindings.push_back(std::move(binding));
+        };
 
     addBinding("command_palette", "Command Palette",
-               "command palette actions search", 
+               "command palette actions search",
                juce::KeyPress('k', juce::ModifierKeys::commandModifier, 0),
                [this] { showUiCommandPalette(false); });
     addBinding("quick_switcher", "Quick Switcher",
-               "quick switcher panels widgets", 
+               "quick switcher panels widgets",
                juce::KeyPress('p', juce::ModifierKeys::commandModifier, 0),
                [this] { showUiCommandPalette(true); });
     addBinding("toggle_left_dock", "Toggle Left Dock", "left dock overlay",
@@ -7138,10 +7179,12 @@ private:
     addBinding("toggle_right_dock", "Toggle Right Dock", "right dock overlay",
                juce::KeyPress('2', juce::ModifierKeys::commandModifier, 0),
                [this] { toggleDockVisibility(false); });
-    addBinding("cycle_density", "Cycle Density", "density compact comfortable spacious",
+    addBinding("cycle_density", "Cycle Density",
+               "density compact comfortable spacious",
                juce::KeyPress('.', juce::ModifierKeys::commandModifier, 0),
                [this] { cycleDensityPreset(); });
-    addBinding("reduced_motion", "Toggle Reduced Motion", "accessibility reduced motion",
+    addBinding("reduced_motion", "Toggle Reduced Motion",
+               "accessibility reduced motion",
                juce::KeyPress('m', juce::ModifierKeys::commandModifier, 0),
                [this] {
                  reducedMotionEnabled = !reducedMotionEnabled;
@@ -7149,8 +7192,12 @@ private:
                  owner.repaint();
                  saveUiSettings();
                });
-    addBinding("low_end_mode", "Toggle Low-End Rendering", "low end rendering performance",
-               juce::KeyPress('l', juce::ModifierKeys::commandModifier | juce::ModifierKeys::shiftModifier, 0),
+    addBinding("low_end_mode", "Toggle Low-End Rendering",
+               "low end rendering performance",
+               juce::KeyPress('l',
+                              juce::ModifierKeys::commandModifier |
+                                  juce::ModifierKeys::shiftModifier,
+                              0),
                [this] {
                  lowEndRenderingMode = !lowEndRenderingMode;
                  updateLowEndRenderingMode();
@@ -7158,7 +7205,8 @@ private:
                  owner.repaint();
                  saveUiSettings();
                });
-    addBinding("shortcut_inspector", "Shortcut Conflict Inspector", "shortcut conflicts",
+    addBinding("shortcut_inspector", "Shortcut Conflict Inspector",
+               "shortcut conflicts",
                juce::KeyPress('/', juce::ModifierKeys::commandModifier, 0),
                [this] { showShortcutConflictInspector(); });
     addBinding("shortcut_editor", "Shortcut Editor", "shortcut edit remap",
@@ -7172,6 +7220,7 @@ private:
     const auto *focused = juce::Component::getCurrentlyFocusedComponent();
     const auto isTextInputFocused =
         focused != nullptr && isTextInputComponent(focused);
+
     if (isTextInputFocused && !key.getModifiers().isCommandDown()) {
       return false;
     }
@@ -7224,14 +7273,29 @@ private:
       return;
 
     static const std::array<std::pair<juce::String, juce::KeyPress>, 8>
-        kPresetKeys = {{{"Ctrl/Cmd+1", juce::KeyPress('1', juce::ModifierKeys::commandModifier, 0)},
-                        {"Ctrl/Cmd+2", juce::KeyPress('2', juce::ModifierKeys::commandModifier, 0)},
-                        {"Ctrl/Cmd+3", juce::KeyPress('3', juce::ModifierKeys::commandModifier, 0)},
-                        {"Ctrl/Cmd+K", juce::KeyPress('k', juce::ModifierKeys::commandModifier, 0)},
-                        {"Ctrl/Cmd+P", juce::KeyPress('p', juce::ModifierKeys::commandModifier, 0)},
-                        {"Ctrl/Cmd+M", juce::KeyPress('m', juce::ModifierKeys::commandModifier, 0)},
-                        {"Ctrl/Cmd+Shift+L", juce::KeyPress('l', juce::ModifierKeys::commandModifier | juce::ModifierKeys::shiftModifier, 0)},
-                        {"Ctrl/Cmd+Shift+U", juce::KeyPress('u', juce::ModifierKeys::commandModifier | juce::ModifierKeys::shiftModifier, 0)}}};
+        kPresetKeys = {
+            {{"Ctrl/Cmd+1",
+              juce::KeyPress('1', juce::ModifierKeys::commandModifier, 0)},
+             {"Ctrl/Cmd+2",
+              juce::KeyPress('2', juce::ModifierKeys::commandModifier, 0)},
+             {"Ctrl/Cmd+3",
+              juce::KeyPress('3', juce::ModifierKeys::commandModifier, 0)},
+             {"Ctrl/Cmd+K",
+              juce::KeyPress('k', juce::ModifierKeys::commandModifier, 0)},
+             {"Ctrl/Cmd+P",
+              juce::KeyPress('p', juce::ModifierKeys::commandModifier, 0)},
+             {"Ctrl/Cmd+M",
+              juce::KeyPress('m', juce::ModifierKeys::commandModifier, 0)},
+             {"Ctrl/Cmd+Shift+L",
+              juce::KeyPress('l',
+                             juce::ModifierKeys::commandModifier |
+                                 juce::ModifierKeys::shiftModifier,
+                             0)},
+             {"Ctrl/Cmd+Shift+U",
+              juce::KeyPress('u',
+                             juce::ModifierKeys::commandModifier |
+                                 juce::ModifierKeys::shiftModifier,
+                             0)}}};
 
     juce::PopupMenu menu;
     int menuId = 1;
@@ -7258,8 +7322,14 @@ private:
                 juce::KeyPress('k', juce::ModifierKeys::commandModifier, 0),
                 juce::KeyPress('p', juce::ModifierKeys::commandModifier, 0),
                 juce::KeyPress('m', juce::ModifierKeys::commandModifier, 0),
-                juce::KeyPress('l', juce::ModifierKeys::commandModifier | juce::ModifierKeys::shiftModifier, 0),
-                juce::KeyPress('u', juce::ModifierKeys::commandModifier | juce::ModifierKeys::shiftModifier, 0)};
+                juce::KeyPress('l',
+                               juce::ModifierKeys::commandModifier |
+                                   juce::ModifierKeys::shiftModifier,
+                               0),
+                juce::KeyPress('u',
+                               juce::ModifierKeys::commandModifier |
+                                   juce::ModifierKeys::shiftModifier,
+                               0)};
             shortcutBindings[bindingIndex].userKey =
                 kPresetValues[static_cast<size_t>(picked - 1)];
           }
@@ -7306,118 +7376,271 @@ private:
     struct CommandItem {
       juce::String label;
       juce::String hint;
+      juce::String searchText;
       std::function<void()> action;
     };
 
-    auto commands = std::make_shared<std::vector<CommandItem>>();
-
-    if (!quickSwitcher) {
-      for (const auto &binding : shortcutBindings) {
+    const auto showPaletteForQuery = [this, quickSwitcher](
+                                         const juce::String &query) {
+      const auto addCommand = [](std::vector<CommandItem> &list,
+                                 juce::String label, juce::String hint,
+                                 juce::String searchText,
+                                 std::function<void()> action) {
         CommandItem item;
-        item.label = binding.label;
-        item.hint = shortcutText(effectiveShortcut(binding));
-        item.action = binding.action;
-        commands->push_back(std::move(item));
+        item.label = std::move(label);
+        item.hint = std::move(hint);
+        item.searchText = std::move(searchText);
+        item.action = std::move(action);
+        list.push_back(std::move(item));
+      };
+
+      const auto queryLower = query.trim().toLowerCase();
+
+      auto commands = std::make_shared<std::vector<CommandItem>>();
+      commands->reserve(256);
+
+      if (!quickSwitcher) {
+        for (const auto &binding : shortcutBindings) {
+          const auto effective = effectiveShortcut(binding);
+          const auto hint = shortcutText(effective);
+          addCommand(*commands, binding.label, hint,
+                     binding.label + " " + binding.keywords + " " + hint,
+                     binding.action);
+        }
+
+        addCommand(*commands, "Run Accessibility Audit", {},
+                   "accessibility audit quality gate",
+                   [this] { runAccessibilityAudit(); });
+        addCommand(*commands, "Run HiDPI Validation", {},
+                   "hidpi validation scaling",
+                   [this] { runHiDpiLayoutValidation(); });
+        addCommand(*commands, "Run UI Quality Gate", {},
+                   "quality gate ui regression",
+                   [this] { runUiQualityGate(); });
+        addCommand(*commands, "Capture UI Baseline", {},
+                   "snapshot baseline capture",
+                   [this] { captureUiBaselineSnapshots(); });
+        addCommand(*commands, "Open Quick Switcher", "Ctrl/Cmd+P",
+                   "quick switcher panels widgets sections",
+                   [this] { showUiCommandPalette(true); });
+      } else {
+        addCommand(*commands, "Focus Canvas", {}, "canvas center viewport",
+                   [this] { canvas.grabKeyboardFocus(); });
+
+        addCommand(*commands, "Panel: Left / Layers", {},
+                   "left panel layers tree", [this] {
+                     leftPanels.setCurrentTabIndex(0, juce::sendNotification);
+                     leftPanels.grabKeyboardFocus();
+                   });
+        addCommand(*commands, "Panel: Left / Library", {},
+                   "left panel widget library", [this] {
+                     leftPanels.setCurrentTabIndex(1, juce::sendNotification);
+                     leftPanels.grabKeyboardFocus();
+                   });
+        addCommand(*commands, "Panel: Left / Assets", {}, "left panel assets",
+                   [this] {
+                     leftPanels.setCurrentTabIndex(2, juce::sendNotification);
+                     leftPanels.grabKeyboardFocus();
+                   });
+
+        addCommand(*commands, "Panel: Right / Inspector", {},
+                   "right panel inspector property", [this] {
+                     rightPanels.setCurrentTabIndex(0, juce::sendNotification);
+                     rightPanels.grabKeyboardFocus();
+                   });
+        addCommand(*commands, "Panel: Right / Event/Action", {},
+                   "right panel event action runtime", [this] {
+                     rightPanels.setCurrentTabIndex(1, juce::sendNotification);
+                     rightPanels.grabKeyboardFocus();
+                   });
+        addCommand(*commands, "Panel: Right / Validation", {},
+                   "right panel validation", [this] {
+                     rightPanels.setCurrentTabIndex(2, juce::sendNotification);
+                     rightPanels.grabKeyboardFocus();
+                   });
+        addCommand(*commands, "Panel: Right / Export Preview", {},
+                   "right panel export preview", [this] {
+                     rightPanels.setCurrentTabIndex(3, juce::sendNotification);
+                     rightPanels.grabKeyboardFocus();
+                   });
+        addCommand(*commands, "Panel: Right / Performance", {},
+                   "right panel performance", [this] {
+                     rightPanels.setCurrentTabIndex(4, juce::sendNotification);
+                     rightPanels.grabKeyboardFocus();
+                   });
+
+        addCommand(*commands, "Section: Toolbar", {}, "section toolbar top",
+                   [this] { uiMenuButton.grabKeyboardFocus(); });
+        addCommand(*commands, "Section: Left Dock", {}, "section left dock",
+                   [this] { leftPanels.grabKeyboardFocus(); });
+        addCommand(*commands, "Section: Right Dock", {}, "section right dock",
+                   [this] { rightPanels.grabKeyboardFocus(); });
+        addCommand(*commands, "Section: Bottom History", {},
+                   "section bottom history",
+                   [this] { historyPanel.grabKeyboardFocus(); });
+
+        const auto &snapshot = docHandle.snapshot();
+        std::unordered_set<WidgetId> addedWidgetIds;
+        addedWidgetIds.reserve(snapshot.widgets.size());
+
+        const auto addWidgetCommand =
+            [this, &addCommand, commands,
+             &addedWidgetIds](const WidgetModel &widget, bool isRecent) {
+              if (!addedWidgetIds.insert(widget.id).second)
+                return;
+
+              juce::String typeName = "Widget";
+              juce::String typeKey;
+              if (const auto *descriptor = widgetRegistry.find(widget.type);
+                  descriptor != nullptr) {
+                typeName = descriptor->displayName.isNotEmpty()
+                               ? descriptor->displayName
+                               : descriptor->typeKey;
+                typeKey = descriptor->typeKey;
+              }
+
+              const auto customName =
+                  widget.properties.getWithDefault("name", juce::var())
+                      .toString()
+                      .trim();
+              const auto displayName =
+                  customName.isNotEmpty()
+                      ? customName
+                      : (typeName + " #" + juce::String(widget.id));
+
+              const auto label = "Widget: " + displayName + " (#" +
+                                 juce::String(widget.id) + ")";
+              const auto hint = isRecent ? juce::String("recent") : typeKey;
+              const auto search = label + " " + hint + " widget section panel";
+
+              addCommand(*commands, label, hint, search,
+                         [this, widgetId = widget.id] {
+                           focusWidgetFromAssetUsage(widgetId);
+                         });
+            };
+
+        for (const auto recentId : recentWidgetIds) {
+          const auto it =
+              std::find_if(snapshot.widgets.begin(), snapshot.widgets.end(),
+                           [recentId](const WidgetModel &widget) {
+                             return widget.id == recentId;
+                           });
+          if (it != snapshot.widgets.end())
+            addWidgetCommand(*it, true);
+        }
+
+        for (const auto &widget : snapshot.widgets)
+          addWidgetCommand(widget, false);
       }
 
-      commands->push_back({"Run Accessibility Audit", "", [this] {
-                              runAccessibilityAudit();
-                            }});
-      commands->push_back({"Run HiDPI Validation", "", [this] {
-                              runHiDpiLayoutValidation();
-                            }});
-      commands->push_back({"Run UI Quality Gate", "", [this] {
-                              runUiQualityGate();
-                            }});
-      commands->push_back({"Capture UI Baseline", "", [this] {
-                              captureUiBaselineSnapshots();
-                            }});
-      commands->push_back({"Open Quick Switcher", "Ctrl/Cmd+P", [this] {
-                              showUiCommandPalette(true);
-                            }});
-    } else {
-      commands->push_back({"Focus Canvas", "", [this] {
-                              canvas.grabKeyboardFocus();
-                            }});
-      commands->push_back({"Left Panel: Layers", "", [this] {
-                              leftPanels.setCurrentTabIndex(0, juce::sendNotification);
-                              leftPanels.grabKeyboardFocus();
-                            }});
-      commands->push_back({"Left Panel: Library", "", [this] {
-                              leftPanels.setCurrentTabIndex(1, juce::sendNotification);
-                              leftPanels.grabKeyboardFocus();
-                            }});
-      commands->push_back({"Left Panel: Assets", "", [this] {
-                              leftPanels.setCurrentTabIndex(2, juce::sendNotification);
-                              leftPanels.grabKeyboardFocus();
-                            }});
-      commands->push_back({"Right Panel: Inspector", "", [this] {
-                              rightPanels.setCurrentTabIndex(0, juce::sendNotification);
-                              rightPanels.grabKeyboardFocus();
-                            }});
-      commands->push_back({"Right Panel: Event/Action", "", [this] {
-                              rightPanels.setCurrentTabIndex(1, juce::sendNotification);
-                              rightPanels.grabKeyboardFocus();
-                            }});
-      commands->push_back({"Right Panel: Validation", "", [this] {
-                              rightPanels.setCurrentTabIndex(2, juce::sendNotification);
-                              rightPanels.grabKeyboardFocus();
-                            }});
-      commands->push_back({"Right Panel: Export Preview", "", [this] {
-                              rightPanels.setCurrentTabIndex(3, juce::sendNotification);
-                              rightPanels.grabKeyboardFocus();
-                            }});
-      commands->push_back({"Right Panel: Performance", "", [this] {
-                              rightPanels.setCurrentTabIndex(4, juce::sendNotification);
-                              rightPanels.grabKeyboardFocus();
-                            }});
+      if (commands->empty())
+        return;
 
-      const auto &snapshot = docHandle.snapshot();
-      int recentCount = 0;
-      for (const auto widgetId : recentWidgetIds) {
-        const auto it = std::find_if(snapshot.widgets.begin(), snapshot.widgets.end(),
-                                     [widgetId](const WidgetModel &w) {
-                                       return w.id == widgetId;
-                                     });
-        if (it == snapshot.widgets.end())
-          continue;
+      auto visibleIndices = std::make_shared<std::vector<size_t>>();
+      visibleIndices->reserve(commands->size());
 
-        commands->push_back({"Recent Widget " + juce::String(widgetId), "",
-                             [this, widgetId] { focusWidgetFromAssetUsage(widgetId); }});
-        if (++recentCount >= 10)
+      for (size_t i = 0; i < commands->size(); ++i) {
+        const auto &command = (*commands)[i];
+        const auto searchable =
+            (command.label + " " + command.hint + " " + command.searchText)
+                .toLowerCase();
+        if (queryLower.isEmpty() || searchable.contains(queryLower))
+          visibleIndices->push_back(i);
+      }
+
+      if (visibleIndices->empty()) {
+        juce::NativeMessageBox::showMessageBoxAsync(
+            juce::MessageBoxIconType::InfoIcon,
+            quickSwitcher ? "Quick Switcher" : "Command Palette",
+            "No matching result.");
+        return;
+      }
+
+      if (!queryLower.isEmpty() && visibleIndices->size() == 1) {
+        auto &command = (*commands)[visibleIndices->front()];
+        if (command.action)
+          command.action();
+        return;
+      }
+
+      juce::PopupMenu menu;
+      auto menuToCommand = std::make_shared<std::vector<size_t>>();
+      menuToCommand->reserve(visibleIndices->size());
+
+      constexpr int kMaxVisibleCommands = 96;
+      int menuId = 1;
+      for (const auto index : *visibleIndices) {
+        if (menuId > kMaxVisibleCommands)
           break;
+
+        const auto &command = (*commands)[index];
+        const auto text = command.hint.isNotEmpty()
+                              ? (command.label + "\t" + command.hint)
+                              : command.label;
+        menu.addItem(menuId++, text);
+        menuToCommand->push_back(index);
       }
-    }
 
-    if (commands->empty())
-      return;
+      if (visibleIndices->size() > static_cast<size_t>(kMaxVisibleCommands)) {
+        menu.addSeparator();
+        const auto hiddenCount =
+            static_cast<int>(visibleIndices->size()) - kMaxVisibleCommands;
+        menu.addItem(100000,
+                     "... " + juce::String(hiddenCount) +
+                         " more results (refine query)",
+                     false, false);
+      }
 
-    juce::PopupMenu menu;
-    int id = 1;
-    for (const auto &command : *commands) {
-      const auto label = command.hint.isNotEmpty()
-                             ? (command.label + "\t" + command.hint)
-                             : command.label;
-      menu.addItem(id++, label);
-    }
+      const juce::Component::SafePointer<EditorHandle> safeOwner(&owner);
+      menu.showMenuAsync(
+          juce::PopupMenu::Options().withTargetComponent(
+              quickSwitcher ? static_cast<juce::Component *>(&rightDockButton)
+                            : static_cast<juce::Component *>(&uiMenuButton)),
+          [commands, menuToCommand, safeOwner](int picked) {
+            if (safeOwner == nullptr || picked <= 0)
+              return;
+
+            const auto menuIndex = static_cast<size_t>(picked - 1);
+            if (menuIndex >= menuToCommand->size())
+              return;
+
+            const auto commandIndex = (*menuToCommand)[menuIndex];
+            if (commandIndex >= commands->size())
+              return;
+
+            auto &command = (*commands)[commandIndex];
+            if (command.action)
+              command.action();
+          });
+    };
+
+    auto *queryDialog = new juce::AlertWindow(
+        quickSwitcher ? "Quick Switcher" : "Command Palette",
+        quickSwitcher ? "Move to widget/panel/section"
+                      : "Search command and run",
+        juce::MessageBoxIconType::NoIcon, &owner);
+    queryDialog->addTextEditor("query", {},
+                               quickSwitcher ? "Type widget/panel/section"
+                                             : "Type command keyword");
+    queryDialog->addButton("Open", 1,
+                           juce::KeyPress(juce::KeyPress::returnKey));
+    queryDialog->addButton("Cancel", 0,
+                           juce::KeyPress(juce::KeyPress::escapeKey));
 
     const juce::Component::SafePointer<EditorHandle> safeOwner(&owner);
-    menu.showMenuAsync(
-        juce::PopupMenu::Options().withTargetComponent(
-            quickSwitcher ? static_cast<juce::Component *>(&rightDockButton)
-                          : static_cast<juce::Component *>(&uiMenuButton)),
-        [commands, safeOwner](int picked) {
-          if (safeOwner == nullptr || picked <= 0)
+    const juce::Component::SafePointer<juce::AlertWindow> safeDialog(
+        queryDialog);
+    queryDialog->enterModalState(
+        true,
+        juce::ModalCallbackFunction::create([safeOwner, safeDialog,
+                                             showPaletteForQuery](int picked) {
+          if (safeOwner == nullptr || safeDialog == nullptr || picked != 1)
             return;
 
-          const auto index = static_cast<size_t>(picked - 1);
-          if (index >= commands->size())
-            return;
-
-          auto &command = (*commands)[index];
-          if (command.action)
-            command.action();
-        });
+          const auto query = safeDialog->getTextEditorContents("query").trim();
+          showPaletteForQuery(query);
+        }),
+        true);
   }
   static bool saveImageAsPng(const juce::Image &image, const juce::File &file) {
     if (!file.getParentDirectory().exists())
@@ -7432,8 +7655,9 @@ private:
   }
 
   juce::File uiSnapshotRootDirectory() const {
-    auto root = resolveProjectRootDirectory().getChildFile("Builds")
-                    .getChildFile("UISnapshots");
+    auto root =
+        resolveProjectRootDirectory().getChildFile("Builds").getChildFile(
+            "UISnapshots");
     if (!root.exists())
       root.createDirectory();
     return root;
@@ -7448,9 +7672,9 @@ private:
     };
 
     const std::array<Profile, 4> profiles{{{"wide", 1700, 940},
-                                            {"desktop", 1400, 900},
-                                            {"tablet", 1024, 820},
-                                            {"narrow", 840, 760}}};
+                                           {"desktop", 1400, 900},
+                                           {"tablet", 1024, 820},
+                                           {"narrow", 840, 760}}};
 
     struct Target {
       const char *name = "editor";
@@ -7458,11 +7682,11 @@ private:
     };
 
     const std::array<Target, 6> targets{{{"editor", &owner},
-                                          {"canvas", &canvas},
-                                          {"leftDock", &leftPanels},
-                                          {"rightDock", &rightPanels},
-                                          {"history", &historyPanel},
-                                          {"performance", &performancePanel}}};
+                                         {"canvas", &canvas},
+                                         {"leftDock", &leftPanels},
+                                         {"rightDock", &rightPanels},
+                                         {"history", &historyPanel},
+                                         {"performance", &performancePanel}}};
 
     const auto originalBounds = owner.getLocalBounds();
     const auto originalBreakpoint = breakpointClass;
@@ -7491,11 +7715,11 @@ private:
         if (!image.isValid())
           continue;
 
-        const auto outputFile = profileDir.getChildFile(
-            juce::String(target.name) + ".png");
+        const auto outputFile =
+            profileDir.getChildFile(juce::String(target.name) + ".png");
         if (!saveImageAsPng(image, outputFile)) {
-          errorMessage = "Failed to write snapshot: " +
-                         outputFile.getFullPathName();
+          errorMessage =
+              "Failed to write snapshot: " + outputFile.getFullPathName();
           applyingLayoutForSnapshot = false;
           resized(originalBounds);
           breakpointClass = originalBreakpoint;
@@ -7525,8 +7749,7 @@ private:
 
     juce::NativeMessageBox::showMessageBoxAsync(
         juce::MessageBoxIconType::InfoIcon, "UI Snapshot Baseline",
-        "Baseline snapshots captured under:\n" +
-            baselineDir.getFullPathName());
+        "Baseline snapshots captured under:\n" + baselineDir.getFullPathName());
   }
 
   static double computeImageDiffRatio(const juce::Image &lhs,
@@ -7552,9 +7775,11 @@ private:
         const auto rightPixel = rightData.getPixelColour(x, y);
 
         const auto diffR = std::abs(leftPixel.getRed() - rightPixel.getRed());
-        const auto diffG = std::abs(leftPixel.getGreen() - rightPixel.getGreen());
+        const auto diffG =
+            std::abs(leftPixel.getGreen() - rightPixel.getGreen());
         const auto diffB = std::abs(leftPixel.getBlue() - rightPixel.getBlue());
-        const auto diffA = std::abs(leftPixel.getAlpha() - rightPixel.getAlpha());
+        const auto diffA =
+            std::abs(leftPixel.getAlpha() - rightPixel.getAlpha());
 
         if (diffR > perChannelTolerance || diffG > perChannelTolerance ||
             diffB > perChannelTolerance || diffA > perChannelTolerance) {
@@ -7614,9 +7839,10 @@ private:
       }
 
       const auto baselineImage = juce::ImageFileFormat::loadFrom(baselineFile);
-      const auto candidateImage = juce::ImageFileFormat::loadFrom(candidateFile);
-      const auto ratio = computeImageDiffRatio(baselineImage, candidateImage,
-                                               pixelTolerance);
+      const auto candidateImage =
+          juce::ImageFileFormat::loadFrom(candidateFile);
+      const auto ratio =
+          computeImageDiffRatio(baselineImage, candidateImage, pixelTolerance);
       ++comparedCount;
       accumulated += ratio;
 
@@ -7626,15 +7852,17 @@ private:
       }
     }
 
-    const auto aggregate = comparedCount > 0 ? accumulated / comparedCount : 1.0;
+    const auto aggregate =
+        comparedCount > 0 ? accumulated / comparedCount : 1.0;
     const auto aggregateFailed = aggregate > aggregateThreshold;
     if (aggregateFailed)
       ++failedCount;
 
     lines.insert(0, "Compared: " + juce::String(comparedCount));
     lines.insert(1, "Aggregate diff: " + juce::String(aggregate, 4));
-    lines.insert(2, "Thresholds: per-image=" + juce::String(perImageThreshold, 3) +
-                        " aggregate=" + juce::String(aggregateThreshold, 3));
+    lines.insert(2,
+                 "Thresholds: per-image=" + juce::String(perImageThreshold, 3) +
+                     " aggregate=" + juce::String(aggregateThreshold, 3));
 
     const auto reportFile = root.getChildFile("ui_quality_gate_report.txt");
     reportFile.replaceWithText(lines.joinIntoString("\n"));
@@ -7655,9 +7883,9 @@ private:
     };
 
     const std::array<Profile, 4> profiles{{{"wide", 1700, 940},
-                                            {"desktop", 1400, 900},
-                                            {"tablet", 1024, 820},
-                                            {"narrow", 840, 760}}};
+                                           {"desktop", 1400, 900},
+                                           {"tablet", 1024, 820},
+                                           {"narrow", 840, 760}}};
     const std::array<float, 3> scales{{1.25f, 1.5f, 2.0f}};
 
     const auto originalBounds = owner.getLocalBounds();
@@ -7692,7 +7920,7 @@ private:
       uiScaleOverride = scale;
       for (const auto &profile : profiles) {
         const juce::Rectangle<int> simulatedBounds{0, 0, profile.width,
-                                                    profile.height};
+                                                   profile.height};
         resized(simulatedBounds);
 
         const auto tokens = currentDensityTokens();
@@ -7804,8 +8032,8 @@ private:
     }
 
     const auto summary = "Accessibility audit completed\n\n" +
-                         lines.joinIntoString("\n") + "\n\nIssues: " +
-                         juce::String(issueCount);
+                         lines.joinIntoString("\n") +
+                         "\n\nIssues: " + juce::String(issueCount);
     juce::NativeMessageBox::showMessageBoxAsync(
         issueCount > 0 ? juce::MessageBoxIconType::WarningIcon
                        : juce::MessageBoxIconType::InfoIcon,
@@ -7992,4 +8220,3 @@ std::unique_ptr<EditorHandle> createEditor() {
   return std::make_unique<EditorHandle>();
 }
 } // namespace Gyeol
-

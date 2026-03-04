@@ -7,6 +7,11 @@
 #include <vector>
 
 namespace Gyeol::Ui::Panels {
+/**
+ * ValidationPanel
+ * Checks for scene errors, warnings, and information.
+ * Features category filtering (E/W/I) and widget focusing.
+ */
 class ValidationPanel : public juce::Component, private juce::ListBoxModel {
 public:
   enum class IssueSeverity { info, warning, error };
@@ -26,6 +31,8 @@ public:
   void refreshValidation();
   bool autoRefreshEnabled() const noexcept;
   void setAutoRefreshEnabled(bool enabled);
+
+  /** Callback to select the related widget in the editor */
   void setSelectWidgetCallback(std::function<void(WidgetId)> callback);
 
   void paint(juce::Graphics &g) override;
@@ -35,8 +42,7 @@ private:
   int getNumRows() override;
   void paintListBoxItem(int rowNumber, juce::Graphics &g, int width, int height,
                         bool rowIsSelected) override;
-  void listBoxItemDoubleClicked(int row,
-                                const juce::MouseEvent &) override;
+  void listBoxItemDoubleClicked(int row, const juce::MouseEvent &) override;
   void selectedRowsChanged(int lastRowSelected) override;
 
   void rebuildIssues();
@@ -44,32 +50,33 @@ private:
   void pushIssue(IssueSeverity severity, const juce::String &title,
                  const juce::String &message,
                  WidgetId relatedWidgetId = kRootId);
+
   static juce::Colour colorForSeverity(IssueSeverity severity);
   static juce::String labelForSeverity(IssueSeverity severity);
 
   DocumentHandle &document;
   const Widgets::WidgetRegistry &registry;
 
-  // Advanced/filtered mode fields.
-  std::vector<Issue> allIssues;
-  std::vector<int> filteredRows;
+  std::vector<Issue> allIssues;  // Full list
+  std::vector<int> filteredRows; // Indices of visible issues
+  bool dirty = true;
+  bool autoRefresh = true;
+
   bool showErrors = true;
   bool showWarnings = true;
   bool showInfo = true;
-  std::function<void(WidgetId)> onSelectWidget;
 
-  // Lightweight mode compatibility field.
-  std::vector<Issue> issues;
-  bool dirty = true;
-  bool autoRefresh = true;
+  std::function<void(WidgetId)> onSelectWidget;
 
   juce::Label titleLabel;
   juce::Label summaryLabel;
   juce::ToggleButton autoRefreshToggle{"Auto"};
   juce::TextButton runButton{"Run Validation"};
+
   juce::TextButton filterErrorBtn{"E"};
   juce::TextButton filterWarningBtn{"W"};
   juce::TextButton filterInfoBtn{"I"};
+
   juce::ListBox listBox;
 };
 } // namespace Gyeol::Ui::Panels
