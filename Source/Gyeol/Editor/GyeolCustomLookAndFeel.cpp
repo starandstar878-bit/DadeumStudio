@@ -149,7 +149,7 @@ juce::Colour highContrastColour(Gyeol::GyeolPalette colorId) {
 } // namespace
 namespace Gyeol {
 // ==============================================================================
-// ???????? ??? ??? ???
+// Theme state helpers: 테마/모션 전역 상태 관리
 // ==============================================================================
 void setGyeolThemeVariant(GyeolThemeVariant variant) { gActiveThemeVariant = variant; }
 GyeolThemeVariant getGyeolThemeVariant() noexcept { return gActiveThemeVariant; }
@@ -169,13 +169,13 @@ juce::Colour getGyeolColor(GyeolPalette colorId) {
 }
 
 // ==============================================================================
-// GyeolCustomLookAndFeel ?앹꽦??諛?珥덇린??
+// GyeolCustomLookAndFeel constructor: 생성 및 색상 초기화
 // ==============================================================================
 GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   // ============================================================================
-  // 1. BinaryData?먯꽌 踰덈뱾 ?고듃瑜?濡쒕뱶?섏뿬 Typeface 罹먯떆?????
-  //    Nunito  ???곷Ц/?쇳떞 UI 湲곕낯 ?고듃 (Clean Rounded Sans-Serif)
-  //    NanumSquareRound ???쒓? UI 湲곕낯 ?고듃 (紐⑤뜕 ?κ렐 怨좊뵓)
+  // 1) Load typefaces from BinaryData: 폰트 리소스 로드
+  //    Nunito: Latin/UI base font
+  //    NanumSquareRound: Korean/UI base font
   // ============================================================================
   nunitoRegular = juce::Typeface::createSystemTypefaceFor(
       BinaryData::NunitoRegular_ttf, BinaryData::NunitoRegular_ttfSize);
@@ -186,24 +186,24 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   nanumBold = juce::Typeface::createSystemTypefaceFor(
       BinaryData::NanumSquareRoundB_ttf, BinaryData::NanumSquareRoundB_ttfSize);
 
-  // 湲濡쒕쾶 湲곕낯 Typeface瑜?Nunito Regular濡?吏??
-  // (JUCE媛 ?고듃 ?대쫫 ?놁씠 湲곕낯 ?곗꽭由ы봽瑜?洹몃┫ ????Typeface瑜??ъ슜)
+  // Set default sans-serif Typeface to Nunito Regular.
+  // JUCE fallback path에서도 동일한 기본 톤을 유지합니다.
   if (nunitoRegular != nullptr)
     setDefaultSansSerifTypeface(nunitoRegular);
 
   // ============================================================================
-  // 2. JUCE 湲곕낯 而댄룷?뚰듃??而щ윭 泥닿퀎瑜?Gyeol ?붾젅???됱긽?쇰줈 媛뺤젣 ??뼱?곌린
-  // ============================================================================
+  // 2) Map JUCE component colour IDs to Gyeol palette.
+  //    JUCE 기본 색 체계를 프로젝트 테마 색상으로 매핑합니다.
 
-  // 李?諛?諛곌꼍
+  // Window background: 창/캔버스 배경
   setColour(juce::ResizableWindow::backgroundColourId,
             getGyeolColor(GyeolPalette::CanvasBackground));
 
-  // ?띿뒪???됱긽
+  // Label text: 라벨 텍스트
   setColour(juce::Label::textColourId,
             getGyeolColor(GyeolPalette::TextPrimary));
 
-  // ?щ씪?대뜑 ?됱긽
+  // Slider colors: 썸/트랙/배경
   setColour(juce::Slider::thumbColourId,
             getGyeolColor(GyeolPalette::AccentPrimary));
   setColour(juce::Slider::trackColourId,
@@ -211,7 +211,7 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   setColour(juce::Slider::backgroundColourId,
             getGyeolColor(GyeolPalette::ControlBase));
 
-  // 踰꾪듉 ?됱긽
+  // TextButton colors: 버튼 기본/On/텍스트
   setColour(juce::TextButton::buttonColourId,
             getGyeolColor(GyeolPalette::ControlBase));
   setColour(juce::TextButton::buttonOnColourId,
@@ -220,7 +220,7 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
             getGyeolColor(GyeolPalette::TextPrimary));
   setColour(juce::TextButton::textColourOnId, juce::Colours::white);
 
-  // ?앹뾽 硫붾돱 諛??붿궡?? 肄ㅻ낫諛뺤뒪 ?됱긽
+  // PopupMenu + ComboBox colors: 메뉴/선택 UI
   setColour(juce::PopupMenu::backgroundColourId,
             getGyeolColor(GyeolPalette::PanelBackground));
   setColour(juce::PopupMenu::textColourId,
@@ -235,19 +235,19 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   setColour(juce::ComboBox::outlineColourId,
             getGyeolColor(GyeolPalette::BorderDefault));
 
-  // ?ㅽ겕濡ㅻ컮 而ㅼ뒪? ?곕룞 (?κ렐 紐⑥꽌由ъ뿉 ?댁슱由щ룄濡??뉕퀬 ?대몼寃??좎?)
+  // ScrollBar colors: thumb 강조, track는 transparent
   setColour(juce::ScrollBar::thumbColourId,
             getGyeolColor(GyeolPalette::BorderActive));
   setColour(juce::ScrollBar::backgroundColourId,
             juce::Colours::transparentBlack);
 
-  // ?몃━ 酉?而щ윭
+  // TreeView colors: 트리 배경/선택 색상
   setColour(juce::TreeView::backgroundColourId,
             getGyeolColor(GyeolPalette::PanelBackground));
   setColour(juce::TreeView::selectedItemBackgroundColourId,
             getGyeolColor(GyeolPalette::ControlBase));
 
-  // Phase 3: ?띿뒪???먮뵒??而щ윭
+  // Phase 3 - TextEditor colors: 입력창 테마
   setColour(juce::TextEditor::backgroundColourId,
             getGyeolColor(GyeolPalette::ControlBase));
   setColour(juce::TextEditor::textColourId,
@@ -262,14 +262,14 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   setColour(juce::CaretComponent::caretColourId,
             getGyeolColor(GyeolPalette::AccentPrimary));
 
-  // Phase 3: 由ъ뒪?몃컯??
+  // Phase 3 - ListBox colors: 리스트 배경/텍스트
   setColour(juce::ListBox::backgroundColourId,
             getGyeolColor(GyeolPalette::PanelBackground));
   setColour(juce::ListBox::textColourId,
             getGyeolColor(GyeolPalette::TextPrimary));
   setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
 
-  // Phase 3: ?댄똻 (?ㅽ겕 + ?쇱슫??
+  // Phase 3 - Tooltip colors: 툴팁 배경/보더
   setColour(juce::TooltipWindow::backgroundColourId,
             getGyeolColor(GyeolPalette::HeaderBackground));
   setColour(juce::TooltipWindow::textColourId,
@@ -277,7 +277,7 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   setColour(juce::TooltipWindow::outlineColourId,
             getGyeolColor(GyeolPalette::BorderDefault));
 
-  // Phase 3: ?뚮┝(AlertWindow) ?ㅽ겕
+  // Phase 3 - AlertWindow colors: 알림창 테마
   setColour(juce::AlertWindow::backgroundColourId,
             getGyeolColor(GyeolPalette::PanelBackground));
   setColour(juce::AlertWindow::textColourId,
@@ -375,7 +375,7 @@ void GyeolCustomLookAndFeel::refreshFromTheme() {
 GyeolCustomLookAndFeel::~GyeolCustomLookAndFeel() {}
 
 // ==============================================================================
-// 而ㅼ뒪? ?뚮뜑留??ㅻ쾭?쇱씠??援ы쁽
+// Component drawing overrides: 커스텀 렌더링 구현
 // ==============================================================================
 
 void GyeolCustomLookAndFeel::drawToggleButton(
@@ -392,7 +392,7 @@ void GyeolCustomLookAndFeel::drawToggleButton(
   bool isToggled = button.getToggleState();
   auto cornerSize = tickHeight * 0.5f;
 
-  // Background
+  // Background fill: 토글 트랙 배경
   juce::Colour bgColour = getGyeolColor(isToggled ? GyeolPalette::AccentPrimary
                                                   : GyeolPalette::ControlBase);
   if (!button.isEnabled())
@@ -409,7 +409,7 @@ void GyeolCustomLookAndFeel::drawToggleButton(
     g.drawRoundedRectangle(pillBounds, cornerSize, 1.0f);
   }
 
-  // Thumb
+  // Thumb geometry: 토글 원형 핸들
   float thumbInnerMargin = 2.0f;
   float thumbSize = tickHeight - (thumbInnerMargin * 2.0f);
   float thumbX = isToggled
@@ -419,7 +419,7 @@ void GyeolCustomLookAndFeel::drawToggleButton(
   juce::Rectangle<float> thumbBounds(
       thumbX, pillBounds.getY() + thumbInnerMargin, thumbSize, thumbSize);
 
-  // Drop Shadow on Thumb
+  // Thumb shadow: 미세 depth 표현
   g.setColour(juce::Colours::black.withAlpha(0.2f));
   g.fillEllipse(thumbBounds.translated(0.0f, 1.0f));
 
@@ -429,7 +429,7 @@ void GyeolCustomLookAndFeel::drawToggleButton(
 
   g.fillEllipse(thumbBounds);
 
-  // Draw text if any
+  // Optional label text: 텍스트가 있을 때만 렌더
   if (button.getButtonText().isNotEmpty()) {
     g.setColour(getGyeolColor(button.isEnabled() ? GyeolPalette::TextPrimary
                                                  : GyeolPalette::TextDisabled));
@@ -460,22 +460,22 @@ void GyeolCustomLookAndFeel::drawLinearSlider(
       fillCol = fillCol.withAlpha(0.5f);
     }
 
-    // Base Box
+    // Base box: 슬라이더 바 배경
     g.setColour(bgCol);
     g.fillRoundedRectangle(bounds, 4.0f);
 
-    // Fill bar
+    // Fill bar: 현재 값 영역
     if (sliderPos > minSliderPos) {
       juce::Rectangle<float> fillBounds(bounds.getX(), bounds.getY(),
                                         sliderPos - minSliderPos,
                                         bounds.getHeight());
       g.setColour(
-          fillCol.withAlpha(0.25f)); // very subtle fill inside the textbox
+          fillCol.withAlpha(0.25f)); // subtle in-box fill / 은은한 채움
       g.fillRoundedRectangle(fillBounds, 4.0f);
     }
   } else {
-    // Default linear sliders can just fall back to standard style or we could
-    // thin them out
+    // For non-bar styles, fallback to JUCE default renderer.
+    // 필요 시 여기서 추가 스타일 분기 가능.
     juce::LookAndFeel_V4::drawLinearSlider(g, x, y, width, height, sliderPos,
                                            minSliderPos, maxSliderPos, style,
                                            slider);
@@ -485,7 +485,7 @@ void GyeolCustomLookAndFeel::drawLinearSlider(
 juce::Label *GyeolCustomLookAndFeel::createSliderTextBox(juce::Slider &slider) {
   juce::Label *l = juce::LookAndFeel_V4::createSliderTextBox(slider);
 
-  // Transparent because the custom slider draw handles the background box!
+  // Background is transparent; custom bar already draws the box.
   l->setColour(juce::Label::backgroundColourId,
                juce::Colours::transparentBlack);
   l->setColour(juce::Label::outlineColourId, juce::Colours::transparentBlack);
@@ -568,20 +568,20 @@ juce::Font GyeolCustomLookAndFeel::getTextButtonFont(juce::TextButton &button,
 }
 
 // ==============================================================================
-// makeFont: BinaryData Typeface 湲곕컲 Font ?앹꽦 ?ы띁
+// makeFont helper: BinaryData Typeface 기반 Font 생성
 // ==============================================================================
 juce::Font GyeolCustomLookAndFeel::makeFont(float height, bool bold) const {
-  // NanumSquareRound???쒓? 臾몄옄瑜??대떦?섏?留?JUCE ?⑥씪 Typeface 援ъ“??
-  // fallback 泥댁씤??吏곸젒 吏?먰븯吏 ?딆쑝誘濡?Nunito瑜?湲곕낯?쇰줈 ?ъ슜?⑸땲??
-  // ?ν썑 ?ㅺ뎅???뺤옣 ??SystemFont fallback 泥섎━瑜??ш린??遺꾧린?????덉뒿?덈떎.
+  // Use Nunito as primary runtime face for stable fallback behavior.
+  // NanumSquareRound is loaded for future locale-specific routing.
+  // 필요 시 locale/script 기반 font switch를 여기서 확장합니다.
   juce::Typeface::Ptr tf = bold ? nunitoBold : nunitoRegular;
   if (tf == nullptr)
-    return juce::Font(juce::FontOptions(height)); // 濡쒕뱶 ?ㅽ뙣 ???쒖뒪??湲곕낯
+    return juce::Font(juce::FontOptions(height)); // Typeface load 실패 시 JUCE 기본 폰트 fallback
   return juce::Font(tf).withHeight(height);
 }
 
 // ==============================================================================
-// Phase 3: 留덉씠?щ줈 ?몃쾭 ?몃옖吏?? ?쒕∼ ??꾩슦, ?낆껜媛?
+// Phase 3 visuals: hover nuance, glow, and depth polish
 // ==============================================================================
 
 void GyeolCustomLookAndFeel::drawButtonBackground(
@@ -601,11 +601,11 @@ void GyeolCustomLookAndFeel::drawButtonBackground(
     bg = getGyeolColor(GyeolPalette::ControlHover);
   }
 
-  // 遺?쒕윭??諛곌꼍
+  // Fill rounded button surface: 버튼 배경 채우기
   g.setColour(bg);
   g.fillRoundedRectangle(bounds, cornerRadius);
 
-  // ?몃쾭 ??誘몄꽭??Glow ?뚮몢由?(AccentPrimary????щ챸???멸낸??
+  // Hover glow ring: AccentPrimary 기반 미세 강조
   if (shouldDrawButtonAsHighlighted && button.isEnabled() &&
       !shouldDrawButtonAsDown) {
     const auto glowColour =
@@ -613,7 +613,7 @@ void GyeolCustomLookAndFeel::drawButtonBackground(
     g.setColour(glowColour);
     g.drawRoundedRectangle(bounds, cornerRadius, 1.5f);
   } else if (!shouldDrawButtonAsDown) {
-    // ?쇰컲 ?곹깭???꾩＜ 誘몄꽭??蹂대뜑
+    // Default border in idle state: 기본 보더
     g.setColour(getGyeolColor(GyeolPalette::BorderDefault));
     g.drawRoundedRectangle(bounds, cornerRadius, 0.8f);
   }
@@ -625,22 +625,22 @@ void GyeolCustomLookAndFeel::drawPopupMenuBackground(juce::Graphics &g,
       juce::Rectangle<float>(0.0f, 0.0f, (float)width, (float)height);
   const auto cornerRadius = 8.0f;
 
-  // 1. ?쒕∼ ??꾩슦 (?낃퀬 ?볤쾶 ?쇱???洹몃┝??
+  // 1) Draw soft drop shadow: 팝업 depth 확보
   drawSoftDropShadow(g, bounds, 16.0f, 0.4f);
 
-  // 2. 諛섑닾紐?諛곌꼍 (?쎄컙??湲?섏뒪紐⑦뵾利??④낵)
+  // 2) Fill glass-like panel background: 반투명 surface
   const auto bgColour =
       getGyeolColor(GyeolPalette::PanelBackground).withAlpha(0.95f);
   g.setColour(bgColour);
   g.fillRoundedRectangle(bounds.reduced(1.0f), cornerRadius);
 
-  // 3. 誘몄꽭??諛앹? 蹂대뜑濡??앹뾽 寃쎄퀎 媛뺤“
+  // 3) Draw subtle border: 팝업 경계선 강조
   g.setColour(getGyeolColor(GyeolPalette::BorderDefault).withAlpha(0.7f));
   g.drawRoundedRectangle(bounds.reduced(1.0f), cornerRadius, 1.0f);
 }
 
 int GyeolCustomLookAndFeel::getPopupMenuBorderSize() {
-  return 4; // ?쇱슫??肄붾꼫瑜??꾪븳 ?대? ?щ갚
+  return 4; // rounded corner 여백 확보용 border size
 }
 
 void GyeolCustomLookAndFeel::fillTextEditorBackground(
@@ -659,14 +659,14 @@ void GyeolCustomLookAndFeel::drawTextEditorOutline(juce::Graphics &g, int width,
       juce::Rectangle<float>(0.0f, 0.0f, (float)width, (float)height);
 
   if (editor.hasKeyboardFocus(true)) {
-    // ?ъ빱???곹깭: AccentPrimary 蹂대뜑 + 誘몄꽭??Glow
+    // Focused state: AccentPrimary outline + soft glow
     const auto accentCol = getGyeolColor(GyeolPalette::AccentPrimary);
     g.setColour(accentCol.withAlpha(0.2f));
     g.drawRoundedRectangle(bounds.expanded(1.0f), 5.0f, 2.0f);
     g.setColour(accentCol.withAlpha(0.7f));
     g.drawRoundedRectangle(bounds, 4.0f, 1.2f);
   } else {
-    // 鍮꾪룷而ㅼ뒪 ?곹깭: 誘몄꽭??蹂대뜑
+    // Unfocused state: subtle default border
     g.setColour(getGyeolColor(GyeolPalette::BorderDefault));
     g.drawRoundedRectangle(bounds, 4.0f, 0.8f);
   }
@@ -680,15 +680,15 @@ void GyeolCustomLookAndFeel::drawGroupComponentOutline(
   const auto bounds = juce::Rectangle<float>(
       0.0f, textHeight * 0.5f, (float)width, (float)height - textHeight * 0.5f);
 
-  // 諛곌꼍
+  // Background surface: 그룹 박스 배경
   g.setColour(getGyeolColor(GyeolPalette::HeaderBackground).withAlpha(0.5f));
   g.fillRoundedRectangle(bounds, 6.0f);
 
-  // 誘몄꽭??蹂대뜑
+  // Outline stroke: 그룹 박스 보더
   g.setColour(getGyeolColor(GyeolPalette::BorderDefault).withAlpha(0.5f));
   g.drawRoundedRectangle(bounds, 6.0f, 0.6f);
 
-  // ?ㅻ뜑 ?띿뒪??
+  // Header text: 섹션 타이틀
   if (text.isNotEmpty()) {
     g.setColour(getGyeolColor(GyeolPalette::TextSecondary));
     g.setFont(makeFont(12.0f, true));
@@ -700,12 +700,12 @@ void GyeolCustomLookAndFeel::drawGroupComponentOutline(
 }
 
 // ==============================================================================
-// drawSoftDropShadow: 踰붿슜 ?뚰봽???쒕∼ ??꾩슦 ?좏떥由ы떚
+// drawSoftDropShadow helper: 공용 소프트 그림자 유틸리티
 // ==============================================================================
 void GyeolCustomLookAndFeel::drawSoftDropShadow(
     juce::Graphics &g, const juce::Rectangle<float> &area, float radius,
     float opacity) {
-  // ?щ윭 寃뱀쓽 諛섑닾紐?寃????쇱슫???ш컖?뺤쑝濡??뚰봽????꾩슦 洹쇱궗
+  // Layered rounded rectangles로 자연스러운 shadow falloff를 만듭니다.
   const int numLayers = 5;
   for (int i = numLayers; i >= 1; --i) {
     const float expand = radius * (float)i / (float)numLayers;

@@ -1,14 +1,12 @@
 #include "Gyeol/Editor/Panels/PropertyEditorFactory.h"
 #include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 
-#include <array>
 #include <cerrno>
 #include <cmath>
 #include <cstdlib>
 #include <limits>
 #include <memory>
 #include <optional>
-
 
 namespace Gyeol::Ui::Panels {
 namespace {
