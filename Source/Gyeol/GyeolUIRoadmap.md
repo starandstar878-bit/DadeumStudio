@@ -54,26 +54,26 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 
 ---
 
-### Phase 5: True Responsive Layout Engine (V5)
-*   **Breakpoint-driven dock reflow**: Reconfigure Left/Right/Bottom dock layout by window classes (>=1600, 1200-1599, 900-1199, <900).
-*   **Canvas-first narrow mode**: In narrow widths, secondary panels move to tabs/overlays so the canvas remains the primary focus.
-*   **Hard constraints for panel sizes**: Unify min/max bounds and prevent split ratio collapse at extreme window sizes.
-*   **Layout profile persistence**: Save and restore dock states per window size class.
-### Phase 6: Adaptive Density and Input UX (V6)
-*   **Density presets**: Add Compact, Comfortable, Spacious modes that globally scale spacing, row height, and font size.
-*   **Automatic control compaction**: Convert long label rows into icon+tooltip or popover editors when width is limited.
-*   **HiDPI-safe component sizing**: Standardize control sizing rules for 125%/150%/200% scaling.
-*   **Keyboard-first editing loop**: Normalize Tab/Enter/Escape/Arrow behavior across panels.
-### Phase 7: Workflow Acceleration Layer (V7)
-*   **Command Palette**: Single entry point for actions, panel navigation, and editing commands.
-*   **Quick Switcher**: Jump rapidly to recent widgets/panels/sections.
-*   **Context-aware suggested actions**: Surface high-probability actions for the current selection state.
-*   **Shortcut map and conflict inspector**: Provide shortcut discoverability and collision resolution UI.
-### Phase 8: Theme Variants, Accessibility, and UI Quality Gates (V8)
-*   **Theme variants from one token system**: Deep Dark, Light, and High Contrast.
-*   **Accessibility baseline**: Reduced motion, focus visibility, minimum contrast, scalable typography.
-*   **Visual regression automation**: Snapshot compare key panels during CI to block UI regressions.
-*   **UI performance telemetry**: Track paint/layout/input latency per panel for continuous optimization.
+### Phase 5: 반응형 레이아웃 엔진 (V5)
+*   **브레이크포인트 기반 도크 리플로우**: 창 크기 클래스(>=1600, 1200~1599, 900~1199, <900)에 따라 좌/우/하단 도크 레이아웃을 자동 재구성.
+*   **캔버스 우선 내로우 모드**: 좁은 창 너비에서는 보조 패널이 탭/오버레이로 이동하고 캔버스가 최우선 영역 유지.
+*   **패널 크기 하드 제약**: 최소/최대 너비-높이 제약을 전체 통일, 극단적 창 크기에서도 레이아웃 분할 비율이 무너지지 않도록.
+*   **레이아웃 프로필 저장**: 창 크기 클래스별 도크 상태를 저장하고 복원.
+### Phase 6: 적응형 밀도 및 입력 UX (V6)
+*   **밀도 프리셋**: Compact / Comfortable / Spacious 세 가지 모드를 추가해 간격, 행 높이, 폰트 크기를 전역 스케일링.
+*   **자동 컨트롤 컴팩션**: 가로 폭이 좁을 때 긴 라벨 행을 아이콘+툴팁 또는 팝오버 에디터로 자동 변환.
+*   **HiDPI 안전 컴포넌트 크기 지정**: 125%/150%/200% 스케일에서 컨트롤 크기 규칙을 표준화.
+*   **키보드 우선 편집 루프**: 패널 전체에서 Tab/Enter/Escape/Arrow 키 동작을 일관되게 정규화.
+### Phase 7: 워크플로우 가속 레이어 (V7)
+*   **커맨드 팔레트**: 액션, 패널 탐색, 편집 명령을 위한 단일 진입점 UI (Ctrl+K).
+*   **퀵 스위처**: 최근 위젯/패널/섹션으로 빠르게 이동 (Ctrl+P).
+*   **컨텍스트 인식 추천 액션**: 현재 선택 상태에서 가장 가능성 높은 액션을 자동으로 노출.
+*   **단축키 맵 및 충돌 검사기**: 단축키 발견 가능성 향상 및 키 충돌 해결 UI 제공.
+### Phase 8: 테마 변형, 접근성 및 UI 품질 게이트 (V8)
+*   **단일 토큰 시스템 기반 테마 변형**: Deep Dark / Light / High Contrast 세 가지 테마.
+*   **접근성 기준선**: 모션 감소 옵션, 포커스 가시성, 최소 명도 대비, 스케일 가능한 타이포그래피.
+*   **시각 회귀 자동화**: CI 환경에서 주요 패널 스냅샷을 비교해 UI 회귀를 자동 차단.
+*   **UI 성능 텔레메트리**: 패널별 paint/layout/input 지연 시간을 추적해 지속적으로 최적화.
 
 ## 3. 현재 레이아웃 분석 및 개선점 (Screenshot Review)
 
@@ -191,6 +191,8 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 - [x] **속성 검사기(Inspector) 입력 방식 개선**: 텍스트 필드를 드래그 가능한 숫자 컨트롤(Drag Number/Spinner)로 대체하여 UX 향상.
 - [x] **속성 검사기(Inspector) 토글 디자인**: Boolean 값을 조작할 때 기본 체크박스 대신 스무스한 스위치 토글(Toggle) 적용.
 - [x] **실행 시 창 포커스**: 애플리케이션 실행 시 창이 강제로 최상단 및 활성 포커스(Active) 상태로 나타나도록 수정.
+- [x] **NavigatorPanel 플로팅 오버레이 전환**: 좌측 탭 패널에서 제거하고 캔버스 우측 하단에 조건부로 나타나는 원형 플로팅 오버레이로 리팩토링.
+- [x] **GridSnapPanel 팝오버 전환**: 좌측 탭 패널에서 제거하고 상단 툴바 버튼 클릭 시 나타나는 팝오버 드롭다운으로 리팩토링.
 
 ### 🚀 앞으로 진행할 작업 순서 (To-Do)
 
@@ -213,8 +215,8 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 
 **Phase 4: 나머지 패널 리팩토링 + 프리미엄 폴리싱**
 
-> 아래 6개 패널은 아직 직접 수정되지 않았고 하드코딩 색상(`fromRGB(24,28,34)` 등)과 기본 JUCE 스타일을 그대로 사용 중입니다.
-> Phase 4에서는 GyeolPalette 컬러를 적용하고, 각 패널의 특성에 맞는 프리미엄 UI를 구현합니다.
+> ✅ Phase 4 완료 — 12~17번의 모든 패널 리팩토링과 GridSnapPanel 팝오버 전환이 완료되었습니다.
+> 다음 단계는 **18번 전역 폴리싱 (하드코딩 색상/폰트 제거)** 입니다.
 
 ---
 
@@ -325,40 +327,40 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 
 ---
 
-**Phase 5+: Advanced Responsive Modern UI Checklist**
+**Phase 5+: 고급 반응형 모던 UI 체크리스트**
 
-### 19. Responsive Dock and Breakpoint Engine
-- [x] **19-a. Define 4 breakpoint classes**: >=1600, 1200-1599, 900-1199, <900.
-- [x] **19-b. Implement auto dock reflow**: Re-layout on resize while preserving min width/height constraints.
-- [x] **19-c. Add narrow overlay mode**: Convert side docks into temporary overlays for small widths.
-- [x] **19-d. Persist layout by profile**: Save/restore dock state per breakpoint class.
+### 19. 반응형 도크 및 브레이크포인트 엔진
+- [ ] **19-a. 4단계 브레이크포인트 클래스 정의**: >=1600, 1200~1599, 900~1199, <900.
+- [ ] **19-b. 자동 도크 리플로우 구현**: 최소 너비/높이 제약을 유지하면서 창 크기 변경 시 레이아웃 재배치.
+- [ ] **19-c. 내로우 오버레이 모드 추가**: 좁은 너비에서 사이드 도크를 임시 오버레이로 전환.
+- [ ] **19-d. 프로필별 레이아웃 저장**: 브레이크포인트 클래스별로 도크 상태 저장/복원.
 
-### 20. Adaptive Density System
-- [x] **20-a. Tokenize density values**: spacing, row height, control height, and typography scale.
-- [x] **20-b. Ship 3 density presets**: Compact, Comfortable, Spacious.
-- [x] **20-c. Add width-based compaction rules**: 2-column to 1-column fallback, iconized labels, popover editors.
-- [x] **20-d. Validate HiDPI behavior**: verify no clipping at 125%/150%/200%.
+### 20. 적응형 밀도 시스템
+- [ ] **20-a. 밀도 값 토큰화**: 간격, 행 높이, 컨트롤 높이, 타이포그래피 스케일 토큰화.
+- [ ] **20-b. 밀도 프리셋 3종 제공**: Compact / Comfortable / Spacious.
+- [ ] **20-c. 너비 기반 컴팩션 규칙 추가**: 2열→1열 폴백, 아이콘화 라벨, 팝오버 에디터 전환.
+- [ ] **20-d. HiDPI 동작 검증**: 125%/150%/200% 스케일에서 잘림 현상 없는지 확인.
 
-### 21. Command Palette and Keyboard-first Workflow
-- [x] **21-a. Implement Command Palette (Ctrl/Cmd+K)**: search and execute actions.
-- [x] **21-b. Implement Quick Switcher (Ctrl/Cmd+P)**: jump to widgets/panels/sections.
-- [x] **21-c. Standardize keyboard navigation contract**: Tab, Enter, Escape, Arrow behaviors.
-- [x] **21-d. Add shortcut conflict detection and editor**.
+### 21. 커맨드 팔레트 및 키보드 우선 워크플로우
+- [ ] **21-a. 커맨드 팔레트 구현 (Ctrl+K)**: 액션 검색 및 실행.
+- [ ] **21-b. 퀵 스위처 구현 (Ctrl+P)**: 위젯/패널/섹션으로 빠른 이동.
+- [ ] **21-c. 키보드 내비게이션 계약 표준화**: Tab, Enter, Escape, Arrow 동작 일관화.
+- [ ] **21-d. 단축키 충돌 감지 및 에디터 추가**.
 
-### 22. Theme Variants and Accessibility
-- [x] **22-a. Add 3 themes**: Deep Dark, Light, High Contrast.
-- [x] **22-b. Add reduced-motion option**: global animation intensity and duration scaling.
-- [x] **22-c. Add accessibility checks**: contrast, focus visibility, hit target size.
-- [x] **22-d. Expand semantic metadata**: title/description coverage on interactive components.
+### 22. 테마 변형 및 접근성
+- [ ] **22-a. 3가지 테마 추가**: Deep Dark, Light, High Contrast.
+- [ ] **22-b. 모션 감소 옵션 추가**: 전역 애니메이션 강도 및 지속 시간 스케일 조절.
+- [ ] **22-c. 접근성 검사 추가**: 명도 대비, 포커스 가시성, 히트 타겟 크기 검증.
+- [ ] **22-d. 시맨틱 메타데이터 확장**: 인터랙티브 컴포넌트 전체에 title/description 커버리지 보장.
 
-### 23. Responsive Performance Optimization
-- [x] **23-a. Add per-panel layout/paint telemetry hooks**.
-- [x] **23-b. Throttle expensive relayout during live resize**.
-- [x] **23-c. Expand list/tree virtualization usage**.
-- [x] **23-d. Add low-end rendering quality mode**.
+### 23. 반응형 성능 최적화
+- [ ] **23-a. 패널별 layout/paint 텔레메트리 훅 추가**.
+- [ ] **23-b. 라이브 리사이즈 중 비싼 리레이아웃 스로틀링**.
+- [ ] **23-c. 리스트/트리 가상화 사용 범위 확대**.
+- [ ] **23-d. 저사양 렌더링 품질 모드 추가**.
 
-### 24. Visual Regression and UI Quality Gate
-- [x] **24-a. Capture baseline snapshots for key panels**.
-- [x] **24-b. Add pixel-diff CI checks with tolerance thresholds**.
-- [x] **24-c. Run snapshot tests on multiple viewport profiles**.
-- [x] **24-d. Link release checklist to CI quality gate**.
+### 24. 시각적 회귀 및 UI 품질 게이트
+- [ ] **24-a. 주요 패널 기준 스냅샷 캡처**.
+- [ ] **24-b. 허용 오차 임계값을 가진 픽셀 Diff CI 검사 추가**.
+- [ ] **24-c. 다중 뷰포트 프로필에서 스냅샷 테스트 실행**.
+- [ ] **24-d. 릴리즈 체크리스트를 CI 품질 게이트에 연동**.
