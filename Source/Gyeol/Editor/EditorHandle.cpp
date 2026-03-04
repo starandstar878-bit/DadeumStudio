@@ -3143,21 +3143,30 @@ private:
         continue;
       }
 
-      const auto evaluation =
-          Runtime::PropertyBindingResolver::evaluateExpression(
-              binding.expression, runtimeParamBridge.values());
-      if (!evaluation.success) {
-        ++failureCount;
-        if (firstFailure.isEmpty()) {
-          firstFailure = "binding#" + juce::String(binding.id) +
-                         " eval failed: " + evaluation.error;
+      const auto expression = binding.expression.trim();
+      const auto &params = runtimeParamBridge.values();
+      juce::var finalValue;
+
+      if (const auto it = params.find(expression); it != params.end()) {
+        finalValue = it->second;
+      } else {
+        const auto evaluation =
+            Runtime::PropertyBindingResolver::evaluateExpression(expression,
+                                                                 params);
+        if (!evaluation.success) {
+          ++failureCount;
+          if (firstFailure.isEmpty()) {
+            firstFailure = "binding#" + juce::String(binding.id) +
+                           " eval failed: " + evaluation.error;
+          }
+          continue;
         }
-        continue;
+        finalValue = juce::var(evaluation.value);
       }
 
       changed = runtimeSetWidgetProperty(binding.targetWidgetId,
                                          juce::Identifier(propertyKeyText),
-                                         juce::var(evaluation.value)) ||
+                                         finalValue) ||
                 changed;
     }
 
@@ -4459,8 +4468,6 @@ public:
                       false);
     leftPanels.addTab("Grid/Snap", juce::Colour::fromRGB(24, 28, 34),
                       &gridSnapPanel, false);
-    leftPanels.addTab("Navigator", juce::Colour::fromRGB(24, 28, 34),
-                      &navigatorPanel, false);
     leftPanels.setCurrentTabIndex(0, juce::dontSendNotification);
 
     rightPanels.setTabBarDepth(30);
@@ -4478,6 +4485,7 @@ public:
 
     owner.addAndMakeVisible(leftPanels);
     owner.addAndMakeVisible(canvas);
+    owner.addChildComponent(navigatorPanel);
     owner.addAndMakeVisible(rightPanels);
     owner.addAndMakeVisible(historyPanel);
     canvas.setActiveLayerResolver([this] { return resolveActiveLayerId(); });
@@ -4847,6 +4855,13 @@ public:
     rightPanels.setBounds(rightPanelBounds);
     canvas.setBounds(content);
     historyPanel.setBounds(historyBounds);
+
+    const int navSize = 160;
+    const int margin = 20;
+    navigatorPanel.setBounds(content.getRight() - navSize - margin,
+                             content.getBottom() - navSize - margin, navSize,
+                             navSize);
+
     refreshViewDiagnosticsPanels();
   }
 
@@ -4970,6 +4985,13 @@ private:
   void refreshViewDiagnosticsPanels() {
     navigatorPanel.setViewState(canvas.visibleWorldBounds(),
                                 canvas.currentZoomLevel());
+
+    const auto visWorld = canvas.visibleWorldBounds();
+    const auto canWorld = canvas.canvasWorldBounds();
+    const bool shouldShowNavigator =
+        canWorld.getWidth() > visWorld.getWidth() ||
+        canWorld.getHeight() > visWorld.getHeight();
+    navigatorPanel.setVisible(shouldShowNavigator);
 
     Ui::Panels::PerformancePanel::Snapshot perfSnapshot;
     const auto &perf = canvas.performanceStats();

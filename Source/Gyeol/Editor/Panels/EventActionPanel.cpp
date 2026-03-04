@@ -1,6 +1,7 @@
 ﻿#include "Gyeol/Editor/Panels/EventActionPanel.h"
 
 #include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
+#include "Gyeol/Editor/Panels/PropertyEditorFactory.h"
 #include "Gyeol/Runtime/PropertyBindingResolver.h"
 
 #include <algorithm>
@@ -360,7 +361,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(bindingSectionLabel);
 
   bindingList.setModel(&bindingListModel);
-  bindingList.setRowHeight(48);
+  bindingList.setRowHeight(56);
   bindingList.setColour(juce::ListBox::backgroundColourId,
                         palette(GyeolPalette::CanvasBackground));
   bindingList.setColour(juce::ListBox::outlineColourId,
@@ -397,7 +398,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(deleteBindingButton);
 
   actionList.setModel(&actionListModel);
-  actionList.setRowHeight(40);
+  actionList.setRowHeight(48);
   actionList.setColour(juce::ListBox::backgroundColourId,
                        palette(GyeolPalette::CanvasBackground));
   actionList.setColour(juce::ListBox::outlineColourId,
@@ -451,7 +452,8 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   valueEditor.onFocusLost = [this] { applySelectedAction(); };
   deltaEditor.onReturnKey = [this] { applySelectedAction(); };
   deltaEditor.onFocusLost = [this] { applySelectedAction(); };
-  targetIdCombo.onChange = [this] { applySelectedAction(); };
+  // targetIdCombo.onChange is registered below after
+  // rebuildActionTargetPropertyOptions
   opacityEditor.onReturnKey = [this] { applySelectedAction(); };
   opacityEditor.onFocusLost = [this] { applySelectedAction(); };
   boundsXEditor.onReturnKey = [this] { applySelectedAction(); };
@@ -482,6 +484,40 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
                           3); // 레이어
   targetKindCombo.onChange = [this] { applySelectedAction(); };
   addAndMakeVisible(targetKindCombo);
+
+  // 대상 속성 선택 콤보박스
+  targetPropertyLabel.setText(juce::String::fromUTF8(u8"속성:"),
+                              juce::dontSendNotification);
+  targetPropertyLabel.setJustificationType(juce::Justification::centredRight);
+  addAndMakeVisible(targetPropertyLabel);
+
+  targetPropertyCombo.setTextWhenNothingSelected(
+      juce::String::fromUTF8(u8"속성 선택"));
+  targetPropertyCombo.onChange = [this] {
+    if (suppressCallbacks)
+      return;
+    applySelectedAction();
+    const auto *action = selectedAction();
+    updateActionEditorVisibility(action, action != nullptr);
+    resized();
+  };
+  addAndMakeVisible(targetPropertyCombo);
+
+  targetIdCombo.onChange = [this] {
+    if (suppressCallbacks)
+      return;
+    const auto selId = selectedWidgetIdFromCombo(targetIdCombo);
+    rebuildActionTargetPropertyOptions(selId.value_or(kRootId));
+    applySelectedAction();
+    const auto *action = selectedAction();
+    updateActionEditorVisibility(action, action != nullptr);
+    resized();
+  };
+
+  // 동적 편집기 레이블
+  dynamicPropLabel.setJustificationType(juce::Justification::centredRight);
+  addAndMakeVisible(dynamicPropLabel);
+  dynamicPropLabel.setVisible(false);
 
   // 보이기/잠금 콤보 — 한글
   visibleCombo.setTextWhenNothingSelected(
@@ -552,7 +588,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(runtimeParamTitleLabel);
 
   runtimeParamList.setModel(&runtimeParamListModel);
-  runtimeParamList.setRowHeight(40);
+  runtimeParamList.setRowHeight(48);
   runtimeParamList.setColour(juce::ListBox::backgroundColourId,
                              palette(GyeolPalette::CanvasBackground));
   runtimeParamList.setColour(juce::ListBox::outlineColourId,
@@ -605,7 +641,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(propertyBindingTitleLabel);
 
   propertyBindingList.setModel(&propertyBindingListModel);
-  propertyBindingList.setRowHeight(34);
+  propertyBindingList.setRowHeight(42);
   propertyBindingList.setColour(juce::ListBox::backgroundColourId,
                                 palette(GyeolPalette::CanvasBackground));
   propertyBindingList.setColour(juce::ListBox::outlineColourId,
@@ -918,7 +954,15 @@ void EventActionPanel::resized() {
   case RuntimeActionKind::setNodeProps:
     layoutRow({{&actionKindCombo, 200}});
     layoutRow({{&targetKindCombo, 100}, {&targetIdCombo, 180}});
-    layoutRow({{&visibleCombo, 92}, {&lockedCombo, 92}, {&opacityEditor, 100}});
+    layoutRow({{&targetPropertyLabel, 50}, {&targetPropertyCombo, 220}});
+    if (visibleCombo.isVisible())
+      layoutRow({{&visibleCombo, 200}});
+    if (lockedCombo.isVisible())
+      layoutRow({{&lockedCombo, 200}});
+    if (opacityEditor.isVisible())
+      layoutRow({{&opacityEditor, 200}});
+    if (dynamicPropEditor != nullptr && dynamicPropEditor->isVisible())
+      layoutRow({{&dynamicPropLabel, 60}, {dynamicPropEditor.get(), 200}});
     layoutRow({{&assetPatchKeyCombo, 180}, {&assetPatchValueCombo, 220}});
     if (patchEditor.isVisible()) {
       patchEditor.setBounds(area.removeFromTop(56));
@@ -1351,6 +1395,201 @@ void EventActionPanel::rebuildPropertyBindingTargetPropertyOptions(
         0, juce::dontSendNotification);
 }
 
+// ─────────────────────────────────────────────────────────
+// Action 대상 위젯의 속성 목록을 targetPropertyCombo에 구성
+// ─────────────────────────────────────────────────────────
+void EventActionPanel::rebuildActionTargetPropertyOptions(
+    WidgetId targetWidgetId, const juce::String &selectedProperty) {
+  suppressCallbacks = true;
+  targetPropertyCombo.clear(juce::dontSendNotification);
+  targetPropertyKeys.clear();
+
+  if (targetWidgetId > kRootId) {
+    const auto addItem = [this](const juce::String &key,
+                                const juce::String &label) {
+      if (key.trim().isEmpty())
+        return;
+      if (std::find(targetPropertyKeys.begin(), targetPropertyKeys.end(),
+                    key) != targetPropertyKeys.end())
+        return;
+      const auto id = static_cast<int>(targetPropertyKeys.size()) + 1;
+      targetPropertyCombo.addItem(label, id);
+      targetPropertyKeys.push_back(key);
+    };
+
+    // 공통 속성 (항상 표시)
+    addItem("visible", juce::String::fromUTF8(u8"표시 여부"));
+    addItem("locked", juce::String::fromUTF8(u8"잠금 여부"));
+    addItem("opacity", juce::String::fromUTF8(u8"불투명도"));
+
+    // 위젯 타입별 spec 속성
+    const auto &snapshot = document.snapshot();
+    const auto wIt =
+        std::find_if(snapshot.widgets.begin(), snapshot.widgets.end(),
+                     [targetWidgetId](const WidgetModel &w) {
+                       return w.id == targetWidgetId;
+                     });
+    if (wIt != snapshot.widgets.end()) {
+      if (const auto *specs = registry.propertySpecs(wIt->type)) {
+        for (const auto &spec : *specs) {
+          const auto key = spec.key.toString().trim();
+          const auto lbl = spec.label.trim();
+          const auto disp =
+              (lbl.isNotEmpty() && lbl != key) ? (lbl + " (" + key + ")") : key;
+          addItem(key, disp);
+        }
+      }
+      // PropertyBag 에 직접 저장된 키도 추가
+      for (int i = 0; i < wIt->properties.size(); ++i)
+        addItem(wIt->properties.getName(i).toString().trim(),
+                wIt->properties.getName(i).toString().trim());
+    }
+
+    // 이전 선택 키가 목록에 없으면 custom으로 추가
+    const auto pref = selectedProperty.trim();
+    if (pref.isNotEmpty() &&
+        std::find(targetPropertyKeys.begin(), targetPropertyKeys.end(), pref) ==
+            targetPropertyKeys.end())
+      addItem(pref, pref + " (custom)");
+
+    // 선택 복원
+    if (pref.isNotEmpty()) {
+      const auto it =
+          std::find(targetPropertyKeys.begin(), targetPropertyKeys.end(), pref);
+      if (it != targetPropertyKeys.end())
+        targetPropertyCombo.setSelectedItemIndex(
+            static_cast<int>(std::distance(targetPropertyKeys.begin(), it)),
+            juce::dontSendNotification);
+    }
+    if (targetPropertyCombo.getSelectedItemIndex() < 0 &&
+        targetPropertyCombo.getNumItems() > 0)
+      targetPropertyCombo.setSelectedItemIndex(0, juce::dontSendNotification);
+  }
+  suppressCallbacks = false;
+}
+
+juce::String EventActionPanel::selectedActionTargetPropertyKey() const {
+  const auto idx = targetPropertyCombo.getSelectedItemIndex();
+  if (idx >= 0 && idx < static_cast<int>(targetPropertyKeys.size()))
+    return targetPropertyKeys[static_cast<size_t>(idx)];
+  return {};
+}
+
+// 선택된 속성 spec에 맞는 동적 편집기를 생성/교체
+void EventActionPanel::rebuildDynamicPropEditor() {
+  const auto selectedProp = selectedActionTargetPropertyKey();
+  if (selectedProp.isEmpty() || selectedProp == "visible" ||
+      selectedProp == "locked" || selectedProp == "opacity") {
+    if (dynamicPropEditor != nullptr) {
+      removeChildComponent(dynamicPropEditor.get());
+      dynamicPropEditor.reset();
+    }
+    currentDynamicPropSpec.reset();
+    dynamicPropLabel.setVisible(false);
+    return;
+  }
+
+  // 이미 같은 spec 이면 재생성 불필요
+  if (currentDynamicPropSpec.has_value() &&
+      currentDynamicPropSpec->key.toString() == selectedProp &&
+      dynamicPropEditor != nullptr)
+    return;
+
+  // 편집기 파괴
+  if (dynamicPropEditor != nullptr) {
+    removeChildComponent(dynamicPropEditor.get());
+    dynamicPropEditor.reset();
+  }
+  currentDynamicPropSpec.reset();
+
+  // 위젯 타입 조회
+  const auto targetId = selectedWidgetIdFromCombo(targetIdCombo);
+  Widgets::WidgetPropertySpec spec;
+  spec.key = juce::Identifier(selectedProp);
+  spec.label = selectedProp;
+  spec.kind = Widgets::WidgetPropertyKind::text; // 기본값
+
+  if (targetId.has_value() && *targetId > kRootId) {
+    const auto &snapshot = document.snapshot();
+    const auto wIt =
+        std::find_if(snapshot.widgets.begin(), snapshot.widgets.end(),
+                     [&](const WidgetModel &w) { return w.id == *targetId; });
+    if (wIt != snapshot.widgets.end()) {
+      if (const auto *foundSpec =
+              registry.propertySpec(wIt->type, juce::Identifier(selectedProp)))
+        spec = *foundSpec;
+    }
+  }
+
+  // 현재 값 읽기
+  juce::var currentValue;
+  const auto *action = selectedAction();
+  if (action != nullptr) {
+    if (selectedProp == "text")
+      currentValue =
+          action->patch.contains("text") ? action->patch["text"] : juce::var();
+    else if (action->patch.contains(selectedProp))
+      currentValue = action->patch[selectedProp];
+  }
+
+  Ui::Panels::EditorBuildSpec buildSpec;
+  buildSpec.spec = spec;
+  buildSpec.value = currentValue;
+  buildSpec.onPreview = nullptr; // 실시간 미리보기 불필요
+  buildSpec.onCommit = [this](const juce::var &) { applySelectedAction(); };
+  buildSpec.onCancel = nullptr;
+
+  dynamicPropEditor =
+      Ui::Panels::PropertyEditorFactory::createEditor(buildSpec);
+  if (dynamicPropEditor != nullptr)
+    addAndMakeVisible(*dynamicPropEditor);
+  currentDynamicPropSpec = spec;
+
+  // 레이블 텍스트
+  dynamicPropLabel.setText(spec.label.isNotEmpty() ? spec.label : selectedProp,
+                           juce::dontSendNotification);
+  dynamicPropLabel.setVisible(true);
+}
+
+// 동적 편집기에서 현재 값을 읽어 반환
+juce::var EventActionPanel::getDynamicPropValue() const {
+  if (dynamicPropEditor == nullptr || !currentDynamicPropSpec.has_value())
+    return {};
+
+  // Slider (number / integer)
+  if (const auto *sl =
+          dynamic_cast<const juce::Slider *>(dynamicPropEditor.get())) {
+    if (currentDynamicPropSpec->kind == Widgets::WidgetPropertyKind::integer)
+      return static_cast<int64_t>(std::llround(sl->getValue()));
+    return sl->getValue();
+  }
+  // TextEditor
+  if (const auto *te =
+          dynamic_cast<const juce::TextEditor *>(dynamicPropEditor.get())) {
+    juce::var out;
+    if (PropertyEditorFactory::parseValue(*currentDynamicPropSpec,
+                                          te->getText(), out))
+      return out;
+    return te->getText();
+  }
+  // ComboBox (enumChoice / assetRef)
+  if (const auto *cb =
+          dynamic_cast<const juce::ComboBox *>(dynamicPropEditor.get())) {
+    const auto idx = cb->getSelectedItemIndex();
+    if (idx >= 0 &&
+        idx < static_cast<int>(currentDynamicPropSpec->enumOptions.size()))
+      return currentDynamicPropSpec->enumOptions[static_cast<size_t>(idx)]
+          .value;
+    return cb->getText();
+  }
+  // ToggleButton (boolean)
+  if (const auto *tb =
+          dynamic_cast<const juce::ToggleButton *>(dynamicPropEditor.get())) {
+    return tb->getToggleState();
+  }
+  return {};
+}
+
 std::optional<WidgetId>
 EventActionPanel::selectedWidgetIdFromCombo(const juce::ComboBox &combo) const {
   const auto index = combo.getSelectedItemIndex();
@@ -1748,23 +1987,6 @@ void EventActionPanel::refreshDetailEditors() {
   updateActionEditorVisibility(action, hasAction);
   rebuildRuntimeParamKeyOptions();
   rebuildActionTargetOptions();
-  actionKindCombo.setEnabled(hasAction && actionKindCombo.isVisible());
-  paramKeyCombo.setEnabled(hasAction && paramKeyCombo.isVisible());
-  valueEditor.setEnabled(hasAction && valueEditor.isVisible());
-  deltaEditor.setEnabled(hasAction && deltaEditor.isVisible());
-  targetKindCombo.setEnabled(hasAction && targetKindCombo.isVisible());
-  targetIdCombo.setEnabled(hasAction && targetIdCombo.isVisible());
-  visibleCombo.setEnabled(hasAction && visibleCombo.isVisible());
-  lockedCombo.setEnabled(hasAction && lockedCombo.isVisible());
-  opacityEditor.setEnabled(hasAction && opacityEditor.isVisible());
-  assetPatchKeyCombo.setEnabled(hasAction && assetPatchKeyCombo.isVisible());
-  assetPatchValueCombo.setEnabled(hasAction &&
-                                  assetPatchValueCombo.isVisible());
-  patchEditor.setEnabled(hasAction && patchEditor.isVisible());
-  boundsXEditor.setEnabled(hasAction && boundsXEditor.isVisible());
-  boundsYEditor.setEnabled(hasAction && boundsYEditor.isVisible());
-  boundsWEditor.setEnabled(hasAction && boundsWEditor.isVisible());
-  boundsHEditor.setEnabled(hasAction && boundsHEditor.isVisible());
 
   if (hasAction) {
     actionKindCombo.setSelectedId(actionKindToComboId(action->kind),
@@ -1781,6 +2003,23 @@ void EventActionPanel::refreshDetailEditors() {
             ? action->targetWidgetId
             : action->target.id;
     selectWidgetIdInCombo(targetIdCombo, targetIdForEditor);
+
+    // setNodeProps: 속성 목록 재구성 후 현재 저장된 속성 키를 선택
+    if (action->kind == RuntimeActionKind::setNodeProps) {
+      // 저장된 patch 키 중 첫번째를 preferred key로 사용
+      juce::String prefKey;
+      if (action->visible.has_value())
+        prefKey = "visible";
+      else if (action->locked.has_value())
+        prefKey = "locked";
+      else if (action->opacity.has_value())
+        prefKey = "opacity";
+      else if (action->patch.size() > 0)
+        prefKey = action->patch.getName(0).toString();
+      rebuildActionTargetPropertyOptions(targetIdForEditor, prefKey);
+    } else {
+      rebuildActionTargetPropertyOptions(kRootId, {});
+    }
     visibleCombo.setSelectedId(
         !action->visible.has_value() ? 1 : (*action->visible ? 2 : 3),
         juce::dontSendNotification);
@@ -1811,6 +2050,12 @@ void EventActionPanel::refreshDetailEditors() {
     deltaEditor.clear();
     targetKindCombo.setSelectedItemIndex(-1, juce::dontSendNotification);
     targetIdCombo.setSelectedItemIndex(-1, juce::dontSendNotification);
+    rebuildActionTargetPropertyOptions(kRootId, {});
+    if (dynamicPropEditor != nullptr) {
+      removeChildComponent(dynamicPropEditor.get());
+      dynamicPropEditor.reset();
+    }
+    currentDynamicPropSpec.reset();
     visibleCombo.setSelectedId(1, juce::dontSendNotification);
     lockedCombo.setSelectedId(1, juce::dontSendNotification);
     opacityEditor.clear();
@@ -1823,6 +2068,22 @@ void EventActionPanel::refreshDetailEditors() {
 
   rebuildAssetPatchEditors(hasAction ? action : nullptr);
   updateActionEditorVisibility(action, hasAction);
+
+  actionKindCombo.setEnabled(hasAction && actionKindCombo.isVisible());
+  paramKeyCombo.setEnabled(hasAction && paramKeyCombo.isVisible());
+  valueEditor.setEnabled(hasAction && valueEditor.isVisible());
+  deltaEditor.setEnabled(hasAction && deltaEditor.isVisible());
+  targetKindCombo.setEnabled(hasAction && targetKindCombo.isVisible());
+  targetIdCombo.setEnabled(hasAction && targetIdCombo.isVisible());
+  visibleCombo.setEnabled(hasAction && visibleCombo.isVisible());
+  lockedCombo.setEnabled(hasAction && lockedCombo.isVisible());
+  opacityEditor.setEnabled(hasAction && opacityEditor.isVisible());
+  patchEditor.setEnabled(hasAction && patchEditor.isVisible());
+  boundsXEditor.setEnabled(hasAction && boundsXEditor.isVisible());
+  boundsYEditor.setEnabled(hasAction && boundsYEditor.isVisible());
+  boundsWEditor.setEnabled(hasAction && boundsWEditor.isVisible());
+  boundsHEditor.setEnabled(hasAction && boundsHEditor.isVisible());
+
   assetPatchKeyCombo.setEnabled(hasAction && assetPatchKeyCombo.isVisible() &&
                                 !assetPatchKeys.empty());
   assetPatchValueCombo.setEnabled(
@@ -1839,7 +2100,11 @@ void EventActionPanel::updateActionEditorVisibility(
   const auto setVisibility = [hasAction,
                               showEventAction](juce::Component &component,
                                                bool visibleWhenActive) {
-    component.setVisible(showEventAction && hasAction && visibleWhenActive);
+    const bool shouldBeVisible =
+        showEventAction && hasAction && visibleWhenActive;
+    component.setVisible(shouldBeVisible);
+    if (shouldBeVisible)
+      component.setEnabled(hasAction);
   };
 
   if (!hasAction || action == nullptr) {
@@ -1849,9 +2114,14 @@ void EventActionPanel::updateActionEditorVisibility(
     setVisibility(deltaEditor, false);
     setVisibility(targetKindCombo, false);
     setVisibility(targetIdCombo, false);
+    setVisibility(targetPropertyLabel, false);
+    setVisibility(targetPropertyCombo, false);
     setVisibility(visibleCombo, false);
     setVisibility(lockedCombo, false);
     setVisibility(opacityEditor, false);
+    setVisibility(dynamicPropLabel, false);
+    if (dynamicPropEditor != nullptr)
+      dynamicPropEditor->setVisible(false);
     setVisibility(assetPatchKeyCombo, false);
     setVisibility(assetPatchValueCombo, false);
     setVisibility(patchEditor, false);
@@ -1879,12 +2149,60 @@ void EventActionPanel::updateActionEditorVisibility(
   setVisibility(deltaEditor, isAdjustRuntimeParam);
   setVisibility(targetKindCombo, isSetNodeProps);
   setVisibility(targetIdCombo, isSetNodeProps || isSetNodeBounds);
-  setVisibility(visibleCombo, isSetNodeProps);
-  setVisibility(lockedCombo, isSetNodeProps);
-  setVisibility(opacityEditor, isSetNodeProps);
-  setVisibility(assetPatchKeyCombo, isSetNodeProps);
-  setVisibility(assetPatchValueCombo, isSetNodeProps);
-  setVisibility(patchEditor, isSetNodeProps);
+  setVisibility(targetPropertyLabel, isSetNodeProps);
+  setVisibility(targetPropertyCombo, isSetNodeProps);
+
+  if (isSetNodeProps) {
+    const auto selProp = selectedActionTargetPropertyKey();
+    const auto isVisible = selProp == "visible";
+    const auto isLocked = selProp == "locked";
+    const auto isOpacity = selProp == "opacity";
+
+    bool isAsset = false;
+    if (!selProp.isEmpty() && !isVisible && !isLocked && !isOpacity) {
+      rebuildDynamicPropEditor();
+      if (currentDynamicPropSpec.has_value() &&
+          currentDynamicPropSpec->kind ==
+              Widgets::WidgetPropertyKind::assetRef) {
+        isAsset = true;
+      }
+    }
+
+    const auto isDynamic =
+        !selProp.isEmpty() && !isVisible && !isLocked && !isOpacity && !isAsset;
+
+    setVisibility(visibleCombo, isVisible);
+    setVisibility(lockedCombo, isLocked);
+    setVisibility(opacityEditor, isOpacity);
+    setVisibility(dynamicPropLabel, isDynamic);
+    if (dynamicPropEditor != nullptr) {
+      const bool shouldBeVisible = isDynamic && showEventAction && hasAction;
+      dynamicPropEditor->setVisible(shouldBeVisible);
+      if (shouldBeVisible)
+        dynamicPropEditor->setEnabled(hasAction);
+    }
+
+    // Always hide the assetPatchKeyCombo since the key is now driven
+    // exclusively by targetPropertyCombo.
+    setVisibility(assetPatchKeyCombo, false);
+    setVisibility(assetPatchValueCombo, isAsset);
+
+    // patchEditor를 공통 속성(visible, locked, opacity)이 아니면 무조건 표시
+    const auto showPatch =
+        !selProp.isEmpty() && !isVisible && !isLocked && !isOpacity;
+    setVisibility(patchEditor, showPatch);
+  } else {
+    setVisibility(visibleCombo, false);
+    setVisibility(lockedCombo, false);
+    setVisibility(opacityEditor, false);
+    setVisibility(dynamicPropLabel, false);
+    if (dynamicPropEditor != nullptr)
+      dynamicPropEditor->setVisible(false);
+    setVisibility(assetPatchKeyCombo, false);
+    setVisibility(assetPatchValueCombo, false);
+    setVisibility(patchEditor, false);
+  }
+
   setVisibility(boundsXEditor, isSetNodeBounds);
   setVisibility(boundsYEditor, isSetNodeBounds);
   setVisibility(boundsWEditor, isSetNodeBounds);
@@ -1961,23 +2279,30 @@ void EventActionPanel::rebuildAssetPatchEditors(
   }
 
   int selectedKeyIndex = 0;
-  for (int i = 0; i < action->patch.size(); ++i) {
-    const auto candidateKey = action->patch.getName(i);
-    const auto keyIt =
-        std::find(assetPatchKeys.begin(), assetPatchKeys.end(), candidateKey);
-    if (keyIt != assetPatchKeys.end()) {
-      selectedKeyIndex =
-          static_cast<int>(std::distance(assetPatchKeys.begin(), keyIt));
-      break;
+  const auto selProp = selectedActionTargetPropertyKey();
+  const auto selPropKey = juce::Identifier(selProp);
+  const auto keyIt =
+      std::find(assetPatchKeys.begin(), assetPatchKeys.end(), selPropKey);
+  if (keyIt != assetPatchKeys.end()) {
+    selectedKeyIndex =
+        static_cast<int>(std::distance(assetPatchKeys.begin(), keyIt));
+  } else {
+    for (int i = 0; i < action->patch.size(); ++i) {
+      const auto candidateKey = action->patch.getName(i);
+      const auto candIt =
+          std::find(assetPatchKeys.begin(), assetPatchKeys.end(), candidateKey);
+      if (candIt != assetPatchKeys.end()) {
+        selectedKeyIndex =
+            static_cast<int>(std::distance(assetPatchKeys.begin(), candIt));
+        break;
+      }
     }
   }
 
   assetPatchKeyCombo.setSelectedItemIndex(selectedKeyIndex,
                                           juce::dontSendNotification);
 
-  const auto selectedKey =
-      assetPatchKeys[static_cast<size_t>(selectedKeyIndex)];
-  const auto patchValue = action->patch.getVarPointer(selectedKey);
+  const auto patchValue = action->patch.getVarPointer(selProp);
   const auto currentRef =
       patchValue != nullptr ? patchValue->toString().trim() : juce::String();
 
@@ -2004,16 +2329,14 @@ void EventActionPanel::syncAssetPatchValueEditor() {
     return;
 
   const auto *action = selectedAction();
-  if (action == nullptr || action->kind != RuntimeActionKind::setNodeProps ||
-      assetPatchKeys.empty())
+  if (action == nullptr || action->kind != RuntimeActionKind::setNodeProps)
     return;
 
-  const auto keyIndex = assetPatchKeyCombo.getSelectedItemIndex();
-  if (keyIndex < 0 || keyIndex >= static_cast<int>(assetPatchKeys.size()))
+  const auto selProp = selectedActionTargetPropertyKey();
+  if (selProp.isEmpty())
     return;
 
-  const auto key = assetPatchKeys[static_cast<size_t>(keyIndex)];
-  const auto patchValue = action->patch.getVarPointer(key);
+  const auto patchValue = action->patch.getVarPointer(selProp);
   const auto currentRef =
       patchValue != nullptr ? patchValue->toString().trim() : juce::String();
 
@@ -2043,34 +2366,7 @@ void EventActionPanel::applyAssetPatchValue() {
   if (suppressCallbacks)
     return;
 
-  auto *action = selectedAction();
-  if (action == nullptr || action->kind != RuntimeActionKind::setNodeProps ||
-      assetPatchKeys.empty())
-    return;
-
-  const auto keyIndex = assetPatchKeyCombo.getSelectedItemIndex();
-  if (keyIndex < 0 || keyIndex >= static_cast<int>(assetPatchKeys.size()))
-    return;
-
-  auto selectedRef = assetPatchValueCombo.getText().trim();
-  const auto valueIndex = assetPatchValueCombo.getSelectedItemIndex();
-  if (valueIndex >= 0 && valueIndex < static_cast<int>(assetPatchValues.size()))
-    selectedRef = assetPatchValues[static_cast<size_t>(valueIndex)];
-
-  const auto key = assetPatchKeys[static_cast<size_t>(keyIndex)];
-  if (selectedRef.isEmpty())
-    action->patch.remove(key);
-  else
-    action->patch.set(key, selectedRef);
-
-  patchEditor.setText(
-      action->patch.size() > 0
-          ? juce::JSON::toString(patchToVar(action->patch), true)
-          : juce::String(),
-      juce::dontSendNotification);
-
-  if (commitBindings("asset-patch-edit"))
-    setStatus("Action updated.", kStatusOk);
+  applySelectedAction();
 }
 
 void EventActionPanel::createBindingFromToolbar() {
@@ -2517,40 +2813,98 @@ void EventActionPanel::applySelectedAction() {
     }
     const auto targetId = *selectedTargetId;
 
+    const auto selProp = selectedActionTargetPropertyKey();
+
     action->target.kind = *parsedKind;
     action->target.id = targetId;
     action->targetWidgetId = targetId;
+
+    // Ensure only the selected property is modified per action.
     action->visible.reset();
     action->locked.reset();
-    if (visibleCombo.getSelectedId() == 2)
-      action->visible = true;
-    if (visibleCombo.getSelectedId() == 3)
-      action->visible = false;
-    if (lockedCombo.getSelectedId() == 2)
-      action->locked = true;
-    if (lockedCombo.getSelectedId() == 3)
-      action->locked = false;
+    action->opacity.reset();
 
-    const auto opacityText = opacityEditor.getText().trim();
-    if (opacityText.isEmpty()) {
-      action->opacity.reset();
-    } else {
-      const auto parsedOpacity = parseNumber(opacityText);
-      if (!parsedOpacity.has_value() || !std::isfinite(*parsedOpacity)) {
-        setStatus("Opacity must be numeric.", kStatusError);
-        return;
+    if (selProp == "visible") {
+      if (visibleCombo.getSelectedId() == 2)
+        action->visible = true;
+      if (visibleCombo.getSelectedId() == 3)
+        action->visible = false;
+    }
+
+    if (selProp == "locked") {
+      if (lockedCombo.getSelectedId() == 2)
+        action->locked = true;
+      if (lockedCombo.getSelectedId() == 3)
+        action->locked = false;
+    }
+
+    if (selProp == "opacity") {
+      const auto opacityText = opacityEditor.getText().trim();
+      if (!opacityText.isEmpty()) {
+        const auto parsedOpacity = parseNumber(opacityText);
+        if (!parsedOpacity.has_value() || !std::isfinite(*parsedOpacity)) {
+          setStatus("Opacity must be numeric.", kStatusError);
+          return;
+        }
+        action->opacity = static_cast<float>(*parsedOpacity);
       }
-      action->opacity = static_cast<float>(*parsedOpacity);
     }
 
     PropertyBag patch;
-    const auto patchResult = parsePatchJson(patchEditor.getText(), patch);
-    if (patchResult.failed()) {
-      setStatus("Patch JSON error: " + patchResult.getErrorMessage(),
-                kStatusError);
-      return;
+
+    if (selProp != "visible" && selProp != "locked" && selProp != "opacity" &&
+        !selProp.isEmpty()) {
+      // First, parse the current text in the patch editor and retain ONLY the
+      // selected property
+      PropertyBag parsedPatch;
+      const auto patchResult =
+          parsePatchJson(patchEditor.getText(), parsedPatch);
+      if (patchResult.wasOk() && parsedPatch.contains(selProp)) {
+        patch.set(selProp, parsedPatch[selProp]);
+      } else if (patchResult.failed() &&
+                 patchEditor.getText().trim().isNotEmpty()) {
+        setStatus("Patch JSON error: " + patchResult.getErrorMessage(),
+                  kStatusError);
+        return;
+      }
+
+      // Then read from the active dynamic / asset combo editor to apply
+      // real-time changes
+      if (currentDynamicPropSpec.has_value()) {
+        if (currentDynamicPropSpec->kind ==
+            Widgets::WidgetPropertyKind::assetRef) {
+          auto selectedRef = assetPatchValueCombo.getText().trim();
+          const auto valueIndex = assetPatchValueCombo.getSelectedItemIndex();
+          if (valueIndex >= 0 &&
+              valueIndex < static_cast<int>(assetPatchValues.size()))
+            selectedRef = assetPatchValues[static_cast<size_t>(valueIndex)];
+
+          if (selectedRef.isNotEmpty())
+            patch.set(selProp, selectedRef);
+          else
+            patch.remove(selProp);
+
+        } else if (dynamicPropEditor != nullptr &&
+                   currentDynamicPropSpec->key.toString() == selProp) {
+          const auto dynVal = getDynamicPropValue();
+          if (!dynVal.isVoid())
+            patch.set(selProp, dynVal);
+        }
+      }
     }
+
     action->patch = std::move(patch);
+
+    // 저장 직후, 만약 포커스가 patchEditor에 있지 않다면 글씨도 최신화
+    if (!patchEditor.hasKeyboardFocus(true)) {
+      const auto newJson =
+          action->patch.size() > 0
+              ? juce::JSON::toString(patchToVar(action->patch), true)
+              : juce::String();
+      if (patchEditor.getText() != newJson)
+        patchEditor.setText(newJson, juce::dontSendNotification);
+    }
+
     break;
   }
 
@@ -2977,16 +3331,16 @@ void EventActionPanel::BindingListModel::paintListBoxItem(int rowNumber,
   drawLeftAccentBar(g, card, accent, rowIsSelected);
 
   auto area = card.toNearestInt().reduced(10, 6);
-  auto titleRow = area.removeFromTop(14);
+  auto titleRow = area.removeFromTop(18);
 
   g.setColour(binding.enabled ? palette(GyeolPalette::ValidSuccess)
                               : palette(GyeolPalette::TextSecondary));
-  g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
+  g.setFont(juce::FontOptions(10.3f, juce::Font::bold));
   g.drawText(binding.enabled ? "ON" : "OFF", titleRow.removeFromLeft(30),
              juce::Justification::centredLeft, true);
 
   g.setColour(palette(GyeolPalette::TextPrimary));
-  g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+  g.setFont(juce::FontOptions(11.5f, juce::Font::bold));
   const auto title =
       binding.name.isNotEmpty() ? binding.name : juce::String("Binding");
   g.drawFittedText(title, titleRow, juce::Justification::centredLeft, 1);
@@ -3002,7 +3356,7 @@ void EventActionPanel::BindingListModel::paintListBoxItem(int rowNumber,
                         " actions";
 
   g.setColour(palette(GyeolPalette::TextSecondary));
-  g.setFont(juce::FontOptions(8.6f));
+  g.setFont(juce::FontOptions(10.1f));
   g.drawFittedText(subtitle, area, juce::Justification::centredLeft, 1);
 }
 
@@ -3075,18 +3429,33 @@ void EventActionPanel::ActionListModel::paintListBoxItem(int rowNumber,
   drawLeftAccentBar(g, card, accent, rowIsSelected);
 
   auto area = card.toNearestInt().reduced(10, 6);
-  auto titleRow = area.removeFromTop(14);
+  auto titleRow = area.removeFromTop(18);
 
-  const auto title = juce::String(rowNumber + 1) + ". " +
-                     actionPrefix(action.kind) +
-                     EventActionPanel::actionKindLabel(action.kind);
+  const auto getKoLabel = [](RuntimeActionKind k) -> juce::String {
+    switch (k) {
+    case RuntimeActionKind::setRuntimeParam:
+      return juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uC124\uC815");
+    case RuntimeActionKind::adjustRuntimeParam:
+      return juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uC870\uC815");
+    case RuntimeActionKind::toggleRuntimeParam:
+      return juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uD1A0\uAE00");
+    case RuntimeActionKind::setNodeProps:
+      return juce::String::fromUTF8(u8"\uC18D\uC131 \uBCC0\uACBD");
+    case RuntimeActionKind::setNodeBounds:
+      return juce::String::fromUTF8(u8"\uC704\uCE58/\uD06C\uAE30 \uBCC0\uACBD");
+    }
+    return {};
+  };
+
+  const auto title =
+      juce::String(rowNumber + 1) + ". " + getKoLabel(action.kind);
   g.setColour(palette(GyeolPalette::TextPrimary));
-  g.setFont(juce::FontOptions(9.6f, juce::Font::bold));
+  g.setFont(juce::FontOptions(11.1f, juce::Font::bold));
   g.drawFittedText(title, titleRow, juce::Justification::centredLeft, 1);
 
   auto summary = owner.actionSummary(action);
   g.setColour(palette(GyeolPalette::TextSecondary));
-  g.setFont(juce::FontOptions(8.6f));
+  g.setFont(juce::FontOptions(10.1f));
   g.drawFittedText(summary, area, juce::Justification::centredLeft, 1);
 }
 
@@ -3132,10 +3501,10 @@ void EventActionPanel::RuntimeParamListModel::paintListBoxItem(
   drawLeftAccentBar(g, card, accent, rowIsSelected);
 
   auto area = card.toNearestInt().reduced(10, 6);
-  auto titleRow = area.removeFromTop(14);
+  auto titleRow = area.removeFromTop(18);
 
   g.setColour(palette(GyeolPalette::TextPrimary));
-  g.setFont(juce::FontOptions(9.6f, juce::Font::bold));
+  g.setFont(juce::FontOptions(11.1f, juce::Font::bold));
   g.drawFittedText(param.key, titleRow, juce::Justification::centredLeft, 1);
 
   auto subtitle = "type: " + runtimeParamValueTypeToKey(param.type);
@@ -3145,7 +3514,7 @@ void EventActionPanel::RuntimeParamListModel::paintListBoxItem(
     subtitle += " | exposed";
 
   g.setColour(palette(GyeolPalette::TextSecondary));
-  g.setFont(juce::FontOptions(8.6f));
+  g.setFont(juce::FontOptions(10.1f));
   g.drawFittedText(subtitle, area, juce::Justification::centredLeft, 1);
 }
 
@@ -3191,19 +3560,19 @@ void EventActionPanel::PropertyBindingListModel::paintListBoxItem(
                                    : palette(GyeolPalette::ValidSuccess));
 
   g.setColour(statusColor);
-  g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+  g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
   g.drawText(statusText, top.removeFromLeft(26),
              juce::Justification::centredLeft, true);
 
   g.setColour(palette(GyeolPalette::TextPrimary));
-  g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
+  g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
   const auto name = binding.name.isNotEmpty()
                         ? binding.name
                         : juce::String("Property Binding");
   g.drawFittedText(name, top, juce::Justification::centredLeft, 1);
 
   g.setColour(palette(GyeolPalette::TextSecondary));
-  g.setFont(juce::FontOptions(8.8f));
+  g.setFont(juce::FontOptions(10.3f));
   auto detail = "widget:" + juce::String(binding.targetWidgetId) + "  " +
                 binding.targetProperty + " <- " + binding.expression;
   if (hasError)
