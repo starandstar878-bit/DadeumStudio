@@ -26,6 +26,10 @@ Primary Launch Command: codex -C c:\Users\stara\Desktop\DadeumStudio -s workspac
 3. Coding Standards and Documentation
 Minimal Commenting: Do not include redundant comments. Keep the code clean and focused on implementation.
 
+Encoding Rule: All files must be written in UTF-8 (without BOM).
+
+Line Ending Rule: All files must use CRLF line endings (\\r\\n).
+
 Modification Header: For every change, clearly state the File Path and the Function Name being modified.
 
 Full Implementation: Never use placeholders or ellipses. You must provide the entire function body without any omissions.
