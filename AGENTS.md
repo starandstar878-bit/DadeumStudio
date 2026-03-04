@@ -30,6 +30,7 @@ Encoding Rule: All files must be written in UTF-8 (without BOM).
 
 Line Ending Rule: All files must use CRLF line endings (\\r\\n).
 
+JUCE String Safety: Never construct juce::String from ambiguous non-ASCII 8-bit literals. For non-ASCII text, always use explicit UTF-8 conversion (e.g., juce::String(juce::CharPointer_UTF8("\xEA..."))).
 Modification Header: For every change, clearly state the File Path and the Function Name being modified.
 
 Full Implementation: Never use placeholders or ellipses. You must provide the entire function body without any omissions.

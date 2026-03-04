@@ -102,6 +102,10 @@ juce::String formatByteSize(juce::int64 bytes) {
   return juce::String(asDouble / (1024.0 * 1024.0 * 1024.0), 2) + " GB";
 }
 
+juce::String makeUtf8String(const char *utf8Text) {
+  return juce::String(juce::CharPointer_UTF8(utf8Text));
+}
+
 // 필터 버튼 색상 헬퍼
 juce::Colour filterButtonActiveColour(ValidationPanel::IssueSeverity s) {
   switch (s) {
@@ -214,15 +218,20 @@ void ValidationPanel::refreshValidation() {
       ++warningCount;
   }
 
-  if (errorCount > 0)
-    summaryLabel.setText("오류 " + juce::String(errorCount) + "  경고 " +
+  if (errorCount > 0) {
+    const auto errorText = makeUtf8String("\xEC\x98\xA4\xEB\xA5\x98"); // "오류"
+    const auto warningText = makeUtf8String("\xEA\xB2\xBD\xEA\xB3\xA0"); // "경고"
+    summaryLabel.setText(errorText + " " + juce::String(errorCount) +
+                             "  " + warningText + " " +
                              juce::String(warningCount),
                          juce::dontSendNotification);
-  else if (warningCount > 0)
-    summaryLabel.setText("경고 " + juce::String(warningCount),
+  } else if (warningCount > 0) {
+    const auto warningText = makeUtf8String("\xEA\xB2\xBD\xEA\xB3\xA0"); // "경고"
+    summaryLabel.setText(warningText + " " + juce::String(warningCount),
                          juce::dontSendNotification);
-  else
+  } else {
     summaryLabel.setText("OK", juce::dontSendNotification);
+  }
 
   listBox.updateContent();
   repaint();
@@ -366,7 +375,7 @@ void ValidationPanel::paintListBoxItem(int rowNumber, juce::Graphics &g,
   if (issue.relatedWidgetId > kRootId) {
     g.setColour(palette(GyeolPalette::AccentPrimary, 0.6f));
     g.setFont(makePanelFont(*this, 10.0f, false));
-    const juce::String hint = "  \xe2\x96\xb6"; // UTF-8 ▶
+    const juce::String hint = makeUtf8String("  \xE2\x96\xB6"); // UTF-8 right-pointing triangle
     g.drawText(hint,
                juce::Rectangle<int>(header.getRight() - 24, header.getY(), 24,
                                     header.getHeight()),
