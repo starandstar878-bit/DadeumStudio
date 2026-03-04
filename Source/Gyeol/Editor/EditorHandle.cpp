@@ -4872,8 +4872,9 @@ public:
       menu.addItem(12, "Shortcut Editor");
       menu.addSeparator();
       menu.addItem(13, "Run Accessibility Audit");
-      menu.addItem(14, "Capture UI Baseline");
-      menu.addItem(15, "Run UI Quality Gate");
+      menu.addItem(14, "Run HiDPI Validation");
+      menu.addItem(15, "Capture UI Baseline");
+      menu.addItem(16, "Run UI Quality Gate");
 
       const juce::Component::SafePointer<EditorHandle> safeOwner(&owner);
       menu.showMenuAsync(
@@ -4929,8 +4930,10 @@ public:
             } else if (picked == 13) {
               runAccessibilityAudit();
             } else if (picked == 14) {
-              captureUiBaselineSnapshots();
+              runHiDpiLayoutValidation();
             } else if (picked == 15) {
+              captureUiBaselineSnapshots();
+            } else if (picked == 16) {
               runUiQualityGate();
             }
 
@@ -5023,8 +5026,11 @@ public:
     lastResizeMs = nowMs;
 
     breakpointClass = classifyBreakpoint(bounds.getWidth());
+    forceSingleColumnEditorsActive =
+        breakpointClass != BreakpointClass::narrow && bounds.getWidth() < 1120;
+
     const auto tokens = currentDensityTokens();
-    applyDensityTypography(tokens);
+    applyDensityTypography(tokens, forceSingleColumnEditorsActive);
     applyCompactionRules(bounds.getWidth());
 
     auto &profile = ensureLayoutProfile(breakpointClass, bounds);
@@ -5040,7 +5046,10 @@ public:
         juce::roundToInt(static_cast<float>(tokens.buttonWidth) * 2.2f);
 
     auto place = [&toolbar, tokens](juce::Button &button, int width) {
-      button.setBounds(toolbar.removeFromLeft(width));
+      auto slot = toolbar.removeFromLeft(width);
+      const auto controlHeight = juce::jmin(tokens.controlHeight, slot.getHeight());
+      const auto controlY = slot.getY() + (slot.getHeight() - controlHeight) / 2;
+      button.setBounds(slot.withY(controlY).withHeight(controlHeight));
       toolbar.removeFromLeft(tokens.spacing);
     };
 
@@ -5148,7 +5157,6 @@ public:
       }
     } else {
       profile.leftOverlayOpen = false;
-      profile.rightOverlayOpen = false;
 
       auto canvasBounds = content;
       if (profile.leftDockVisible) {
@@ -5159,12 +5167,30 @@ public:
         leftPanels.setVisible(false);
       }
 
-      if (profile.rightDockVisible) {
-        auto rightBounds = canvasBounds.removeFromRight(profile.rightWidth);
-        setBoundsWithTelemetry(rightPanels, rightBounds, "rightDock");
-        rightPanels.setVisible(true);
+      if (forceSingleColumnEditorsActive) {
+        if (profile.rightOverlayOpen) {
+          auto overlayBounds = content.reduced(tokens.spacing);
+          const auto overlayWidth = juce::jlimit(
+              minRight,
+              juce::jmax(minRight, content.getWidth() - tokens.spacing * 8),
+              profile.rightWidth);
+          overlayBounds.setWidth(overlayWidth);
+          overlayBounds.setX(content.getRight() - overlayWidth - tokens.spacing);
+          setBoundsWithTelemetry(rightPanels, overlayBounds, "rightOverlay");
+          rightPanels.setVisible(true);
+          rightPanels.toFront(false);
+        } else {
+          rightPanels.setVisible(false);
+        }
       } else {
-        rightPanels.setVisible(false);
+        profile.rightOverlayOpen = false;
+        if (profile.rightDockVisible) {
+          auto rightBounds = canvasBounds.removeFromRight(profile.rightWidth);
+          setBoundsWithTelemetry(rightPanels, rightBounds, "rightDock");
+          rightPanels.setVisible(true);
+        } else {
+          rightPanels.setVisible(false);
+        }
       }
 
       setBoundsWithTelemetry(canvas, canvasBounds, "canvas");
@@ -6666,6 +6692,9 @@ private:
   }
 
   float uiScaleFactor() const {
+    if (uiScaleOverride.has_value())
+      return juce::jlimit(1.0f, 2.5f, *uiScaleOverride);
+
     return juce::jlimit(1.0f, 2.5f, owner.getDesktopScaleFactor());
   }
 
@@ -6674,6 +6703,8 @@ private:
     switch (densityPreset) {
     case DensityPreset::compact:
       tokens.spacing = 3;
+      tokens.rowHeight = 24;
+      tokens.controlHeight = 28;
       tokens.buttonWidth = 32;
       tokens.toolbarHeight = 38;
       tokens.tabDepth = 26;
@@ -6684,6 +6715,8 @@ private:
       break;
     case DensityPreset::comfortable:
       tokens.spacing = 4;
+      tokens.rowHeight = 28;
+      tokens.controlHeight = 32;
       tokens.buttonWidth = 36;
       tokens.toolbarHeight = 44;
       tokens.tabDepth = 30;
@@ -6695,6 +6728,8 @@ private:
     case DensityPreset::spacious:
     default:
       tokens.spacing = 6;
+      tokens.rowHeight = 32;
+      tokens.controlHeight = 36;
       tokens.buttonWidth = 42;
       tokens.toolbarHeight = 50;
       tokens.tabDepth = 34;
@@ -6711,6 +6746,8 @@ private:
     };
 
     tokens.spacing = scaled(tokens.spacing);
+    tokens.rowHeight = scaled(tokens.rowHeight);
+    tokens.controlHeight = scaled(tokens.controlHeight);
     tokens.buttonWidth = scaled(tokens.buttonWidth);
     tokens.toolbarHeight = scaled(tokens.toolbarHeight);
     tokens.tabDepth = scaled(tokens.tabDepth);
@@ -6897,9 +6934,13 @@ private:
     }
   }
 
-  void applyDensityTypography(const DensityTokens &tokens) {
+  void applyDensityTypography(const DensityTokens &tokens,
+                             bool forceSingleColumnEditors) {
     leftPanels.setTabBarDepth(tokens.tabDepth);
     rightPanels.setTabBarDepth(tokens.tabDepth);
+    historyPanel.setRowHeight(tokens.rowHeight);
+    propertyPanel.setResponsiveDensity(tokens.rowHeight,
+                                       forceSingleColumnEditors);
     shortcutHint.setFont(makePanelFont(owner, 10.5f * tokens.fontScale, false));
   }
   void applyCompactionRules(int width) {
@@ -6912,12 +6953,16 @@ private:
     const auto runModeLabel =
         iconToolbar
             ? juce::String("R")
-            : (compactToolbar ? juce::String("Run")
-                              : juce::String::fromUTF8(u8"\u25B6 Run"));
+            : (compactToolbar ? juce::String("Run") : juce::String("Run >"));
     runModeButton.setButtonText(runModeLabel);
     gridSnapMenuButton.setButtonText(iconToolbar ? "#" : (compactToolbar ? "Grid" : "# Grid"));
     leftDockButton.setButtonText(iconToolbar ? "L" : "Dock L");
-    rightDockButton.setButtonText(iconToolbar ? "R" : "Dock R");
+    rightDockButton.setButtonText(
+        iconToolbar ? (forceSingleColumnEditorsActive ? "E" : "R")
+                    : (forceSingleColumnEditorsActive ? "Edit" : "Dock R"));
+    rightDockButton.setTooltip(forceSingleColumnEditorsActive
+                                   ? "Toggle editor popover"
+                                   : "Toggle right dock");
     uiMenuButton.setButtonText(iconToolbar ? "UI" : "UI");
 
     if (width < 1200) {
@@ -7034,6 +7079,10 @@ private:
 
   void toggleDockVisibility(bool leftDock) {
     auto &profile = activeLayoutProfile();
+    const auto rightPopoverMode =
+        !leftDock && breakpointClass != BreakpointClass::narrow &&
+        forceSingleColumnEditorsActive;
+
     if (breakpointClass == BreakpointClass::narrow) {
       if (leftDock) {
         profile.leftOverlayOpen = !profile.leftOverlayOpen;
@@ -7044,7 +7093,10 @@ private:
         if (profile.rightOverlayOpen)
           profile.leftOverlayOpen = false;
       }
+    } else if (rightPopoverMode) {
+      profile.rightOverlayOpen = !profile.rightOverlayOpen;
     } else {
+      profile.rightOverlayOpen = false;
       if (leftDock)
         profile.leftDockVisible = !profile.leftDockVisible;
       else
@@ -7269,6 +7321,9 @@ private:
 
       commands->push_back({"Run Accessibility Audit", "", [this] {
                               runAccessibilityAudit();
+                            }});
+      commands->push_back({"Run HiDPI Validation", "", [this] {
+                              runHiDpiLayoutValidation();
                             }});
       commands->push_back({"Run UI Quality Gate", "", [this] {
                               runUiQualityGate();
@@ -7591,6 +7646,99 @@ private:
             lines.joinIntoString("\n") +
             "\n\nReport: " + reportFile.getFullPathName());
   }
+  void runHiDpiLayoutValidation() {
+    struct Profile {
+      const char *name = "desktop";
+      int width = 1280;
+      int height = 820;
+    };
+
+    const std::array<Profile, 4> profiles{{{"wide", 1700, 940},
+                                            {"desktop", 1400, 900},
+                                            {"tablet", 1024, 820},
+                                            {"narrow", 840, 760}}};
+    const std::array<float, 3> scales{{1.25f, 1.5f, 2.0f}};
+
+    const auto originalBounds = owner.getLocalBounds();
+    const auto originalBreakpoint = breakpointClass;
+    const auto originalScaleOverride = uiScaleOverride;
+    const auto originalSnapshotFlag = applyingLayoutForSnapshot;
+
+    juce::StringArray failures;
+    applyingLayoutForSnapshot = true;
+
+    const auto validateComponent =
+        [&failures](juce::Component &component, const juce::String &name,
+                    const juce::Rectangle<int> &rootBounds, float scale,
+                    const juce::String &profileName) {
+          if (!component.isVisible())
+            return;
+
+          const auto b = component.getBounds();
+          if (b.isEmpty()) {
+            failures.add("scale=" + juce::String(scale, 2) + " " + profileName +
+                         " " + name + " has empty bounds");
+            return;
+          }
+
+          if (!rootBounds.contains(b)) {
+            failures.add("scale=" + juce::String(scale, 2) + " " + profileName +
+                         " " + name + " exceeds viewport bounds");
+          }
+        };
+
+    for (const auto scale : scales) {
+      uiScaleOverride = scale;
+      for (const auto &profile : profiles) {
+        const juce::Rectangle<int> simulatedBounds{0, 0, profile.width,
+                                                    profile.height};
+        resized(simulatedBounds);
+
+        const auto tokens = currentDensityTokens();
+        if (tokens.controlHeight > tokens.toolbarHeight - tokens.spacing * 2) {
+          failures.add("scale=" + juce::String(scale, 2) + " " + profile.name +
+                       " controlHeight exceeds toolbar capacity");
+        }
+
+        validateComponent(leftPanels, "leftDock", simulatedBounds, scale,
+                          profile.name);
+        validateComponent(rightPanels, "rightDock", simulatedBounds, scale,
+                          profile.name);
+        validateComponent(canvas, "canvas", simulatedBounds, scale,
+                          profile.name);
+        validateComponent(historyPanel, "history", simulatedBounds, scale,
+                          profile.name);
+        validateComponent(navigatorPanel, "navigator", simulatedBounds, scale,
+                          profile.name);
+        validateComponent(gridSnapPanel, "gridSnap", simulatedBounds, scale,
+                          profile.name);
+      }
+    }
+
+    uiScaleOverride = originalScaleOverride;
+    applyingLayoutForSnapshot = originalSnapshotFlag;
+    resized(originalBounds);
+    breakpointClass = originalBreakpoint;
+    owner.repaint();
+
+    if (failures.isEmpty()) {
+      juce::NativeMessageBox::showMessageBoxAsync(
+          juce::MessageBoxIconType::InfoIcon, "HiDPI Layout Validation",
+          "PASS\nChecked scales: 125%, 150%, 200%\nNo clipping detected.");
+      return;
+    }
+
+    juce::StringArray summary;
+    summary.add("FAIL");
+    summary.add("Checked scales: 125%, 150%, 200%");
+    summary.add("Issues: " + juce::String(failures.size()));
+    for (int i = 0; i < juce::jmin(12, failures.size()); ++i)
+      summary.add("- " + failures[i]);
+
+    juce::NativeMessageBox::showMessageBoxAsync(
+        juce::MessageBoxIconType::WarningIcon, "HiDPI Layout Validation",
+        summary.joinIntoString("\n"));
+  }
   void runAccessibilityAudit() {
     int issueCount = 0;
     juce::StringArray lines;
@@ -7760,6 +7908,8 @@ private:
 
   struct DensityTokens {
     int spacing = 4;
+    int rowHeight = 28;
+    int controlHeight = 32;
     int buttonWidth = 36;
     int toolbarHeight = 44;
     int tabDepth = 30;
@@ -7806,6 +7956,8 @@ private:
   std::vector<WidgetId> recentWidgetIds;
   bool settingsLoaded = false;
   bool applyingLayoutForSnapshot = false;
+  bool forceSingleColumnEditorsActive = false;
+  std::optional<float> uiScaleOverride;
   juce::Rectangle<int> lastContentBounds;
   std::vector<int> separatorXs;
 };
@@ -7839,15 +7991,4 @@ std::unique_ptr<EditorHandle> createEditor() {
   return std::make_unique<EditorHandle>();
 }
 } // namespace Gyeol
-
-
-
-
-
-
-
-
-
-
-
 

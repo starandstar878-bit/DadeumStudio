@@ -137,6 +137,23 @@ void PropertyPanel::refreshFromDocument() {
   rebuildContent();
 }
 
+void PropertyPanel::setResponsiveDensity(int rowHeight, bool forceSingleColumn) {
+  const auto clampedHeight = juce::jlimit(24, 54, rowHeight);
+  if (editorRowHeight == clampedHeight &&
+      forceSingleColumnLayout == forceSingleColumn)
+    return;
+
+  editorRowHeight = clampedHeight;
+  forceSingleColumnLayout = forceSingleColumn;
+
+  for (auto &entry : layoutEntries) {
+    if (!entry.fullWidth)
+      entry.height = editorRowHeight;
+  }
+
+  layoutContent();
+  repaint();
+}
 void PropertyPanel::paint(juce::Graphics &g) {
   g.fillAll(palette(GyeolPalette::PanelBackground));
   g.setColour(palette(GyeolPalette::BorderDefault));
@@ -168,12 +185,27 @@ void PropertyPanel::resetContent() {
 
 void PropertyPanel::layoutContent() {
   const auto width = std::max(40, viewport.getWidth() - 8);
+  const auto singleColumn = forceSingleColumnLayout || width < 300;
+  const auto rowGap = juce::jlimit(8, 18, editorRowHeight / 2);
   int y = 8;
 
   for (const auto &entry : layoutEntries) {
+    auto consumedHeight = entry.height;
+
     if (entry.fullWidth) {
       if (entry.left != nullptr)
         entry.left->setBounds(6, y, width - 12, entry.height);
+    } else if (singleColumn) {
+      constexpr int stackedGap = 4;
+      const auto labelHeight = juce::jmax(18, editorRowHeight - 8);
+
+      if (entry.left != nullptr)
+        entry.left->setBounds(6, y, width - 12, labelHeight);
+      if (entry.right != nullptr)
+        entry.right->setBounds(6, y + labelHeight + stackedGap, width - 12,
+                               entry.height);
+
+      consumedHeight = labelHeight + stackedGap + entry.height;
     } else {
       constexpr int labelWidth = 90;
       constexpr int gap = 8;
@@ -185,7 +217,7 @@ void PropertyPanel::layoutContent() {
                                entry.height);
     }
 
-    y += entry.height + 12;
+    y += consumedHeight + rowGap;
   }
 
   content.setSize(width, std::max(y + 8, viewport.getHeight()));
@@ -300,7 +332,7 @@ void PropertyPanel::addEditorRow(
   LayoutEntry entry;
   entry.left = label.get();
   entry.right = editor.get();
-  entry.height = 28;
+  entry.height = editorRowHeight;
   entry.fullWidth = false;
   layoutEntries.push_back(entry);
 
@@ -765,7 +797,7 @@ std::vector<Widgets::WidgetPropertySpec> PropertyPanel::commonPropertySpecs(
 void PropertyPanel::buildNoneContent() {
   addSectionHeader("Inspector");
 
-  // Phase 3: 鍮??곹깭(Empty State) - 誘몃젮???덈궡 UI
+  // Phase 3: �??�태(Empty State) - 미려???�내 UI
   auto emptyStateComp = std::make_unique<juce::Component>();
 
   class EmptyStateRenderer : public juce::Component {
@@ -775,7 +807,7 @@ void PropertyPanel::buildNoneContent() {
       auto centerX = area.getCentreX();
       auto centerY = area.getCentreY() - 10.0f;
 
-      // 而ㅼ꽌 ?꾩씠肄?(媛꾩냼?붾맂 ?붿궡???뺥깭)
+      // 커서 ?�이�?(간소?�된 ?�살???�태)
       juce::Path cursorPath;
       cursorPath.startNewSubPath(centerX - 8.0f, centerY - 16.0f);
       cursorPath.lineTo(centerX - 8.0f, centerY + 8.0f);
@@ -1707,3 +1739,4 @@ void PropertyPanel::rebuildContent() {
   repaint();
 }
 } // namespace Gyeol::Ui::Panels
+

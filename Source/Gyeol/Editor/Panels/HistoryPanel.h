@@ -29,6 +29,7 @@ namespace Gyeol::Ui::Panels
         void setCanUndoRedo(bool canUndo, bool canRedo);
         void setMaxEntries(int maxEntriesIn);
         void setCollapseToggledCallback(std::function<void(bool)> callback);
+        void setRowHeight(int rowHeight);
 
         void setUndoRequestedCallback(std::function<void()> callback);
         void setRedoRequestedCallback(std::function<void()> callback);
@@ -62,6 +63,7 @@ namespace Gyeol::Ui::Panels
         juce::TextButton redoButton { "Redo" };
         juce::TextButton clearButton { "Sync" };
         juce::ListBox listBox;
+        int listRowHeight = 30;
 
         std::function<void(bool)> onCollapseToggled;
         std::function<void()> onUndoRequested;
@@ -71,3 +73,4 @@ namespace Gyeol::Ui::Panels
         void updateSummaryLabel();
     };
 }
+

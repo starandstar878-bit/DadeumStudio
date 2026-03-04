@@ -49,6 +49,7 @@ public:
   void setInspectorTarget(InspectorTarget target);
   void setCommitCallbacks(CommitCallbacks callbacks);
   void refreshFromDocument();
+  void setResponsiveDensity(int rowHeight, bool forceSingleColumn);
 
   void paint(juce::Graphics &g) override;
   void resized() override;
@@ -156,8 +157,11 @@ private:
   std::unordered_set<juce::String> collapsedSections;
   bool currentSectionExpanded = true;
   bool showAdvancedProperties = false;
+  int editorRowHeight = 28;
+  bool forceSingleColumnLayout = false;
   juce::String activeEditKey;
   static constexpr float canvasWidth = 1600.0f;
   static constexpr float canvasHeight = 1000.0f;
 };
 } // namespace Gyeol::Ui::Panels
+

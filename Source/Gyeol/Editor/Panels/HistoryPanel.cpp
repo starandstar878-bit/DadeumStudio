@@ -103,7 +103,7 @@ namespace Gyeol::Ui::Panels
         addAndMakeVisible(clearButton);
 
         listBox.setModel(this);
-        listBox.setRowHeight(30);
+        listBox.setRowHeight(listRowHeight);
         listBox.setColour(juce::ListBox::backgroundColourId, palette(GyeolPalette::CanvasBackground));
         listBox.setColour(juce::ListBox::outlineColourId, palette(GyeolPalette::BorderDefault));
         addAndMakeVisible(listBox);
@@ -305,6 +305,18 @@ namespace Gyeol::Ui::Panels
     void HistoryPanel::setCollapseToggledCallback(std::function<void(bool)> callback)
     {
         onCollapseToggled = std::move(callback);
+    }
+
+    void HistoryPanel::setRowHeight(int rowHeight)
+    {
+        const auto clamped = juce::jlimit(20, 64, rowHeight);
+        if (listRowHeight == clamped)
+            return;
+
+        listRowHeight = clamped;
+        listBox.setRowHeight(listRowHeight);
+        resized();
+        repaint();
     }
 
     void HistoryPanel::setUndoRequestedCallback(std::function<void()> callback)
@@ -510,3 +522,4 @@ namespace Gyeol::Ui::Panels
         g.drawText(row.label, textArea, juce::Justification::centredLeft, true);
     }
 }
+
