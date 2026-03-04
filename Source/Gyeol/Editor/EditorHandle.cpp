@@ -7169,8 +7169,8 @@ private:
   }
 
   bool triggerRegisteredShortcut(const juce::KeyPress &key) {
-    if (const auto *focused = juce::Component::getCurrentlyFocusedComponent();
-        focused != nullptr && isTextInputComponent(focused) &&
+    const auto *focused = juce::Component::getCurrentlyFocusedComponent();
+    if (focused != nullptr && isTextInputComponent(focused) &&
         !key.getModifiers().isCommandDown()) {
       return false;
     }
