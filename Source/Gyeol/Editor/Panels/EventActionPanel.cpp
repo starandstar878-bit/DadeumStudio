@@ -184,17 +184,17 @@ juce::String eventDisplayLabelKo(const juce::String &eventKey) {
   return {};
 }
 
-// ?袁⑹졐 ??뽯뻻 ??已? properties["name"] ?怨쀪퐨, ??곸몵筌?????낆구 + ID
+// ?袁⑹�???�?�� ???�? properties["name"] ??�쀪퐨, ??곸몵�??????�구 + ID
 juce::String widgetDisplayName(const WidgetModel &widget,
                                const Widgets::WidgetRegistry &registry) {
-  // ????癒? name ??욧쉐????쇱젟??野껋럩???怨쀪퐨 ????
+  // ?????? name ???�쉐?????�젟???�껋?????�쀪퐨 ????
   if (widget.properties.contains("name")) {
     const auto name = widget.properties["name"].toString().trim();
     if (name.isNotEmpty())
       return name + " (#" + juce::String(widget.id) + ")";
   }
 
-  // 疫꿸퀡??첎? ??????뽯뻻筌?+ ID
+  // ?�꿸???�? ??????�?���?+ ID
   juce::String typeLabel = "Widget";
   if (const auto *descriptor = registry.find(widget.type);
       descriptor != nullptr) {
@@ -425,21 +425,21 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(actionUpButton);
   addAndMakeVisible(actionDownButton);
 
-  // ??る??ル굝履??꾠끇??? ??? ??됱뵠??
+  // ???�???�굝�??꾠끇??? ??? ???�뵠??
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uC124\uC815"),
-      1); // ???뵬沃섎챸苑???쇱젟
+      1); // ???뵬沃?�챸?????�젟
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uC870\uC815"),
-      2); // ???뵬沃섎챸苑?鈺곌퀣??
+      2); // ???뵬沃?�챸???�곌???
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uD1A0\uAE00"),
-      3); // ???뵬沃섎챸苑??醫?
+      3); // ???뵬沃?�챸?????
   actionKindCombo.addItem(juce::String::fromUTF8(u8"\uC18D\uC131 \uBCC0\uACBD"),
-                          4); // ??욧쉐 癰궰野?
+                          4); // ???�쉐 ?�궰???
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uC704\uCE58/\uD06C\uAE30 \uBCC0\uACBD"),
-      5); // ?袁⑺뒄/??由?癰궰野?
+      5); // ?袁⑺???????�궰???
   actionKindCombo.onChange = [this] { applyActionKind(); };
   addAndMakeVisible(actionKindCombo);
 
@@ -486,24 +486,18 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(boundsWEditor);
   addAndMakeVisible(boundsHEditor);
 
-  // ??野??ル굝履??꾠끇??? ???
-  targetKindCombo.setTextWhenNothingSelected(
-      juce::String::fromUTF8(u8"?????醫륁굨"));
-  targetKindCombo.addItem(juce::String::fromUTF8(u8"?袁⑹졐"), 1); // ?袁⑹졐
-  targetKindCombo.addItem(juce::String::fromUTF8(u8"域밸챶竊?), 2); // 域밸챶竊?
-  targetKindCombo.addItem(juce::String::fromUTF8(u8"??됱뵠??),
-                          3); // ??됱뵠??
+  targetKindCombo.setTextWhenNothingSelected("Select target type");
+  targetKindCombo.addItem("Widget", 1);
+  targetKindCombo.addItem("Group", 2);
+  targetKindCombo.addItem("Layer", 3);
   targetKindCombo.onChange = [this] { applySelectedAction(); };
   addAndMakeVisible(targetKindCombo);
 
-  // ??????욧쉐 ?醫뤾문 ?꾠끇?ヨ쳸類ㅻ뮞
-  targetPropertyLabel.setText(juce::String::fromUTF8(u8"??욧쉐:"),
-                              juce::dontSendNotification);
+  targetPropertyLabel.setText("Property:", juce::dontSendNotification);
   targetPropertyLabel.setJustificationType(juce::Justification::centredRight);
   addAndMakeVisible(targetPropertyLabel);
 
-  targetPropertyCombo.setTextWhenNothingSelected(
-      juce::String::fromUTF8(u8"??욧쉐 ?醫뤾문"));
+  targetPropertyCombo.setTextWhenNothingSelected("Select property");
   targetPropertyCombo.onChange = [this] {
     if (suppressCallbacks)
       return;
@@ -525,34 +519,26 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
     resized();
   };
 
-  // ??덉읅 ?紐꾩춿疫???됱뵠??
   dynamicPropLabel.setJustificationType(juce::Justification::centredRight);
   addAndMakeVisible(dynamicPropLabel);
   dynamicPropLabel.setVisible(false);
 
-  // 癰귣똻?졿묾??醫됲닊 ?꾠끇??? ???
-  visibleCombo.setTextWhenNothingSelected(
-      juce::String::fromUTF8(u8"??뽯뻻 ???"));
-  visibleCombo.addItem(juce::String::fromUTF8(u8"?醫?"), 1); // ?醫?
-  visibleCombo.addItem(juce::String::fromUTF8(u8"癰귣똻?졿묾?),
-                       2); // 癰귣똻?졿묾?
-  visibleCombo.addItem(juce::String::fromUTF8(u8"??ｋ┛疫?),
-                       3); // ??ｋ┛疫?
+  visibleCombo.setTextWhenNothingSelected("Visible");
+  visibleCombo.addItem("Use current", 1);
+  visibleCombo.addItem("Force true", 2);
+  visibleCombo.addItem("Force false", 3);
   visibleCombo.onChange = [this] { applySelectedAction(); };
   addAndMakeVisible(visibleCombo);
 
-  lockedCombo.setTextWhenNothingSelected(juce::String::fromUTF8(u8"?醫됲닊 ???"));
-  lockedCombo.addItem(juce::String::fromUTF8(u8"?醫?"), 1); // ?醫?
-  lockedCombo.addItem(juce::String::fromUTF8(u8"?醫됲닊"), 2); // ?醫됲닊
-  lockedCombo.addItem(juce::String::fromUTF8(u8"?醫됲닊 ??곸젫"),
-                      3); // ?醫됲닊 ??곸젫
+  lockedCombo.setTextWhenNothingSelected("Locked");
+  lockedCombo.addItem("Use current", 1);
+  lockedCombo.addItem("Force true", 2);
+  lockedCombo.addItem("Force false", 3);
   lockedCombo.onChange = [this] { applySelectedAction(); };
   addAndMakeVisible(lockedCombo);
 
-  assetPatchKeyCombo.setTextWhenNothingSelected(
-      juce::String::fromUTF8(u8"?癒????));
-  assetPatchValueCombo.setTextWhenNothingSelected(
-      juce::String::fromUTF8(u8"?癒??筌〓챷??(?醫뤾문)"));
+  assetPatchKeyCombo.setTextWhenNothingSelected("Patch key");
+  assetPatchValueCombo.setTextWhenNothingSelected("Patch value (or select)");
   assetPatchKeyCombo.onChange = [this] {
     if (!suppressCallbacks)
       syncAssetPatchValueEditor();
@@ -566,7 +552,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(assetPatchValueCombo);
 
   setupEditor(patchEditor,
-              juce::String::fromUTF8(u8"?紐? JSON ??욧쉐 ??ν뒄 (?醫뤾문 ??鍮?"));
+              juce::String::fromUTF8(u8"?�? JSON ???�쉐 ??ν??(??�뤾�?????"));
   patchEditor.setMultiLine(true);
   patchEditor.setScrollbarsShown(true);
   patchEditor.setReturnKeyStartsNewLine(true);
@@ -1255,7 +1241,7 @@ void EventActionPanel::rebuildWidgetOptions() {
         descriptor != nullptr) {
       option.events = descriptor->runtimeEvents;
     }
-    // ?????筌왖????已?properties["name"]) ?怨쀪퐨, ??곸몵筌?????낆구 + ID
+    // ?????筌왖??????�?properties["name"]) ??�쀪퐨, ??곸몵�??????�구 + ID
     option.label = widgetDisplayName(widget, registry);
     widgetOptions.push_back(std::move(option));
   }
@@ -1407,7 +1393,7 @@ void EventActionPanel::rebuildPropertyBindingTargetPropertyOptions(
 }
 
 // ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????
-// Action ?????袁⑹졐????욧쉐 筌뤴뫖以??targetPropertyCombo???닌딄쉐
+// Action ?????袁⑹�?????�쉐 筌뤴뫖以??targetPropertyCombo????�딄??
 // ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 void EventActionPanel::rebuildActionTargetPropertyOptions(
     WidgetId targetWidgetId, const juce::String &selectedProperty) {
@@ -1428,12 +1414,12 @@ void EventActionPanel::rebuildActionTargetPropertyOptions(
       targetPropertyKeys.push_back(key);
     };
 
-    // ?⑤벏????욧쉐 (??湲???뽯뻻)
-    addItem("visible", juce::String::fromUTF8(u8"??뽯뻻 ???"));
-    addItem("locked", juce::String::fromUTF8(u8"?醫됲닊 ???"));
-    addItem("opacity", juce::String::fromUTF8(u8"?븍뜇?억쭗?낅즲"));
+    // ??�벏?????�쉐 (??�???�?��)
+    addItem("visible", juce::String::fromUTF8(u8"??�?�� ???"));
+    addItem("locked", juce::String::fromUTF8(u8"??�됲?????"));
+    addItem("opacity", juce::String::fromUTF8(u8"?븍뜇??�쭗??�즲"));
 
-    // ?袁⑹졐 ????낇?spec ??욧쉐
+    // ?袁⑹�??????�?spec ???�쉐
     const auto &snapshot = document.snapshot();
     const auto wIt =
         std::find_if(snapshot.widgets.begin(), snapshot.widgets.end(),
@@ -1450,20 +1436,20 @@ void EventActionPanel::rebuildActionTargetPropertyOptions(
           addItem(key, disp);
         }
       }
-      // PropertyBag ??筌욊낯?????貫留???삳즲 ?곕떽?
+      // PropertyBag ??筌욊??????貫留????�즲 ?곕떽?
       for (int i = 0; i < wIt->properties.size(); ++i)
         addItem(wIt->properties.getName(i).toString().trim(),
                 wIt->properties.getName(i).toString().trim());
     }
 
-    // ??곸읈 ?醫뤾문 ??? 筌뤴뫖以????곸몵筌?custom??곗쨮 ?곕떽?
+    // ??곸읈 ??�뤾�???? 筌뤴뫖以????곸몵�?custom??곗쨮 ?곕떽?
     const auto pref = selectedProperty.trim();
     if (pref.isNotEmpty() &&
         std::find(targetPropertyKeys.begin(), targetPropertyKeys.end(), pref) ==
             targetPropertyKeys.end())
       addItem(pref, pref + " (custom)");
 
-    // ?醫뤾문 癰귣벊??
+    // ??�뤾�??�귣�??
     if (pref.isNotEmpty()) {
       const auto it =
           std::find(targetPropertyKeys.begin(), targetPropertyKeys.end(), pref);
@@ -1486,7 +1472,7 @@ juce::String EventActionPanel::selectedActionTargetPropertyKey() const {
   return {};
 }
 
-// ?醫뤾문????욧쉐 spec??筌띿쉶????덉읅 ?紐꾩춿疫꿸퀡? ??밴쉐/?대Ŋ猿?
+// ??�뤾�?????�쉐 spec??筌띿??????�읅 ?紐꾩춿疫꿸�? ??밴쉐/??�Ŋ??
 void EventActionPanel::rebuildDynamicPropEditor() {
   const auto selectedProp = selectedActionTargetPropertyKey();
   if (selectedProp.isEmpty() || selectedProp == "visible" ||
@@ -1500,25 +1486,25 @@ void EventActionPanel::rebuildDynamicPropEditor() {
     return;
   }
 
-  // ??? 揶쏆늿? spec ??????源???븍뜇釉??
+  // ???? ?�쏆?? spec ???????�???븍뜇???
   if (currentDynamicPropSpec.has_value() &&
       currentDynamicPropSpec->key.toString() == selectedProp &&
       dynamicPropEditor != nullptr)
     return;
 
-  // ?紐꾩춿疫????댘
+  // ?紐꾩춿疫??????
   if (dynamicPropEditor != nullptr) {
     removeChildComponent(dynamicPropEditor.get());
     dynamicPropEditor.reset();
   }
   currentDynamicPropSpec.reset();
 
-  // ?袁⑹졐 ????鈺곌퀬??
+  // ?袁⑹�??????�곌???
   const auto targetId = selectedWidgetIdFromCombo(targetIdCombo);
   Widgets::WidgetPropertySpec spec;
   spec.key = juce::Identifier(selectedProp);
   spec.label = selectedProp;
-  spec.kind = Widgets::WidgetPropertyKind::text; // 疫꿸퀡??첎?
+  spec.kind = Widgets::WidgetPropertyKind::text; // ?�꿸???�?
 
   if (targetId.has_value() && *targetId > kRootId) {
     const auto &snapshot = document.snapshot();
@@ -1532,7 +1518,7 @@ void EventActionPanel::rebuildDynamicPropEditor() {
     }
   }
 
-  // ?袁⑹삺 揶???꾨┛
+  // ?袁⑹??????꾨┛
   juce::var currentValue;
   const auto *action = selectedAction();
   if (action != nullptr) {
@@ -1546,7 +1532,7 @@ void EventActionPanel::rebuildDynamicPropEditor() {
   Ui::Panels::EditorBuildSpec buildSpec;
   buildSpec.spec = spec;
   buildSpec.value = currentValue;
-  buildSpec.onPreview = nullptr; // ??쇰뻻揶?沃섎챶?곮퉪?용┛ ?븍뜇釉??
+  buildSpec.onPreview = nullptr; // ???�뻻??沃섎�?�?��??�┛ ?븍뜇???
   buildSpec.onCommit = [this](const juce::var &) { applySelectedAction(); };
   buildSpec.onCancel = nullptr;
 
@@ -1556,13 +1542,13 @@ void EventActionPanel::rebuildDynamicPropEditor() {
     addAndMakeVisible(*dynamicPropEditor);
   currentDynamicPropSpec = spec;
 
-  // ??됱뵠????용뮞??
+  // ???�뵠?????�뮞??
   dynamicPropLabel.setText(spec.label.isNotEmpty() ? spec.label : selectedProp,
                            juce::dontSendNotification);
   dynamicPropLabel.setVisible(true);
 }
 
-// ??덉읅 ?紐꾩춿疫꿸퀣肉???袁⑹삺 揶쏅?????뚮선 獄쏆꼹??
+// ???�읅 ?紐꾩춿疫꿸퀣肉???袁⑹???�쏅???????�� ?�쏆�??
 juce::var EventActionPanel::getDynamicPropValue() const {
   if (dynamicPropEditor == nullptr || !currentDynamicPropSpec.has_value())
     return {};
@@ -2015,9 +2001,9 @@ void EventActionPanel::refreshDetailEditors() {
             : action->target.id;
     selectWidgetIdInCombo(targetIdCombo, targetIdForEditor);
 
-    // setNodeProps: ??욧쉐 筌뤴뫖以?????????袁⑹삺 ???貫留???욧쉐 ??? ?醫뤾문
+    // setNodeProps: ???�쉐 筌뤴뫖以?????????袁⑹?????貫留????�쉐 ??? ??�뤾�?
     if (action->kind == RuntimeActionKind::setNodeProps) {
-      // ???貫留?patch ??餓?筌ｃ꺂苡뀐쭪紐? preferred key嚥?????
+      // ???貫留?patch ??�?筌ｃ꺂苡?��?�? preferred key??????
       juce::String prefKey;
       if (action->visible.has_value())
         prefKey = "visible";
@@ -2198,7 +2184,7 @@ void EventActionPanel::updateActionEditorVisibility(
     setVisibility(assetPatchKeyCombo, false);
     setVisibility(assetPatchValueCombo, isAsset);
 
-    // patchEditor???⑤벏????욧쉐(visible, locked, opacity)???袁⑤빍筌??얜똻?쒎쳞???뽯뻻
+    // patchEditor????�벏?????�쉐(visible, locked, opacity)???袁⑤빍筌???�똻??�쳞???�?��
     const auto showPatch =
         !selProp.isEmpty() && !isVisible && !isLocked && !isOpacity;
     setVisibility(patchEditor, showPatch);
@@ -2906,7 +2892,7 @@ void EventActionPanel::applySelectedAction() {
 
     action->patch = std::move(patch);
 
-    // ????筌욊낱?? 筌띾슣鍮???鍮??? patchEditor????? ??낅뼄筌?疫꼲??ㅻ즲 筌ㅼ뮇???
+    // ????筌욊??? 筌띾?�鍮??????? patchEditor????? ???�뼄�??�꼲????�즲 筌ㅼ�???
     if (!patchEditor.hasKeyboardFocus(true)) {
       const auto newJson =
           action->patch.size() > 0
@@ -3063,13 +3049,13 @@ EventActionPanel::findWidgetOption(WidgetId id) const {
 
 juce::String EventActionPanel::formatEventLabel(
     const Widgets::RuntimeEventSpec &eventSpec) const {
-  // 疫꿸퀣????onClick ?????욧쑵?뉑에??紐꾪뀱??? ??꾪??????燁살뮉?????已ワ쭕???뽯뻻
+  // ?�꿸?????onClick ??????�쑵??�에??紐꾪???? ??꾪???????�살�??????已ワ�???�?��
   const auto koLabel = eventDisplayLabelKo(eventSpec.key);
   if (koLabel.isNotEmpty())
     return koLabel;
   if (eventSpec.displayLabel.trim().isNotEmpty())
     return eventSpec.displayLabel.trim();
-  return eventSpec.key; // 甕곕뜆肉???용뮉 野껋럩??쭕??癒?궚 ????뽯뻻
+  return eventSpec.key; // ?�곕?�肉????�뮉 ?�껋???�????�?????�?��
 }
 
 juce::String
@@ -3091,7 +3077,7 @@ EventActionPanel::formatEventLabel(WidgetId sourceWidgetId,
 
 juce::String
 EventActionPanel::actionSummary(const RuntimeActionModel &action) const {
-  // ?袁⑹졐 ID?????????已??곗쨮 癰궰??묐릭??????
+  // ?袁⑹�?ID??????????�??곗쨮 ?�궰???묐릭??????
   const auto widgetName = [this](WidgetId id) -> juce::String {
     const auto &widgets = document.snapshot().widgets;
     const auto it =

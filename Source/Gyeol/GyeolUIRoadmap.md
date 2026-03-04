@@ -328,37 +328,37 @@ Gyeol Editor를 단순한 기능성 툴에서 벗어나 **최첨단 프리미엄
 **Phase 5+: Advanced Responsive Modern UI Checklist**
 
 ### 19. Responsive Dock and Breakpoint Engine
-- [ ] **19-a. Define 4 breakpoint classes**: >=1600, 1200-1599, 900-1199, <900.
-- [ ] **19-b. Implement auto dock reflow**: Re-layout on resize while preserving min width/height constraints.
-- [ ] **19-c. Add narrow overlay mode**: Convert side docks into temporary overlays for small widths.
-- [ ] **19-d. Persist layout by profile**: Save/restore dock state per breakpoint class.
+- [x] **19-a. Define 4 breakpoint classes**: >=1600, 1200-1599, 900-1199, <900.
+- [x] **19-b. Implement auto dock reflow**: Re-layout on resize while preserving min width/height constraints.
+- [x] **19-c. Add narrow overlay mode**: Convert side docks into temporary overlays for small widths.
+- [x] **19-d. Persist layout by profile**: Save/restore dock state per breakpoint class.
 
 ### 20. Adaptive Density System
-- [ ] **20-a. Tokenize density values**: spacing, row height, control height, and typography scale.
-- [ ] **20-b. Ship 3 density presets**: Compact, Comfortable, Spacious.
-- [ ] **20-c. Add width-based compaction rules**: 2-column to 1-column fallback, iconized labels, popover editors.
-- [ ] **20-d. Validate HiDPI behavior**: verify no clipping at 125%/150%/200%.
+- [x] **20-a. Tokenize density values**: spacing, row height, control height, and typography scale.
+- [x] **20-b. Ship 3 density presets**: Compact, Comfortable, Spacious.
+- [x] **20-c. Add width-based compaction rules**: 2-column to 1-column fallback, iconized labels, popover editors.
+- [x] **20-d. Validate HiDPI behavior**: verify no clipping at 125%/150%/200%.
 
 ### 21. Command Palette and Keyboard-first Workflow
-- [ ] **21-a. Implement Command Palette (Ctrl/Cmd+K)**: search and execute actions.
-- [ ] **21-b. Implement Quick Switcher (Ctrl/Cmd+P)**: jump to widgets/panels/sections.
-- [ ] **21-c. Standardize keyboard navigation contract**: Tab, Enter, Escape, Arrow behaviors.
-- [ ] **21-d. Add shortcut conflict detection and editor**.
+- [x] **21-a. Implement Command Palette (Ctrl/Cmd+K)**: search and execute actions.
+- [x] **21-b. Implement Quick Switcher (Ctrl/Cmd+P)**: jump to widgets/panels/sections.
+- [x] **21-c. Standardize keyboard navigation contract**: Tab, Enter, Escape, Arrow behaviors.
+- [x] **21-d. Add shortcut conflict detection and editor**.
 
 ### 22. Theme Variants and Accessibility
-- [ ] **22-a. Add 3 themes**: Deep Dark, Light, High Contrast.
-- [ ] **22-b. Add reduced-motion option**: global animation intensity and duration scaling.
-- [ ] **22-c. Add accessibility checks**: contrast, focus visibility, hit target size.
-- [ ] **22-d. Expand semantic metadata**: title/description coverage on interactive components.
+- [x] **22-a. Add 3 themes**: Deep Dark, Light, High Contrast.
+- [x] **22-b. Add reduced-motion option**: global animation intensity and duration scaling.
+- [x] **22-c. Add accessibility checks**: contrast, focus visibility, hit target size.
+- [x] **22-d. Expand semantic metadata**: title/description coverage on interactive components.
 
 ### 23. Responsive Performance Optimization
-- [ ] **23-a. Add per-panel layout/paint telemetry hooks**.
-- [ ] **23-b. Throttle expensive relayout during live resize**.
-- [ ] **23-c. Expand list/tree virtualization usage**.
-- [ ] **23-d. Add low-end rendering quality mode**.
+- [x] **23-a. Add per-panel layout/paint telemetry hooks**.
+- [x] **23-b. Throttle expensive relayout during live resize**.
+- [x] **23-c. Expand list/tree virtualization usage**.
+- [x] **23-d. Add low-end rendering quality mode**.
 
 ### 24. Visual Regression and UI Quality Gate
-- [ ] **24-a. Capture baseline snapshots for key panels**.
-- [ ] **24-b. Add pixel-diff CI checks with tolerance thresholds**.
-- [ ] **24-c. Run snapshot tests on multiple viewport profiles**.
-- [ ] **24-d. Link release checklist to CI quality gate**.
+- [x] **24-a. Capture baseline snapshots for key panels**.
+- [x] **24-b. Add pixel-diff CI checks with tolerance thresholds**.
+- [x] **24-c. Run snapshot tests on multiple viewport profiles**.
+- [x] **24-d. Link release checklist to CI quality gate**.

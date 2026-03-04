@@ -370,12 +370,12 @@ public:
     g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
 
     g.setColour(palette(GyeolPalette::TextPrimary));
-    g.setFont(makePanelFont(*this, 10.5f, true));
+    g.setFont(makePanelFont(owner, 10.5f, true));
     g.drawFittedText(entry.widgetLabel + " - " + entry.propertyLabel, 8, 2,
                      width - 16, 14, juce::Justification::centredLeft, 1);
 
     g.setColour(palette(GyeolPalette::TextSecondary));
-    g.setFont(makePanelFont(*this, 9.5f, false));
+    g.setFont(makePanelFont(owner, 9.5f, false));
     g.drawFittedText(entry.contextLabel, 8, 16, width - 16,
                      juce::jmax(10, height - 18),
                      juce::Justification::centredLeft, 1);

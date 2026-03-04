@@ -34,6 +34,17 @@ namespace Gyeol::Ui::Panels
             juce::Point<float> viewOriginWorld;
             juce::Rectangle<float> visibleWorldBounds;
 
+            double editorToolbarPaintMs = 0.0;
+            double editorLayoutMs = 0.0;
+            double editorTelemetryMs = 0.0;
+            uint64_t editorResizeThrottleCount = 0;
+            bool lowEndRenderingMode = false;
+            juce::String responsiveBreakpoint;
+            juce::String densityPreset;
+            juce::String themeVariant;
+            juce::String panelLayoutSummary;
+            juce::String panelPaintSummary;
+
             uint64_t deferredRefreshRequestCount = 0;
             uint64_t deferredRefreshCoalescedCount = 0;
             uint64_t deferredRefreshFlushCount = 0;
@@ -59,3 +70,5 @@ namespace Gyeol::Ui::Panels
         juce::Rectangle<int> contentBounds;
     };
 }
+
+

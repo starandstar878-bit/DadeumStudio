@@ -229,6 +229,21 @@ namespace Gyeol::Ui::Panels
         document.add("Zoom " + juce::String(snapshot.zoomLevel, 3) + "  Origin " + formatPoint(snapshot.viewOriginWorld));
         document.add("Visible " + formatRect(snapshot.visibleWorldBounds));
 
+        juce::StringArray responsive;
+        responsive.add("Breakpoint/Density/Theme: " + snapshot.responsiveBreakpoint + " / "
+                       + snapshot.densityPreset + " / " + snapshot.themeVariant);
+        responsive.add("Editor toolbar/layout/telemetry: "
+                       + formatMs(snapshot.editorToolbarPaintMs) + " / "
+                       + formatMs(snapshot.editorLayoutMs) + " / "
+                       + formatMs(snapshot.editorTelemetryMs));
+        responsive.add("Resize throttle count: "
+                       + juce::String(static_cast<int64_t>(snapshot.editorResizeThrottleCount)));
+        responsive.add("Render quality: " + juce::String(snapshot.lowEndRenderingMode ? "Low-end" : "High"));
+        if (snapshot.panelLayoutSummary.isNotEmpty())
+            responsive.add("Layout hooks: " + snapshot.panelLayoutSummary);
+        if (snapshot.panelPaintSummary.isNotEmpty())
+            responsive.add("Paint hooks: " + snapshot.panelPaintSummary);
+
         juce::StringArray debug;
         debug.add("Deferred req/coalesced/flush: "
                   + juce::String(static_cast<int64_t>(snapshot.deferredRefreshRequestCount)) + " / "
@@ -239,6 +254,7 @@ namespace Gyeol::Ui::Panels
         drawSection("Timing", timing);
         drawSection("Counters", counters);
         drawSection("Document", document);
+        drawSection("Responsive", responsive);
         drawSection("Debug", debug);
     }
 
@@ -277,3 +293,6 @@ namespace Gyeol::Ui::Panels
         lastSampleTimestampMs = nowMs;
     }
 }
+
+
+

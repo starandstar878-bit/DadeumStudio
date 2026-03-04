@@ -1,93 +1,181 @@
-#include "GyeolCustomLookAndFeel.h"
+﻿#include "GyeolCustomLookAndFeel.h"
 
 #include <BinaryData.h>
 
-namespace Gyeol {
-// ==============================================================================
-// 팔레트 색상 매핑 코어 로직
-// ==============================================================================
-juce::Colour getGyeolColor(GyeolPalette colorId) {
+namespace {
+Gyeol::GyeolThemeVariant gActiveThemeVariant = Gyeol::GyeolThemeVariant::deepDark;
+bool gReducedMotionEnabled = false;
+juce::Colour deepDarkColour(Gyeol::GyeolPalette colorId) {
+  using Gyeol::GyeolPalette;
   switch (colorId) {
-  // 배경 / 도킹 패널 계층 (Deep Dark)
   case GyeolPalette::CanvasBackground:
-    return juce::Colour::fromString("#FF181A1F"); // 가장 어둡고 광활한 캔버스
+    return juce::Colour::fromString("#FF181A1F");
   case GyeolPalette::PanelBackground:
-    return juce::Colour::fromString(
-        "#FF21252B"); // 툴바, 탭, 속성창 등의 중간 톤
+    return juce::Colour::fromString("#FF21252B");
   case GyeolPalette::HeaderBackground:
-    return juce::Colour::fromString("#FF1C1F26"); // 탭 제목이 올라가는 바
+    return juce::Colour::fromString("#FF1C1F26");
   case GyeolPalette::OverlayBackground:
-    return juce::Colour::fromString(
-        "#3321252B"); // 팝업 등 (알파 20% 글래스모피즘용)
-
-  // 보더 / 테두리 계층 (Borderless를 지향하나 필수적인 희미한 구분을 위해 사용)
+    return juce::Colour::fromString("#3321252B");
   case GyeolPalette::BorderDefault:
-    return juce::Colour::fromString("#FF2C313C"); // 패널 사이 분할선
+    return juce::Colour::fromString("#FF2C313C");
   case GyeolPalette::BorderActive:
-    return juce::Colour::fromString(
-        "#FF3E4451"); // 선택된 항목의 보더를 미세하게 살림
-
-  // 텍스트 타이포그래피 (모던 산세리프에 어울리는 명도)
+    return juce::Colour::fromString("#FF3E4451");
   case GyeolPalette::TextPrimary:
-    return juce::Colour::fromString(
-        "#FFE0E6ED"); // 거의 흰색에 가까운 핵심 정보
+    return juce::Colour::fromString("#FFE0E6ED");
   case GyeolPalette::TextSecondary:
-    return juce::Colour::fromString(
-        "#FF8A92A3"); // 회색빛의 단위 문자, 보조 설명
-
-  // 액센트 및 브랜드 (Soft & Clean의 핵심 포인트 블루)
+    return juce::Colour::fromString("#FF8A92A3");
   case GyeolPalette::AccentPrimary:
-    return juce::Colour::fromString(
-        "#FF5A9CFF"); // 주 스위치 표기, 슬라이더 채우기
+    return juce::Colour::fromString("#FF5A9CFF");
   case GyeolPalette::AccentHover:
-    return juce::Colour::fromString(
-        "#FF7EB1FF"); // 마우스를 올리면 글로우(Glow)하는 밝은 푸른색
-
-  // 검증 상태 (Semantic Status)
+    return juce::Colour::fromString("#FF7EB1FF");
   case GyeolPalette::ValidSuccess:
-    return juce::Colour::fromString("#FF98C379"); // 부드러운 그린
+    return juce::Colour::fromString("#FF98C379");
   case GyeolPalette::ValidWarning:
-    return juce::Colour::fromString("#FFE5C07B"); // 부드러운 옐로우/오렌지
+    return juce::Colour::fromString("#FFE5C07B");
   case GyeolPalette::ValidError:
-    return juce::Colour::fromString(
-        "#FFE06C75"); // 부드러운 레드 (삭제 버튼 겸용)
-
-  // 렌더링 컨트롤 객체 (버튼, 콤보박스 네모박스)
+    return juce::Colour::fromString("#FFE06C75");
   case GyeolPalette::ControlBase:
-    return juce::Colour::fromString(
-        "#FF282C34"); // 패널(21252b)보다 살짝 튀어나온 색
+    return juce::Colour::fromString("#FF282C34");
   case GyeolPalette::ControlHover:
-    return juce::Colour::fromString("#FF30353F"); // 호버시 살짝 밝아짐
+    return juce::Colour::fromString("#FF30353F");
   case GyeolPalette::ControlDown:
-    return juce::Colour::fromString("#FF1E2227"); // 클릭시 들어가는 음영
-
-  // 특수 상태 (비활성화 및 선택)
+    return juce::Colour::fromString("#FF1E2227");
   case GyeolPalette::ControlDisabled:
-    return juce::Colour::fromString("#FF2C313A"); // 조작 불가 박스
+    return juce::Colour::fromString("#FF2C313A");
   case GyeolPalette::TextDisabled:
-    return juce::Colour::fromString("#FF5C6370"); // 흐릿한 비활성 글씨
+    return juce::Colour::fromString("#FF5C6370");
   case GyeolPalette::SelectionBackground:
-    return juce::Colour::fromString(
-        "#FF2C313A"); // 트리 항목 등 선택시 어두운 강조색
-
-  // 캔버스 모눈종이, 보조 선 등
+    return juce::Colour::fromString("#FF2C313A");
   case GyeolPalette::GridLine:
-    return juce::Colour::fromString(
-        "#FF2B2E36"); // 눈에 띄지 않는 아주 희미한 선맥
-
+    return juce::Colour::fromString("#FF2B2E36");
   default:
     return juce::Colours::transparentBlack;
   }
 }
+juce::Colour lightColour(Gyeol::GyeolPalette colorId) {
+  using Gyeol::GyeolPalette;
+  switch (colorId) {
+  case GyeolPalette::CanvasBackground:
+    return juce::Colour::fromString("#FFF4F7FB");
+  case GyeolPalette::PanelBackground:
+    return juce::Colour::fromString("#FFFFFFFF");
+  case GyeolPalette::HeaderBackground:
+    return juce::Colour::fromString("#FFE9EEF5");
+  case GyeolPalette::OverlayBackground:
+    return juce::Colour::fromString("#E8FFFFFF");
+  case GyeolPalette::BorderDefault:
+    return juce::Colour::fromString("#FFD2D8E2");
+  case GyeolPalette::BorderActive:
+    return juce::Colour::fromString("#FF9EA8B9");
+  case GyeolPalette::TextPrimary:
+    return juce::Colour::fromString("#FF1E2A37");
+  case GyeolPalette::TextSecondary:
+    return juce::Colour::fromString("#FF526173");
+  case GyeolPalette::AccentPrimary:
+    return juce::Colour::fromString("#FF1F6FEB");
+  case GyeolPalette::AccentHover:
+    return juce::Colour::fromString("#FF3C82F0");
+  case GyeolPalette::ValidSuccess:
+    return juce::Colour::fromString("#FF2A8E45");
+  case GyeolPalette::ValidWarning:
+    return juce::Colour::fromString("#FFB97700");
+  case GyeolPalette::ValidError:
+    return juce::Colour::fromString("#FFC83A42");
+  case GyeolPalette::ControlBase:
+    return juce::Colour::fromString("#FFF3F6FB");
+  case GyeolPalette::ControlHover:
+    return juce::Colour::fromString("#FFE9EEF7");
+  case GyeolPalette::ControlDown:
+    return juce::Colour::fromString("#FFDDE5F2");
+  case GyeolPalette::ControlDisabled:
+    return juce::Colour::fromString("#FFE4E8F0");
+  case GyeolPalette::TextDisabled:
+    return juce::Colour::fromString("#FF8B95A3");
+  case GyeolPalette::SelectionBackground:
+    return juce::Colour::fromString("#FFDDE7FA");
+  case GyeolPalette::GridLine:
+    return juce::Colour::fromString("#FFDCE2EC");
+  default:
+    return juce::Colours::transparentBlack;
+  }
+}
+juce::Colour highContrastColour(Gyeol::GyeolPalette colorId) {
+  using Gyeol::GyeolPalette;
+  switch (colorId) {
+  case GyeolPalette::CanvasBackground:
+    return juce::Colour::fromString("#FF000000");
+  case GyeolPalette::PanelBackground:
+    return juce::Colour::fromString("#FF090909");
+  case GyeolPalette::HeaderBackground:
+    return juce::Colour::fromString("#FF121212");
+  case GyeolPalette::OverlayBackground:
+    return juce::Colour::fromString("#EA000000");
+  case GyeolPalette::BorderDefault:
+    return juce::Colour::fromString("#FFECECEC");
+  case GyeolPalette::BorderActive:
+    return juce::Colour::fromString("#FFFFFFFF");
+  case GyeolPalette::TextPrimary:
+    return juce::Colour::fromString("#FFFFFFFF");
+  case GyeolPalette::TextSecondary:
+    return juce::Colour::fromString("#FFE5E5E5");
+  case GyeolPalette::AccentPrimary:
+    return juce::Colour::fromString("#FF00C6FF");
+  case GyeolPalette::AccentHover:
+    return juce::Colour::fromString("#FF5BDFFF");
+  case GyeolPalette::ValidSuccess:
+    return juce::Colour::fromString("#FF1EFF8A");
+  case GyeolPalette::ValidWarning:
+    return juce::Colour::fromString("#FFFFD11A");
+  case GyeolPalette::ValidError:
+    return juce::Colour::fromString("#FFFF5A5A");
+  case GyeolPalette::ControlBase:
+    return juce::Colour::fromString("#FF131313");
+  case GyeolPalette::ControlHover:
+    return juce::Colour::fromString("#FF1F1F1F");
+  case GyeolPalette::ControlDown:
+    return juce::Colour::fromString("#FF272727");
+  case GyeolPalette::ControlDisabled:
+    return juce::Colour::fromString("#FF1A1A1A");
+  case GyeolPalette::TextDisabled:
+    return juce::Colour::fromString("#FF9A9A9A");
+  case GyeolPalette::SelectionBackground:
+    return juce::Colour::fromString("#FF1E2B36");
+  case GyeolPalette::GridLine:
+    return juce::Colour::fromString("#FF262626");
+  default:
+    return juce::Colours::transparentBlack;
+  }
+}
+} // namespace
+namespace Gyeol {
+// ==============================================================================
+// ???????? ??? ??? ???
+// ==============================================================================
+void setGyeolThemeVariant(GyeolThemeVariant variant) { gActiveThemeVariant = variant; }
+GyeolThemeVariant getGyeolThemeVariant() noexcept { return gActiveThemeVariant; }
+void setGyeolReducedMotionEnabled(bool enabled) { gReducedMotionEnabled = enabled; }
+bool isGyeolReducedMotionEnabled() noexcept { return gReducedMotionEnabled; }
+float getGyeolMotionScale() noexcept { return gReducedMotionEnabled ? 0.35f : 1.0f; }
+juce::Colour getGyeolColor(GyeolPalette colorId) {
+  switch (gActiveThemeVariant) {
+  case GyeolThemeVariant::light:
+    return lightColour(colorId);
+  case GyeolThemeVariant::highContrast:
+    return highContrastColour(colorId);
+  case GyeolThemeVariant::deepDark:
+  default:
+    return deepDarkColour(colorId);
+  }
+}
 
 // ==============================================================================
-// GyeolCustomLookAndFeel 생성자 및 초기화
+// GyeolCustomLookAndFeel ?앹꽦??諛?珥덇린??
 // ==============================================================================
 GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   // ============================================================================
-  // 1. BinaryData에서 번들 폰트를 로드하여 Typeface 캐시에 저장
-  //    Nunito  → 영문/라틴 UI 기본 폰트 (Clean Rounded Sans-Serif)
-  //    NanumSquareRound → 한글 UI 기본 폰트 (모던 둥근 고딕)
+  // 1. BinaryData?먯꽌 踰덈뱾 ?고듃瑜?濡쒕뱶?섏뿬 Typeface 罹먯떆?????
+  //    Nunito  ???곷Ц/?쇳떞 UI 湲곕낯 ?고듃 (Clean Rounded Sans-Serif)
+  //    NanumSquareRound ???쒓? UI 湲곕낯 ?고듃 (紐⑤뜕 ?κ렐 怨좊뵓)
   // ============================================================================
   nunitoRegular = juce::Typeface::createSystemTypefaceFor(
       BinaryData::NunitoRegular_ttf, BinaryData::NunitoRegular_ttfSize);
@@ -98,24 +186,24 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   nanumBold = juce::Typeface::createSystemTypefaceFor(
       BinaryData::NanumSquareRoundB_ttf, BinaryData::NanumSquareRoundB_ttfSize);
 
-  // 글로벌 기본 Typeface를 Nunito Regular로 지정
-  // (JUCE가 폰트 이름 없이 기본 산세리프를 그릴 때 이 Typeface를 사용)
+  // 湲濡쒕쾶 湲곕낯 Typeface瑜?Nunito Regular濡?吏??
+  // (JUCE媛 ?고듃 ?대쫫 ?놁씠 湲곕낯 ?곗꽭由ы봽瑜?洹몃┫ ????Typeface瑜??ъ슜)
   if (nunitoRegular != nullptr)
     setDefaultSansSerifTypeface(nunitoRegular);
 
   // ============================================================================
-  // 2. JUCE 기본 컴포넌트의 컬러 체계를 Gyeol 팔레트 색상으로 강제 덮어쓰기
+  // 2. JUCE 湲곕낯 而댄룷?뚰듃??而щ윭 泥닿퀎瑜?Gyeol ?붾젅???됱긽?쇰줈 媛뺤젣 ??뼱?곌린
   // ============================================================================
 
-  // 창 및 배경
+  // 李?諛?諛곌꼍
   setColour(juce::ResizableWindow::backgroundColourId,
             getGyeolColor(GyeolPalette::CanvasBackground));
 
-  // 텍스트 색상
+  // ?띿뒪???됱긽
   setColour(juce::Label::textColourId,
             getGyeolColor(GyeolPalette::TextPrimary));
 
-  // 슬라이더 색상
+  // ?щ씪?대뜑 ?됱긽
   setColour(juce::Slider::thumbColourId,
             getGyeolColor(GyeolPalette::AccentPrimary));
   setColour(juce::Slider::trackColourId,
@@ -123,7 +211,7 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   setColour(juce::Slider::backgroundColourId,
             getGyeolColor(GyeolPalette::ControlBase));
 
-  // 버튼 색상
+  // 踰꾪듉 ?됱긽
   setColour(juce::TextButton::buttonColourId,
             getGyeolColor(GyeolPalette::ControlBase));
   setColour(juce::TextButton::buttonOnColourId,
@@ -132,7 +220,7 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
             getGyeolColor(GyeolPalette::TextPrimary));
   setColour(juce::TextButton::textColourOnId, juce::Colours::white);
 
-  // 팝업 메뉴 및 화살표, 콤보박스 색상
+  // ?앹뾽 硫붾돱 諛??붿궡?? 肄ㅻ낫諛뺤뒪 ?됱긽
   setColour(juce::PopupMenu::backgroundColourId,
             getGyeolColor(GyeolPalette::PanelBackground));
   setColour(juce::PopupMenu::textColourId,
@@ -147,19 +235,19 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   setColour(juce::ComboBox::outlineColourId,
             getGyeolColor(GyeolPalette::BorderDefault));
 
-  // 스크롤바 커스텀 연동 (둥근 모서리에 어울리도록 얇고 어둡게 유지)
+  // ?ㅽ겕濡ㅻ컮 而ㅼ뒪? ?곕룞 (?κ렐 紐⑥꽌由ъ뿉 ?댁슱由щ룄濡??뉕퀬 ?대몼寃??좎?)
   setColour(juce::ScrollBar::thumbColourId,
             getGyeolColor(GyeolPalette::BorderActive));
   setColour(juce::ScrollBar::backgroundColourId,
             juce::Colours::transparentBlack);
 
-  // 트리 뷰 컬러
+  // ?몃━ 酉?而щ윭
   setColour(juce::TreeView::backgroundColourId,
             getGyeolColor(GyeolPalette::PanelBackground));
   setColour(juce::TreeView::selectedItemBackgroundColourId,
             getGyeolColor(GyeolPalette::ControlBase));
 
-  // Phase 3: 텍스트 에디터 컬러
+  // Phase 3: ?띿뒪???먮뵒??而щ윭
   setColour(juce::TextEditor::backgroundColourId,
             getGyeolColor(GyeolPalette::ControlBase));
   setColour(juce::TextEditor::textColourId,
@@ -174,14 +262,14 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   setColour(juce::CaretComponent::caretColourId,
             getGyeolColor(GyeolPalette::AccentPrimary));
 
-  // Phase 3: 리스트박스
+  // Phase 3: 由ъ뒪?몃컯??
   setColour(juce::ListBox::backgroundColourId,
             getGyeolColor(GyeolPalette::PanelBackground));
   setColour(juce::ListBox::textColourId,
             getGyeolColor(GyeolPalette::TextPrimary));
   setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
 
-  // Phase 3: 툴팁 (다크 + 라운드)
+  // Phase 3: ?댄똻 (?ㅽ겕 + ?쇱슫??
   setColour(juce::TooltipWindow::backgroundColourId,
             getGyeolColor(GyeolPalette::HeaderBackground));
   setColour(juce::TooltipWindow::textColourId,
@@ -189,7 +277,93 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
   setColour(juce::TooltipWindow::outlineColourId,
             getGyeolColor(GyeolPalette::BorderDefault));
 
-  // Phase 3: 알림(AlertWindow) 다크
+  // Phase 3: ?뚮┝(AlertWindow) ?ㅽ겕
+  setColour(juce::AlertWindow::backgroundColourId,
+            getGyeolColor(GyeolPalette::PanelBackground));
+  setColour(juce::AlertWindow::textColourId,
+            getGyeolColor(GyeolPalette::TextPrimary));
+  setColour(juce::AlertWindow::outlineColourId,
+            getGyeolColor(GyeolPalette::BorderDefault));
+
+  refreshFromTheme();
+}
+
+void GyeolCustomLookAndFeel::refreshFromTheme() {
+  setColour(juce::ResizableWindow::backgroundColourId,
+            getGyeolColor(GyeolPalette::CanvasBackground));
+
+  setColour(juce::Label::textColourId,
+            getGyeolColor(GyeolPalette::TextPrimary));
+
+  setColour(juce::Slider::thumbColourId,
+            getGyeolColor(GyeolPalette::AccentPrimary));
+  setColour(juce::Slider::trackColourId,
+            getGyeolColor(GyeolPalette::ControlBase));
+  setColour(juce::Slider::backgroundColourId,
+            getGyeolColor(GyeolPalette::ControlBase));
+
+  setColour(juce::TextButton::buttonColourId,
+            getGyeolColor(GyeolPalette::ControlBase));
+  setColour(juce::TextButton::buttonOnColourId,
+            getGyeolColor(GyeolPalette::AccentPrimary));
+  setColour(juce::TextButton::textColourOffId,
+            getGyeolColor(GyeolPalette::TextPrimary));
+  setColour(juce::TextButton::textColourOnId,
+            getGyeolColor(GyeolPalette::TextPrimary).contrasting(1.0f));
+
+  setColour(juce::PopupMenu::backgroundColourId,
+            getGyeolColor(GyeolPalette::PanelBackground));
+  setColour(juce::PopupMenu::textColourId,
+            getGyeolColor(GyeolPalette::TextPrimary));
+  setColour(juce::PopupMenu::highlightedBackgroundColourId,
+            getGyeolColor(GyeolPalette::AccentPrimary));
+  setColour(juce::PopupMenu::highlightedTextColourId,
+            getGyeolColor(GyeolPalette::TextPrimary).contrasting(1.0f));
+  setColour(juce::ComboBox::backgroundColourId,
+            getGyeolColor(GyeolPalette::ControlBase));
+  setColour(juce::ComboBox::textColourId,
+            getGyeolColor(GyeolPalette::TextPrimary));
+  setColour(juce::ComboBox::outlineColourId,
+            getGyeolColor(GyeolPalette::BorderDefault));
+
+  setColour(juce::ScrollBar::thumbColourId,
+            getGyeolColor(GyeolPalette::BorderActive));
+  setColour(juce::ScrollBar::backgroundColourId,
+            juce::Colours::transparentBlack);
+
+  setColour(juce::TreeView::backgroundColourId,
+            getGyeolColor(GyeolPalette::PanelBackground));
+  setColour(juce::TreeView::selectedItemBackgroundColourId,
+            getGyeolColor(GyeolPalette::ControlBase));
+
+  setColour(juce::TextEditor::backgroundColourId,
+            getGyeolColor(GyeolPalette::ControlBase));
+  setColour(juce::TextEditor::textColourId,
+            getGyeolColor(GyeolPalette::TextPrimary));
+  setColour(juce::TextEditor::outlineColourId,
+            getGyeolColor(GyeolPalette::BorderDefault));
+  setColour(juce::TextEditor::focusedOutlineColourId,
+            getGyeolColor(GyeolPalette::AccentPrimary));
+  setColour(juce::TextEditor::highlightColourId,
+            getGyeolColor(GyeolPalette::AccentPrimary).withAlpha(0.35f));
+  setColour(juce::TextEditor::highlightedTextColourId,
+            getGyeolColor(GyeolPalette::TextPrimary).contrasting(1.0f));
+  setColour(juce::CaretComponent::caretColourId,
+            getGyeolColor(GyeolPalette::AccentPrimary));
+
+  setColour(juce::ListBox::backgroundColourId,
+            getGyeolColor(GyeolPalette::PanelBackground));
+  setColour(juce::ListBox::textColourId,
+            getGyeolColor(GyeolPalette::TextPrimary));
+  setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
+
+  setColour(juce::TooltipWindow::backgroundColourId,
+            getGyeolColor(GyeolPalette::HeaderBackground));
+  setColour(juce::TooltipWindow::textColourId,
+            getGyeolColor(GyeolPalette::TextPrimary));
+  setColour(juce::TooltipWindow::outlineColourId,
+            getGyeolColor(GyeolPalette::BorderDefault));
+
   setColour(juce::AlertWindow::backgroundColourId,
             getGyeolColor(GyeolPalette::PanelBackground));
   setColour(juce::AlertWindow::textColourId,
@@ -201,7 +375,7 @@ GyeolCustomLookAndFeel::GyeolCustomLookAndFeel() {
 GyeolCustomLookAndFeel::~GyeolCustomLookAndFeel() {}
 
 // ==============================================================================
-// 커스텀 렌더링 오버라이드 구현
+// 而ㅼ뒪? ?뚮뜑留??ㅻ쾭?쇱씠??援ы쁽
 // ==============================================================================
 
 void GyeolCustomLookAndFeel::drawToggleButton(
@@ -394,20 +568,20 @@ juce::Font GyeolCustomLookAndFeel::getTextButtonFont(juce::TextButton &button,
 }
 
 // ==============================================================================
-// makeFont: BinaryData Typeface 기반 Font 생성 헬퍼
+// makeFont: BinaryData Typeface 湲곕컲 Font ?앹꽦 ?ы띁
 // ==============================================================================
 juce::Font GyeolCustomLookAndFeel::makeFont(float height, bool bold) const {
-  // NanumSquareRound는 한글 문자를 담당하지만 JUCE 단일 Typeface 구조상
-  // fallback 체인을 직접 지원하지 않으므로 Nunito를 기본으로 사용합니다.
-  // 향후 다국어 확장 시 SystemFont fallback 처리를 여기서 분기할 수 있습니다.
+  // NanumSquareRound???쒓? 臾몄옄瑜??대떦?섏?留?JUCE ?⑥씪 Typeface 援ъ“??
+  // fallback 泥댁씤??吏곸젒 吏?먰븯吏 ?딆쑝誘濡?Nunito瑜?湲곕낯?쇰줈 ?ъ슜?⑸땲??
+  // ?ν썑 ?ㅺ뎅???뺤옣 ??SystemFont fallback 泥섎━瑜??ш린??遺꾧린?????덉뒿?덈떎.
   juce::Typeface::Ptr tf = bold ? nunitoBold : nunitoRegular;
   if (tf == nullptr)
-    return juce::Font(juce::FontOptions(height)); // 로드 실패 시 시스템 기본
+    return juce::Font(juce::FontOptions(height)); // 濡쒕뱶 ?ㅽ뙣 ???쒖뒪??湲곕낯
   return juce::Font(tf).withHeight(height);
 }
 
 // ==============================================================================
-// Phase 3: 마이크로 호버 트랜지션, 드롭 섀도우, 입체감
+// Phase 3: 留덉씠?щ줈 ?몃쾭 ?몃옖吏?? ?쒕∼ ??꾩슦, ?낆껜媛?
 // ==============================================================================
 
 void GyeolCustomLookAndFeel::drawButtonBackground(
@@ -427,11 +601,11 @@ void GyeolCustomLookAndFeel::drawButtonBackground(
     bg = getGyeolColor(GyeolPalette::ControlHover);
   }
 
-  // 부드러운 배경
+  // 遺?쒕윭??諛곌꼍
   g.setColour(bg);
   g.fillRoundedRectangle(bounds, cornerRadius);
 
-  // 호버 시 미세한 Glow 테두리 (AccentPrimary의 저투명도 외곽선)
+  // ?몃쾭 ??誘몄꽭??Glow ?뚮몢由?(AccentPrimary????щ챸???멸낸??
   if (shouldDrawButtonAsHighlighted && button.isEnabled() &&
       !shouldDrawButtonAsDown) {
     const auto glowColour =
@@ -439,7 +613,7 @@ void GyeolCustomLookAndFeel::drawButtonBackground(
     g.setColour(glowColour);
     g.drawRoundedRectangle(bounds, cornerRadius, 1.5f);
   } else if (!shouldDrawButtonAsDown) {
-    // 일반 상태의 아주 미세한 보더
+    // ?쇰컲 ?곹깭???꾩＜ 誘몄꽭??蹂대뜑
     g.setColour(getGyeolColor(GyeolPalette::BorderDefault));
     g.drawRoundedRectangle(bounds, cornerRadius, 0.8f);
   }
@@ -451,22 +625,22 @@ void GyeolCustomLookAndFeel::drawPopupMenuBackground(juce::Graphics &g,
       juce::Rectangle<float>(0.0f, 0.0f, (float)width, (float)height);
   const auto cornerRadius = 8.0f;
 
-  // 1. 드롭 섀도우 (옅고 넓게 퍼지는 그림자)
+  // 1. ?쒕∼ ??꾩슦 (?낃퀬 ?볤쾶 ?쇱???洹몃┝??
   drawSoftDropShadow(g, bounds, 16.0f, 0.4f);
 
-  // 2. 반투명 배경 (약간의 글래스모피즘 효과)
+  // 2. 諛섑닾紐?諛곌꼍 (?쎄컙??湲?섏뒪紐⑦뵾利??④낵)
   const auto bgColour =
       getGyeolColor(GyeolPalette::PanelBackground).withAlpha(0.95f);
   g.setColour(bgColour);
   g.fillRoundedRectangle(bounds.reduced(1.0f), cornerRadius);
 
-  // 3. 미세한 밝은 보더로 팝업 경계 강조
+  // 3. 誘몄꽭??諛앹? 蹂대뜑濡??앹뾽 寃쎄퀎 媛뺤“
   g.setColour(getGyeolColor(GyeolPalette::BorderDefault).withAlpha(0.7f));
   g.drawRoundedRectangle(bounds.reduced(1.0f), cornerRadius, 1.0f);
 }
 
 int GyeolCustomLookAndFeel::getPopupMenuBorderSize() {
-  return 4; // 라운드 코너를 위한 내부 여백
+  return 4; // ?쇱슫??肄붾꼫瑜??꾪븳 ?대? ?щ갚
 }
 
 void GyeolCustomLookAndFeel::fillTextEditorBackground(
@@ -485,14 +659,14 @@ void GyeolCustomLookAndFeel::drawTextEditorOutline(juce::Graphics &g, int width,
       juce::Rectangle<float>(0.0f, 0.0f, (float)width, (float)height);
 
   if (editor.hasKeyboardFocus(true)) {
-    // 포커스 상태: AccentPrimary 보더 + 미세한 Glow
+    // ?ъ빱???곹깭: AccentPrimary 蹂대뜑 + 誘몄꽭??Glow
     const auto accentCol = getGyeolColor(GyeolPalette::AccentPrimary);
     g.setColour(accentCol.withAlpha(0.2f));
     g.drawRoundedRectangle(bounds.expanded(1.0f), 5.0f, 2.0f);
     g.setColour(accentCol.withAlpha(0.7f));
     g.drawRoundedRectangle(bounds, 4.0f, 1.2f);
   } else {
-    // 비포커스 상태: 미세한 보더
+    // 鍮꾪룷而ㅼ뒪 ?곹깭: 誘몄꽭??蹂대뜑
     g.setColour(getGyeolColor(GyeolPalette::BorderDefault));
     g.drawRoundedRectangle(bounds, 4.0f, 0.8f);
   }
@@ -506,15 +680,15 @@ void GyeolCustomLookAndFeel::drawGroupComponentOutline(
   const auto bounds = juce::Rectangle<float>(
       0.0f, textHeight * 0.5f, (float)width, (float)height - textHeight * 0.5f);
 
-  // 배경
+  // 諛곌꼍
   g.setColour(getGyeolColor(GyeolPalette::HeaderBackground).withAlpha(0.5f));
   g.fillRoundedRectangle(bounds, 6.0f);
 
-  // 미세한 보더
+  // 誘몄꽭??蹂대뜑
   g.setColour(getGyeolColor(GyeolPalette::BorderDefault).withAlpha(0.5f));
   g.drawRoundedRectangle(bounds, 6.0f, 0.6f);
 
-  // 헤더 텍스트
+  // ?ㅻ뜑 ?띿뒪??
   if (text.isNotEmpty()) {
     g.setColour(getGyeolColor(GyeolPalette::TextSecondary));
     g.setFont(makeFont(12.0f, true));
@@ -526,12 +700,12 @@ void GyeolCustomLookAndFeel::drawGroupComponentOutline(
 }
 
 // ==============================================================================
-// drawSoftDropShadow: 범용 소프트 드롭 섀도우 유틸리티
+// drawSoftDropShadow: 踰붿슜 ?뚰봽???쒕∼ ??꾩슦 ?좏떥由ы떚
 // ==============================================================================
 void GyeolCustomLookAndFeel::drawSoftDropShadow(
     juce::Graphics &g, const juce::Rectangle<float> &area, float radius,
     float opacity) {
-  // 여러 겹의 반투명 검은색 라운드 사각형으로 소프트 섀도우 근사
+  // ?щ윭 寃뱀쓽 諛섑닾紐?寃????쇱슫???ш컖?뺤쑝濡??뚰봽????꾩슦 洹쇱궗
   const int numLayers = 5;
   for (int i = numLayers; i >= 1; --i) {
     const float expand = radius * (float)i / (float)numLayers;
@@ -543,3 +717,9 @@ void GyeolCustomLookAndFeel::drawSoftDropShadow(
 }
 
 } // namespace Gyeol
+
+
+
+
+
+
