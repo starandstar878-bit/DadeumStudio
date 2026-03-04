@@ -3,6 +3,7 @@
 #include "Gyeol/Public/DocumentHandle.h"
 #include "Gyeol/Widgets/WidgetRegistry.h"
 #include <JuceHeader.h>
+#include <functional>
 #include <vector>
 
 namespace Gyeol::Ui::Panels
@@ -23,6 +24,7 @@ namespace Gyeol::Ui::Panels
             IssueSeverity severity = IssueSeverity::info;
             juce::String title;
             juce::String message;
+            WidgetId relatedWidgetId = kRootId;
         };
 
         ValidationPanel(DocumentHandle& documentIn, const Widgets::WidgetRegistry& registryIn);
@@ -32,6 +34,7 @@ namespace Gyeol::Ui::Panels
         void refreshValidation();
         bool autoRefreshEnabled() const noexcept;
         void setAutoRefreshEnabled(bool enabled);
+        void setSelectWidgetCallback(std::function<void(WidgetId)> callback);
 
         void paint(juce::Graphics& g) override;
         void resized() override;
@@ -45,12 +48,23 @@ namespace Gyeol::Ui::Panels
                               bool rowIsSelected) override;
 
         void rebuildIssues();
+        void rebuildFilteredIssues();
         void pushIssue(IssueSeverity severity, const juce::String& title, const juce::String& message);
         static juce::Colour colorForSeverity(IssueSeverity severity);
         static juce::String labelForSeverity(IssueSeverity severity);
 
         DocumentHandle& document;
         const Widgets::WidgetRegistry& registry;
+
+        // Legacy-compatible fields used by advanced ValidationPanel variants.
+        std::vector<Issue> allIssues;
+        std::vector<int> filteredRows;
+        bool showErrors = true;
+        bool showWarnings = true;
+        bool showInfo = true;
+        std::function<void(WidgetId)> onSelectWidget;
+
+        // Current lightweight mode fields.
         std::vector<Issue> issues;
         bool dirty = true;
         bool autoRefresh = true;
@@ -59,6 +73,9 @@ namespace Gyeol::Ui::Panels
         juce::Label summaryLabel;
         juce::ToggleButton autoRefreshToggle { "Auto" };
         juce::TextButton runButton { "Run Validation" };
+        juce::TextButton filterErrorBtn { "E" };
+        juce::TextButton filterWarningBtn { "W" };
+        juce::TextButton filterInfoBtn { "I" };
         juce::ListBox listBox;
     };
 }
