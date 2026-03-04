@@ -6909,7 +6909,12 @@ private:
     dumpJsonButton.setButtonText(iconToolbar ? "{}" : (compactToolbar ? "JSON" : "{ }"));
     exportJuceButton.setButtonText(iconToolbar ? "EX" : (compactToolbar ? "Export" : "?"));
     previewModeButton.setButtonText(iconToolbar ? "P" : (compactToolbar ? "Preview" : "? Preview"));
-    runModeButton.setButtonText(iconToolbar ? "R" : (compactToolbar ? "Run" : "¢º Run"));
+    const auto runModeLabel =
+        iconToolbar
+            ? juce::String("R")
+            : (compactToolbar ? juce::String("Run")
+                              : juce::String::fromUTF8(u8"\u25B6 Run"));
+    runModeButton.setButtonText(runModeLabel);
     gridSnapMenuButton.setButtonText(iconToolbar ? "#" : (compactToolbar ? "Grid" : "# Grid"));
     leftDockButton.setButtonText(iconToolbar ? "L" : "Dock L");
     rightDockButton.setButtonText(iconToolbar ? "R" : "Dock R");
@@ -7834,6 +7839,7 @@ std::unique_ptr<EditorHandle> createEditor() {
   return std::make_unique<EditorHandle>();
 }
 } // namespace Gyeol
+
 
 
 
