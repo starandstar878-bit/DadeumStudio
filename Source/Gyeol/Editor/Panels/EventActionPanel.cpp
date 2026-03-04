@@ -305,6 +305,57 @@ std::optional<bool> parseLooseBool(const juce::String &text) noexcept {
     return false;
   return std::nullopt;
 }
+
+constexpr int kSearchDebounceMs = 50;
+
+uint64_t hashCombine(uint64_t seed, uint64_t value) noexcept {
+  seed ^= value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2);
+  return seed;
+}
+
+uint64_t hashString(const juce::String &text) noexcept {
+  auto utf8 = text.toRawUTF8();
+  uint64_t hash = 1469598103934665603ull;
+  while (*utf8 != 0) {
+    hash ^= static_cast<unsigned char>(*utf8++);
+    hash *= 1099511628211ull;
+  }
+  return hash;
+}
+
+uint64_t widgetCatalogHash(const DocumentModel &snapshot) noexcept {
+  uint64_t hash = static_cast<uint64_t>(snapshot.widgets.size()) + 0x1234abcdull;
+  for (const auto &widget : snapshot.widgets) {
+    hash = hashCombine(hash, static_cast<uint64_t>(widget.id));
+    hash = hashCombine(hash, static_cast<uint64_t>(widget.type));
+    const auto name = widget.properties.contains("name")
+                          ? widget.properties["name"].toString()
+                          : juce::String();
+    hash = hashCombine(hash, hashString(name));
+  }
+
+  return hash;
+}
+
+juce::Rectangle<int> bindingCardToggleBounds(int width, int height) noexcept {
+  auto area = juce::Rectangle<int>(0, 0, width, height).reduced(10, 6);
+  auto titleRow = area.removeFromTop(18);
+  return titleRow.removeFromRight(44).reduced(0, 1);
+}
+
+juce::Rectangle<int> bindingCardDeleteBounds(int width, int height) noexcept {
+  auto area = juce::Rectangle<int>(0, 0, width, height).reduced(10, 6);
+  auto footerRow = area.removeFromBottom(16);
+  return footerRow.removeFromRight(40).reduced(0, 1);
+}
+
+void setupInlineWarningLabel(const juce::Component &owner, juce::Label &label) {
+  label.setText(juce::String::fromUTF8(u8"\u26A0"), juce::dontSendNotification);
+  label.setFont(makePanelFont(owner, 10.0f, true));
+  label.setColour(juce::Label::textColourId, palette(GyeolPalette::ValidWarning));
+  label.setJustificationType(juce::Justification::centred);
+  label.setVisible(false);
+}
 } // namespace
 
 EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
@@ -348,7 +399,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   setupEditor(searchEditor, "Search Name/Source/Event");
   searchEditor.onTextChange = [this] {
     if (!suppressCallbacks)
-      rebuildVisibleBindings();
+      scheduleSearchFilterRefresh();
   };
   addAndMakeVisible(searchEditor);
   showAllWidgetsToggle.setButtonText(
@@ -357,9 +408,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
     if (suppressCallbacks)
       return;
     syncSelectionFilter();
-    rebuildVisibleBindings();
-    restoreSelections();
-    refreshDetailEditors();
+    applySearchFilterNow();
   };
   addAndMakeVisible(showAllWidgetsToggle);
 
@@ -404,8 +453,10 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(bindingEnabledToggle);
 
   duplicateBindingButton.onClick = [this] { duplicateSelectedBinding(); };
+  cloneBindingButton.onClick = [this] { showCloneBindingMenu(); };
   deleteBindingButton.onClick = [this] { deleteSelectedBinding(); };
   addAndMakeVisible(duplicateBindingButton);
+  addAndMakeVisible(cloneBindingButton);
   addAndMakeVisible(deleteBindingButton);
 
   actionList.setModel(&actionListModel);
@@ -458,7 +509,17 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   setupEditor(boundsWEditor, juce::String::fromUTF8(u8"\uB108\uBE44"));
   setupEditor(boundsHEditor, juce::String::fromUTF8(u8"\uB192\uC774"));
 
-  paramKeyCombo.onChange = [this] { applySelectedAction(); };
+  const auto bindEscapeCancel = [this](juce::TextEditor &editor) {
+    editor.onEscapeKey = [this] { cancelPendingEdits(); };
+  };
+
+  paramKeyCombo.onChange = [this] {
+    if (suppressCallbacks)
+      return;
+    rebuildRuntimeParamKeyOptions();
+    applySelectedAction();
+    updateValidationUi();
+  };
   valueEditor.onReturnKey = [this] { applySelectedAction(); };
   valueEditor.onFocusLost = [this] { applySelectedAction(); };
   deltaEditor.onReturnKey = [this] { applySelectedAction(); };
@@ -475,6 +536,19 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   boundsWEditor.onFocusLost = [this] { applySelectedAction(); };
   boundsHEditor.onReturnKey = [this] { applySelectedAction(); };
   boundsHEditor.onFocusLost = [this] { applySelectedAction(); };
+  bindEscapeCancel(bindingNameEditor);
+  bindEscapeCancel(valueEditor);
+  bindEscapeCancel(deltaEditor);
+  bindEscapeCancel(opacityEditor);
+  bindEscapeCancel(boundsXEditor);
+  bindEscapeCancel(boundsYEditor);
+  bindEscapeCancel(boundsWEditor);
+  bindEscapeCancel(boundsHEditor);
+  deltaEditor.onTextChange = [this] { updateValidationUi(); };
+  boundsXEditor.onTextChange = [this] { updateValidationUi(); };
+  boundsYEditor.onTextChange = [this] { updateValidationUi(); };
+  boundsWEditor.onTextChange = [this] { updateValidationUi(); };
+  boundsHEditor.onTextChange = [this] { updateValidationUi(); };
 
   addAndMakeVisible(paramKeyCombo);
   addAndMakeVisible(valueEditor);
@@ -563,6 +637,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   patchEditor.setColour(juce::TextEditor::textColourId,
                         palette(GyeolPalette::TextPrimary));
   patchEditor.onFocusLost = [this] { applySelectedAction(); };
+  patchEditor.onEscapeKey = [this] { cancelPendingEdits(); };
   addAndMakeVisible(patchEditor);
 
   statusLabel.setJustificationType(juce::Justification::centredLeft);
@@ -614,6 +689,17 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   runtimeParamDescriptionEditor.onFocusLost = [this] {
     applySelectedRuntimeParam();
   };
+  bindEscapeCancel(runtimeParamKeyEditor);
+  bindEscapeCancel(runtimeParamDefaultEditor);
+  bindEscapeCancel(runtimeParamDescriptionEditor);
+  runtimeParamKeyEditor.onTextChange = [this] {
+    updatePropertyBindingExpressionPreview();
+    updateValidationUi();
+  };
+  runtimeParamDefaultEditor.onTextChange = [this] {
+    updatePropertyBindingExpressionPreview();
+    updateValidationUi();
+  };
   addAndMakeVisible(runtimeParamKeyEditor);
   addAndMakeVisible(runtimeParamDefaultEditor);
   addAndMakeVisible(runtimeParamDescriptionEditor);
@@ -661,6 +747,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   propertyBindingNameEditor.onFocusLost = [this] {
     applySelectedPropertyBinding();
   };
+  propertyBindingNameEditor.onTextChange = [this] { updateValidationUi(); };
   propertyBindingTargetIdCombo.onChange = [this] {
     if (suppressCallbacks)
       return;
@@ -683,10 +770,33 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   propertyBindingExpressionEditor.onFocusLost = [this] {
     applySelectedPropertyBinding();
   };
+  propertyBindingExpressionEditor.onTextChange = [this] {
+    updatePropertyBindingExpressionPreview();
+    updateValidationUi();
+  };
   addAndMakeVisible(propertyBindingNameEditor);
   addAndMakeVisible(propertyBindingTargetIdCombo);
   addAndMakeVisible(propertyBindingTargetPropertyCombo);
   addAndMakeVisible(propertyBindingExpressionEditor);
+  bindEscapeCancel(propertyBindingNameEditor);
+  bindEscapeCancel(propertyBindingExpressionEditor);
+
+  propertyBindingExpressionPreviewLabel.setJustificationType(
+      juce::Justification::centredLeft);
+  propertyBindingExpressionPreviewLabel.setFont(makePanelFont(*this, 10.0f, false));
+  propertyBindingExpressionPreviewLabel.setColour(juce::Label::textColourId,
+                                                 palette(GyeolPalette::TextSecondary));
+  addAndMakeVisible(propertyBindingExpressionPreviewLabel);
+
+  setupInlineWarningLabel(*this, paramKeyWarningLabel);
+  setupInlineWarningLabel(*this, deltaWarningLabel);
+  setupInlineWarningLabel(*this, boundsWarningLabel);
+  setupInlineWarningLabel(*this, propertyBindingWarningLabel);
+  for (auto *warningLabel : {&paramKeyWarningLabel, &deltaWarningLabel,
+                             &boundsWarningLabel, &propertyBindingWarningLabel}) {
+    warningLabel->setInterceptsMouseClicks(false, false);
+    addAndMakeVisible(*warningLabel);
+  }
 
   propertyBindingEnabledToggle.setClickingTogglesState(true);
   propertyBindingEnabledToggle.onClick = [this] {
@@ -694,11 +804,25 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   };
   addAndMakeVisible(propertyBindingEnabledToggle);
 
+  sourceCombo.setExplicitFocusOrder(10);
+  eventCombo.setExplicitFocusOrder(11);
+  bindingNameEditor.setExplicitFocusOrder(12);
+  bindingEnabledToggle.setExplicitFocusOrder(13);
+  addBindingButton.setExplicitFocusOrder(14);
+
+  setWantsKeyboardFocus(true);
+  bindingList.setWantsKeyboardFocus(true);
+  actionList.setWantsKeyboardFocus(true);
+  bindingList.addKeyListener(this);
+  actionList.addKeyListener(this);
+  addKeyListener(this);
+
   refreshFromDocument();
   setPanelMode(PanelMode::eventAction);
 }
 
 EventActionPanel::~EventActionPanel() {
+  stopTimer();
   bindingList.setModel(nullptr);
   actionList.setModel(nullptr);
   runtimeParamList.setModel(nullptr);
@@ -715,14 +839,24 @@ void EventActionPanel::refreshFromDocument() {
   bindings = snapshot.runtimeBindings;
   runtimeParams = snapshot.runtimeParams;
   propertyBindings = snapshot.propertyBindings;
-  rebuildWidgetOptions();
+
+  const auto nextWidgetHash = widgetCatalogHash(snapshot);
+  const auto widgetsChanged =
+      nextWidgetHash != widgetOptionsHash || widgetOptions.empty();
+  if (widgetsChanged) {
+    widgetOptionsHash = nextWidgetHash;
+    rebuildWidgetOptions();
+  }
+
   const bool filterChanged = syncSelectionFilter();
-  rebuildCreateCombos(filterChanged);
-  rebuildVisibleBindings();
-  restoreSelections();
-  refreshDetailEditors();
+  if (widgetsChanged || filterChanged || sourceCombo.getNumItems() == 0)
+    rebuildCreateCombos(filterChanged || widgetsChanged);
+
+  applySearchFilterNow();
   refreshStateEditors();
   updatePanelModeVisibility();
+  updatePropertyBindingExpressionPreview();
+  updateValidationUi();
 }
 
 void EventActionPanel::paint(juce::Graphics &g) {
@@ -849,6 +983,14 @@ void EventActionPanel::resized() {
     area.removeFromTop(4);
 
     propertyBindingExpressionEditor.setBounds(area.removeFromTop(24));
+    area.removeFromTop(2);
+    propertyBindingExpressionPreviewLabel.setBounds(area.removeFromTop(16));
+    propertyBindingWarningLabel.setBounds(
+        propertyBindingExpressionEditor.getRight() - 14,
+        propertyBindingExpressionEditor.getY() + 4, 12, 12);
+    paramKeyWarningLabel.setVisible(false);
+    deltaWarningLabel.setVisible(false);
+    boundsWarningLabel.setVisible(false);
     return;
   }
 
@@ -876,12 +1018,15 @@ void EventActionPanel::resized() {
   auto metaRow = area.removeFromTop(24);
   auto deleteArea = metaRow.removeFromRight(84);
   metaRow.removeFromRight(4);
+  auto cloneArea = metaRow.removeFromRight(90);
+  metaRow.removeFromRight(4);
   auto duplicateArea = metaRow.removeFromRight(96);
   metaRow.removeFromRight(4);
   bindingEnabledToggle.setBounds(metaRow.removeFromRight(96));
   metaRow.removeFromRight(4);
   bindingNameEditor.setBounds(metaRow);
   duplicateBindingButton.setBounds(duplicateArea);
+  cloneBindingButton.setBounds(cloneArea);
   deleteBindingButton.setBounds(deleteArea);
 
   area.removeFromTop(4);
@@ -975,6 +1120,20 @@ void EventActionPanel::resized() {
                {&boundsHEditor, 76}});
     break;
   }
+
+  const auto placeWarning = [](juce::Label &label, const juce::Component &target) {
+    if (!target.isVisible()) {
+      label.setVisible(false);
+      return;
+    }
+
+    label.setBounds(target.getRight() - 14, target.getY() + 6, 12, 12);
+  };
+
+  placeWarning(paramKeyWarningLabel, paramKeyCombo);
+  placeWarning(deltaWarningLabel, deltaEditor);
+  placeWarning(boundsWarningLabel, boundsHEditor);
+  propertyBindingWarningLabel.setVisible(false);
 }
 
 int EventActionPanel::selectedBindingModelIndex() const {
@@ -1093,6 +1252,7 @@ void EventActionPanel::updatePanelModeVisibility() {
   setEventVisibility(bindingNameEditor);
   setEventVisibility(bindingEnabledToggle);
   setEventVisibility(duplicateBindingButton);
+  setEventVisibility(cloneBindingButton);
   setEventVisibility(deleteBindingButton);
   setEventVisibility(actionSectionLabel);
   setEventVisibility(actionList);
@@ -1123,6 +1283,7 @@ void EventActionPanel::updatePanelModeVisibility() {
   propertyBindingTargetIdCombo.setVisible(showState);
   propertyBindingTargetPropertyCombo.setVisible(showState);
   propertyBindingExpressionEditor.setVisible(showState);
+  propertyBindingExpressionPreviewLabel.setVisible(showState);
 }
 
 void EventActionPanel::refreshStateEditors() {
@@ -1227,6 +1388,8 @@ void EventActionPanel::refreshStateEditors() {
   }
 
   suppressCallbacks = false;
+  updatePropertyBindingExpressionPreview();
+  updateValidationUi();
 }
 
 void EventActionPanel::rebuildWidgetOptions() {
@@ -1254,6 +1417,14 @@ void EventActionPanel::rebuildWidgetOptions() {
 
 void EventActionPanel::rebuildRuntimeParamKeyOptions() {
   const auto previousText = paramKeyCombo.getText().trim();
+  const auto filterText = previousText.toLowerCase();
+  const bool hadFocus = paramKeyCombo.hasKeyboardFocus(true);
+  const bool applyFilter = hadFocus && paramKeyCombo.getSelectedItemIndex() < 0 &&
+                           filterText.isNotEmpty();
+
+  const auto wasSuppressing = suppressCallbacks;
+  suppressCallbacks = true;
+
   paramKeyCombo.clear(juce::dontSendNotification);
 
   std::vector<juce::String> keys;
@@ -1264,14 +1435,29 @@ void EventActionPanel::rebuildRuntimeParamKeyOptions() {
     const auto key = param.key.trim();
     if (key.isEmpty())
       continue;
-    if (std::find(keys.begin(), keys.end(), key) != keys.end())
+
+    const auto exists = std::any_of(
+        keys.begin(), keys.end(), [&key](const juce::String &candidate) {
+          return candidate.equalsIgnoreCase(key);
+        });
+    if (exists)
       continue;
+
+    if (applyFilter &&
+        !key.toLowerCase().contains(filterText)) {
+      continue;
+    }
+
     keys.push_back(key);
     paramKeyCombo.addItem(key, itemId++);
   }
 
   if (previousText.isNotEmpty()) {
-    const auto it = std::find(keys.begin(), keys.end(), previousText);
+    const auto it = std::find_if(
+        keys.begin(), keys.end(), [&previousText](const juce::String &candidate) {
+          return candidate.equalsIgnoreCase(previousText);
+        });
+
     if (it != keys.end()) {
       const auto index = static_cast<int>(std::distance(keys.begin(), it));
       paramKeyCombo.setSelectedItemIndex(index, juce::dontSendNotification);
@@ -1281,6 +1467,8 @@ void EventActionPanel::rebuildRuntimeParamKeyOptions() {
   } else {
     paramKeyCombo.setSelectedItemIndex(-1, juce::dontSendNotification);
   }
+
+  suppressCallbacks = wasSuppressing;
 }
 
 void EventActionPanel::rebuildActionTargetOptions() {
@@ -1659,6 +1847,22 @@ void EventActionPanel::rebuildCreateCombos(bool forceSelectionMatch) {
   suppressCallbacks = false;
 }
 
+void EventActionPanel::scheduleSearchFilterRefresh() {
+  startTimer(kSearchDebounceMs);
+}
+
+void EventActionPanel::applySearchFilterNow() {
+  stopTimer();
+  rebuildVisibleBindings();
+  restoreSelections();
+  refreshDetailEditors();
+}
+
+void EventActionPanel::timerCallback() {
+  stopTimer();
+  applySearchFilterNow();
+}
+
 bool EventActionPanel::syncSelectionFilter() {
   const auto &selection = document.editorState().selection;
   if (selection == lastEditorSelection)
@@ -1695,6 +1899,51 @@ bool EventActionPanel::bindingMatchesSelectionFilter(
                      });
 }
 
+juce::String EventActionPanel::validateRuntimeBindingForUi(
+    const RuntimeBindingModel &binding) const {
+  if (binding.sourceWidgetId <= kRootId)
+    return "source widget missing";
+
+  const auto sourceOption = findWidgetOption(binding.sourceWidgetId);
+  if (!sourceOption.has_value())
+    return "source widget missing";
+
+  const auto eventKey = binding.eventKey.trim();
+  if (eventKey.isEmpty())
+    return "event key missing";
+
+  const auto hasEvent =
+      std::any_of(sourceOption->events.begin(), sourceOption->events.end(),
+                  [&eventKey](const Widgets::RuntimeEventSpec &eventSpec) {
+                    return eventSpec.key == eventKey;
+                  });
+  if (!hasEvent)
+    return "event key unavailable on source widget";
+
+  const auto &widgets = document.snapshot().widgets;
+  for (const auto &action : binding.actions) {
+    if (action.kind == RuntimeActionKind::setNodeProps &&
+        action.target.kind == NodeKind::widget && action.target.id > kRootId) {
+      const auto found = std::any_of(
+          widgets.begin(), widgets.end(),
+          [&action](const WidgetModel &widget) { return widget.id == action.target.id; });
+      if (!found)
+        return "target widget missing";
+    }
+
+    if (action.kind == RuntimeActionKind::setNodeBounds &&
+        action.targetWidgetId > kRootId) {
+      const auto found =
+          std::any_of(widgets.begin(), widgets.end(), [&action](const WidgetModel &widget) {
+            return widget.id == action.targetWidgetId;
+          });
+      if (!found)
+        return "target widget missing";
+    }
+  }
+
+  return {};
+}
 bool EventActionPanel::isTextEditorPendingCommit(
     const juce::TextEditor *editor) const {
   if (editor == nullptr || editor == &searchEditor)
@@ -1885,6 +2134,84 @@ bool EventActionPanel::hasImplicitPinFocus() const {
   return false;
 }
 
+void EventActionPanel::cancelPendingEdits() {
+  if (panelMode == PanelMode::eventAction)
+    refreshDetailEditors();
+  else
+    refreshStateEditors();
+
+  updatePropertyBindingExpressionPreview();
+  updateValidationUi();
+  setStatus("Edit cancelled.", kStatusInfo);
+}
+
+bool EventActionPanel::keyPressed(
+    const juce::KeyPress &key, juce::Component *) {
+  return EventActionPanel::keyPressed(key);
+}
+bool EventActionPanel::keyPressed(const juce::KeyPress &key) {
+  if (panelMode != PanelMode::eventAction)
+    return false;
+
+  auto *focused = juce::Component::getCurrentlyFocusedComponent();
+  if (focused != nullptr && isParentOf(focused)) {
+    if (dynamic_cast<juce::TextEditor *>(focused) != nullptr)
+      return false;
+
+    if (auto *label = dynamic_cast<juce::Label *>(focused);
+        label != nullptr && label->isBeingEdited()) {
+      return false;
+    }
+  }
+
+  if (key.getModifiers().isCommandDown() &&
+      juce::CharacterFunctions::toLowerCase(key.getTextCharacter()) == 'd') {
+    duplicateSelectedBinding();
+    return true;
+  }
+
+  const auto actionFocused = actionList.hasKeyboardFocus(true);
+  const auto bindingFocused = bindingList.hasKeyboardFocus(true);
+
+  if (actionFocused) {
+    const auto row = actionList.getSelectedRow();
+    if (key.getKeyCode() == juce::KeyPress::upKey) {
+      if (key.getModifiers().isCommandDown()) {
+        moveActionUp();
+      } else if (row > 0) {
+        actionList.selectRow(row - 1);
+      }
+      return true;
+    }
+
+    if (key.getKeyCode() == juce::KeyPress::downKey) {
+      if (key.getModifiers().isCommandDown()) {
+        moveActionDown();
+      } else if (const auto *binding = selectedBinding();
+                 binding != nullptr && row >= 0 &&
+                 row < static_cast<int>(binding->actions.size()) - 1) {
+        actionList.selectRow(row + 1);
+      }
+      return true;
+    }
+
+    if (key.getKeyCode() == juce::KeyPress::deleteKey ||
+        key.getKeyCode() == juce::KeyPress::backspaceKey) {
+      deleteAction();
+      return true;
+    }
+  }
+
+  if (bindingFocused) {
+    if (key.getKeyCode() == juce::KeyPress::deleteKey ||
+        key.getKeyCode() == juce::KeyPress::backspaceKey) {
+      deleteSelectedBinding();
+      return true;
+    }
+  }
+
+  return false;
+}
 void EventActionPanel::rebuildVisibleBindings() {
   visibleBindingIndices.clear();
   const auto filter = searchEditor.getText().trim().toLowerCase();
@@ -1949,6 +2276,7 @@ void EventActionPanel::refreshDetailEditors() {
   bindingNameEditor.setEnabled(hasBinding);
   bindingEnabledToggle.setEnabled(hasBinding);
   duplicateBindingButton.setEnabled(hasBinding);
+  cloneBindingButton.setEnabled(hasBinding && !widgetOptions.empty());
   deleteBindingButton.setEnabled(hasBinding);
 
   if (hasBinding) {
@@ -2088,6 +2416,7 @@ void EventActionPanel::refreshDetailEditors() {
 
   resized();
   suppressCallbacks = false;
+  updateValidationUi();
   repaint();
 }
 
@@ -2126,6 +2455,9 @@ void EventActionPanel::updateActionEditorVisibility(
     setVisibility(boundsYEditor, false);
     setVisibility(boundsWEditor, false);
     setVisibility(boundsHEditor, false);
+    setVisibility(paramKeyWarningLabel, false);
+    setVisibility(deltaWarningLabel, false);
+    setVisibility(boundsWarningLabel, false);
     return;
   }
 
@@ -2204,6 +2536,10 @@ void EventActionPanel::updateActionEditorVisibility(
   setVisibility(boundsYEditor, isSetNodeBounds);
   setVisibility(boundsWEditor, isSetNodeBounds);
   setVisibility(boundsHEditor, isSetNodeBounds);
+  setVisibility(paramKeyWarningLabel, isSetRuntimeParam || isAdjustRuntimeParam ||
+                                   isToggleRuntimeParam);
+  setVisibility(deltaWarningLabel, isAdjustRuntimeParam);
+  setVisibility(boundsWarningLabel, isSetNodeBounds);
 }
 
 void EventActionPanel::rebuildAssetPatchEditors(
@@ -2404,6 +2740,90 @@ void EventActionPanel::duplicateSelectedBinding() {
     setStatus("Binding duplicated.", kStatusOk);
 }
 
+void EventActionPanel::showCloneBindingMenu() {
+  const auto index = selectedBindingModelIndex();
+  if (index < 0 || index >= static_cast<int>(bindings.size()))
+    return;
+
+  const auto &sourceBinding = bindings[static_cast<size_t>(index)];
+
+  juce::PopupMenu menu;
+  for (const auto &option : widgetOptions) {
+    if (option.id == sourceBinding.sourceWidgetId || option.events.empty())
+      continue;
+
+    menu.addItem(
+        option.label,
+        [safeOwner = juce::Component::SafePointer<EventActionPanel>(this),
+         targetId = option.id] {
+          if (safeOwner != nullptr)
+            safeOwner->cloneSelectedBindingToWidget(targetId);
+        });
+  }
+
+  if (menu.getNumItems() == 0) {
+    setStatus("No clone target available.", kStatusWarn);
+    return;
+  }
+
+  menu.showMenuAsync(
+      juce::PopupMenu::Options().withTargetComponent(&cloneBindingButton));
+}
+
+void EventActionPanel::cloneSelectedBindingToWidget(WidgetId targetSourceWidgetId) {
+  const auto index = selectedBindingModelIndex();
+  if (index < 0 || index >= static_cast<int>(bindings.size()))
+    return;
+
+  auto sourceBinding = bindings[static_cast<size_t>(index)];
+  const auto targetWidget = findWidgetOption(targetSourceWidgetId);
+  if (!targetWidget.has_value() || targetWidget->events.empty()) {
+    setStatus("Target widget has no runtime events.", kStatusWarn);
+    return;
+  }
+
+  sourceBinding.id = nextBindingId();
+  sourceBinding.sourceWidgetId = targetSourceWidgetId;
+
+  const auto matchingEvent = std::find_if(
+      targetWidget->events.begin(), targetWidget->events.end(),
+      [&sourceBinding](const Widgets::RuntimeEventSpec &eventSpec) {
+        return eventSpec.key == sourceBinding.eventKey;
+      });
+  if (matchingEvent != targetWidget->events.end())
+    sourceBinding.eventKey = matchingEvent->key;
+  else
+    sourceBinding.eventKey = targetWidget->events.front().key;
+
+  sourceBinding.name = sourceBinding.name.trim().isNotEmpty()
+                           ? (sourceBinding.name.trim() + " (Clone)")
+                           : juce::String("Binding Clone");
+
+  bindings.insert(bindings.begin() + index + 1, std::move(sourceBinding));
+  selectedBindingId = bindings[static_cast<size_t>(index + 1)].id;
+  selectedActionRow = 0;
+
+  if (commitBindings("clone-binding-target"))
+    setStatus("Binding cloned to target widget.", kStatusOk);
+}
+
+void EventActionPanel::toggleBindingEnabledAtVisibleRow(int row) {
+  if (row < 0 || row >= static_cast<int>(visibleBindingIndices.size()))
+    return;
+
+  const auto modelIndex = visibleBindingIndices[static_cast<size_t>(row)];
+  if (modelIndex < 0 || modelIndex >= static_cast<int>(bindings.size()))
+    return;
+
+  auto &binding = bindings[static_cast<size_t>(modelIndex)];
+  binding.enabled = !binding.enabled;
+  selectedBindingId = binding.id;
+
+  if (commitBindings("toggle-binding-enabled")) {
+    setStatus(binding.enabled ? "Binding enabled." : "Binding disabled.",
+              kStatusOk);
+  }
+}
 void EventActionPanel::deleteSelectedBinding() {
   const auto index = selectedBindingModelIndex();
   if (index < 0 || index >= static_cast<int>(bindings.size()))
@@ -2942,9 +3362,10 @@ bool EventActionPanel::commitBindings(const juce::String &) {
   if (onBindingsChanged != nullptr)
     onBindingsChanged();
 
-  refreshFromDocument();
-  bindingList.updateContent();
-  actionList.updateContent();
+  bindings = document.snapshot().runtimeBindings;
+  applySearchFilterNow();
+  updatePanelModeVisibility();
+  updateValidationUi();
   return true;
 }
 
@@ -2955,7 +3376,11 @@ bool EventActionPanel::commitRuntimeParams(const juce::String &) {
   if (onBindingsChanged != nullptr)
     onBindingsChanged();
 
-  refreshFromDocument();
+  runtimeParams = document.snapshot().runtimeParams;
+  refreshDetailEditors();
+  refreshStateEditors();
+  updatePropertyBindingExpressionPreview();
+  updateValidationUi();
   return true;
 }
 
@@ -2966,10 +3391,137 @@ bool EventActionPanel::commitPropertyBindings(const juce::String &) {
   if (onBindingsChanged != nullptr)
     onBindingsChanged();
 
-  refreshFromDocument();
+  propertyBindings = document.snapshot().propertyBindings;
+  refreshStateEditors();
+  updatePropertyBindingExpressionPreview();
+  updateValidationUi();
   return true;
 }
 
+void EventActionPanel::updatePropertyBindingExpressionPreview() {
+  std::map<juce::String, juce::var> runtimeParamDefaults;
+  for (const auto &param : runtimeParams) {
+    const auto key = param.key.trim();
+    if (key.isNotEmpty() &&
+        runtimeParamDefaults.find(key) == runtimeParamDefaults.end()) {
+      runtimeParamDefaults.emplace(key, param.defaultValue);
+    }
+  }
+
+  const auto expression = propertyBindingExpressionEditor.getText().trim();
+  if (expression.isEmpty()) {
+    propertyBindingExpressionPreviewLabel.setText({}, juce::dontSendNotification);
+    propertyBindingExpressionPreviewLabel.setColour(juce::Label::textColourId,
+                                                   palette(GyeolPalette::TextSecondary));
+    return;
+  }
+
+  const auto evaluation = Runtime::PropertyBindingResolver::evaluateExpression(
+      expression, runtimeParamDefaults);
+  if (evaluation.success) {
+    propertyBindingExpressionPreviewLabel.setText(
+        "= " + juce::String(evaluation.value, 4), juce::dontSendNotification);
+    propertyBindingExpressionPreviewLabel.setColour(juce::Label::textColourId,
+                                                   palette(GyeolPalette::ValidSuccess));
+    return;
+  }
+
+  propertyBindingExpressionPreviewLabel.setText(
+      "Error: " + evaluation.error, juce::dontSendNotification);
+  propertyBindingExpressionPreviewLabel.setColour(juce::Label::textColourId,
+                                                 palette(GyeolPalette::ValidWarning));
+}
+
+void EventActionPanel::updateValidationUi() {
+  const auto clearWarning = [](juce::Label &label) {
+    label.setVisible(false);
+    label.setTooltip({});
+  };
+
+  clearWarning(paramKeyWarningLabel);
+  clearWarning(deltaWarningLabel);
+  clearWarning(boundsWarningLabel);
+  clearWarning(propertyBindingWarningLabel);
+
+  paramKeyCombo.setColour(juce::ComboBox::outlineColourId,
+                          palette(GyeolPalette::BorderDefault));
+  paramKeyCombo.setTooltip({});
+
+  if (const auto *action = selectedAction(); action != nullptr) {
+    const auto isParamAction =
+        action->kind == RuntimeActionKind::setRuntimeParam ||
+        action->kind == RuntimeActionKind::adjustRuntimeParam ||
+        action->kind == RuntimeActionKind::toggleRuntimeParam;
+
+    if (isParamAction) {
+      const auto key = paramKeyCombo.getText().trim();
+      juce::String warningText;
+      if (key.isEmpty()) {
+        warningText = "paramKey is required.";
+      } else {
+        const auto found = std::any_of(runtimeParams.begin(), runtimeParams.end(),
+                                       [&key](const RuntimeParamModel &param) {
+                                         return param.key.equalsIgnoreCase(key.trim());
+                                       });
+        if (!found)
+          warningText = "paramKey is not defined in State params.";
+      }
+
+      if (warningText.isNotEmpty()) {
+        paramKeyWarningLabel.setVisible(paramKeyCombo.isVisible());
+        paramKeyWarningLabel.setTooltip(warningText);
+        paramKeyCombo.setColour(juce::ComboBox::outlineColourId,
+                                palette(GyeolPalette::ValidWarning));
+        paramKeyCombo.setTooltip(warningText);
+      }
+    }
+
+    if (action->kind == RuntimeActionKind::adjustRuntimeParam) {
+      const auto parsed = parseNumber(deltaEditor.getText());
+      const auto invalid = !parsed.has_value() || !std::isfinite(*parsed);
+      if (invalid) {
+        deltaWarningLabel.setVisible(deltaEditor.isVisible());
+        deltaWarningLabel.setTooltip("Delta must be a finite number.");
+      }
+    }
+
+    if (action->kind == RuntimeActionKind::setNodeBounds) {
+      const auto x = parseNumber(boundsXEditor.getText());
+      const auto y = parseNumber(boundsYEditor.getText());
+      const auto w = parseNumber(boundsWEditor.getText());
+      const auto h = parseNumber(boundsHEditor.getText());
+      const auto invalid = !x.has_value() || !y.has_value() || !w.has_value() ||
+                           !h.has_value();
+      if (invalid) {
+        boundsWarningLabel.setVisible(boundsHEditor.isVisible());
+        boundsWarningLabel.setTooltip("Bounds fields must be numeric.");
+      }
+    }
+  }
+
+  if (panelMode == PanelMode::stateBinding) {
+    const auto *binding = selectedPropertyBinding();
+    if (binding != nullptr) {
+      auto candidate = *binding;
+      candidate.name = propertyBindingNameEditor.getText().trim();
+      candidate.enabled = propertyBindingEnabledToggle.getToggleState();
+      if (const auto selectedTarget =
+              selectedWidgetIdFromCombo(propertyBindingTargetIdCombo);
+          selectedTarget.has_value()) {
+        candidate.targetWidgetId = *selectedTarget;
+      }
+      candidate.targetProperty = selectedPropertyBindingTargetPropertyKey();
+      candidate.expression = propertyBindingExpressionEditor.getText().trim();
+
+      const auto error = validatePropertyBindingForUi(candidate);
+      if (error.isNotEmpty()) {
+        propertyBindingWarningLabel.setVisible(
+            propertyBindingExpressionEditor.isVisible());
+        propertyBindingWarningLabel.setTooltip(error);
+      }
+    }
+  }
+}
 void EventActionPanel::setStatus(const juce::String &text,
                                  juce::Colour colour) {
   statusLabel.setText(text, juce::dontSendNotification);
@@ -3319,42 +3871,71 @@ void EventActionPanel::BindingListModel::paintListBoxItem(int rowNumber,
     return;
 
   const auto &binding = owner.bindings[static_cast<size_t>(modelIndex)];
+  const auto validationError = owner.validateRuntimeBindingForUi(binding);
+  const auto invalidBinding = validationError.isNotEmpty();
   const auto accent = eventAccent(binding.eventKey);
 
   auto card =
       juce::Rectangle<float>(1.0f, 1.0f, static_cast<float>(width) - 2.0f,
                              static_cast<float>(height) - 2.0f);
-  drawCardBackground(g, card, rowIsSelected, accent);
-  drawLeftAccentBar(g, card, accent, rowIsSelected);
 
-  auto area = card.toNearestInt().reduced(10, 6);
-  auto titleRow = area.removeFromTop(18);
+  {
+    juce::Graphics::ScopedSaveState scopedState(g);
+    if (invalidBinding)
+      g.setOpacity(0.52f);
 
-  g.setColour(binding.enabled ? palette(GyeolPalette::ValidSuccess)
-                              : palette(GyeolPalette::TextSecondary));
-  g.setFont(makePanelFont(owner, 10.3f, true));
-  g.drawText(binding.enabled ? "ON" : "OFF", titleRow.removeFromLeft(30),
-             juce::Justification::centredLeft, true);
+    drawCardBackground(g, card, rowIsSelected, accent);
+    drawLeftAccentBar(g, card, accent, rowIsSelected);
 
-  g.setColour(palette(GyeolPalette::TextPrimary));
-  g.setFont(makePanelFont(owner, 11.5f, true));
-  const auto title =
-      binding.name.isNotEmpty() ? binding.name : juce::String("Binding");
-  g.drawFittedText(title, titleRow, juce::Justification::centredLeft, 1);
+    auto area = card.toNearestInt().reduced(10, 6);
+    auto titleRow = area.removeFromTop(18);
 
-  const auto sourceText =
-      owner.findWidgetOption(binding.sourceWidgetId).has_value()
-          ? owner.findWidgetOption(binding.sourceWidgetId)->label
-          : ("Widget #" + juce::String(binding.sourceWidgetId));
-  const auto eventText =
-      owner.formatEventLabel(binding.sourceWidgetId, binding.eventKey);
-  const auto subtitle = sourceText + " | " + eventText + " | " +
-                        juce::String(static_cast<int>(binding.actions.size())) +
-                        " actions";
+    g.setColour(palette(GyeolPalette::TextPrimary));
+    g.setFont(makePanelFont(owner, 11.5f, true));
+    const auto title =
+        binding.name.isNotEmpty() ? binding.name : juce::String("Binding");
+    g.drawFittedText(title, titleRow.reduced(0, 0), juce::Justification::centredLeft,
+                     1);
 
-  g.setColour(palette(GyeolPalette::TextSecondary));
-  g.setFont(makePanelFont(owner, 10.1f, false));
-  g.drawFittedText(subtitle, area, juce::Justification::centredLeft, 1);
+    const auto sourceText =
+        owner.findWidgetOption(binding.sourceWidgetId).has_value()
+            ? owner.findWidgetOption(binding.sourceWidgetId)->label
+            : ("Widget #" + juce::String(binding.sourceWidgetId));
+    const auto eventText =
+        owner.formatEventLabel(binding.sourceWidgetId, binding.eventKey);
+    auto subtitle = sourceText + " | " + eventText + " | " +
+                    juce::String(static_cast<int>(binding.actions.size())) +
+                    " actions";
+    if (invalidBinding)
+      subtitle += " | invalid";
+
+    g.setColour(invalidBinding ? palette(GyeolPalette::ValidWarning)
+                               : palette(GyeolPalette::TextSecondary));
+    g.setFont(makePanelFont(owner, 10.1f, false));
+    g.drawFittedText(subtitle, area, juce::Justification::centredLeft, 1);
+  }
+
+  const auto toggleBounds = bindingCardToggleBounds(width, height).toFloat();
+  const auto toggleFill = binding.enabled ? palette(GyeolPalette::ValidSuccess)
+                                          : palette(GyeolPalette::TextSecondary);
+  g.setColour(toggleFill.withAlpha(0.2f));
+  g.fillRoundedRectangle(toggleBounds, 5.0f);
+  g.setColour(toggleFill.withAlpha(0.9f));
+  g.drawRoundedRectangle(toggleBounds, 5.0f, 1.0f);
+  g.setFont(makePanelFont(owner, 9.8f, true));
+  g.drawText(binding.enabled ? "ON" : "OFF", toggleBounds.toNearestInt(),
+             juce::Justification::centred, true);
+
+  if (invalidBinding) {
+    const auto deleteBounds = bindingCardDeleteBounds(width, height).toFloat();
+    g.setColour(palette(GyeolPalette::ValidError, 0.2f));
+    g.fillRoundedRectangle(deleteBounds, 4.0f);
+    g.setColour(palette(GyeolPalette::ValidError));
+    g.drawRoundedRectangle(deleteBounds, 4.0f, 1.0f);
+    g.setFont(makePanelFont(owner, 9.6f, true));
+    g.drawText("DEL", deleteBounds.toNearestInt(), juce::Justification::centred,
+               true);
+  }
 }
 
 void EventActionPanel::BindingListModel::selectedRowsChanged(
@@ -3379,11 +3960,41 @@ void EventActionPanel::BindingListModel::selectedRowsChanged(
 
 void EventActionPanel::BindingListModel::listBoxItemClicked(
     int row, const juce::MouseEvent &event) {
-  if (!event.mods.isPopupMenu())
+  if (row < 0 || row >= static_cast<int>(owner.visibleBindingIndices.size()))
     return;
 
-  if (row >= 0)
-    owner.bindingList.selectRow(row);
+  owner.bindingList.selectRow(row);
+
+  const auto modelIndex = owner.visibleBindingIndices[static_cast<size_t>(row)];
+  if (modelIndex < 0 || modelIndex >= static_cast<int>(owner.bindings.size()))
+    return;
+
+  const auto &binding = owner.bindings[static_cast<size_t>(modelIndex)];
+  const auto invalidBinding =
+      owner.validateRuntimeBindingForUi(binding).isNotEmpty();
+
+  if (!event.mods.isPopupMenu()) {
+    const auto localPos = event.getPosition();
+    const auto toggleBounds =
+        bindingCardToggleBounds(owner.bindingList.getWidth(),
+                                owner.bindingList.getRowHeight());
+    if (toggleBounds.contains(localPos)) {
+      owner.toggleBindingEnabledAtVisibleRow(row);
+      return;
+    }
+
+    if (invalidBinding) {
+      const auto deleteBounds =
+          bindingCardDeleteBounds(owner.bindingList.getWidth(),
+                                  owner.bindingList.getRowHeight());
+      if (deleteBounds.contains(localPos)) {
+        owner.deleteSelectedBinding();
+        return;
+      }
+    }
+
+    return;
+  }
 
   juce::PopupMenu menu;
   menu.addItem(
@@ -3391,6 +4002,12 @@ void EventActionPanel::BindingListModel::listBoxItemClicked(
       [safeOwner = juce::Component::SafePointer<EventActionPanel>(&owner)] {
         if (safeOwner != nullptr)
           safeOwner->duplicateSelectedBinding();
+      });
+  menu.addItem(
+      "Clone To...",
+      [safeOwner = juce::Component::SafePointer<EventActionPanel>(&owner)] {
+        if (safeOwner != nullptr)
+          safeOwner->showCloneBindingMenu();
       });
   menu.addItem(
       "Delete",
@@ -3587,3 +4204,44 @@ void EventActionPanel::PropertyBindingListModel::selectedRowsChanged(
   owner.refreshStateEditors();
 }
 } // namespace Gyeol::Ui::Panels
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

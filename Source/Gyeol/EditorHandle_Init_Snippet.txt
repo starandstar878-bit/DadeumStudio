@@ -1,0 +1,100 @@
+﻿        rightPanels(juce::TabbedButtonBar::TabsAtTop),
+        propertyPanel(docHandle, widgetFactory),
+        eventActionPanel(docHandle, widgetRegistry),
+        validationPanel(docHandle, widgetRegistry), exportPreviewPanel(),
+        performancePanel(), historyPanel(),
+        deleteSelected(juce::CharPointer_UTF8("\xE2\x9C\x95")),
+        groupSelected(juce::CharPointer_UTF8("\xE2\x8A\x9E")),
+        ungroupSelected(juce::CharPointer_UTF8("\xE2\x8A\x9F")),
+        arrangeMenuButton(juce::CharPointer_UTF8("\xE2\x89\xA3")),
+        dumpJsonButton("{ }"),
+        exportJuceButton(juce::CharPointer_UTF8("\xE2\x87\xA7")),
+        undoButton(juce::CharPointer_UTF8("\xE2\x86\x90")),
+        redoButton(juce::CharPointer_UTF8("\xE2\x86\x92")),
+        previewModeButton(juce::CharPointer_UTF8("\xE2\x97\x89"
+                                                 " Preview")),
+        runModeButton(juce::CharPointer_UTF8("\xE2\x96\xB6"
+                                             " Run")) {
+    owner.setWantsKeyboardFocus(true);
+    owner.setFocusContainerType(juce::Component::FocusContainerType::focusContainer);
+
+    initializeSettingsFile();
+    loadUiSettings();
+    applyThemeState();
+
+
+    leftPanels.setTabBarDepth(30);
+    leftPanels.addTab("Layers", palette(GyeolPalette::PanelBackground),
+                      &layerTreePanel, false);
+    leftPanels.addTab("Library", palette(GyeolPalette::PanelBackground),
+                      &widgetLibraryPanel, false);
+    leftPanels.addTab("Assets", palette(GyeolPalette::PanelBackground), &assetsPanel,
+                      false);
+    leftPanels.setCurrentTabIndex(0, juce::dontSendNotification);
+
+    rightPanels.setTabBarDepth(30);
+    rightPanels.addTab("Inspector", palette(GyeolPalette::PanelBackground),
+                       &propertyPanel, false);
+    rightPanels.addTab("Event/Action", palette(GyeolPalette::PanelBackground),
+                       &eventActionPanel, false);
+    rightPanels.addTab("Validation", palette(GyeolPalette::PanelBackground),
+                       &validationPanel, false);
+    rightPanels.addTab("Export Preview", palette(GyeolPalette::PanelBackground),
+                       &exportPreviewPanel, false);
+    rightPanels.addTab("Performance", palette(GyeolPalette::PanelBackground),
+                       &performancePanel, false);
+    rightPanels.setCurrentTabIndex(0, juce::dontSendNotification);
+
+    owner.addAndMakeVisible(leftPanels);
+    owner.addAndMakeVisible(canvas);
+    owner.addChildComponent(navigatorPanel);
+    owner.addAndMakeVisible(rightPanels);
+    owner.addAndMakeVisible(historyPanel);
+    owner.addChildComponent(gridSnapPanel);
+    canvas.setActiveLayerResolver([this] { return resolveActiveLayerId(); });
+    canvas.setWidgetLibraryDropCallback(
+        [this](const juce::String &typeKey, juce::Point<float> worldPosition) {
+          createWidgetFromLibrary(typeKey, worldPosition);
+        });
+    gridSnapPanel.setSettings(canvas.currentSnapSettings());
+    gridSnapPanel.setSettingsChangedCallback(
+        [this](const Ui::Interaction::SnapSettings &settings) {
+          canvas.setSnapSettings(settings);
+        });
+    gridSnapPanel.setVisible(false);
+    canvas.setStateChangedCallback([this] { handleCanvasStateChanged(); });
+    canvas.setViewportChangedCallback(
+        [this] { refreshViewDiagnosticsPanels(); });
+    canvas.setRuntimeLogCallback(
+        [this](const juce::String &action, const juce::String &detail) {
+          appendHistoryEntry(action, detail);
+        });
+    navigatorPanel.setNavigateRequestedCallback(
+        [this](juce::Point<float> worldPoint) {
+          canvas.focusWorldPoint(worldPoint);
+        });
+
+    layerTreePanel.setSelectionChangedCallback(
+        [this](std::vector<WidgetId> selection) {
+          if (selection == docHandle.editorState().selection) {
+            syncInspectorTargetFromState();
+            return;
+          }
+
+          docHandle.setSelection(std::move(selection));
+          canvas.syncSelectionFromDocument();
+          requestDeferredUiRefresh(true, true);
+          refreshToolbarState();
+          syncInspectorTargetFromState();
+        });
+    layerTreePanel.setActiveLayerChangedCallback(
+        [this](std::optional<WidgetId> layerId) {
+          activeLayerOverrideId = layerId;
+          syncInspectorTargetFromState();
+        });
+    layerTreePanel.setDropRequestCallback(
+        [this](const Ui::Interaction::LayerTreeDropRequest &request)
+            -> juce::Result {
+          DBG("[Gyeol][LayerTreeDnD][EditorHandle] drop request dragged=" +
+              juce::String(static_cast<int>(request.dragged.size())) +
+              " parentKind=" +

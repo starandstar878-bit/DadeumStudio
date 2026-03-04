@@ -1,0 +1,140 @@
+4511:         rightPanels(juce::TabbedButtonBar::TabsAtTop),
+4512:         propertyPanel(docHandle, widgetFactory),
+4513:         eventActionPanel(docHandle, widgetRegistry),
+4514:         validationPanel(docHandle, widgetRegistry), exportPreviewPanel(),
+4515:         performancePanel(), historyPanel(),
+4516:         deleteSelected(juce::CharPointer_UTF8("\xE2\x9C\x95")),
+4517:         groupSelected(juce::CharPointer_UTF8("\xE2\x8A\x9E")),
+4518:         ungroupSelected(juce::CharPointer_UTF8("\xE2\x8A\x9F")),
+4519:         arrangeMenuButton(juce::CharPointer_UTF8("\xE2\x89\xA3")),
+4520:         dumpJsonButton("{ }"),
+4521:         exportJuceButton(juce::CharPointer_UTF8("\xE2\x87\xA7")),
+4522:         undoButton(juce::CharPointer_UTF8("\xE2\x86\x90")),
+4523:         redoButton(juce::CharPointer_UTF8("\xE2\x86\x92")),
+4524:         previewModeButton(juce::CharPointer_UTF8("\xE2\x97\x89"
+4525:                                                  " Preview")),
+4526:         runModeButton(juce::CharPointer_UTF8("\xE2\x96\xB6"
+4527:                                              " Run")) {
+4528:     owner.setWantsKeyboardFocus(true);
+4529:     owner.setFocusContainerType(juce::Component::FocusContainerType::focusContainer);
+4530: 
+4531:     initializeSettingsFile();
+4532:     loadUiSettings();
+4533:     applyThemeState();
+4534: 
+4535: 
+4536:     leftPanels.setTabBarDepth(30);
+4537:     leftPanels.addTab("Layers", palette(GyeolPalette::PanelBackground),
+4538:                       &layerTreePanel, false);
+4539:     leftPanels.addTab("Library", palette(GyeolPalette::PanelBackground),
+4540:                       &widgetLibraryPanel, false);
+4541:     leftPanels.addTab("Assets", palette(GyeolPalette::PanelBackground), &assetsPanel,
+4542:                       false);
+4543:     leftPanels.setCurrentTabIndex(0, juce::dontSendNotification);
+4544: 
+4545:     rightPanels.setTabBarDepth(30);
+4546:     rightPanels.addTab("Inspector", palette(GyeolPalette::PanelBackground),
+4547:                        &propertyPanel, false);
+4548:     rightPanels.addTab("Event/Action", palette(GyeolPalette::PanelBackground),
+4549:                        &eventActionPanel, false);
+4550:     rightPanels.addTab("Validation", palette(GyeolPalette::PanelBackground),
+4551:                        &validationPanel, false);
+4552:     rightPanels.addTab("Export Preview", palette(GyeolPalette::PanelBackground),
+4553:                        &exportPreviewPanel, false);
+4554:     rightPanels.addTab("Performance", palette(GyeolPalette::PanelBackground),
+4555:                        &performancePanel, false);
+4556:     rightPanels.setCurrentTabIndex(0, juce::dontSendNotification);
+4557: 
+4558:     owner.addAndMakeVisible(leftPanels);
+4559:     owner.addAndMakeVisible(canvas);
+4560:     owner.addChildComponent(navigatorPanel);
+4561:     owner.addAndMakeVisible(rightPanels);
+4562:     owner.addAndMakeVisible(historyPanel);
+4563:     owner.addChildComponent(gridSnapPanel);
+4564:     canvas.setActiveLayerResolver([this] { return resolveActiveLayerId(); });
+4565:     canvas.setWidgetLibraryDropCallback(
+4566:         [this](const juce::String &typeKey, juce::Point<float> worldPosition) {
+4567:           createWidgetFromLibrary(typeKey, worldPosition);
+4568:         });
+4569:     gridSnapPanel.setSettings(canvas.currentSnapSettings());
+4570:     gridSnapPanel.setSettingsChangedCallback(
+4571:         [this](const Ui::Interaction::SnapSettings &settings) {
+4572:           canvas.setSnapSettings(settings);
+4573:         });
+4574:     gridSnapPanel.setVisible(false);
+4575:     canvas.setStateChangedCallback([this] { handleCanvasStateChanged(); });
+4576:     canvas.setViewportChangedCallback(
+4577:         [this] { refreshViewDiagnosticsPanels(); });
+4578:     canvas.setRuntimeLogCallback(
+4579:         [this](const juce::String &action, const juce::String &detail) {
+4580:           appendHistoryEntry(action, detail);
+4581:         });
+4582:     navigatorPanel.setNavigateRequestedCallback(
+4583:         [this](juce::Point<float> worldPoint) {
+4584:           canvas.focusWorldPoint(worldPoint);
+4585:         });
+4586: 
+4587:     layerTreePanel.setSelectionChangedCallback(
+4588:         [this](std::vector<WidgetId> selection) {
+4589:           if (selection == docHandle.editorState().selection) {
+4590:             syncInspectorTargetFromState();
+4591:             return;
+4592:           }
+4593: 
+4594:           docHandle.setSelection(std::move(selection));
+4595:           canvas.syncSelectionFromDocument();
+4596:           requestDeferredUiRefresh(true, true);
+4597:           refreshToolbarState();
+4598:           syncInspectorTargetFromState();
+4599:         });
+4600:     layerTreePanel.setActiveLayerChangedCallback(
+4601:         [this](std::optional<WidgetId> layerId) {
+4602:           activeLayerOverrideId = layerId;
+4603:           syncInspectorTargetFromState();
+4604:         });
+4605:     layerTreePanel.setDropRequestCallback(
+4606:         [this](const Ui::Interaction::LayerTreeDropRequest &request)
+4607:             -> juce::Result {
+4608:           DBG("[Gyeol][LayerTreeDnD][EditorHandle] drop request dragged=" +
+4609:               juce::String(static_cast<int>(request.dragged.size())) +
+4610:               " parentKind=" +
+4611:               juce::String(static_cast<int>(request.parent.kind)) +
+4612:               " parentId=" + juce::String(request.parent.id) +
+4613:               " insertIndex=" + juce::String(request.insertIndex));
+4614:           const auto result =
+4615:               layerOrderEngine.applyTreeDrop(docHandle, request);
+4616:           if (result.failed()) {
+4617:             DBG("[Gyeol][LayerTreeDnD][EditorHandle] drop failed: " +
+4618:                 result.getErrorMessage());
+4619:             return result;
+4620:           }
+4621: 
+4622:           refreshCanvasAndRequestPanels(true, true, true);
+4623:           appendHistoryEntry(
+4624:               "LayerTree DnD",
+4625:               "dragged=" +
+4626:                   juce::String(static_cast<int>(request.dragged.size())) +
+4627:                   ", parent=" + juce::String(request.parent.id));
+4628:           DBG("[Gyeol][LayerTreeDnD][EditorHandle] drop applied");
+4629:           return juce::Result::ok();
+4630:         });
+4631:     layerTreePanel.setNodePropsChangedCallback(
+4632:         [this](const SetPropsAction &action) -> juce::Result {
+4633:           if (!docHandle.setProps(action))
+4634:             return juce::Result::fail("Failed to apply node property update");
+4635: 
+4636:           refreshCanvasAndRequestPanels(true, true, true);
+4637:           appendHistoryEntry(
+4638:               "Set Props",
+4639:               "kind=" + juce::String(static_cast<int>(action.kind)) +
+4640:                   ", ids=" + juce::String(static_cast<int>(action.ids.size())));
+4641:           return juce::Result::ok();
+4642:         });
+4643:     layerTreePanel.setCreateLayerRequestedCallback(
+4644:         [this]() -> std::optional<WidgetId> {
+4645:           CreateAction action;
+4646:           action.kind = NodeKind::layer;
+4647: 
+4648:           CreateLayerPayload payload;
+4649:           payload.name =
+4650:               "Layer " + juce::String(static_cast<int>(

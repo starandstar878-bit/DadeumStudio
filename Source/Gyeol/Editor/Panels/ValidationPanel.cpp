@@ -102,8 +102,24 @@ juce::String formatByteSize(juce::int64 bytes) {
     return juce::String(asDouble / (1024.0 * 1024.0), 2) + " MB";
   return juce::String(asDouble / (1024.0 * 1024.0 * 1024.0), 2) + " GB";
 }
+
+// 필터 버튼 색상 헬퍼
+juce::Colour filterButtonActiveColour(ValidationPanel::IssueSeverity s) {
+  switch (s) {
+  case ValidationPanel::IssueSeverity::error:
+    return palette(GyeolPalette::ValidError);
+  case ValidationPanel::IssueSeverity::warning:
+    return palette(GyeolPalette::ValidWarning);
+  case ValidationPanel::IssueSeverity::info:
+    return palette(GyeolPalette::AccentPrimary);
+  }
+  return palette(GyeolPalette::TextSecondary);
+}
 } // namespace
 
+// ==============================================================================
+// 생성자 / 소멸자
+// ==============================================================================
 ValidationPanel::ValidationPanel(DocumentHandle &documentIn,
                                  const Widgets::WidgetRegistry &registryIn)
     : document(documentIn), registry(registryIn) {
@@ -130,8 +146,36 @@ ValidationPanel::ValidationPanel(DocumentHandle &documentIn,
   runButton.onClick = [this] { refreshValidation(); };
   addAndMakeVisible(runButton);
 
+  // ------------------------------------------------------------------
+  // 카테고리 필터 버튼 3개 (E / W / I)
+  // ------------------------------------------------------------------
+  auto setupFilterBtn = [this](juce::TextButton &btn, IssueSeverity severity,
+                               bool &flag) {
+    btn.setClickingTogglesState(true);
+    btn.setToggleState(true, juce::dontSendNotification);
+    const auto activeCol = filterButtonActiveColour(severity);
+    btn.setColour(juce::TextButton::buttonOnColourId,
+                  activeCol.withAlpha(0.30f));
+    btn.setColour(juce::TextButton::buttonColourId,
+                  palette(GyeolPalette::ControlBase));
+    btn.setColour(juce::TextButton::textColourOnId, activeCol);
+    btn.setColour(juce::TextButton::textColourOffId,
+                  palette(GyeolPalette::TextDisabled));
+    btn.onClick = [this, &flag, &btn] {
+      flag = btn.getToggleState();
+      rebuildFilteredIssues();
+      listBox.updateContent();
+      listBox.repaint();
+    };
+    addAndMakeVisible(btn);
+  };
+
+  setupFilterBtn(filterErrorBtn, IssueSeverity::error, showErrors);
+  setupFilterBtn(filterWarningBtn, IssueSeverity::warning, showWarnings);
+  setupFilterBtn(filterInfoBtn, IssueSeverity::info, showInfo);
+
   listBox.setModel(this);
-  listBox.setRowHeight(40);
+  listBox.setRowHeight(42);
   listBox.setColour(juce::ListBox::backgroundColourId,
                     palette(GyeolPalette::CanvasBackground));
   listBox.setColour(juce::ListBox::outlineColourId,
@@ -140,6 +184,14 @@ ValidationPanel::ValidationPanel(DocumentHandle &documentIn,
 }
 
 ValidationPanel::~ValidationPanel() { listBox.setModel(nullptr); }
+
+// ==============================================================================
+// 공개 메서드
+// ==============================================================================
+void ValidationPanel::setSelectWidgetCallback(
+    std::function<void(WidgetId)> callback) {
+  onSelectWidget = std::move(callback);
+}
 
 void ValidationPanel::markDirty() {
   dirty = true;
@@ -151,11 +203,12 @@ void ValidationPanel::markDirty() {
 
 void ValidationPanel::refreshValidation() {
   rebuildIssues();
+  rebuildFilteredIssues();
   dirty = false;
 
   int errorCount = 0;
   int warningCount = 0;
-  for (const auto &issue : issues) {
+  for (const auto &issue : allIssues) {
     if (issue.severity == IssueSeverity::error)
       ++errorCount;
     else if (issue.severity == IssueSeverity::warning)
@@ -163,11 +216,11 @@ void ValidationPanel::refreshValidation() {
   }
 
   if (errorCount > 0)
-    summaryLabel.setText("Errors: " + juce::String(errorCount) +
-                             ", Warnings: " + juce::String(warningCount),
+    summaryLabel.setText("오류 " + juce::String(errorCount) + "  경고 " +
+                             juce::String(warningCount),
                          juce::dontSendNotification);
   else if (warningCount > 0)
-    summaryLabel.setText("Warnings: " + juce::String(warningCount),
+    summaryLabel.setText("경고 " + juce::String(warningCount),
                          juce::dontSendNotification);
   else
     summaryLabel.setText("OK", juce::dontSendNotification);
@@ -187,22 +240,26 @@ void ValidationPanel::setAutoRefreshEnabled(bool enabled) {
     refreshValidation();
 }
 
+// ==============================================================================
+// paint / resized
+// ==============================================================================
 void ValidationPanel::paint(juce::Graphics &g) {
   g.fillAll(palette(GyeolPalette::PanelBackground));
   g.setColour(palette(GyeolPalette::BorderDefault));
   g.drawRect(getLocalBounds(), 1);
 
-  // Phase 3: ?댁뒋 ?놁쓣 ??鍮??곹깭 ?덈궡
   const bool allClear =
-      issues.empty() ||
-      (issues.size() == 1 && issues[0].severity == IssueSeverity::info);
+      filteredRows.empty() ||
+      (filteredRows.size() == 1 &&
+       allIssues[static_cast<size_t>(filteredRows[0])].severity ==
+           IssueSeverity::info);
+
   if (allClear && !dirty) {
     auto area = listBox.getBounds().toFloat();
     if (area.getHeight() > 60.0f) {
       auto centerX = area.getCentreX();
       auto centerY = area.getCentreY() - 8.0f;
 
-      // 泥댄겕留덊겕 ?꾩씠肄?
       juce::Path checkPath;
       checkPath.startNewSubPath(centerX - 10.0f, centerY);
       checkPath.lineTo(centerX - 3.0f, centerY + 7.0f);
@@ -227,35 +284,63 @@ void ValidationPanel::paint(juce::Graphics &g) {
 
 void ValidationPanel::resized() {
   auto area = getLocalBounds().reduced(8);
+
+  // 상단 타이틀 행
   auto top = area.removeFromTop(20);
   titleLabel.setBounds(top.removeFromLeft(120));
   summaryLabel.setBounds(top);
 
   area.removeFromTop(4);
+
+  // 컨트롤 행 1: Run + Auto
   auto controls = area.removeFromTop(24);
-  runButton.setBounds(controls.removeFromLeft(130));
-  controls.removeFromLeft(8);
-  autoRefreshToggle.setBounds(controls.removeFromLeft(70));
+  runButton.setBounds(controls.removeFromLeft(110));
+  controls.removeFromLeft(6);
+  autoRefreshToggle.setBounds(controls.removeFromLeft(60));
+
+  area.removeFromTop(4);
+
+  // 컨트롤 행 2: 필터 버튼 (E / W / I)
+  auto filterRow = area.removeFromTop(22);
+  const int btnW = 36;
+  filterErrorBtn.setBounds(filterRow.removeFromLeft(btnW));
+  filterRow.removeFromLeft(4);
+  filterWarningBtn.setBounds(filterRow.removeFromLeft(btnW));
+  filterRow.removeFromLeft(4);
+  filterInfoBtn.setBounds(filterRow.removeFromLeft(btnW));
 
   area.removeFromTop(6);
   listBox.setBounds(area);
 }
 
-int ValidationPanel::getNumRows() { return static_cast<int>(issues.size()); }
+// ==============================================================================
+// ListBoxModel
+// ==============================================================================
+int ValidationPanel::getNumRows() {
+  return static_cast<int>(filteredRows.size());
+}
 
 void ValidationPanel::paintListBoxItem(int rowNumber, juce::Graphics &g,
                                        int width, int height,
                                        bool rowIsSelected) {
-  if (rowNumber < 0 || rowNumber >= static_cast<int>(issues.size()))
+  if (rowNumber < 0 || rowNumber >= static_cast<int>(filteredRows.size()))
     return;
 
-  const auto &issue = issues[static_cast<size_t>(rowNumber)];
+  const auto &issue = allIssues[static_cast<size_t>(filteredRows[rowNumber])];
   const auto bounds = juce::Rectangle<int>(0, 0, width, height);
 
-  const auto baseFill = rowIsSelected ? palette(GyeolPalette::AccentPrimary)
-                                      : palette(GyeolPalette::ControlBase);
-  g.setColour(baseFill.withAlpha(rowIsSelected ? 0.84f : 0.62f));
+  // 배경
+  const auto baseFill = rowIsSelected
+                            ? palette(GyeolPalette::SelectionBackground)
+                            : palette(GyeolPalette::ControlBase);
+  g.setColour(baseFill.withAlpha(rowIsSelected ? 1.0f : 0.55f));
   g.fillRect(bounds);
+
+  // 선택 시 좌측 Accent 바
+  if (rowIsSelected) {
+    g.setColour(colorForSeverity(issue.severity));
+    g.fillRect(0, 0, 3, height);
+  }
 
   g.setColour(palette(GyeolPalette::BorderDefault));
   g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
@@ -264,32 +349,90 @@ void ValidationPanel::paintListBoxItem(int rowNumber, juce::Graphics &g,
   auto header = textArea.removeFromTop(14);
   const auto severityColour = colorForSeverity(issue.severity);
 
-  g.setColour(severityColour);
+  // 심각도 배지
+  g.setColour(severityColour.withAlpha(0.85f));
   g.fillRoundedRectangle(
       juce::Rectangle<float>(static_cast<float>(header.getX()),
-                             static_cast<float>(header.getY() + 1), 50.0f,
+                             static_cast<float>(header.getY() + 1), 46.0f,
                              12.0f),
       3.0f);
-  g.setColour(juce::Colours::black.withAlpha(0.8f));
+  g.setColour(juce::Colours::black.withAlpha(0.85f));
   g.setFont(makePanelFont(*this, 9.0f, true));
   g.drawText(labelForSeverity(issue.severity),
-             juce::Rectangle<int>(header.getX(), header.getY() + 1, 50, 12),
+             juce::Rectangle<int>(header.getX(), header.getY() + 1, 46, 12),
              juce::Justification::centred, true);
 
+  // 연관 위젯이 있을 경우 우측에 "위젯 이동" 힌트 아이콘 (▶)
+  int titleRightOffset = 0;
+  if (issue.relatedWidgetId > kRootId) {
+    g.setColour(palette(GyeolPalette::AccentPrimary, 0.6f));
+    g.setFont(makePanelFont(*this, 10.0f, false));
+    const juce::String hint = "  \xe2\x96\xb6"; // UTF-8 ▶
+    g.drawText(hint,
+               juce::Rectangle<int>(header.getRight() - 24, header.getY(), 24,
+                                    header.getHeight()),
+               juce::Justification::centredRight, false);
+    titleRightOffset = 26;
+  }
+
+  // 이슈 타이틀
   g.setColour(palette(GyeolPalette::TextPrimary));
   g.setFont(makePanelFont(*this, 11.0f, true));
   g.drawText(issue.title,
-             juce::Rectangle<int>(header.getX() + 56, header.getY(),
-                                  header.getWidth() - 56, header.getHeight()),
+             juce::Rectangle<int>(header.getX() + 52, header.getY(),
+                                  header.getWidth() - 52 - titleRightOffset,
+                                  header.getHeight()),
              juce::Justification::centredLeft, true);
 
+  // 이슈 메시지
   g.setColour(palette(GyeolPalette::TextSecondary));
   g.setFont(makePanelFont(*this, 10.5f, false));
   g.drawText(issue.message, textArea, juce::Justification::centredLeft, true);
 }
 
+void ValidationPanel::selectedRowsChanged(int lastRowSelected) {
+  // 단순 선택만으로는 위젯 포커스를 강제하지 않음 (더블클릭으로 처리)
+  juce::ignoreUnused(lastRowSelected);
+}
+
+void ValidationPanel::listBoxItemDoubleClicked(int row,
+                                               const juce::MouseEvent &) {
+  if (row < 0 || row >= static_cast<int>(filteredRows.size()))
+    return;
+
+  const auto &issue = allIssues[static_cast<size_t>(filteredRows[row])];
+  if (issue.relatedWidgetId > kRootId && onSelectWidget)
+    onSelectWidget(issue.relatedWidgetId);
+}
+
+// ==============================================================================
+// 내부 구현
+// ==============================================================================
+void ValidationPanel::rebuildFilteredIssues() {
+  filteredRows.clear();
+  filteredRows.reserve(allIssues.size());
+
+  for (int i = 0; i < static_cast<int>(allIssues.size()); ++i) {
+    const auto &issue = allIssues[static_cast<size_t>(i)];
+    switch (issue.severity) {
+    case IssueSeverity::error:
+      if (showErrors)
+        filteredRows.push_back(i);
+      break;
+    case IssueSeverity::warning:
+      if (showWarnings)
+        filteredRows.push_back(i);
+      break;
+    case IssueSeverity::info:
+      if (showInfo)
+        filteredRows.push_back(i);
+      break;
+    }
+  }
+}
+
 void ValidationPanel::rebuildIssues() {
-  issues.clear();
+  allIssues.clear();
 
   const auto &snapshot = document.snapshot();
   const auto &editorState = document.editorState();
@@ -341,7 +484,8 @@ void ValidationPanel::rebuildIssues() {
     if (registry.find(widget.type) == nullptr) {
       pushIssue(IssueSeverity::warning, "Unknown widget descriptor",
                 "Widget id=" + juce::String(widget.id) +
-                    " has no descriptor in registry.");
+                    " has no descriptor in registry.",
+                widget.id);
     }
   }
 
@@ -379,7 +523,8 @@ void ValidationPanel::rebuildIssues() {
       pushIssue(IssueSeverity::warning, "Unsupported event key",
                 "Binding id=" + juce::String(binding.id) + " event '" +
                     binding.eventKey + "' is not supported by widget type '" +
-                    descriptor->typeKey + "'.");
+                    descriptor->typeKey + "'.",
+                binding.sourceWidgetId);
     }
   }
 
@@ -448,12 +593,14 @@ void ValidationPanel::rebuildIssues() {
 
 void ValidationPanel::pushIssue(IssueSeverity severity,
                                 const juce::String &title,
-                                const juce::String &message) {
+                                const juce::String &message,
+                                WidgetId relatedWidgetId) {
   Issue issue;
   issue.severity = severity;
   issue.title = title;
   issue.message = message;
-  issues.push_back(std::move(issue));
+  issue.relatedWidgetId = relatedWidgetId;
+  allIssues.push_back(std::move(issue));
 }
 
 juce::Colour ValidationPanel::colorForSeverity(IssueSeverity severity) {
