@@ -94,21 +94,26 @@ namespace Gyeol::Ui::Canvas
             const auto worldMinY = gridWorldBounds.getY();
             const auto worldMaxY = gridWorldBounds.getBottom();
 
-            const auto gridFade = juce::jlimit(0.0f, 1.0f, (zoomLevel - 0.22f) / 0.62f);
+            const auto gridFade = juce::jlimit(0.0f, 1.0f, (zoomLevel - 0.14f) / 0.68f);
             const auto canvasFill = palette(Gyeol::GyeolPalette::ControlBase);
-            const auto minorGridBase = palette(Gyeol::GyeolPalette::GridLine);
-            const auto majorGridBase = palette(Gyeol::GyeolPalette::BorderDefault);
+            const auto preferredContrast = canvasFill.getPerceivedBrightness() < 0.5f
+                                               ? juce::Colours::white
+                                               : juce::Colours::black;
+            const auto minorGridBase =
+                palette(Gyeol::GyeolPalette::GridLine).interpolatedWith(preferredContrast, 0.38f);
+            const auto majorGridBase =
+                palette(Gyeol::GyeolPalette::BorderDefault).interpolatedWith(preferredContrast, 0.62f);
             const auto contrastDelta = std::abs(minorGridBase.getPerceivedBrightness()
                                                 - canvasFill.getPerceivedBrightness());
-            const auto contrastBoost = juce::jmap(juce::jlimit(0.0f, 0.35f, contrastDelta),
+            const auto contrastBoost = juce::jmap(juce::jlimit(0.0f, 0.65f, contrastDelta),
                                                   0.0f,
-                                                  0.35f,
-                                                  1.45f,
-                                                  1.0f);
+                                                  0.65f,
+                                                  1.22f,
+                                                  0.95f);
             const auto minorAlpha = static_cast<juce::uint8>(
-                juce::jlimit(0.0f, 255.0f, 26.0f * gridFade * contrastBoost));
+                juce::jlimit(0.0f, 255.0f, 48.0f * gridFade * contrastBoost));
             const auto majorAlpha = static_cast<juce::uint8>(
-                juce::jlimit(0.0f, 255.0f, 62.0f * gridFade * contrastBoost));
+                juce::jlimit(0.0f, 255.0f, 115.0f * gridFade * contrastBoost));
 
             g.saveState();
             g.reduceClipRegion(visibleCanvasBounds.toNearestInt());
