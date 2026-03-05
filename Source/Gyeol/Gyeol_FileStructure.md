@@ -105,7 +105,7 @@ Source/Gyeol/
 These items are considered temporary, redundant, or unnecessary in the target layout.
 
 - `Source/Gyeol/Render/` (`.gitkeep` only)
-- `Source/Gyeol/EditorHandle_Init_Snippet.txt` (temporary snippet)
+- [DONE] `Source/Gyeol/EditorHandle_Init_Snippet.txt` (temporary snippet)
 - `Source/Gyeol/Gyeol_Roadmap_Dump.txt` (roadmap dump copy, if present)
 - `Source/Gyeol/Editor/Panels/ValidationPanel_Test.h` (duplicate stub header)
 
@@ -120,7 +120,7 @@ when the structure above is applied.
 ### Files To Delete
 
 - `Source/Gyeol/Render/.gitkeep`
-- `Source/Gyeol/EditorHandle_Init_Snippet.txt`
+- [DONE] `Source/Gyeol/EditorHandle_Init_Snippet.txt`
 - `Source/Gyeol/Gyeol_Roadmap_Dump.txt` (if present)
 - `Source/Gyeol/Editor/Panels/ValidationPanel_Test.h`
 - `Source/Gyeol/Public/LayerModel.h` (if compatibility layer is no longer needed)
