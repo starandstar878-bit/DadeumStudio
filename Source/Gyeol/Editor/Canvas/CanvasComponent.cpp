@@ -1,4 +1,5 @@
 #include "Gyeol/Editor/Canvas/CanvasComponent.h"
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 
 #include <algorithm>
 #include <chrono>
@@ -14,6 +15,11 @@ namespace Gyeol::Ui::Canvas
             static Widgets::WidgetRegistry registry = Widgets::makeDefaultWidgetRegistry();
             static Widgets::WidgetFactory factory(registry);
             return factory;
+        }
+
+        juce::Colour palette(Gyeol::GyeolPalette id, float alpha = 1.0f)
+        {
+            return Gyeol::getGyeolColor(id).withAlpha(alpha);
         }
     }
 
@@ -437,7 +443,7 @@ namespace Gyeol::Ui::Canvas
             g.saveState();
             g.reduceClipRegion(visibleCanvas.toNearestInt());
 
-            g.setColour(juce::Colour::fromRGBA(255, 160, 75, 210));
+            g.setColour(palette(Gyeol::GyeolPalette::ValidWarning, 0.82f));
             for (const auto& guide : guides)
             {
                 if (guide.vertical)
@@ -458,7 +464,7 @@ namespace Gyeol::Ui::Canvas
 
             if (guideDragState.active && guideDragState.previewInViewport)
             {
-                g.setColour(juce::Colour::fromRGBA(255, 212, 140, 225));
+                g.setColour(palette(Gyeol::GyeolPalette::ValidWarning, 0.88f));
                 if (guideDragState.vertical)
                 {
                     const auto x = worldToView({ guideDragState.worldPosition, 0.0f }).x;
@@ -478,7 +484,7 @@ namespace Gyeol::Ui::Canvas
             if (!transientSmartSpacingHints.empty())
             {
                 static constexpr float dashPattern[] { 5.0f, 4.0f };
-                g.setColour(juce::Colour::fromRGBA(84, 212, 255, 220));
+                g.setColour(palette(Gyeol::GyeolPalette::AccentPrimary, 0.86f));
                 g.setFont(juce::FontOptions(11.0f));
 
                 const auto drawGapLabel = [&g](float centerX, float centerY, const juce::String& text)
@@ -487,11 +493,11 @@ namespace Gyeol::Ui::Canvas
                                                     juce::roundToInt(centerY - 7.0f),
                                                     48,
                                                     14);
-                    g.setColour(juce::Colour::fromRGBA(14, 22, 32, 220));
+                    g.setColour(palette(Gyeol::GyeolPalette::PanelBackground, 0.90f));
                     g.fillRoundedRectangle(box.toFloat(), 3.0f);
-                    g.setColour(juce::Colour::fromRGBA(84, 212, 255, 230));
+                    g.setColour(palette(Gyeol::GyeolPalette::AccentPrimary, 0.90f));
                     g.drawRoundedRectangle(box.toFloat(), 3.0f, 1.0f);
-                    g.setColour(juce::Colour::fromRGBA(176, 230, 255, 245));
+                    g.setColour(palette(Gyeol::GyeolPalette::TextPrimary, 0.96f));
                     g.drawText(text, box, juce::Justification::centred, false);
                 };
 
@@ -535,7 +541,7 @@ namespace Gyeol::Ui::Canvas
         const auto topRuler = topRulerBounds();
         const auto leftRuler = leftRulerBounds();
 
-        g.setColour(juce::Colour::fromRGBA(255, 160, 75, 220));
+        g.setColour(palette(Gyeol::GyeolPalette::ValidWarning, 0.86f));
         for (const auto& guide : guides)
         {
             if (guide.vertical)
@@ -568,7 +574,7 @@ namespace Gyeol::Ui::Canvas
 
         if (guideDragState.active && guideDragState.previewInViewport)
         {
-            g.setColour(juce::Colour::fromRGBA(255, 212, 140, 230));
+            g.setColour(palette(Gyeol::GyeolPalette::ValidWarning, 0.90f));
             if (guideDragState.vertical)
             {
                 const auto x = worldToView({ guideDragState.worldPosition, 0.0f }).x;
@@ -600,14 +606,14 @@ namespace Gyeol::Ui::Canvas
         if (widgetLibraryDropPreviewActive)
         {
             const auto p = widgetLibraryDropPreviewView;
-            g.setColour(juce::Colour::fromRGBA(84, 212, 255, 220));
+            g.setColour(palette(Gyeol::GyeolPalette::AccentPrimary, 0.86f));
             g.drawLine(p.x - 10.0f, p.y, p.x + 10.0f, p.y, 1.4f);
             g.drawLine(p.x, p.y - 10.0f, p.x, p.y + 10.0f, 1.4f);
         }
 
         if (hasMouseLocalPoint)
         {
-            g.setColour(juce::Colour::fromRGBA(120, 170, 245, 220));
+            g.setColour(palette(Gyeol::GyeolPalette::AccentPrimary, 0.80f));
             if (!topRuler.isEmpty())
             {
                 const auto x = juce::jlimit(static_cast<float>(topRuler.getX()),

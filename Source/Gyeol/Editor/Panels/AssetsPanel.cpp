@@ -93,7 +93,7 @@ public:
     kindBadge.setJustificationType(juce::Justification::centred);
     kindBadge.setFont(makePanelFont(*this, 9.0f, true));
     kindBadge.setColour(juce::Label::textColourId,
-                        juce::Colours::black.withAlpha(0.8f));
+                        palette(GyeolPalette::TextPrimary).contrasting(1.0f).withAlpha(0.8f));
     kindBadge.setInterceptsMouseClicks(false, false);
     addAndMakeVisible(kindBadge);
 
@@ -263,7 +263,7 @@ public:
                                          : palette(GyeolPalette::BorderActive);
       g.setColour(useBadgeFill.withAlpha(0.9f));
       g.fillRoundedRectangle(usageBadgeBounds.toFloat(), 3.0f);
-      g.setColour(juce::Colours::black.withAlpha(0.55f));
+      g.setColour(palette(GyeolPalette::BorderDefault, 0.65f));
       g.drawRoundedRectangle(usageBadgeBounds.toFloat(), 3.0f, 1.0f);
 
       g.setColour(palette(GyeolPalette::TextPrimary));
@@ -275,7 +275,7 @@ public:
 
     g.setColour(badgeColor);
     g.fillRoundedRectangle(kindBadge.getBounds().toFloat(), 3.0f);
-    g.setColour(juce::Colours::black.withAlpha(0.8f));
+    g.setColour(palette(GyeolPalette::TextPrimary).contrasting(1.0f).withAlpha(0.8f));
     g.drawRoundedRectangle(kindBadge.getBounds().toFloat(), 3.0f, 1.0f);
   }
 

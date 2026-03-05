@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Widgets/WidgetSDK.h"
 #include <algorithm>
 #include <array>
@@ -234,7 +235,7 @@ public:
       const auto minNorm = normalize(minValue);
       const auto maxNorm = normalize(maxValue);
 
-      g.setColour(juce::Colour::fromRGB(44, 49, 60));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ControlBase));
       g.fillRoundedRectangle(body, 4.0f);
 
       const auto drawThumb = [&g](float x, float y, juce::Colour color,
@@ -249,7 +250,7 @@ public:
             body.getCentreX() - 2.0f, body.getY() + 10.0f, 4.0f,
             std::max(8.0f, body.getHeight() - 20.0f));
 
-        g.setColour(juce::Colour::fromRGB(130, 136, 149));
+        g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::BorderActive));
         g.fillRoundedRectangle(track, 2.0f);
 
         const auto yFromNorm = [&track](float norm) noexcept {
@@ -263,26 +264,26 @@ public:
           const auto top = std::min(yMin, yMax);
           const auto height = std::max(2.0f, std::abs(yMax - yMin));
 
-          g.setColour(juce::Colour::fromRGB(95, 160, 255));
+          g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::AccentPrimary));
           g.fillRoundedRectangle({track.getX(), top, track.getWidth(), height},
                                  2.0f);
 
           drawThumb(track.getCentreX(), yMin,
-                    juce::Colour::fromRGB(214, 220, 230));
+                    Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextPrimary));
           drawThumb(track.getCentreX(), yMax,
-                    juce::Colour::fromRGB(214, 220, 230));
+                    Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextPrimary));
 
           if (isThreeValueStyle(normalizedStyle))
             drawThumb(track.getCentreX(), yFromNorm(valueNorm),
-                      juce::Colour::fromRGB(84, 212, 255), 10.0f);
+                      Gyeol::getGyeolColor(Gyeol::GyeolPalette::AccentHover), 10.0f);
         } else {
           const auto yValue = yFromNorm(valueNorm);
-          g.setColour(juce::Colour::fromRGB(95, 160, 255));
+          g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::AccentPrimary));
           g.fillRoundedRectangle({track.getX(), yValue, track.getWidth(),
                                   std::max(2.0f, track.getBottom() - yValue)},
                                  2.0f);
           drawThumb(track.getCentreX(), yValue,
-                    juce::Colour::fromRGB(214, 220, 230));
+                    Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextPrimary));
         }
 
         return;
@@ -291,7 +292,7 @@ public:
       const auto track =
           juce::Rectangle<float>(body.getX() + 10.0f, body.getCentreY() - 2.0f,
                                  std::max(8.0f, body.getWidth() - 20.0f), 4.0f);
-      g.setColour(juce::Colour::fromRGB(130, 136, 149));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::BorderActive));
       g.fillRoundedRectangle(track, 2.0f);
 
       const auto xFromNorm = [&track](float norm) noexcept {
@@ -305,34 +306,34 @@ public:
         const auto left = std::min(xMin, xMax);
         const auto width = std::max(2.0f, std::abs(xMax - xMin));
 
-        g.setColour(juce::Colour::fromRGB(95, 160, 255));
+        g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::AccentPrimary));
         g.fillRoundedRectangle({left, track.getY(), width, track.getHeight()},
                                2.0f);
 
         drawThumb(xMin, track.getCentreY(),
-                  juce::Colour::fromRGB(214, 220, 230));
+                  Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextPrimary));
         drawThumb(xMax, track.getCentreY(),
-                  juce::Colour::fromRGB(214, 220, 230));
+                  Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextPrimary));
 
         if (isThreeValueStyle(normalizedStyle))
           drawThumb(xFromNorm(valueNorm), track.getCentreY(),
-                    juce::Colour::fromRGB(84, 212, 255), 10.0f);
+                    Gyeol::getGyeolColor(Gyeol::GyeolPalette::AccentHover), 10.0f);
       } else {
         const auto thumbX = xFromNorm(valueNorm);
-        g.setColour(juce::Colour::fromRGB(95, 160, 255));
+        g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::AccentPrimary));
         g.fillRoundedRectangle({track.getX(), track.getY(),
                                 std::max(2.0f, thumbX - track.getX()),
                                 track.getHeight()},
                                2.0f);
         drawThumb(thumbX, track.getCentreY(),
-                  juce::Colour::fromRGB(214, 220, 230));
+                  Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextPrimary));
       }
     };
     descriptor.iconPainter = [](juce::Graphics &g,
                                 const juce::Rectangle<float> &r) {
-      g.setColour(juce::Colour::fromRGB(140, 150, 160));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextSecondary));
       g.fillRoundedRectangle(r.reduced(4.0f, 14.0f), 2.0f);
-      g.setColour(juce::Colour::fromRGB(180, 214, 252));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::AccentPrimary));
       g.fillEllipse(r.getCentreX() - 4.0f, r.getCentreY() - 4.0f, 8.0f, 8.0f);
     };
     descriptor.exportCodegen = [](const ExportCodegenContext &context,

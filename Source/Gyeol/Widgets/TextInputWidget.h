@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Widgets/WidgetSDK.h"
 
 namespace Gyeol::Widgets {
@@ -96,15 +97,15 @@ public:
       const auto readOnly = static_cast<bool>(widget.properties.getWithDefault(
           "textInput.readOnly", juce::var(false)));
 
-      g.setColour(juce::Colour::fromRGB(24, 30, 40));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ControlBase));
       g.fillRoundedRectangle(body, 3.0f);
-      g.setColour(readOnly ? juce::Colour::fromRGB(98, 104, 118)
-                           : juce::Colour::fromRGB(78, 90, 112));
+      g.setColour(readOnly ? Gyeol::getGyeolColor(Gyeol::GyeolPalette::BorderDefault)
+                           : Gyeol::getGyeolColor(Gyeol::GyeolPalette::BorderActive));
       g.drawRoundedRectangle(body, 3.0f, 1.0f);
 
       const auto display = text.isNotEmpty() ? text : placeholder;
-      g.setColour(text.isNotEmpty() ? juce::Colour::fromRGB(223, 230, 238)
-                                    : juce::Colour::fromRGB(132, 140, 155));
+      g.setColour(text.isNotEmpty() ? Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextPrimary)
+                                    : Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextSecondary));
       g.setFont(juce::FontOptions(12.0f));
       g.drawFittedText(display, body.reduced(8.0f, 5.0f).toNearestInt(),
                        juce::Justification::centredLeft, 2);
@@ -112,9 +113,9 @@ public:
 
     descriptor.iconPainter = [](juce::Graphics &g,
                                 const juce::Rectangle<float> &r) {
-      g.setColour(juce::Colour::fromRGB(130, 140, 150));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextSecondary));
       g.drawRoundedRectangle(r.reduced(4.0f, 10.0f), 2.0f, 1.5f);
-      g.setColour(juce::Colour::fromRGB(180, 200, 230));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::AccentPrimary));
       g.drawLine(r.getX() + 8.0f, r.getCentreY() - 4.0f, r.getX() + 8.0f,
                  r.getCentreY() + 4.0f, 2.0f);
     };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Widgets/WidgetSDK.h"
 #include <algorithm>
 #include <array>
@@ -146,14 +147,14 @@ public:
         return juce::jlimit(0.0f, 1.0f, (v - rangeMin) / width);
       }(value);
 
-      g.setColour(juce::Colour::fromRGB(44, 49, 60));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ControlBase));
       const auto diameter =
           std::max(12.0f, std::min(body.getWidth(), body.getHeight()) - 6.0f);
       const auto knob = juce::Rectangle<float>(diameter, diameter)
                             .withCentre(body.getCentre());
       g.fillEllipse(knob);
 
-      g.setColour(juce::Colour::fromRGB(95, 160, 255));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::AccentPrimary));
       const auto minAngle = -juce::MathConstants<float>::pi * 0.75f;
       const auto maxAngle = juce::MathConstants<float>::pi * 0.75f;
       const auto angle =
@@ -167,9 +168,9 @@ public:
 
     descriptor.iconPainter = [](juce::Graphics &g,
                                 const juce::Rectangle<float> &r) {
-      g.setColour(juce::Colour::fromRGB(140, 150, 160));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextSecondary));
       g.drawEllipse(r.reduced(6.0f), 2.0f);
-      g.setColour(juce::Colour::fromRGB(180, 214, 252));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::AccentPrimary));
       g.fillEllipse(r.getCentreX() - 2.0f, r.getY() + 10.0f, 4.0f, 4.0f);
     };
 

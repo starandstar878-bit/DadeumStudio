@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Widgets/WidgetSDK.h"
 #include <algorithm>
 #include <cmath>
@@ -139,7 +140,7 @@ public:
         return juce::jlimit(0.0f, 1.0f, (v - rangeMin) / width);
       }(value);
 
-      g.setColour(juce::Colour::fromRGB(44, 49, 60));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ControlBase));
       g.fillRoundedRectangle(body, 4.0f);
 
       auto fillArea = body.reduced(4.0f);
@@ -149,23 +150,23 @@ public:
       else
         level = fillArea.removeFromBottom(fillArea.getHeight() * normalized);
 
-      g.setColour(juce::Colour::fromRGB(95, 210, 150));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ValidSuccess));
       g.fillRoundedRectangle(level, 2.0f);
     };
 
     descriptor.iconPainter = [](juce::Graphics &g,
                                 const juce::Rectangle<float> &r) {
-      g.setColour(juce::Colour::fromRGB(100, 200, 130));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ValidSuccess));
       g.fillRoundedRectangle(juce::Rectangle<float>(r.getX() + 6.0f,
                                                     r.getBottom() - 14.0f, 4.0f,
                                                     8.0f),
                              2.0f);
-      g.setColour(juce::Colour::fromRGB(220, 200, 100));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ValidWarning));
       g.fillRoundedRectangle(juce::Rectangle<float>(r.getX() + 14.0f,
                                                     r.getBottom() - 18.0f, 4.0f,
                                                     12.0f),
                              2.0f);
-      g.setColour(juce::Colour::fromRGB(220, 100, 100));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ValidError));
       g.fillRoundedRectangle(juce::Rectangle<float>(r.getX() + 22.0f,
                                                     r.getBottom() - 24.0f, 4.0f,
                                                     18.0f),

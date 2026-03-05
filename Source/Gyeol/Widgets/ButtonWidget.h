@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Widgets/WidgetSDK.h"
 
 namespace Gyeol::Widgets {
@@ -59,9 +60,9 @@ public:
     }
     descriptor.painter = [](juce::Graphics &g, const WidgetModel &widget,
                             const juce::Rectangle<float> &body) {
-      g.setColour(juce::Colour::fromRGB(44, 49, 60));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ControlBase));
       g.fillRoundedRectangle(body, 6.0f);
-      g.setColour(juce::Colour::fromRGB(228, 232, 238));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextPrimary));
       g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
       const auto text =
           widget.properties.getWithDefault("text", juce::var("Button"))
@@ -71,7 +72,7 @@ public:
     };
     descriptor.iconPainter = [](juce::Graphics &g,
                                 const juce::Rectangle<float> &r) {
-      g.setColour(juce::Colour::fromRGB(180, 190, 200));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::BorderActive));
       g.fillRoundedRectangle(r.reduced(6.0f, 10.0f), 4.0f);
     };
     descriptor.cursorProvider = [](const WidgetModel &, juce::Point<float>) {

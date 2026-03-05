@@ -1,7 +1,16 @@
 #include "Gyeol/Editor/Canvas/MarqueeSelectionOverlay.h"
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 
 namespace Gyeol::Ui::Canvas
 {
+    namespace
+    {
+        juce::Colour palette(Gyeol::GyeolPalette id, float alpha = 1.0f)
+        {
+            return Gyeol::getGyeolColor(id).withAlpha(alpha);
+        }
+    }
+
     void MarqueeSelectionOverlay::setMarquee(juce::Rectangle<float> marqueeBounds)
     {
         marquee = marqueeBounds;
@@ -29,9 +38,9 @@ namespace Gyeol::Ui::Canvas
         if (!active)
             return;
 
-        g.setColour(juce::Colour::fromRGBA(78, 156, 255, 30));
+        g.setColour(palette(Gyeol::GyeolPalette::SelectionBackground, 0.28f));
         g.fillRect(marquee.toNearestInt());
-        g.setColour(juce::Colour::fromRGBA(78, 156, 255, 180));
+        g.setColour(palette(Gyeol::GyeolPalette::AccentPrimary, 0.78f));
         g.drawRect(marquee.toNearestInt(), 1);
     }
 }

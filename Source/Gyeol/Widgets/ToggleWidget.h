@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Widgets/WidgetSDK.h"
 
 namespace Gyeol::Widgets {
@@ -57,18 +58,18 @@ public:
               .toString();
       auto content = body;
 
-      g.setColour(juce::Colour::fromRGB(33, 38, 48));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ControlBase));
       g.fillRoundedRectangle(body, 5.0f);
 
       const auto indicator =
           content.removeFromLeft(std::max(20.0f, body.getHeight()))
               .reduced(4.0f);
-      g.setColour(on ? juce::Colour::fromRGB(86, 210, 132)
-                     : juce::Colour::fromRGB(90, 98, 114));
+      g.setColour(on ? Gyeol::getGyeolColor(Gyeol::GyeolPalette::ValidSuccess)
+                     : Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextDisabled));
       g.fillEllipse(indicator);
 
       if (on) {
-        g.setColour(juce::Colour::fromRGB(14, 28, 22));
+        g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ValidSuccess).contrasting(1.0f));
         g.drawLine(indicator.getX() + 4.0f, indicator.getCentreY(),
                    indicator.getCentreX() - 1.0f, indicator.getBottom() - 5.0f,
                    2.0f);
@@ -76,7 +77,7 @@ public:
                    indicator.getRight() - 4.0f, indicator.getY() + 5.0f, 2.0f);
       }
 
-      g.setColour(juce::Colour::fromRGB(220, 226, 236));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextPrimary));
       g.setFont(juce::FontOptions(12.0f));
       g.drawFittedText(text.isNotEmpty() ? text : juce::String("Toggle"),
                        content.reduced(6.0f).toNearestInt(),
@@ -85,9 +86,9 @@ public:
 
     descriptor.iconPainter = [](juce::Graphics &g,
                                 const juce::Rectangle<float> &r) {
-      g.setColour(juce::Colour::fromRGB(120, 130, 140));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextSecondary));
       g.drawRoundedRectangle(r.reduced(8.0f, 12.0f), 6.0f, 2.0f);
-      g.setColour(juce::Colour::fromRGB(150, 220, 160));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ValidSuccess));
       g.fillEllipse(r.getCentreX() - 2.0f, r.getCentreY() - 4.0f, 8.0f, 8.0f);
     };
 

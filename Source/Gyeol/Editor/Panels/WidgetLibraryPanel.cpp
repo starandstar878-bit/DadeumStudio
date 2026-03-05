@@ -139,7 +139,7 @@ public:
       star.addStar({favArea.getCentreX(), favArea.getCentreY()}, 5,
                    favArea.getWidth() * 0.2f, favArea.getWidth() * 0.45f);
       g.setColour(favoriteToggle.getToggleState()
-                      ? juce::Colours::gold
+                      ? palette(GyeolPalette::ValidWarning)
                       : palette(GyeolPalette::TextSecondary));
       g.fillPath(star);
     }

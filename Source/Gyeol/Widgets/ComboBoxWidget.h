@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Widgets/WidgetSDK.h"
 #include <algorithm>
 
@@ -83,16 +84,16 @@ public:
                             ? items[selectedIndex - 1]
                             : juce::String("Select...");
 
-      g.setColour(juce::Colour::fromRGB(36, 42, 54));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::ControlBase));
       g.fillRoundedRectangle(body, 4.0f);
-      g.setColour(juce::Colour::fromRGB(72, 82, 98));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::BorderDefault));
       g.drawRoundedRectangle(body, 4.0f, 1.0f);
 
       auto textArea = body.reduced(8.0f, 0.0f);
       const auto arrowArea = textArea.removeFromRight(16.0f);
       textArea.removeFromRight(4.0f);
 
-      g.setColour(juce::Colour::fromRGB(224, 230, 238));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextPrimary));
       g.setFont(juce::FontOptions(12.0f));
       g.drawFittedText(text, textArea.toNearestInt(),
                        juce::Justification::centredLeft, 1);
@@ -104,19 +105,19 @@ public:
       arrow.lineTo(cx + 4.0f, cy - 2.0f);
       arrow.lineTo(cx, cy + 3.0f);
       arrow.closeSubPath();
-      g.setColour(juce::Colour::fromRGB(170, 178, 192));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextSecondary));
       g.fillPath(arrow);
     };
 
     descriptor.iconPainter = [](juce::Graphics &g,
                                 const juce::Rectangle<float> &r) {
-      g.setColour(juce::Colour::fromRGB(140, 150, 160));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::TextSecondary));
       g.drawRoundedRectangle(r.reduced(4.0f, 12.0f), 3.0f, 2.0f);
       juce::Path arr;
       arr.addTriangle(r.getRight() - 12.0f, r.getCentreY() - 2.0f,
                       r.getRight() - 6.0f, r.getCentreY() - 2.0f,
                       r.getRight() - 9.0f, r.getCentreY() + 3.0f);
-      g.setColour(juce::Colour::fromRGB(200, 210, 220));
+      g.setColour(Gyeol::getGyeolColor(Gyeol::GyeolPalette::BorderActive));
       g.fillPath(arr);
     };
 

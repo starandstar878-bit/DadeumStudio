@@ -364,7 +364,7 @@ void ValidationPanel::paintListBoxItem(int rowNumber, juce::Graphics &g,
                              static_cast<float>(header.getY() + 1), 46.0f,
                              12.0f),
       3.0f);
-  g.setColour(juce::Colours::black.withAlpha(0.85f));
+  g.setColour(palette(GyeolPalette::TextPrimary).contrasting(1.0f).withAlpha(0.9f));
   g.setFont(makePanelFont(*this, 9.0f, true));
   g.drawText(labelForSeverity(issue.severity),
              juce::Rectangle<int>(header.getX(), header.getY() + 1, 46, 12),

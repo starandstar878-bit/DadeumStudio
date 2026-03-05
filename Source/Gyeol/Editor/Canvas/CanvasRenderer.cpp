@@ -1,4 +1,5 @@
 #include "Gyeol/Editor/Canvas/CanvasRenderer.h"
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,6 +10,11 @@ namespace Gyeol::Ui::Canvas
     namespace
     {
         constexpr float kResizeHandleSize = 10.0f;
+
+        juce::Colour palette(Gyeol::GyeolPalette id, float alpha = 1.0f)
+        {
+            return Gyeol::getGyeolColor(id).withAlpha(alpha);
+        }
 
         void warnUnsupportedWidgetOnce(WidgetType type, const char* context)
         {
@@ -45,12 +51,12 @@ namespace Gyeol::Ui::Canvas
                                      float zoomLevel,
                                      const Interaction::SnapSettings& snapSettings) const
     {
-        g.fillAll(juce::Colour::fromRGB(16, 18, 24));
+        g.fillAll(palette(Gyeol::GyeolPalette::CanvasBackground));
 
         if (viewportBounds.isEmpty())
             return;
 
-        g.setColour(juce::Colour::fromRGB(18, 20, 25));
+        g.setColour(palette(Gyeol::GyeolPalette::ControlBase));
         g.fillRect(viewportBounds);
 
         g.saveState();
@@ -94,7 +100,7 @@ namespace Gyeol::Ui::Canvas
 
             if (minorAlpha > 0)
             {
-                g.setColour(juce::Colour::fromRGBA(255, 255, 255, minorAlpha));
+                g.setColour(palette(Gyeol::GyeolPalette::GridLine, static_cast<float>(minorAlpha) / 255.0f));
                 auto startX = std::floor(worldMinX / gridSize) * gridSize;
                 for (float x = startX; x <= worldMaxX + gridSize; x += gridSize)
                     g.drawVerticalLine(juce::roundToInt(toViewX(x)),
@@ -110,7 +116,7 @@ namespace Gyeol::Ui::Canvas
 
             if (majorAlpha > 0)
             {
-                g.setColour(juce::Colour::fromRGBA(255, 255, 255, majorAlpha));
+                g.setColour(palette(Gyeol::GyeolPalette::GridLine, static_cast<float>(majorAlpha) / 255.0f));
                 auto startX = std::floor(worldMinX / majorStep) * majorStep;
                 for (float x = startX; x <= worldMaxX + majorStep; x += majorStep)
                     g.drawVerticalLine(juce::roundToInt(toViewX(x)),
@@ -127,7 +133,7 @@ namespace Gyeol::Ui::Canvas
             g.restoreState();
         }
 
-        g.setColour(juce::Colour::fromRGBA(82, 140, 220, 90));
+        g.setColour(palette(Gyeol::GyeolPalette::BorderActive, 0.45f));
         g.drawRect(canvasViewBounds.toNearestInt(), 1);
 
         g.restoreState();
@@ -136,13 +142,13 @@ namespace Gyeol::Ui::Canvas
         const auto leftRuler = juce::Rectangle<int>(0, viewportBounds.getY(), viewportBounds.getX(), viewportBounds.getHeight());
         if (!topRuler.isEmpty() || !leftRuler.isEmpty())
         {
-            g.setColour(juce::Colour::fromRGB(26, 30, 38));
+            g.setColour(palette(Gyeol::GyeolPalette::HeaderBackground));
             if (!topRuler.isEmpty())
                 g.fillRect(topRuler);
             if (!leftRuler.isEmpty())
                 g.fillRect(leftRuler);
 
-            g.setColour(juce::Colour::fromRGB(90, 98, 112));
+            g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
             if (!topRuler.isEmpty())
                 g.drawHorizontalLine(topRuler.getBottom() - 1,
                                      static_cast<float>(topRuler.getX()),
@@ -171,7 +177,7 @@ namespace Gyeol::Ui::Canvas
                     const auto viewX = toViewX(x);
                     const auto isMajor = isNearMajorGrid(x, majorStep, minorStep);
                     const auto tick = isMajor ? 10.0f : 6.0f;
-                    g.setColour(juce::Colour::fromRGBA(175, 183, 196, isMajor ? 210 : 120));
+                    g.setColour(palette(Gyeol::GyeolPalette::TextSecondary, isMajor ? 0.82f : 0.47f));
                     g.drawLine(viewX, static_cast<float>(topRuler.getBottom()) - tick,
                                viewX, static_cast<float>(topRuler.getBottom()));
                 }
@@ -185,7 +191,7 @@ namespace Gyeol::Ui::Canvas
                     const auto viewY = toViewY(y);
                     const auto isMajor = isNearMajorGrid(y, majorStep, minorStep);
                     const auto tick = isMajor ? 10.0f : 6.0f;
-                    g.setColour(juce::Colour::fromRGBA(175, 183, 196, isMajor ? 210 : 120));
+                    g.setColour(palette(Gyeol::GyeolPalette::TextSecondary, isMajor ? 0.82f : 0.47f));
                     g.drawLine(static_cast<float>(leftRuler.getRight()) - tick, viewY,
                                static_cast<float>(leftRuler.getRight()), viewY);
                 }
@@ -216,9 +222,9 @@ namespace Gyeol::Ui::Canvas
         else
         {
             warnUnsupportedWidgetOnce(widget.type, "CanvasRenderer::paintWidget");
-            g.setColour(juce::Colour::fromRGB(44, 49, 60));
+            g.setColour(palette(Gyeol::GyeolPalette::ControlBase));
             g.fillRoundedRectangle(body, 4.0f);
-            g.setColour(juce::Colour::fromRGB(228, 110, 110));
+            g.setColour(palette(Gyeol::GyeolPalette::ValidError));
             g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
             g.drawFittedText("Unsupported",
                              body.reduced(4.0f).toNearestInt(),
@@ -226,7 +232,7 @@ namespace Gyeol::Ui::Canvas
                              1);
         }
 
-        g.setColour(juce::Colour::fromRGB(95, 101, 114));
+        g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
         g.drawRoundedRectangle(body, 5.0f, 1.0f);
 
         if (clampedOpacity < 0.999f)
@@ -236,7 +242,7 @@ namespace Gyeol::Ui::Canvas
         if (!selected)
             return;
 
-        const auto selectionOutline = juce::Colour::fromRGB(78, 156, 255);
+        const auto selectionOutline = palette(Gyeol::GyeolPalette::AccentPrimary);
         g.setColour(selectionOutline.withAlpha(0.08f));
         g.drawRoundedRectangle(body.expanded(3.0f), 7.0f, 4.0f);
         g.setColour(selectionOutline.withAlpha(0.15f));
@@ -261,7 +267,7 @@ namespace Gyeol::Ui::Canvas
 
         g.setColour(resizeHandleHot ? selectionOutline.brighter(0.25f) : selectionOutline);
         g.fillEllipse(center.x - radius, center.y - radius, radius * 2.0f, radius * 2.0f);
-        g.setColour(juce::Colours::white);
+        g.setColour(palette(Gyeol::GyeolPalette::TextPrimary).contrasting(1.0f));
         g.fillEllipse(center.x - radius * 0.35f,
                       center.y - radius * 0.35f,
                       radius * 0.7f,
