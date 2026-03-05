@@ -1,12 +1,12 @@
 # Gyeol 로드맵
-업데이트: 2026-03-01
+업데이트: 2026-03-05
 
 ## Phase 개요
 - [x] Phase 0: 코어 모델/액션 안정화
 - [x] Phase 1: 상호작용 엔진/선택/리사이즈
 - [x] Phase 2: Export MVP
 - [x] Phase 3: Layer/Group/Inspector/스냅 기반 편집 UX
-- [~] Phase 3.5: 고급 Editor UX 패널/보완
+- [x] Phase 3.5: 고급 Editor UX 패널/보완
 - [~] Phase 3.8: Preview/Run 모드 분리(MVP)
 - [x] Phase 4: 런타임 Event/Action 실행 엔진
 - [x] Phase 5: 데이터 바인딩/상태 시스템
@@ -124,55 +124,55 @@
 > 구현 목표: 블로킹 없는 에러 검출과 직관적인 해결 UI 제공
 
 **단계 1: 비동기 스캐닝 기반(Core Async Foundation)**
-- [ ] `SceneValidator`에 백그라운드 스레드 평가 큐 연동. 편집 이벤트 발생 시 500ms Debounce 후 `startValidationThread()` 호출
-- [ ] 검사 완료 시 `MessageManager::callAsync`를 통해 패널에 결과(에러 트리) 전달 및 캐싱
-- [ ] 상단 탭/칩스 UI 구현: `[Errors: 2] [Warnings: 5] [Infos: 1]` 형식 컴포넌트 추가 및 칩스 클릭 시 ListBox 필터링 연동
+- [x] `SceneValidator`에 백그라운드 스레드 평가 큐 연동. 편집 이벤트 발생 시 500ms Debounce 후 `startValidationThread()` 호출
+- [x] 검사 완료 시 `MessageManager::callAsync`를 통해 패널에 결과(에러 트리) 전달 및 캐싱
+- [x] 상단 탭/칩스 UI 구현: `[Errors: 2] [Warnings: 5] [Infos: 1]` 형식 컴포넌트 추가 및 칩스 클릭 시 ListBox 필터링 연동
 
 **단계 2: 시각적 피드백 및 딥 인스펙션(UI & UX)**
-- [ ] ListBox 아이템 렌더러 교체: `GyeolCustomLookAndFeel::drawValidationItem` 구현 (에러 유형별 아이콘 및 펄스(Pulse) 애니메이션 타이머 부착)
-- [ ] 호버 및 크로스 하이라이팅: 항목 호버 시 `CanvasComponent`로 메시지를 쏴 해당 타겟 위젯에 인라인 점선 하이라이트 레이어 오버레이
-- [ ] 의존성 트리(Dependency Map) 렌더링: 리스트 아이템 확장(Expand) 시 하단에 연관된 바인딩 DAG 다이어그램 그리기 로직 추가
+- [x] ListBox 아이템 렌더러 교체: `GyeolCustomLookAndFeel::drawValidationItem` 구현 (에러 유형별 아이콘 및 펄스(Pulse) 애니메이션 타이머 부착)
+- [x] 호버 및 크로스 하이라이팅: 항목 호버 시 `CanvasComponent`로 메시지를 쏴 해당 타겟 위젯에 인라인 점선 하이라이트 레이어 오버레이
+- [x] 의존성 트리(Dependency Map) 렌더링: 리스트 아이템 확장(Expand) 시 하단에 연관된 바인딩 DAG 다이어그램 그리기 로직 추가
 
 **단계 3: 이슈 해결 엔진(Actionable Resolutions)**
-- [ ] 더블클릭 이벤트 처리: 항목 더블클릭 시 캔버스 `SelectionEngine` 포커스 및 PropertyPanel 전환
-- [ ] Quick Fix 모달: "누락된 폰트/이미지" 검출 시 항목 옆 `[Fix]` 버튼 노출. 클릭 시 팝업을 띄워 로컬 에셋 브라우저 연결 또는 캐시 폰트로 대체(Command 전송)
-- [ ] 무시(Mute) 기능: 특정 항목에 대한 UUID를 저장해 다음 스캔부터 해당 경고 무시되록 필터 목록에 추가
+- [x] 더블클릭 이벤트 처리: 항목 더블클릭 시 캔버스 `SelectionEngine` 포커스 및 PropertyPanel 전환
+- [x] Quick Fix 모달: "누락된 폰트/이미지" 검출 시 항목 옆 `[Fix]` 버튼 노출. 클릭 시 팝업을 띄워 로컬 에셋 브라우저 연결 또는 캐시 폰트로 대체(Command 전송)
+- [x] 무시(Mute) 기능: 특정 항목에 대한 UUID를 저장해 다음 스캔부터 해당 경고 무시되록 필터 목록에 추가
 
 #### Navigator 패널
 > 구현 목표: 거대 씬 렌더링 최적화와 화면 조종 쾌감 상승
 
 **단계 1: 모던 플로팅 쉘 구축(Modern Shell)**
-- [ ] 패널 자체를 사각형 컴포넌트에서 벗어나 모서리가 둥근 `DropShadow` 플로팅 윈도우(아크릴 룩)로 컨테이너화
-- [ ] 호버 반응형 투명도 상태머신: 마우스 진입 시 투명도 30% -> 100% `Fade-in` 애니메이터 연동
-- [ ] 플로팅 드래그 핸들: 패널 최상단이나 코너 드래그 시 캔버스 내 절대좌표 `setBounds()` 갱신으로 사용자 패널 커스텀 위치 이동 지원
+- [x] 패널 자체를 사각형 컴포넌트에서 벗어나 모서리가 둥근 `DropShadow` 플로팅 윈도우(아크릴 룩)로 컨테이너화
+- [x] 호버 반응형 투명도 상태머신: 마우스 진입 시 투명도 30% -> 100% `Fade-in` 애니메이터 연동
+- [x] 플로팅 드래그 핸들: 패널 최상단이나 코너 드래그 시 캔버스 내 절대좌표 `setBounds()` 갱신으로 사용자 패널 커스텀 위치 이동 지원
 
 **단계 2: 캐시 기반 시맨틱 렌더링(Semantic Render Cache)**
-- [ ] `CanvasComponent` 변경점 구독: 렌더 완료 후 `DirtyRect` 발생 시 Navigator에만 비동기 통보
-- [ ] 문서 복제 렌더러 분리: `paint()` 시 캔버스 트리를 순회하되, 배율이 낮을 경우(예: 스케일 0.1 이하) Text와 Shadow 렌더를 `ScopedSaveState`로 스킵하고 단색 `fillRect`로 치환(LOD)
-- [ ] `Image` 캐시 버퍼(`setBufferedToImage(true)`) 구성하여 프레임당 재렌더 방지
+- [x] `CanvasComponent` 변경점 구독: 렌더 완료 후 `DirtyRect` 발생 시 Navigator에만 비동기 통보
+- [x] 문서 복제 렌더러 분리: `paint()` 시 캔버스 트리를 순회하되, 배율이 낮을 경우(예: 스케일 0.1 이하) Text와 Shadow 렌더를 `ScopedSaveState`로 스킵하고 단색 `fillRect`로 치환(LOD)
+- [x] `Image` 캐시 버퍼(`setBufferedToImage(true)`) 구성하여 프레임당 재렌더 방지
 
 **단계 3: 고급 뷰포트 인터랙션(Advanced Viewport)**
-- [ ] Viewport 사각형(아웃라인) 부드러운 네온 보더 그리기 (`GyeolPalette` 엑센트 색상 적용)
-- [ ] 뷰포트 크기 조절: 미니맵 안에서 사각형 테두리를 드래그하면 실제 메인 `Canvas`의 줌 배율(`setZoom()`) 양방향 동기화
-- [ ] 오프스크린 지시기: 선택된 타겟 위젯이 현재 범위 밖일 경우, 네비게이터 외곽선 쪽에 방향 화살표(Angle 계산) 및 거리 `drawText` 표기
+- [x] Viewport 사각형(아웃라인) 부드러운 네온 보더 그리기 (`GyeolPalette` 엑센트 색상 적용)
+- [x] 뷰포트 크기 조절: 미니맵 안에서 사각형 테두리를 드래그하면 실제 메인 `Canvas`의 줌 배율(`setZoom()`) 양방향 동기화
+- [x] 오프스크린 지시기: 선택된 타겟 위젯이 현재 범위 밖일 경우, 네비게이터 외곽선 쪽에 방향 화살표(Angle 계산) 및 거리 `drawText` 표기
 
 #### Performance 패널
 > 구현 목표: 옵트인 방식의 안전한 진단 툴링
 
 **단계 1: 진단 데이터 모델 및 수집기(Metrics Pipeline)**
-- [ ] `PerformanceMetricsStore` 싱글톤 또는 세션 객체 생성. 프레임당 소요 시간(Paint / Action / Layout) Rolling Buffer 기록 배열(길이 60) 마련
-- [ ] Run 모드 전환 시점 훅: `EditorModeCoordinator::setMode(Run)` 진입 시 3초간 `PerformanceMetricsStore` 강제 수집 후, 임계치 위반 시 알림(Notification) 컴포넌트 팝업
-- [ ] 진단 패널 UI 골격: 상단 "진단 시작/중지" 토글 버튼 및 3가지 탭(프레임 주기, 과결합 히트맵, 메모리) 배치
+- [x] `PerformanceMetricsStore` 싱글톤 또는 세션 객체 생성. 프레임당 소요 시간(Paint / Action / Layout) Rolling Buffer 기록 배열(길이 60) 마련
+- [x] Run 모드 전환 시점 훅: `EditorModeCoordinator::setMode(Run)` 진입 시 3초간 `PerformanceMetricsStore` 강제 수집 후, 임계치 위반 시 알림(Notification) 컴포넌트 팝업
+- [x] 진단 패널 UI 골격: 상단 "진단 시작/중지" 토글 버튼 및 3가지 탭(프레임 주기, 과결합 히트맵, 메모리) 배치
 
 **단계 2: UI/UX 고도화(Modern Dashboard)**
-- [ ] 스파크라인(Sparkline) 컴포넌트: `Path` 객체를 활용해 Rolling Buffer 값을 부드러운 곡선 차트로 렌더링. Y축 높이에 따라 초록-노랑-빨강 색상 보간(`Colour::interpolatedWith`) 적용
-- [ ] 네오모피즘(Neumorphism) 버튼 렌더 함수 추가 (`GyeolCustomLookAndFeel::drawPerformanceDashboardButton`)
-- [ ] 파이차트 컴포넌트: `std::map<String, int>` 형식으로 폰트 크기, 텍스처 메모리 크기 합산 후 호(Arc)로 렌더링 (Export 탭 확인 시 호출)
+- [x] 스파크라인(Sparkline) 컴포넌트: `Path` 객체를 활용해 Rolling Buffer 값을 부드러운 곡선 차트로 렌더링. Y축 높이에 따라 초록-노랑-빨강 색상 보간(`Colour::interpolatedWith`) 적용
+- [x] 네오모피즘(Neumorphism) 버튼 렌더 함수 추가 (`GyeolCustomLookAndFeel::drawPerformanceDashboardButton`)
+- [x] 파이차트 컴포넌트: `std::map<String, int>` 형식으로 폰트 크기, 텍스처 메모리 크기 합산 후 호(Arc)로 렌더링 (Export 탭 확인 시 호출)
 
 **단계 3: 오버드로 렌더 모드(Overdraw Heatmap)**
-- [ ] "히트맵 보기" On 시 상태 트리거: `CanvasRenderer`에 `setHeatmapMode(true)` 파라미터 전달
-- [ ] 히트맵 렌더러 처리: 활성화된 경우 컴포넌트 고유 색상을 무시하고, 모든 위젯에 투명도 30%의 단일 붉은색을 덮어 칠함(교집합 영역이 진해지도록 연출).
-- [ ] 결과 레포트: 히트맵 교차 비용이 큰 Top 5 위젯 리스트업 및 `[해결 제안: 렌더 캐시 켜기]` 버튼 노출
+- [x] "히트맵 보기" On 시 상태 트리거: `CanvasRenderer`에 `setHeatmapMode(true)` 파라미터 전달
+- [x] 히트맵 렌더러 처리: 활성화된 경우 컴포넌트 고유 색상을 무시하고, 모든 위젯에 투명도 30%의 단일 붉은색을 덮어 칠함(교집합 영역이 진해지도록 연출).
+- [x] 결과 레포트: 히트맵 교차 비용이 큰 Top 5 위젯 리스트업 및 `[해결 제안: 렌더 캐시 켜기]` 버튼 노출
 
 ---
 
