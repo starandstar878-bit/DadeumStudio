@@ -148,7 +148,7 @@ when the structure above is applied.
 
 ### Files To Modify
 
-- `Source/Gyeol/Gyeol.h` (umbrella include path updates)
+- [DONE] `Source/Gyeol/Gyeol.h` (umbrella include path updates)
 - `Source/Gyeol/Public/EditorHandle.h` (Impl split integration)
 - `Source/Gyeol/Editor/EditorHandle.cpp` (reduced to thin orchestrator)
 - [DONE] `Source/Gyeol/Editor/Canvas/CanvasComponent.h`
@@ -157,18 +157,18 @@ when the structure above is applied.
 - [DONE] `Source/Gyeol/Editor/Canvas/CanvasRenderer.cpp`
 - [DONE] `Source/Gyeol/Editor/Canvas/WidgetComponent.h`
 - [DONE] `Source/Gyeol/Editor/Canvas/WidgetComponent.cpp`
-- `Source/Gyeol/Editor/Panels/AssetsPanel.h` / `.cpp` (mediator callback integration)
-- `Source/Gyeol/Editor/Panels/EventActionPanel.h` / `.cpp` (mediator callback integration)
-- `Source/Gyeol/Editor/Panels/PropertyPanel.h` / `.cpp` (mediator callback integration)
-- `Source/Gyeol/Editor/Panels/LayerTreePanel.h` / `.cpp` (mediator callback integration)
-- `Source/Gyeol/Editor/Panels/HistoryPanel.h` / `.cpp` (history bridge integration)
-- `Source/Gyeol/Editor/Panels/NavigatorPanel.h` / `.cpp` (viewport bridge integration)
-- `Source/Gyeol/Editor/Panels/GridSnapPanel.h` / `.cpp` (snap bridge integration)
-- `Source/Gyeol/Editor/Panels/ValidationPanel.h` / `.cpp` (mediator callback integration)
-- `Source/Gyeol/Editor/Panels/PerformancePanel.h` / `.cpp` (perf bridge integration)
-- `Source/Gyeol/Editor/Panels/ExportPreviewPanel.h` / `.cpp` (export bridge integration)
-- `Source/Gyeol/Editor/Panels/WidgetLibraryPanel.h` / `.cpp` (canvas drop integration)
-- Project build files (`.jucer`/CMake/etc.) for new file registration
+- [DONE] `Source/Gyeol/Editor/Panels/AssetsPanel.h` / `.cpp` (mediator callback integration)
+- [DONE] `Source/Gyeol/Editor/Panels/EventActionPanel.h` / `.cpp` (mediator callback integration)
+- [DONE] `Source/Gyeol/Editor/Panels/PropertyPanel.h` / `.cpp` (mediator callback integration)
+- [DONE] `Source/Gyeol/Editor/Panels/LayerTreePanel.h` / `.cpp` (mediator callback integration)
+- [DONE] `Source/Gyeol/Editor/Panels/HistoryPanel.h` / `.cpp` (history bridge integration)
+- [DONE] `Source/Gyeol/Editor/Panels/NavigatorPanel.h` / `.cpp` (viewport bridge integration)
+- [DONE] `Source/Gyeol/Editor/Panels/GridSnapPanel.h` / `.cpp` (snap bridge integration)
+- [DONE] `Source/Gyeol/Editor/Panels/ValidationPanel.h` / `.cpp` (mediator callback integration)
+- [DONE] `Source/Gyeol/Editor/Panels/PerformancePanel.h` / `.cpp` (perf bridge integration)
+- [DONE] `Source/Gyeol/Editor/Panels/ExportPreviewPanel.h` / `.cpp` (export bridge integration)
+- [DONE] `Source/Gyeol/Editor/Panels/WidgetLibraryPanel.h` / `.cpp` (canvas drop integration)
+- [DONE] Project build files (`.jucer`/CMake/etc.) for new file registration
 ## Notes
 
 - Move documentation files out of `Source` to `docs/` when possible.

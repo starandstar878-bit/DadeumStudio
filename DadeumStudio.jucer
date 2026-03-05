@@ -29,6 +29,10 @@
                 file="Source/Gyeol/Editor/GyeolCustomLookAndFeel.h"/>
           <FILE id="hP7zLm" name="EditorHandle.cpp" compile="1" resource="0"
                 file="Source/Gyeol/Editor/EditorHandle.cpp"/>
+          <FILE id="EdImplC" name="EditorHandleImpl.cpp" compile="1" resource="0"
+                file="Source/Gyeol/Editor/EditorHandleImpl.cpp"/>
+          <FILE id="EdImplH" name="EditorHandleImpl.h" compile="0" resource="0"
+                file="Source/Gyeol/Editor/EditorHandleImpl.h"/>
           <GROUP id="{B3A17A5A-5F43-44F8-9537-608EAA925101}" name="Canvas">
             <FILE id="EdCv01" name="CanvasComponent.cpp" compile="1" resource="0"
                   file="Source/Gyeol/Editor/Canvas/CanvasComponent.cpp"/>
@@ -76,6 +80,38 @@
                   file="Source/Gyeol/Editor/Panels/NavigatorPanel.cpp"/>
             <FILE id="EdPn12" name="PerformancePanel.cpp" compile="1" resource="0"
                   file="Source/Gyeol/Editor/Panels/PerformancePanel.cpp"/>
+          </GROUP>
+          <GROUP id="{A4B87F12-3C2A-4D19-9A11-58C34F4EE001}" name="Theme">
+            <FILE id="EdTh01" name="GyeolCustomLookAndFeel.cpp" compile="0" resource="0"
+                  file="Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.cpp"/>
+            <FILE id="EdTh02" name="GyeolCustomLookAndFeel.h" compile="0" resource="0"
+                  file="Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"/>
+          </GROUP>
+          <GROUP id="{F1A3D66C-7B4E-4A7C-8CC4-6A9E1133D002}" name="Shell">
+            <FILE id="EdSh01" name="EditorCommandSystem.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorCommandSystem.cpp"/>
+            <FILE id="EdSh02" name="EditorCommandSystem.h" compile="0" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorCommandSystem.h"/>
+            <FILE id="EdSh03" name="EditorHistoryBridge.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorHistoryBridge.cpp"/>
+            <FILE id="EdSh04" name="EditorHistoryBridge.h" compile="0" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorHistoryBridge.h"/>
+            <FILE id="EdSh05" name="EditorLayoutCoordinator.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.cpp"/>
+            <FILE id="EdSh06" name="EditorLayoutCoordinator.h" compile="0" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.h"/>
+            <FILE id="EdSh07" name="EditorModeCoordinator.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorModeCoordinator.cpp"/>
+            <FILE id="EdSh08" name="EditorModeCoordinator.h" compile="0" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorModeCoordinator.h"/>
+            <FILE id="EdSh09" name="EditorPanelMediator.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorPanelMediator.cpp"/>
+            <FILE id="EdSh10" name="EditorPanelMediator.h" compile="0" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorPanelMediator.h"/>
+            <FILE id="EdSh11" name="EditorSettingsStore.cpp" compile="1" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorSettingsStore.cpp"/>
+            <FILE id="EdSh12" name="EditorSettingsStore.h" compile="0" resource="0"
+                  file="Source/Gyeol/Editor/Shell/EditorSettingsStore.h"/>
           </GROUP>
           <GROUP id="{D2D6B418-7282-44CB-8F6F-5B0C4A24E2D8}" name="Perf">
             <FILE id="EdPf01" name="EditorPerfTracker.cpp" compile="1" resource="0"
