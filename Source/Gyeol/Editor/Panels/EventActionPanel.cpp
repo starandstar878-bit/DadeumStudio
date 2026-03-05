@@ -626,7 +626,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(assetPatchValueCombo);
 
   setupEditor(patchEditor,
-              juce::String::fromUTF8(u8"?ï§? JSON ???§ì‰ ??Î½??(??«ë¤¾ë¬?????"));
+              "Patch JSON value (e.g. 0.5, true, \"text\")");
   patchEditor.setMultiLine(true);
   patchEditor.setScrollbarsShown(true);
   patchEditor.setReturnKeyStartsNewLine(true);
@@ -1603,9 +1603,9 @@ void EventActionPanel::rebuildActionTargetPropertyOptions(
     };
 
     // ??¤ë²?????§ì‰ (??æ¹???ë½?»»)
-    addItem("visible", juce::String::fromUTF8(u8"??ë½?»» ???"));
-    addItem("locked", juce::String::fromUTF8(u8"??«ë²?????"));
-    addItem("opacity", juce::String::fromUTF8(u8"?ë¸ëœ‡??µì­—??…ì¦²"));
+    addItem("visible", "Visible (bool)");
+    addItem("locked", "Locked (bool)");
+    addItem("opacity", "Opacity (0.0~1.0)");
 
     // ?è¢â‘¹ì¡??????‡Â€?spec ???§ì‰
     const auto &snapshot = document.snapshot();
