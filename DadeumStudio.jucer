@@ -193,10 +193,23 @@
           </GROUP>
         </GROUP>
       </GROUP>
-      <FILE id="NgKvms" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
-      <FILE id="WPLVWS" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
-      <FILE id="GO4krX" name="MainComponent.cpp" compile="1" resource="0"
-            file="Source/MainComponent.cpp"/>
+      <GROUP id="{T0EU1000-0000-0000-0000-000000000001}" name="Teul">
+        <GROUP id="{T0EU1000-0000-0000-0000-000000000002}" name="Model">
+          <FILE id="TlMd01" name="TTypes.h"         compile="0" resource="0" file="Source/Teul/Model/TTypes.h"/>
+          <FILE id="TlMd02" name="TPort.h"          compile="0" resource="0" file="Source/Teul/Model/TPort.h"/>
+          <FILE id="TlMd03" name="TNode.h"          compile="0" resource="0" file="Source/Teul/Model/TNode.h"/>
+          <FILE id="TlMd04" name="TConnection.h"    compile="0" resource="0" file="Source/Teul/Model/TConnection.h"/>
+          <FILE id="TlMd05" name="TGraphDocument.h" compile="0" resource="0" file="Source/Teul/Model/TGraphDocument.h"/>
+        </GROUP>
+        <FILE id="TlEd01" name="Teul.h"            compile="0" resource="0" file="Source/Teul/Teul.h"/>
+        <FILE id="TlEd02" name="Teul.cpp"           compile="1" resource="0" file="Source/Teul/Teul.cpp"/>
+        <FILE id="TlRm01" name="Teul Roadmap.md"    compile="0" resource="1" file="Source/Teul/Teul Roadmap.md"/>
+        <FILE id="TlRm02" name="Teul UI Roadmap.md" compile="0" resource="1" file="Source/Teul/Teul UI Roadmap.md"/>
+      </GROUP>
+      <FILE id="ApSv01" name="AppServices.h"   compile="0" resource="0" file="Source/AppServices.h"/>
+      <FILE id="NgKvms" name="Main.cpp"         compile="1" resource="0" file="Source/Main.cpp"/>
+      <FILE id="WPLVWS" name="MainComponent.h"  compile="0" resource="0" file="Source/MainComponent.h"/>
+      <FILE id="GO4krX" name="MainComponent.cpp" compile="1" resource="0" file="Source/MainComponent.cpp"/>
     </GROUP>
   </MAINGROUP>
   <MODULES>

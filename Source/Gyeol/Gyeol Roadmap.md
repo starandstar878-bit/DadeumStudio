@@ -395,6 +395,44 @@
 
 ### 구현 단계 (구체화된 Step-by-Step)
 
+#### 단계 0: 위젯 속성 스키마 확장 (Schema Expansion)
+- [ ] **속성 확장 스펙 고정**: 외부 위젯 메타데이터/프로퍼티/이벤트 payload 스키마를 `WidgetSDK.h`와 `GyeolWidgetPluginABI.h`에 동기화한다.
+- [ ] **레지스트리 검증 규칙 확장**: 신규 속성의 필수/선택/자동 필드를 구분해 `WidgetRegistry::registerWidget` 검증 규칙에 반영한다.
+- [ ] **매니페스트/Export 연계**: 새 속성이 `WidgetLibraryManifest`, `ExportManifest`, 코드 생성 경로에 누락 없이 전달되는지 검증한다.
+
+##### 확장된 위젯 속성 리스트 (v1)
+- **플러그인 식별/호환성**: `pluginId`, `pluginVersion`, `vendor`, `sdkMinVersion`, `sdkMaxVersion`
+- **위젯 능력/성능 힌트**: `capabilities`, `repaintPolicy`, `tickRateHintHz`, `supportsOffscreenCache`
+- **프로퍼티 표현 메타**: `unit`, `displayFormat`, `valueCurve`, `required`, `minLength`, `maxLength`, `regex`
+- **에셋 제약 메타**: `acceptedMimeTypes`, `maxAssetBytes`, `fallbackAssetId`
+- **런타임 이벤트 메타**: `payloadSchema` (키/타입/필수 여부)
+- **접근성/테스트 메타**: `a11yRole`, `a11yLabelKey`, `testId`
+- **Export 요구사항 메타**: `requiredJuceModules`, `requiredHeaders`, `requiredLibraries`, `codegenApiVersion`
+
+##### 분류: 사용자가 최소한으로 정해야 하는 속성 (필수)
+- `typeKey`, `displayName`, `category`
+- `defaultBounds`, `minSize`, `defaultProperties`
+- `propertySpecs`의 `key`, `label`, `kind`, `defaultValue`
+- `runtimeEvents`의 `key`, `displayLabel`
+- `pluginId`, `pluginVersion`, `sdkMinVersion`
+- `painter`(또는 외부 위젯의 동등 렌더 진입점)
+
+##### 분류: 사용자가 사용할 만한 속성 (선택)
+- `tags`, `iconKey`, `exportTargetType`
+- `unit`, `displayFormat`, `valueCurve`
+- `hint`, `advanced`, `readOnly`, `dependsOnKey`, `dependsOnValue`
+- `acceptedAssetKinds`, `acceptedMimeTypes`, `maxAssetBytes`, `fallbackAssetId`
+- `capabilities`, `repaintPolicy`, `tickRateHintHz`
+- `payloadSchema`, `a11yRole`, `a11yLabelKey`, `testId`
+- `requiredJuceModules`, `requiredHeaders`, `requiredLibraries`
+
+##### 분류: 자동화할 속성 (호스트/빌드 파이프라인 산출)
+- `sdkMaxVersion` 기본값 보정 (`Host SDK Major`)
+- `vendor` 기본값 채우기 (플러그인 매니페스트/서명 정보 기반)
+- `testId` 자동 생성 (`pluginId.typeKey.propertyKey`)
+- `requiredJuceModules`/`requiredHeaders` 추론 (codegen, include scan)
+- `supportedMimeTypes` 파생값 생성 (`acceptedAssetKinds` 기반)
+- `codegenApiVersion` 자동 주입 (Export 시점)
 #### 단계 1: SDK ABI 및 플러그인 인터페이스 확립 (Foundation)
 - [ ] **SDK 헤더 분리**: `WidgetSDK.h`를 외부 개발자가 단독으로 Include할 수 있는 순수 가상 클래스(Interface) 레벨로 고도화 (예: `IGyeolCustomWidget`, `IPropertyProvider`)
 - [ ] **ABI 안정성 보장**: C++ Name Mangling과 메모리 할당자 이슈를 피하기 위해, 플러그인 진입점은 순수 C ABI(`extern "C"`) 함수인 `GyeolCreateWidgetInstance()`, `GyeolGetPluginManifest()` 형태로 규격화

@@ -2,34 +2,6 @@
 #include "MainComponent.h"
 
 // =============================================================================
-//  Teul::EditorHandle 임시 스텁 구현
-//  TODO [Phase 1]: Teul/Teul.cpp 로 이동하고 실제 구현으로 교체
-// =============================================================================
-namespace Teul {
-EditorHandle::EditorHandle() = default;
-EditorHandle::~EditorHandle() = default;
-
-void EditorHandle::paint(juce::Graphics &g) {
-  g.fillAll(juce::Colour(0xff1a1a2e));
-
-  g.setColour(juce::Colour(0xff444466));
-  g.setFont(18.0f);
-  g.drawText(
-      juce::CharPointer_UTF8(
-          "\xf0\x9f\x94\xa7  Teul DSP \xea\xb7\xb8\xeb\x9e\x98\xed\x94\xbd "
-          "\xec\x97\x90\xeb\x94\x94\xed\x84\xb0 — Phase 1 "
-          "\xea\xb5\xac\xed\x98\x84 \xec\xa4\x91"),
-      getLocalBounds(), juce::Justification::centred, true);
-}
-
-void EditorHandle::resized() {}
-
-std::unique_ptr<EditorHandle> createEditor() {
-  return std::make_unique<EditorHandle>();
-}
-} // namespace Teul
-
-// =============================================================================
 //  MainComponent
 // =============================================================================
 MainComponent::MainComponent(AppServices &services) : appServices(services) {
