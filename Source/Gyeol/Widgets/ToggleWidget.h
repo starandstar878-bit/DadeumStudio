@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Widgets/WidgetSDK.h"

@@ -309,8 +309,13 @@ inline juce::Result validateDocument(const DocumentModel &document) {
     if (!assetRefKeys.insert(normalizedRefKey).second)
       return juce::Result::fail("asset.refKey must be unique");
 
-    if (asset.relativePath.isNotEmpty() &&
-        juce::File::isAbsolutePath(asset.relativePath))
+    const auto normalizedAssetPath = asset.relativePath.trim();
+    if (normalizedAssetPath.containsChar('\0')
+        || normalizedAssetPath.containsAnyOf("\r\n"))
+      return juce::Result::fail("asset.relativePath contains control characters");
+
+    if (normalizedAssetPath.isNotEmpty() &&
+        juce::File::isAbsolutePath(normalizedAssetPath))
       return juce::Result::fail("asset.relativePath must be relative");
 
     const auto metaResult = validatePropertyBag(asset.meta);

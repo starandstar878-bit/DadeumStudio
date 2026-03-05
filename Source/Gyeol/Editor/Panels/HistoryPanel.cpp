@@ -1,4 +1,4 @@
-﻿#include "Gyeol/Editor/Panels/HistoryPanel.h"
+#include "Gyeol/Editor/Panels/HistoryPanel.h"
 
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 

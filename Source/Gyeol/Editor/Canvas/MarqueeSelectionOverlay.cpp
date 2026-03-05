@@ -1,4 +1,4 @@
-﻿#include "Gyeol/Editor/Canvas/MarqueeSelectionOverlay.h"
+#include "Gyeol/Editor/Canvas/MarqueeSelectionOverlay.h"
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 
 namespace Gyeol::Ui::Canvas

@@ -1,0 +1,4 @@
+
+  PerformancePanel.cpp
+  DadeumStudio_App.vcxproj -> C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\x64\Debug\App\DadeumStudio.exe
+EXIT_CODE=0 

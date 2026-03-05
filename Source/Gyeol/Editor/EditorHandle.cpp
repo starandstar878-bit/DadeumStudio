@@ -5667,9 +5667,20 @@ void refreshNavigatorSceneFromDocument() {
       if (asset.kind == AssetKind::colorPreset)
         continue;
 
-      auto sourceFile = juce::File(asset.relativePath);
-      if (!juce::File::isAbsolutePath(asset.relativePath))
-        sourceFile = projectRoot.getChildFile(asset.relativePath);
+      const auto normalizedPath = asset.relativePath.trim().replaceCharacter('\\', '/');
+      if (normalizedPath.isEmpty())
+        continue;
+
+      if (normalizedPath.containsChar('\0')
+          || normalizedPath.containsAnyOf("\r\n")) {
+        DBG("[Gyeol][Perf] skip invalid asset path id=" + juce::String(asset.id)
+            + " path='" + normalizedPath + "'");
+        continue;
+      }
+
+      const auto sourceFile = juce::File::isAbsolutePath(normalizedPath)
+          ? juce::File(normalizedPath)
+          : projectRoot.getChildFile(normalizedPath);
       if (!sourceFile.existsAsFile())
         continue;
 

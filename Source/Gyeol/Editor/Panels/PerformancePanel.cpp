@@ -3,6 +3,7 @@
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 
 #include <algorithm>
+#include <cmath>
 #include <numeric>
 
 namespace Gyeol::Ui::Panels {
@@ -255,6 +256,11 @@ void PerformancePanel::paint(juce::Graphics &g) {
 
   area.removeFromTop(4);
 
+  if (controlsReservedHeight > 0) {
+    area.removeFromTop(controlsReservedHeight);
+    area.removeFromTop(6);
+  }
+
   auto cardsArea = area.removeFromTop(60);
   constexpr int gap = 6;
   const auto cardWidth = (cardsArea.getWidth() - gap * 2) / 3;
@@ -370,21 +376,126 @@ void PerformancePanel::paint(juce::Graphics &g) {
 void PerformancePanel::resized() {
   contentBounds = getLocalBounds().reduced(8);
 
-  auto top = contentBounds;
-  auto topRow = top.removeFromTop(20);
+  auto layout = contentBounds;
+  layout.removeFromTop(18);
+  layout.removeFromTop(4);
 
-  diagnosticsToggle.setBounds(topRow.removeFromLeft(100));
-  frameTabButton.setBounds(topRow.removeFromLeft(68));
-  topRow.removeFromLeft(4);
-  heatmapTabButton.setBounds(topRow.removeFromLeft(76));
-  topRow.removeFromLeft(4);
-  memoryTabButton.setBounds(topRow.removeFromLeft(68));
+  constexpr int rowHeight = 24;
+  constexpr int rowGap = 6;
+  constexpr int itemGap = 6;
 
-  auto heatmapControls = getLocalBounds();
-  heatmapControls.removeFromTop(78);
-  heatmapControls = heatmapControls.removeFromTop(24).reduced(10, 0);
-  heatmapToggle.setBounds(heatmapControls.removeFromLeft(130));
-  suggestionButton.setBounds(heatmapControls.removeFromLeft(170));
+  const auto toggleFont = makePanelFont(*this, 12.0f, false);
+  const auto toggleWidthFor = [&](const juce::String &text, int minimumWidth) {
+    juce::GlyphArrangement glyphs;
+    glyphs.addLineOfText(toggleFont, text, 0.0f, 0.0f);
+
+    const auto glyphCount = glyphs.getNumGlyphs();
+    const auto labelWidth = glyphCount > 0
+                                ? static_cast<int>(std::ceil(
+                                      glyphs.getBoundingBox(0, glyphCount, true)
+                                          .getWidth()))
+                                : 0;
+    return juce::jmax(minimumWidth, 32 + 8 + labelWidth + 10);
+  };
+
+  const auto diagnosticsPreferredWidth =
+      toggleWidthFor(diagnosticsToggle.getButtonText(), 124);
+  const auto heatmapPreferredWidth =
+      toggleWidthFor(heatmapToggle.getButtonText(), 132);
+
+  auto hideAllControls = [&] {
+    diagnosticsToggle.setBounds({});
+    frameTabButton.setBounds({});
+    heatmapTabButton.setBounds({});
+    memoryTabButton.setBounds({});
+    heatmapToggle.setBounds({});
+    suggestionButton.setBounds({});
+    controlsReservedHeight = 0;
+  };
+
+  if (layout.getWidth() <= 0 || layout.getHeight() <= 0) {
+    hideAllControls();
+    return;
+  }
+
+  int usedHeight = 0;
+
+  auto row = layout.removeFromTop(rowHeight);
+  usedHeight += rowHeight;
+
+  const int tabsMinWidth = 64;
+  const int tabsSpacing = itemGap;
+  const int tabsMinimumTotal = tabsMinWidth * 3 + tabsSpacing * 2;
+  const int diagAndTabsGap = itemGap;
+
+  if (row.getWidth() >= diagnosticsPreferredWidth + diagAndTabsGap +
+                            tabsMinimumTotal) {
+    diagnosticsToggle.setBounds(row.removeFromLeft(diagnosticsPreferredWidth));
+
+    row.removeFromLeft(diagAndTabsGap);
+    const int tabWidth =
+        juce::jmax(tabsMinWidth, (row.getWidth() - tabsSpacing * 2) / 3);
+
+    frameTabButton.setBounds(row.removeFromLeft(tabWidth));
+    row.removeFromLeft(tabsSpacing);
+    heatmapTabButton.setBounds(row.removeFromLeft(tabWidth));
+    row.removeFromLeft(tabsSpacing);
+    memoryTabButton.setBounds(row);
+  } else {
+    diagnosticsToggle.setBounds(row);
+
+    if (layout.getHeight() >= rowGap + rowHeight) {
+      layout.removeFromTop(rowGap);
+      usedHeight += rowGap;
+
+      auto tabsRow = layout.removeFromTop(rowHeight);
+      usedHeight += rowHeight;
+
+      const int tabWidth =
+          juce::jmax(40, (tabsRow.getWidth() - tabsSpacing * 2) / 3);
+      frameTabButton.setBounds(tabsRow.removeFromLeft(tabWidth));
+      tabsRow.removeFromLeft(tabsSpacing);
+      heatmapTabButton.setBounds(tabsRow.removeFromLeft(tabWidth));
+      tabsRow.removeFromLeft(tabsSpacing);
+      memoryTabButton.setBounds(tabsRow);
+    } else {
+      frameTabButton.setBounds({});
+      heatmapTabButton.setBounds({});
+      memoryTabButton.setBounds({});
+    }
+  }
+
+  if (layout.getHeight() > 0) {
+    layout.removeFromTop(rowGap);
+    usedHeight += rowGap;
+  }
+
+  auto controlsRow = layout.removeFromTop(rowHeight);
+  usedHeight += rowHeight;
+
+  const int suggestionMinWidth = 156;
+
+  if (controlsRow.getWidth() >= heatmapPreferredWidth + itemGap +
+                                   suggestionMinWidth) {
+    heatmapToggle.setBounds(controlsRow.removeFromLeft(heatmapPreferredWidth));
+    controlsRow.removeFromLeft(itemGap);
+    suggestionButton.setBounds(controlsRow);
+  } else {
+    heatmapToggle.setBounds(controlsRow);
+
+    if (layout.getHeight() >= rowGap + rowHeight) {
+      layout.removeFromTop(rowGap);
+      usedHeight += rowGap;
+
+      auto suggestionRow = layout.removeFromTop(rowHeight);
+      usedHeight += rowHeight;
+      suggestionButton.setBounds(suggestionRow);
+    } else {
+      suggestionButton.setBounds({});
+    }
+  }
+
+  controlsReservedHeight = juce::jmax(0, usedHeight);
 }
 
 void PerformancePanel::lookAndFeelChanged() { repaint(); }

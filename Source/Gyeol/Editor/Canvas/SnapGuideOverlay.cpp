@@ -1,4 +1,4 @@
-﻿#include "Gyeol/Editor/Canvas/SnapGuideOverlay.h"
+#include "Gyeol/Editor/Canvas/SnapGuideOverlay.h"
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 
 namespace Gyeol::Ui::Canvas

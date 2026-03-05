@@ -1,4 +1,4 @@
-﻿#include "Gyeol/Editor/Panels/GridSnapPanel.h"
+#include "Gyeol/Editor/Panels/GridSnapPanel.h"
 
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 

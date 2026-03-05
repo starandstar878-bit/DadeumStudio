@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
 #include <array>
@@ -152,5 +152,6 @@ private:
   DashboardButton suggestionButton{"Suggest Render Cache"};
 
   juce::Rectangle<int> contentBounds;
+  int controlsReservedHeight = 0;
 };
 } // namespace Gyeol::Ui::Panels

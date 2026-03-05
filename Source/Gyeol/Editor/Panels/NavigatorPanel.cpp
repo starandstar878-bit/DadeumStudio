@@ -1,4 +1,4 @@
-﻿
+
 #include "Gyeol/Editor/Panels/NavigatorPanel.h"
 
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"

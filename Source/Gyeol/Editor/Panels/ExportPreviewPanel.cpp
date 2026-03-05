@@ -1,4 +1,4 @@
-﻿#include "Gyeol/Editor/Panels/ExportPreviewPanel.h"
+#include "Gyeol/Editor/Panels/ExportPreviewPanel.h"
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 #include <cmath>
 

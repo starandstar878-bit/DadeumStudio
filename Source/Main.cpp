@@ -6,6 +6,7 @@
   ==============================================================================
 */
 
+#include "AppServices.h"
 #include "Gyeol/Export/JuceComponentExport.h"
 #include "Gyeol/Runtime/PropertyBindingResolver.h"
 #include "Gyeol/Widgets/WidgetRegistry.h"
@@ -433,6 +434,11 @@ public:
   //==============================================================================
   DadeumStudioApplication() {}
 
+  // AppServices 는 애플리케이션과 수명을 같이한다.
+  // AudioDeviceManager 는 여기서 단 하나만 초기화되고,
+  // MainComponent(→ Teul) 에 참조로 전달된다.
+  AppServices appServices;
+
   const juce::String getApplicationName() override {
     return ProjectInfo::projectName;
   }
@@ -460,7 +466,7 @@ public:
 
     // This method is where you should put your application's initialisation
     // code..
-    mainWindow.reset(new MainWindow(getApplicationName()));
+    mainWindow.reset(new MainWindow(getApplicationName(), appServices));
   }
 
   void shutdown() override {
@@ -491,14 +497,14 @@ public:
   */
   class MainWindow : public juce::DocumentWindow {
   public:
-    MainWindow(juce::String name)
+    MainWindow(juce::String name, AppServices &services)
         : DocumentWindow(
               name,
               juce::Desktop::getInstance().getDefaultLookAndFeel().findColour(
                   juce::ResizableWindow::backgroundColourId),
               DocumentWindow::allButtons) {
       setUsingNativeTitleBar(true);
-      setContentOwned(new MainComponent(), true);
+      setContentOwned(new MainComponent(services), true);
 
 #if JUCE_IOS || JUCE_ANDROID
       setFullScreen(true);
