@@ -114,6 +114,7 @@ ExportPreviewPanel::ExportPreviewPanel() {
                         palette(GyeolPalette::TextSecondary));
   addAndMakeVisible(footerLabel);
 
+  lookAndFeelChanged();
   updateFooterStatus();
 }
 
@@ -124,6 +125,52 @@ ExportPreviewPanel::~ExportPreviewPanel() {
   tabs.clearTabs();
 }
 
+
+void ExportPreviewPanel::lookAndFeelChanged() {
+  titleLabel.setFont(makePanelFont(*this, 12.0f, true));
+  titleLabel.setColour(juce::Label::textColourId,
+                       palette(GyeolPalette::TextPrimary));
+
+  classNameEditor.setTextToShowWhenEmpty("ComponentClassName",
+                                         palette(GyeolPalette::TextSecondary));
+
+  setupReadOnlyEditor(reportEditor);
+  setupReadOnlyEditor(headerEditor);
+  setupReadOnlyEditor(sourceEditor);
+  setupReadOnlyEditor(manifestEditor);
+
+  tabs.setColour(juce::TabbedButtonBar::tabOutlineColourId,
+                 palette(GyeolPalette::BorderDefault));
+  tabs.setColour(juce::TabbedButtonBar::frontOutlineColourId,
+                 palette(GyeolPalette::BorderDefault));
+  tabs.setColour(juce::TabbedButtonBar::frontTextColourId,
+                 palette(GyeolPalette::TextPrimary));
+  tabs.setColour(juce::TabbedButtonBar::tabTextColourId,
+                 palette(GyeolPalette::TextSecondary));
+  tabs.setColour(juce::TabbedComponent::backgroundColourId,
+                 palette(GyeolPalette::PanelBackground));
+  tabs.setColour(juce::TabbedComponent::outlineColourId,
+                 palette(GyeolPalette::BorderDefault));
+
+  for (int i = 0; i < tabs.getNumTabs(); ++i)
+    tabs.setTabBackgroundColour(i, palette(GyeolPalette::PanelBackground));
+
+  footerLabel.setColour(juce::Label::textColourId,
+                        palette(GyeolPalette::TextSecondary));
+
+  const auto statusText = statusLabel.getText();
+  auto statusColour = palette(GyeolPalette::TextSecondary);
+  if (statusText.containsIgnoreCase("generated") || statusText == "OK")
+    statusColour = palette(GyeolPalette::ValidSuccess);
+  else if (statusText.containsIgnoreCase("failed"))
+    statusColour = palette(GyeolPalette::ValidError);
+  else if (statusText.containsIgnoreCase("not connected") ||
+           statusText.containsIgnoreCase("stale"))
+    statusColour = palette(GyeolPalette::ValidWarning);
+  setStatusText(statusText, statusColour);
+
+  repaint();
+}
 void ExportPreviewPanel::setGeneratePreviewCallback(
     GeneratePreviewCallback callback) {
   onGeneratePreview = std::move(callback);

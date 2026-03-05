@@ -80,11 +80,22 @@ GridSnapPanel::GridSnapPanel() {
   gridSizeSlider.onValueChange = onUiChanged;
   toleranceSlider.onValueChange = onUiChanged;
 
+  lookAndFeelChanged();
   syncUiFromSettings();
 }
 
+
+void GridSnapPanel::lookAndFeelChanged() {
+  const auto labelColour = palette(GyeolPalette::TextSecondary);
+  gridSizeLabel.setColour(juce::Label::textColourId, labelColour);
+  toleranceLabel.setColour(juce::Label::textColourId, labelColour);
+  gridSizeBadgeLabel.setColour(juce::Label::textColourId,
+                               palette(GyeolPalette::AccentPrimary));
+  repaint();
+}
 void GridSnapPanel::setSettings(const Interaction::SnapSettings &settingsIn) {
   snapSettings = settingsIn;
+  lookAndFeelChanged();
   syncUiFromSettings();
   repaint();
 }

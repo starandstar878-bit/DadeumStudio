@@ -34,6 +34,7 @@ namespace Gyeol::Ui::Panels
         void paint(juce::Graphics& g) override;
         void paintOverChildren(juce::Graphics& g) override;
         void resized() override;
+        void lookAndFeelChanged() override;
         void mouseDown(const juce::MouseEvent& event) override;
         void mouseDrag(const juce::MouseEvent& event) override;
         void mouseUp(const juce::MouseEvent& event) override;

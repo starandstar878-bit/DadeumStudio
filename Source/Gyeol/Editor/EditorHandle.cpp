@@ -1511,13 +1511,15 @@ public:
       return;
     }
 
-    g.setColour(juce::Colour::fromRGB(18, 20, 25));
-    g.fillRect(viewport);
-
     // Draw world-aligned grid only inside the visible canvas area.
     const auto canvasViewBounds = worldToViewRect(canvasWorldBounds());
     const auto visibleCanvasBounds =
         canvasViewBounds.getIntersection(viewport.toFloat());
+    if (visibleCanvasBounds.getWidth() > 0.0f &&
+        visibleCanvasBounds.getHeight() > 0.0f) {
+      g.setColour(juce::Colour::fromRGB(18, 20, 25));
+      g.fillRect(visibleCanvasBounds.toNearestInt());
+    }
     if (snapSettings.enableGrid && visibleCanvasBounds.getWidth() > 0.0f &&
         visibleCanvasBounds.getHeight() > 0.0f) {
       g.saveState();
@@ -4854,6 +4856,7 @@ public:
       menu.addItem(1, "Theme: Deep Dark");
       menu.addItem(2, "Theme: Light");
       menu.addItem(3, "Theme: High Contrast");
+      menu.addItem(17, "Theme: Latte");
       menu.addSeparator();
       menu.addItem(4, "Density: Compact");
       menu.addItem(5, "Density: Comfortable");
@@ -4894,6 +4897,10 @@ public:
               repaintRequired = true;
             } else if (picked == 3) {
               themeVariant = GyeolThemeVariant::highContrast;
+              stateChanged = true;
+              repaintRequired = true;
+            } else if (picked == 17) {
+              themeVariant = GyeolThemeVariant::latte;
               stateChanged = true;
               repaintRequired = true;
             } else if (picked == 4) {
@@ -4966,10 +4973,14 @@ public:
 
     shortcutHint.setJustificationType(juce::Justification::centredRight);
     shortcutHint.setColour(juce::Label::textColourId,
-                           juce::Colour::fromRGB(170, 175, 186));
+                           palette(GyeolPalette::TextSecondary));
     shortcutHint.setInterceptsMouseClicks(false, false);
     updateShortcutHintForMode();
     setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode::preview);
+
+    // Re-apply theme after panels are attached so child controls receive
+    // look-and-feel change callbacks with the persisted variant.
+    applyThemeState();
 
     refreshAllPanelsFromDocument();
   }
@@ -6624,8 +6635,11 @@ void setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode mode) {
     case GyeolThemeVariant::light:
       return "Light";
     case GyeolThemeVariant::highContrast:
-    default:
       return "High Contrast";
+    case GyeolThemeVariant::latte:
+      return "Latte";
+    default:
+      return "Deep Dark";
     }
   }
 
@@ -6761,15 +6775,38 @@ void setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode mode) {
     setGyeolThemeVariant(themeVariant);
     setGyeolReducedMotionEnabled(reducedMotionEnabled);
     editorLookAndFeel.refreshFromTheme();
-  }
 
+    const auto applyTabPalette = [](juce::TabbedComponent &tabs) {
+      tabs.setColour(juce::TabbedButtonBar::tabOutlineColourId,
+                     palette(GyeolPalette::BorderDefault));
+      tabs.setColour(juce::TabbedButtonBar::frontOutlineColourId,
+                     palette(GyeolPalette::BorderDefault));
+      tabs.setColour(juce::TabbedButtonBar::frontTextColourId,
+                     palette(GyeolPalette::TextPrimary));
+      tabs.setColour(juce::TabbedButtonBar::tabTextColourId,
+                     palette(GyeolPalette::TextSecondary));
+      tabs.setColour(juce::TabbedComponent::backgroundColourId,
+                     palette(GyeolPalette::PanelBackground));
+      tabs.setColour(juce::TabbedComponent::outlineColourId,
+                     palette(GyeolPalette::BorderDefault));
+      for (int i = 0; i < tabs.getNumTabs(); ++i)
+        tabs.setTabBackgroundColour(i, palette(GyeolPalette::PanelBackground));
+    };
+
+    applyTabPalette(leftPanels);
+    applyTabPalette(rightPanels);
+
+    owner.sendLookAndFeelChange();
+    leftPanels.repaint();
+    rightPanels.repaint();
+  }
   void loadUiSettings() {
     initializeSettingsFile();
     if (settingsFile == nullptr || settingsLoaded)
       return;
 
     const auto themeRaw = settingsFile->getIntValue("ui.themeVariant", 0);
-    if (themeRaw >= 0 && themeRaw <= 2)
+    if (themeRaw >= 0 && themeRaw <= 3)
       themeVariant = static_cast<GyeolThemeVariant>(themeRaw);
 
     const auto densityRaw = settingsFile->getIntValue("ui.densityPreset", 1);

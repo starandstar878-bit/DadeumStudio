@@ -10,8 +10,9 @@ namespace Gyeol::Theme
         {
             case GyeolThemeVariant::deepDark: return "deepDark";
             case GyeolThemeVariant::light: return "light";
-            case GyeolThemeVariant::highContrast:
-            default: return "highContrast";
+            case GyeolThemeVariant::highContrast: return "highContrast";
+            case GyeolThemeVariant::latte: return "latte";
+            default: return "deepDark";
         }
     }
 
@@ -27,6 +28,8 @@ namespace Gyeol::Theme
         if (normalized == "highcontrast" || normalized == "high_contrast"
             || normalized == "contrast")
             return GyeolThemeVariant::highContrast;
+        if (normalized == "latte" || normalized == "coffee" || normalized == "warm")
+            return GyeolThemeVariant::latte;
 
         return fallback;
     }

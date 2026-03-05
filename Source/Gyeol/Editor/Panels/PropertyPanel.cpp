@@ -93,6 +93,8 @@ PropertyPanel::PropertyPanel(DocumentHandle &documentIn,
 
   viewport.setViewedComponent(&content, false);
   viewport.setScrollBarsShown(true, false);
+  content.setColour(juce::TextEditor::backgroundColourId,
+                    palette(GyeolPalette::PanelBackground));
   addAndMakeVisible(viewport);
 
   rebuildContent();
@@ -104,6 +106,28 @@ PropertyPanel::~PropertyPanel() {
   viewport.setViewedComponent(nullptr, false);
 }
 
+
+void PropertyPanel::lookAndFeelChanged() {
+  titleLabel.setFont(makePanelFont(*this, 13.0f, true));
+  titleLabel.setColour(juce::Label::textColourId,
+                       palette(GyeolPalette::TextPrimary));
+
+  subtitleLabel.setFont(makePanelFont(*this, 11.0f, false));
+  subtitleLabel.setColour(juce::Label::textColourId,
+                          palette(GyeolPalette::TextSecondary));
+
+  content.setColour(juce::TextEditor::backgroundColourId,
+                    palette(GyeolPalette::PanelBackground));
+
+  if (activeEditKey.isNotEmpty()) {
+    content.repaint();
+    viewport.repaint();
+    repaint();
+    return;
+  }
+
+  rebuildContent();
+}
 void PropertyPanel::setInspectorTarget(InspectorTarget target) {
   std::sort(target.widgetIds.begin(), target.widgetIds.end());
   target.widgetIds.erase(
@@ -797,7 +821,7 @@ std::vector<Widgets::WidgetPropertySpec> PropertyPanel::commonPropertySpecs(
 void PropertyPanel::buildNoneContent() {
   addSectionHeader("Inspector");
 
-  // Phase 3: �??�태(Empty State) - 미려???�내 UI
+  // Phase 3: �??�태(Empty State) - 미려???�내 UI
   auto emptyStateComp = std::make_unique<juce::Component>();
 
   class EmptyStateRenderer : public juce::Component {
@@ -807,7 +831,7 @@ void PropertyPanel::buildNoneContent() {
       auto centerX = area.getCentreX();
       auto centerY = area.getCentreY() - 10.0f;
 
-      // 커서 ?�이�?(간소?�된 ?�살???�태)
+      // 커서 ?�이�?(간소?�된 ?�살???�태)
       juce::Path cursorPath;
       cursorPath.startNewSubPath(centerX - 8.0f, centerY - 16.0f);
       cursorPath.lineTo(centerX - 8.0f, centerY + 8.0f);

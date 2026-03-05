@@ -99,6 +99,54 @@ juce::Colour lightColour(Gyeol::GyeolPalette colorId) {
     return juce::Colours::transparentBlack;
   }
 }
+juce::Colour latteColour(Gyeol::GyeolPalette colorId) {
+  using Gyeol::GyeolPalette;
+  switch (colorId) {
+  case GyeolPalette::CanvasBackground:
+    return juce::Colour::fromString("#FFF4EEE6");
+  case GyeolPalette::PanelBackground:
+    return juce::Colour::fromString("#FFFDF8F2");
+  case GyeolPalette::HeaderBackground:
+    return juce::Colour::fromString("#FFF1E6DA");
+  case GyeolPalette::OverlayBackground:
+    return juce::Colour::fromString("#EAFDF8F2");
+  case GyeolPalette::BorderDefault:
+    return juce::Colour::fromString("#FFD8C7B7");
+  case GyeolPalette::BorderActive:
+    return juce::Colour::fromString("#FFC9B29D");
+  case GyeolPalette::TextPrimary:
+    return juce::Colour::fromString("#FF4E3B2F");
+  case GyeolPalette::TextSecondary:
+    return juce::Colour::fromString("#FF7A6554");
+  case GyeolPalette::AccentPrimary:
+    return juce::Colour::fromString("#FFB06D3B");
+  case GyeolPalette::AccentHover:
+    return juce::Colour::fromString("#FFC4814F");
+  case GyeolPalette::ValidSuccess:
+    return juce::Colour::fromString("#FF4E8A58");
+  case GyeolPalette::ValidWarning:
+    return juce::Colour::fromString("#FFC58A2A");
+  case GyeolPalette::ValidError:
+    return juce::Colour::fromString("#FFC65D55");
+  case GyeolPalette::ControlBase:
+    return juce::Colour::fromString("#FFF7EEE4");
+  case GyeolPalette::ControlHover:
+    return juce::Colour::fromString("#FFF0E2D3");
+  case GyeolPalette::ControlDown:
+    return juce::Colour::fromString("#FFE5D3C1");
+  case GyeolPalette::ControlDisabled:
+    return juce::Colour::fromString("#FFEDE1D4");
+  case GyeolPalette::TextDisabled:
+    return juce::Colour::fromString("#FFA89382");
+  case GyeolPalette::SelectionBackground:
+    return juce::Colour::fromString("#FFEEDCCB");
+  case GyeolPalette::GridLine:
+    return juce::Colour::fromString("#FFE3D3C4");
+  default:
+    return juce::Colours::transparentBlack;
+  }
+}
+
 juce::Colour highContrastColour(Gyeol::GyeolPalette colorId) {
   using Gyeol::GyeolPalette;
   switch (colorId) {
@@ -162,6 +210,8 @@ juce::Colour getGyeolColor(GyeolPalette colorId) {
     return lightColour(colorId);
   case GyeolThemeVariant::highContrast:
     return highContrastColour(colorId);
+  case GyeolThemeVariant::latte:
+    return latteColour(colorId);
   case GyeolThemeVariant::deepDark:
   default:
     return deepDarkColour(colorId);

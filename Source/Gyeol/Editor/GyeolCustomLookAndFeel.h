@@ -3,7 +3,7 @@
 #include <JuceHeader.h>
 
 namespace Gyeol {
-enum class GyeolThemeVariant { deepDark, light, highContrast };
+enum class GyeolThemeVariant { deepDark, light, highContrast, latte };
 
 /**
  * @brief Central palette IDs for the Gyeol theme system.

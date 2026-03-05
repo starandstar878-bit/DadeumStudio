@@ -29,12 +29,26 @@ juce::Font makePanelFont(const juce::Component &component, float height,
   return bold ? fallback.boldened() : fallback;
 }
 
-const auto kPanelBg = palette(GyeolPalette::PanelBackground);
-const auto kPanelOutline = palette(GyeolPalette::BorderDefault);
-const auto kInfo = palette(GyeolPalette::TextSecondary);
-const auto kOk = palette(GyeolPalette::ValidSuccess);
-const auto kWarn = palette(GyeolPalette::ValidWarning);
-const auto kError = palette(GyeolPalette::ValidError);
+struct DynamicPaletteColour {
+  GyeolPalette id;
+  float alpha = 1.0f;
+
+  operator juce::Colour() const { return palette(id, alpha); }
+};
+
+const DynamicPaletteColour kPanelBg{GyeolPalette::PanelBackground};
+const DynamicPaletteColour kPanelOutline{GyeolPalette::BorderDefault};
+const DynamicPaletteColour kInfo{GyeolPalette::TextSecondary};
+const DynamicPaletteColour kOk{GyeolPalette::ValidSuccess};
+const DynamicPaletteColour kWarn{GyeolPalette::ValidWarning};
+const DynamicPaletteColour kError{GyeolPalette::ValidError};
+
+class PanelViewportContent final : public juce::Component {
+public:
+  void paint(juce::Graphics &g) override {
+    g.fillAll(palette(GyeolPalette::PanelBackground));
+  }
+};
 constexpr auto kPackageSchema = "gyeol.assets.package";
 constexpr auto kPackageManifestFile = "assets-manifest.json";
 
@@ -128,6 +142,31 @@ public:
     previewButton.setVisible(false);
   }
 
+
+  void refreshTheme() {
+    kindBadge.setFont(makePanelFont(*this, 9.0f, true));
+    kindBadge.setColour(juce::Label::textColourId,
+                        palette(GyeolPalette::TextPrimary).contrasting(1.0f).withAlpha(0.8f));
+
+    nameLabel.setFont(makePanelFont(*this, 11.0f, true));
+    nameLabel.setColour(juce::Label::textColourId,
+                        palette(GyeolPalette::TextPrimary));
+
+    detailLabel.setFont(makePanelFont(*this, 10.0f, false));
+    detailLabel.setColour(juce::Label::textColourId,
+                          palette(GyeolPalette::TextSecondary));
+
+    previewButton.setColour(juce::TextButton::buttonColourId,
+                            palette(GyeolPalette::AccentPrimary));
+    previewButton.setColour(juce::TextButton::buttonOnColourId,
+                            palette(GyeolPalette::ValidError));
+    previewButton.setColour(juce::TextButton::textColourOffId,
+                            palette(GyeolPalette::TextPrimary));
+    previewButton.setColour(juce::TextButton::textColourOnId,
+                            palette(GyeolPalette::TextPrimary));
+
+    repaint();
+  }
   WidgetId getAssetId() const { return assetId; }
 
   void setSelected(bool selected) {
@@ -468,7 +507,7 @@ AssetsPanel::AssetsPanel(DocumentHandle &documentIn,
   refKeyEditor.onReturnKey = [this] { applyRefKeyEdit(); };
   addAndMakeVisible(refKeyEditor);
 
-  contentComp = std::make_unique<juce::Component>();
+  contentComp = std::make_unique<PanelViewportContent>();
   viewport.setViewedComponent(contentComp.get(), false);
   viewport.setScrollBarsShown(true, false);
   addAndMakeVisible(viewport);
@@ -520,6 +559,7 @@ AssetsPanel::AssetsPanel(DocumentHandle &documentIn,
     setStatus("Audio preview unavailable: " + initError, kWarn);
   }
 
+  lookAndFeelChanged();
   refreshFromDocument();
 }
 
@@ -534,6 +574,51 @@ AssetsPanel::~AssetsPanel() {
   contentComp.reset();
 }
 
+
+void AssetsPanel::lookAndFeelChanged() {
+  titleLabel.setFont(makePanelFont(*this, 12.0f, true));
+  titleLabel.setColour(juce::Label::textColourId,
+                       palette(GyeolPalette::TextPrimary));
+
+  searchEditor.setTextToShowWhenEmpty("Search name/ref/path...",
+                                      palette(GyeolPalette::TextDisabled));
+  searchEditor.setColour(juce::TextEditor::backgroundColourId,
+                         palette(GyeolPalette::ControlBase));
+  searchEditor.setColour(juce::TextEditor::outlineColourId,
+                         palette(GyeolPalette::BorderActive));
+  searchEditor.setColour(juce::TextEditor::textColourId,
+                         palette(GyeolPalette::TextPrimary));
+
+  refKeyEditor.setTextToShowWhenEmpty("asset.refKey",
+                                      palette(GyeolPalette::TextDisabled));
+  refKeyEditor.setColour(juce::TextEditor::backgroundColourId,
+                         palette(GyeolPalette::ControlBase));
+  refKeyEditor.setColour(juce::TextEditor::outlineColourId,
+                         palette(GyeolPalette::BorderActive));
+  refKeyEditor.setColour(juce::TextEditor::textColourId,
+                         palette(GyeolPalette::TextPrimary));
+
+  usageTitleLabel.setFont(makePanelFont(*this, 10.5f, true));
+  usageTitleLabel.setColour(juce::Label::textColourId,
+                            palette(GyeolPalette::TextSecondary));
+  usageList.setColour(juce::ListBox::backgroundColourId,
+                      palette(GyeolPalette::CanvasBackground));
+  usageList.setColour(juce::ListBox::outlineColourId,
+                      palette(GyeolPalette::BorderDefault));
+
+  videoPreviewLabel.setFont(makePanelFont(*this, 10.5f, true));
+  videoPreviewLabel.setColour(juce::Label::textColourId,
+                              palette(GyeolPalette::TextSecondary));
+
+  if (contentComp != nullptr) {
+    for (auto *child : contentComp->getChildren()) {
+      if (auto *card = dynamic_cast<CardComponent *>(child); card != nullptr)
+        card->refreshTheme();
+    }
+  }
+
+  repaint();
+}
 void AssetsPanel::refreshFromDocument() {
   assets = document.snapshot().assets;
   thumbnailCache.clear();

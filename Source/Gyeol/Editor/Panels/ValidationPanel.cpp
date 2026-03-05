@@ -184,6 +184,8 @@ ValidationPanel::ValidationPanel(DocumentHandle &documentIn,
   listBox.setColour(juce::ListBox::outlineColourId,
                     palette(GyeolPalette::BorderDefault));
   addAndMakeVisible(listBox);
+
+  lookAndFeelChanged();
 }
 
 ValidationPanel::~ValidationPanel() { listBox.setModel(nullptr); }
@@ -191,6 +193,38 @@ ValidationPanel::~ValidationPanel() { listBox.setModel(nullptr); }
 // ==============================================================================
 // 공개 메서드
 // ==============================================================================
+
+void ValidationPanel::lookAndFeelChanged() {
+  titleLabel.setFont(makePanelFont(*this, 12.0f, true));
+  titleLabel.setColour(juce::Label::textColourId,
+                       palette(GyeolPalette::TextPrimary));
+  summaryLabel.setColour(juce::Label::textColourId,
+                         palette(GyeolPalette::TextSecondary));
+
+  const auto applyFilterPalette = [this](juce::TextButton &btn,
+                                         IssueSeverity severity) {
+    const auto activeCol = filterButtonActiveColour(severity);
+    btn.setColour(juce::TextButton::buttonOnColourId,
+                  activeCol.withAlpha(0.30f));
+    btn.setColour(juce::TextButton::buttonColourId,
+                  palette(GyeolPalette::ControlBase));
+    btn.setColour(juce::TextButton::textColourOnId, activeCol);
+    btn.setColour(juce::TextButton::textColourOffId,
+                  palette(GyeolPalette::TextDisabled));
+  };
+
+  applyFilterPalette(filterErrorBtn, IssueSeverity::error);
+  applyFilterPalette(filterWarningBtn, IssueSeverity::warning);
+  applyFilterPalette(filterInfoBtn, IssueSeverity::info);
+
+  listBox.setColour(juce::ListBox::backgroundColourId,
+                    palette(GyeolPalette::CanvasBackground));
+  listBox.setColour(juce::ListBox::outlineColourId,
+                    palette(GyeolPalette::BorderDefault));
+
+  listBox.repaint();
+  repaint();
+}
 void ValidationPanel::setSelectWidgetCallback(
     std::function<void(WidgetId)> callback) {
   onSelectWidget = std::move(callback);

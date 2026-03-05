@@ -34,6 +34,11 @@ NavigatorPanel::NavigatorPanel() {
   setInterceptsMouseClicks(true, false);
 }
 
+
+void NavigatorPanel::lookAndFeelChanged() {
+  repaint();
+}
+
 void NavigatorPanel::setScene(juce::Rectangle<float> worldBoundsIn,
                               std::vector<SceneItem> itemsIn) {
   if (worldBoundsIn.getWidth() > 0.0f && worldBoundsIn.getHeight() > 0.0f)

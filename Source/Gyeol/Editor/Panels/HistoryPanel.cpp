@@ -108,6 +108,8 @@ namespace Gyeol::Ui::Panels
         listBox.setColour(juce::ListBox::outlineColourId, palette(GyeolPalette::BorderDefault));
         addAndMakeVisible(listBox);
 
+        lookAndFeelChanged();
+
         setCanUndoRedo(false, false);
         updateCollapsedVisualState();
         setStackState(0, 0, 1);
@@ -118,6 +120,19 @@ namespace Gyeol::Ui::Panels
         listBox.setModel(nullptr);
     }
 
+
+    void HistoryPanel::lookAndFeelChanged()
+    {
+        titleLabel.setFont(makePanelFont(*this, 12.0f, true));
+        titleLabel.setColour(juce::Label::textColourId, palette(GyeolPalette::TextPrimary));
+
+        listBox.setColour(juce::ListBox::backgroundColourId, palette(GyeolPalette::CanvasBackground));
+        listBox.setColour(juce::ListBox::outlineColourId, palette(GyeolPalette::BorderDefault));
+
+        updateSummaryLabel();
+        listBox.repaint();
+        repaint();
+    }
     void HistoryPanel::setStackState(int undoDepth, int redoDepth, uint64_t historySerial)
     {
         undoDepth = std::max(0, undoDepth);

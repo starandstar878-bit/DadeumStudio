@@ -27,12 +27,19 @@ juce::Font makePanelFont(const juce::Component &component, float height,
   return bold ? fallback.boldened() : fallback;
 }
 
-const auto kPanelBg = palette(GyeolPalette::PanelBackground);
-const auto kPanelOutline = palette(GyeolPalette::BorderDefault);
-const auto kStatusInfo = palette(GyeolPalette::TextSecondary);
-const auto kStatusOk = palette(GyeolPalette::ValidSuccess);
-const auto kStatusWarn = palette(GyeolPalette::ValidWarning);
-const auto kStatusError = palette(GyeolPalette::ValidError);
+struct DynamicPaletteColour {
+  GyeolPalette id;
+  float alpha = 1.0f;
+
+  operator juce::Colour() const { return palette(id, alpha); }
+};
+
+const DynamicPaletteColour kPanelBg{GyeolPalette::PanelBackground};
+const DynamicPaletteColour kPanelOutline{GyeolPalette::BorderDefault};
+const DynamicPaletteColour kStatusInfo{GyeolPalette::TextSecondary};
+const DynamicPaletteColour kStatusOk{GyeolPalette::ValidSuccess};
+const DynamicPaletteColour kStatusWarn{GyeolPalette::ValidWarning};
+const DynamicPaletteColour kStatusError{GyeolPalette::ValidError};
 
 juce::Colour eventAccent(const juce::String &eventKey) {
   const auto key = eventKey.toLowerCase();
@@ -184,17 +191,17 @@ juce::String eventDisplayLabelKo(const juce::String &eventKey) {
   return {};
 }
 
-// ?袁⑹�???�?�� ???�? properties["name"] ??�쀪퐨, ??곸몵�??????�구 + ID
+// ?袁⑹�???�?�� ???�? properties["name"] ??�쀪퐨, ??곸몵�??????�구 + ID
 juce::String widgetDisplayName(const WidgetModel &widget,
                                const Widgets::WidgetRegistry &registry) {
-  // ?????? name ???�쉐?????�젟???�껋?????�쀪퐨 ????
+  // ?????? name ???�쉐?????�젟???�껋?????�쀪퐨 ????
   if (widget.properties.contains("name")) {
     const auto name = widget.properties["name"].toString().trim();
     if (name.isNotEmpty())
       return name + " (#" + juce::String(widget.id) + ")";
   }
 
-  // ?�꿸???�? ??????�?���?+ ID
+  // ?�꿸???�? ??????�?���?+ ID
   juce::String typeLabel = "Widget";
   if (const auto *descriptor = registry.find(widget.type);
       descriptor != nullptr) {
@@ -476,21 +483,21 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   addAndMakeVisible(actionUpButton);
   addAndMakeVisible(actionDownButton);
 
-  // ???�???�굝�??꾠끇??? ??? ???�뵠??
+  // ???�???�굝�??꾠끇??? ??? ???�뵠??
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uC124\uC815"),
-      1); // ???뵬沃?�챸?????�젟
+      1); // ???뵬沃?�챸?????�젟
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uC870\uC815"),
-      2); // ???뵬沃?�챸???�곌???
+      2); // ???뵬沃?�챸???�곌???
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uD30C\uB77C\uBBF8\uD130 \uD1A0\uAE00"),
-      3); // ???뵬沃?�챸?????
+      3); // ???뵬沃?�챸?????
   actionKindCombo.addItem(juce::String::fromUTF8(u8"\uC18D\uC131 \uBCC0\uACBD"),
-                          4); // ???�쉐 ?�궰???
+                          4); // ???�쉐 ?�궰???
   actionKindCombo.addItem(
       juce::String::fromUTF8(u8"\uC704\uCE58/\uD06C\uAE30 \uBCC0\uACBD"),
-      5); // ?袁⑺???????�궰???
+      5); // ?袁⑺???????�궰???
   actionKindCombo.onChange = [this] { applyActionKind(); };
   addAndMakeVisible(actionKindCombo);
 
@@ -817,6 +824,7 @@ EventActionPanel::EventActionPanel(DocumentHandle &documentIn,
   actionList.addKeyListener(this);
   addKeyListener(this);
 
+  lookAndFeelChanged();
   refreshFromDocument();
   setPanelMode(PanelMode::eventAction);
 }
@@ -829,6 +837,83 @@ EventActionPanel::~EventActionPanel() {
   propertyBindingList.setModel(nullptr);
 }
 
+
+void EventActionPanel::lookAndFeelChanged() {
+  titleLabel.setFont(makePanelFont(*this, 12.0f, true));
+  titleLabel.setColour(juce::Label::textColourId,
+                       palette(GyeolPalette::TextPrimary));
+
+  bindingSectionLabel.setFont(makePanelFont(*this, 10.5f, true));
+  bindingSectionLabel.setColour(juce::Label::textColourId,
+                                palette(GyeolPalette::TextPrimary));
+  actionSectionLabel.setFont(makePanelFont(*this, 10.5f, true));
+  actionSectionLabel.setColour(juce::Label::textColourId,
+                               palette(GyeolPalette::TextPrimary));
+  detailTitleLabel.setFont(makePanelFont(*this, 11.0f, true));
+  detailTitleLabel.setColour(juce::Label::textColourId,
+                             palette(GyeolPalette::TextPrimary));
+
+  stateHintLabel.setFont(makePanelFont(*this, 10.0f, true));
+  stateHintLabel.setColour(juce::Label::textColourId,
+                           palette(GyeolPalette::TextSecondary));
+  runtimeParamTitleLabel.setFont(makePanelFont(*this, 10.5f, true));
+  runtimeParamTitleLabel.setColour(juce::Label::textColourId,
+                                   palette(GyeolPalette::TextPrimary));
+  propertyBindingTitleLabel.setFont(makePanelFont(*this, 10.5f, true));
+  propertyBindingTitleLabel.setColour(juce::Label::textColourId,
+                                      palette(GyeolPalette::TextPrimary));
+
+  setupEditor(searchEditor, "Search Name/Source/Event");
+  setupEditor(bindingNameEditor, "Binding name");
+  setupEditor(valueEditor, valueEditor.getTextToShowWhenEmpty());
+  setupEditor(deltaEditor, deltaEditor.getTextToShowWhenEmpty());
+  setupEditor(opacityEditor, opacityEditor.getTextToShowWhenEmpty());
+  setupEditor(boundsXEditor, "X");
+  setupEditor(boundsYEditor, "Y");
+  setupEditor(boundsWEditor, boundsWEditor.getTextToShowWhenEmpty());
+  setupEditor(boundsHEditor, boundsHEditor.getTextToShowWhenEmpty());
+
+  setupEditor(patchEditor, "Patch JSON value (e.g. 0.5, true, \"text\")");
+  patchEditor.setMultiLine(true);
+  patchEditor.setScrollbarsShown(true);
+  patchEditor.setReturnKeyStartsNewLine(true);
+
+  setupEditor(runtimeParamKeyEditor, "param key");
+  setupEditor(runtimeParamDefaultEditor, "default");
+  setupEditor(runtimeParamDescriptionEditor, "description");
+
+  setupEditor(propertyBindingNameEditor, "link name");
+  setupEditor(propertyBindingExpressionEditor, "expression (ex: A + 3*B)");
+  propertyBindingExpressionPreviewLabel.setFont(makePanelFont(*this, 10.0f, false));
+
+  bindingList.setColour(juce::ListBox::backgroundColourId,
+                        palette(GyeolPalette::CanvasBackground));
+  bindingList.setColour(juce::ListBox::outlineColourId,
+                        palette(GyeolPalette::BorderDefault));
+  actionList.setColour(juce::ListBox::backgroundColourId,
+                       palette(GyeolPalette::CanvasBackground));
+  actionList.setColour(juce::ListBox::outlineColourId,
+                       palette(GyeolPalette::BorderDefault));
+  runtimeParamList.setColour(juce::ListBox::backgroundColourId,
+                             palette(GyeolPalette::CanvasBackground));
+  runtimeParamList.setColour(juce::ListBox::outlineColourId,
+                             palette(GyeolPalette::BorderDefault));
+  propertyBindingList.setColour(juce::ListBox::backgroundColourId,
+                                palette(GyeolPalette::CanvasBackground));
+  propertyBindingList.setColour(juce::ListBox::outlineColourId,
+                                palette(GyeolPalette::BorderDefault));
+
+  for (auto *warningLabel : {&paramKeyWarningLabel, &deltaWarningLabel,
+                             &boundsWarningLabel, &propertyBindingWarningLabel}) {
+    warningLabel->setFont(makePanelFont(*this, 10.0f, true));
+    warningLabel->setColour(juce::Label::textColourId,
+                            palette(GyeolPalette::ValidWarning));
+  }
+
+  updatePropertyBindingExpressionPreview();
+  updateValidationUi();
+  repaint();
+}
 void EventActionPanel::setBindingsChangedCallback(
     std::function<void()> callback) {
   onBindingsChanged = std::move(callback);
@@ -1404,7 +1489,7 @@ void EventActionPanel::rebuildWidgetOptions() {
         descriptor != nullptr) {
       option.events = descriptor->runtimeEvents;
     }
-    // ?????筌왖??????�?properties["name"]) ??�쀪퐨, ??곸몵�??????�구 + ID
+    // ?????筌왖??????�?properties["name"]) ??�쀪퐨, ??곸몵�??????�구 + ID
     option.label = widgetDisplayName(widget, registry);
     widgetOptions.push_back(std::move(option));
   }
@@ -1581,7 +1666,7 @@ void EventActionPanel::rebuildPropertyBindingTargetPropertyOptions(
 }
 
 // ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????
-// Action ?????袁⑹�?????�쉐 筌뤴뫖以??targetPropertyCombo????�딄??
+// Action ?????袁⑹�?????�쉐 筌뤴뫖以??targetPropertyCombo????�딄??
 // ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 void EventActionPanel::rebuildActionTargetPropertyOptions(
     WidgetId targetWidgetId, const juce::String &selectedProperty) {
@@ -1602,12 +1687,12 @@ void EventActionPanel::rebuildActionTargetPropertyOptions(
       targetPropertyKeys.push_back(key);
     };
 
-    // ??�벏?????�쉐 (??�???�?��)
+    // ??�벏?????�쉐 (??�???�?��)
     addItem("visible", "Visible (bool)");
     addItem("locked", "Locked (bool)");
     addItem("opacity", "Opacity (0.0~1.0)");
 
-    // ?袁⑹�??????�?spec ???�쉐
+    // ?袁⑹�??????�?spec ???�쉐
     const auto &snapshot = document.snapshot();
     const auto wIt =
         std::find_if(snapshot.widgets.begin(), snapshot.widgets.end(),
@@ -1624,20 +1709,20 @@ void EventActionPanel::rebuildActionTargetPropertyOptions(
           addItem(key, disp);
         }
       }
-      // PropertyBag ??筌욊??????貫留????�즲 ?곕떽?
+      // PropertyBag ??筌욊??????貫留????�즲 ?곕떽?
       for (int i = 0; i < wIt->properties.size(); ++i)
         addItem(wIt->properties.getName(i).toString().trim(),
                 wIt->properties.getName(i).toString().trim());
     }
 
-    // ??곸읈 ??�뤾�???? 筌뤴뫖以????곸몵�?custom??곗쨮 ?곕떽?
+    // ??곸읈 ??�뤾�???? 筌뤴뫖以????곸몵�?custom??곗쨮 ?곕떽?
     const auto pref = selectedProperty.trim();
     if (pref.isNotEmpty() &&
         std::find(targetPropertyKeys.begin(), targetPropertyKeys.end(), pref) ==
             targetPropertyKeys.end())
       addItem(pref, pref + " (custom)");
 
-    // ??�뤾�??�귣�??
+    // ??�뤾�??�귣�??
     if (pref.isNotEmpty()) {
       const auto it =
           std::find(targetPropertyKeys.begin(), targetPropertyKeys.end(), pref);
@@ -1660,7 +1745,7 @@ juce::String EventActionPanel::selectedActionTargetPropertyKey() const {
   return {};
 }
 
-// ??�뤾�?????�쉐 spec??筌띿??????�읅 ?紐꾩춿疫꿸�? ??밴쉐/??�Ŋ??
+// ??�뤾�?????�쉐 spec??筌띿??????�읅 ?紐꾩춿疫꿸�? ??밴쉐/??�Ŋ??
 void EventActionPanel::rebuildDynamicPropEditor() {
   const auto selectedProp = selectedActionTargetPropertyKey();
   if (selectedProp.isEmpty() || selectedProp == "visible" ||
@@ -1674,7 +1759,7 @@ void EventActionPanel::rebuildDynamicPropEditor() {
     return;
   }
 
-  // ???? ?�쏆?? spec ???????�???븍뜇???
+  // ???? ?�쏆?? spec ???????�???븍뜇???
   if (currentDynamicPropSpec.has_value() &&
       currentDynamicPropSpec->key.toString() == selectedProp &&
       dynamicPropEditor != nullptr)
@@ -1687,12 +1772,12 @@ void EventActionPanel::rebuildDynamicPropEditor() {
   }
   currentDynamicPropSpec.reset();
 
-  // ?袁⑹�??????�곌???
+  // ?袁⑹�??????�곌???
   const auto targetId = selectedWidgetIdFromCombo(targetIdCombo);
   Widgets::WidgetPropertySpec spec;
   spec.key = juce::Identifier(selectedProp);
   spec.label = selectedProp;
-  spec.kind = Widgets::WidgetPropertyKind::text; // ?�꿸???�?
+  spec.kind = Widgets::WidgetPropertyKind::text; // ?�꿸???�?
 
   if (targetId.has_value() && *targetId > kRootId) {
     const auto &snapshot = document.snapshot();
@@ -1720,7 +1805,7 @@ void EventActionPanel::rebuildDynamicPropEditor() {
   Ui::Panels::EditorBuildSpec buildSpec;
   buildSpec.spec = spec;
   buildSpec.value = currentValue;
-  buildSpec.onPreview = nullptr; // ???�뻻??沃섎�?�?��??�┛ ?븍뜇???
+  buildSpec.onPreview = nullptr; // ???�뻻??沃섎�?�?��??�┛ ?븍뜇???
   buildSpec.onCommit = [this](const juce::var &) { applySelectedAction(); };
   buildSpec.onCancel = nullptr;
 
@@ -1730,13 +1815,13 @@ void EventActionPanel::rebuildDynamicPropEditor() {
     addAndMakeVisible(*dynamicPropEditor);
   currentDynamicPropSpec = spec;
 
-  // ???�뵠?????�뮞??
+  // ???�뵠?????�뮞??
   dynamicPropLabel.setText(spec.label.isNotEmpty() ? spec.label : selectedProp,
                            juce::dontSendNotification);
   dynamicPropLabel.setVisible(true);
 }
 
-// ???�읅 ?紐꾩춿疫꿸퀣肉???袁⑹???�쏅???????�� ?�쏆�??
+// ???�읅 ?紐꾩춿疫꿸퀣肉???袁⑹???�쏅???????�� ?�쏆�??
 juce::var EventActionPanel::getDynamicPropValue() const {
   if (dynamicPropEditor == nullptr || !currentDynamicPropSpec.has_value())
     return {};
@@ -2329,9 +2414,9 @@ void EventActionPanel::refreshDetailEditors() {
             : action->target.id;
     selectWidgetIdInCombo(targetIdCombo, targetIdForEditor);
 
-    // setNodeProps: ???�쉐 筌뤴뫖以?????????袁⑹?????貫留????�쉐 ??? ??�뤾�?
+    // setNodeProps: ???�쉐 筌뤴뫖以?????????袁⑹?????貫留????�쉐 ??? ??�뤾�?
     if (action->kind == RuntimeActionKind::setNodeProps) {
-      // ???貫留?patch ??�?筌ｃ꺂苡?��?�? preferred key??????
+      // ???貫留?patch ??�?筌ｃ꺂苡?��?�? preferred key??????
       juce::String prefKey;
       if (action->visible.has_value())
         prefKey = "visible";
@@ -2516,7 +2601,7 @@ void EventActionPanel::updateActionEditorVisibility(
     setVisibility(assetPatchKeyCombo, false);
     setVisibility(assetPatchValueCombo, isAsset);
 
-    // patchEditor????�벏?????�쉐(visible, locked, opacity)???袁⑤빍筌???�똻??�쳞???�?��
+    // patchEditor????�벏?????�쉐(visible, locked, opacity)???袁⑤빍筌???�똻??�쳞???�?��
     const auto showPatch =
         !selProp.isEmpty() && !isVisible && !isLocked && !isOpacity;
     setVisibility(patchEditor, showPatch);
@@ -3312,7 +3397,7 @@ void EventActionPanel::applySelectedAction() {
 
     action->patch = std::move(patch);
 
-    // ????筌욊??? 筌띾?�鍮??????? patchEditor????? ???�뼄�??�꼲????�즲 筌ㅼ�???
+    // ????筌욊??? 筌띾?�鍮??????? patchEditor????? ???�뼄�??�꼲????�즲 筌ㅼ�???
     if (!patchEditor.hasKeyboardFocus(true)) {
       const auto newJson =
           action->patch.size() > 0
@@ -3601,13 +3686,13 @@ EventActionPanel::findWidgetOption(WidgetId id) const {
 
 juce::String EventActionPanel::formatEventLabel(
     const Widgets::RuntimeEventSpec &eventSpec) const {
-  // ?�꿸?????onClick ??????�쑵??�에??紐꾪???? ??꾪???????�살�??????已ワ�???�?��
+  // ?�꿸?????onClick ??????�쑵??�에??紐꾪???? ??꾪???????�살�??????已ワ�???�?��
   const auto koLabel = eventDisplayLabelKo(eventSpec.key);
   if (koLabel.isNotEmpty())
     return koLabel;
   if (eventSpec.displayLabel.trim().isNotEmpty())
     return eventSpec.displayLabel.trim();
-  return eventSpec.key; // ?�곕?�肉????�뮉 ?�껋???�????�?????�?��
+  return eventSpec.key; // ?�곕?�肉????�뮉 ?�껋???�????�?????�?��
 }
 
 juce::String
@@ -3629,7 +3714,7 @@ EventActionPanel::formatEventLabel(WidgetId sourceWidgetId,
 
 juce::String
 EventActionPanel::actionSummary(const RuntimeActionModel &action) const {
-  // ?袁⑹�?ID??????????�??곗쨮 ?�궰???묐릭??????
+  // ?袁⑹�?ID??????????�??곗쨮 ?�궰???묐릭??????
   const auto widgetName = [this](WidgetId id) -> juce::String {
     const auto &widgets = document.snapshot().widgets;
     const auto it =

@@ -59,7 +59,7 @@ namespace Gyeol::Shell
             return;
 
         const auto themeRaw = settingsFile->getIntValue("ui.themeVariant", state.themeVariantOrdinal);
-        if (themeRaw >= 0 && themeRaw <= 2)
+        if (themeRaw >= 0 && themeRaw <= 3)
             state.themeVariantOrdinal = themeRaw;
 
         const auto densityRaw = settingsFile->getIntValue("ui.densityPreset", state.densityPresetOrdinal);

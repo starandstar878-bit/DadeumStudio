@@ -53,6 +53,7 @@ public:
 
   void paint(juce::Graphics &g) override;
   void resized() override;
+  void lookAndFeelChanged() override;
 
 private:
   struct LayoutEntry {
@@ -148,7 +149,12 @@ private:
   juce::Label subtitleLabel;
   juce::ToggleButton showAdvancedToggle{"Show Advanced"};
   juce::Viewport viewport;
-  juce::Component content;
+  struct ContentSurface : juce::Component {
+    void paint(juce::Graphics &g) override {
+      g.fillAll(findColour(juce::TextEditor::backgroundColourId));
+    }
+  };
+  ContentSurface content;
 
   std::vector<std::unique_ptr<juce::Label>> ownedLabels;
   std::vector<std::unique_ptr<juce::Component>> ownedEditors;

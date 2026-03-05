@@ -388,6 +388,8 @@ LayerTreePanel::LayerTreePanel(DocumentHandle &documentIn,
                      palette(Gyeol::GyeolPalette::TextDisabled).withAlpha(0.3f));
   treeView.addMouseListener(this, true);
 
+  lookAndFeelChanged();
+
   pendingRefreshReason = RefreshReason::initial;
   refreshFromDocument();
 }
@@ -403,6 +405,17 @@ LayerTreePanel::~LayerTreePanel() {
   rootItem.reset();
 }
 
+
+void LayerTreePanel::lookAndFeelChanged() {
+  searchBox.setTextToShowWhenEmpty("Search layers...",
+                                   palette(Gyeol::GyeolPalette::TextSecondary));
+  treeView.setColour(juce::TreeView::backgroundColourId,
+                     palette(Gyeol::GyeolPalette::PanelBackground));
+  treeView.setColour(juce::TreeView::linesColourId,
+                     palette(Gyeol::GyeolPalette::TextDisabled).withAlpha(0.3f));
+  treeView.repaint();
+  repaint();
+}
 void LayerTreePanel::refreshFromDocument() {
   const auto reason = pendingRefreshReason;
   pendingRefreshReason = RefreshReason::external;

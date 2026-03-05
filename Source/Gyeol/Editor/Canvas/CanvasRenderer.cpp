@@ -56,9 +56,6 @@ namespace Gyeol::Ui::Canvas
         if (viewportBounds.isEmpty())
             return;
 
-        g.setColour(palette(Gyeol::GyeolPalette::ControlBase));
-        g.fillRect(viewportBounds);
-
         g.saveState();
         g.reduceClipRegion(viewportBounds);
 
@@ -80,6 +77,12 @@ namespace Gyeol::Ui::Canvas
                                                              canvasWorldBounds.getWidth() * zoomLevel,
                                                              canvasWorldBounds.getHeight() * zoomLevel);
         const auto visibleCanvasBounds = canvasViewBounds.getIntersection(viewportBounds.toFloat());
+
+        if (!visibleCanvasBounds.isEmpty())
+        {
+            g.setColour(palette(Gyeol::GyeolPalette::ControlBase));
+            g.fillRect(visibleCanvasBounds);
+        }
 
         if (snapSettings.enableGrid && !visibleCanvasBounds.isEmpty())
         {

@@ -33,6 +33,7 @@ public:
   void paint(juce::Graphics &g) override;
   void paintOverChildren(juce::Graphics &g) override;
   void resized() override;
+  void lookAndFeelChanged() override;
 
 private:
   void applyPreviewData(const PreviewData &data);

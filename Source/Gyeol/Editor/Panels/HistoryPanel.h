@@ -37,6 +37,7 @@ namespace Gyeol::Ui::Panels
         void paint(juce::Graphics& g) override;
         void paintOverChildren(juce::Graphics& g) override;
         void resized() override;
+        void lookAndFeelChanged() override;
 
     private:
         int getNumRows() override;

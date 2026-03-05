@@ -263,6 +263,12 @@ namespace Gyeol::Ui::Panels
         contentBounds = getLocalBounds().reduced(8);
     }
 
+
+    void PerformancePanel::lookAndFeelChanged()
+    {
+        repaint();
+    }
+
     void PerformancePanel::updateDerivedRates()
     {
         const auto nowMs = juce::Time::getMillisecondCounterHiRes();

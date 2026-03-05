@@ -21,6 +21,13 @@ juce::Font makePanelFont(const juce::Component &component, float height,
   auto fallback = juce::Font(juce::FontOptions(height));
   return bold ? fallback.boldened() : fallback;
 }
+
+class PanelViewportContent final : public juce::Component {
+public:
+  void paint(juce::Graphics &g) override {
+    g.fillAll(palette(GyeolPalette::PanelBackground));
+  }
+};
 } // namespace
 class WidgetLibraryPanel::CardComponent final : public juce::Component {
 public:
@@ -46,6 +53,14 @@ public:
                                     favoriteToggle.getToggleState());
     };
     addAndMakeVisible(favoriteToggle);
+  }
+
+  void refreshTheme() {
+    iconLabel.setFont(makePanelFont(*this, 16.0f, true));
+    nameLabel.setFont(makePanelFont(*this, 11.0f, false));
+    nameLabel.setColour(juce::Label::textColourId,
+                        palette(GyeolPalette::TextPrimary));
+    repaint();
   }
 
   void setItemData(int index, const DisplayItem &item) {
@@ -229,9 +244,10 @@ WidgetLibraryPanel::WidgetLibraryPanel(
   viewport.setScrollBarsShown(true, false, true, false);
   addAndMakeVisible(viewport);
 
-  contentComp = std::make_unique<juce::Component>();
+  contentComp = std::make_unique<PanelViewportContent>();
   viewport.setViewedComponent(contentComp.get(), false);
 
+  lookAndFeelChanged();
   rebuildCategories();
   rebuildVisibleItems();
 }
@@ -243,7 +259,42 @@ WidgetLibraryPanel::~WidgetLibraryPanel() {
   saveSettings();
 }
 
+
+void WidgetLibraryPanel::lookAndFeelChanged() {
+  titleLabel.setFont(makePanelFont(*this, 13.0f, true));
+  titleLabel.setColour(juce::Label::textColourId,
+                       palette(GyeolPalette::TextPrimary));
+
+  categoryBox.setColour(juce::ComboBox::backgroundColourId,
+                        palette(GyeolPalette::ControlBase));
+  categoryBox.setColour(juce::ComboBox::textColourId,
+                        palette(GyeolPalette::TextPrimary));
+  categoryBox.setColour(juce::ComboBox::outlineColourId,
+                        palette(GyeolPalette::BorderDefault));
+
+  searchBox.setTextToShowWhenEmpty("Search widgets...",
+                                   palette(GyeolPalette::TextSecondary));
+  searchBox.setColour(juce::TextEditor::backgroundColourId,
+                      palette(GyeolPalette::ControlBase));
+  searchBox.setColour(juce::TextEditor::outlineColourId,
+                      palette(GyeolPalette::BorderDefault));
+  searchBox.setColour(juce::TextEditor::textColourId,
+                      palette(GyeolPalette::TextPrimary));
+
+  favoritesOnlyToggle.setColour(juce::ToggleButton::textColourId,
+                                palette(GyeolPalette::TextPrimary));
+
+  if (contentComp != nullptr) {
+    for (auto *child : contentComp->getChildren()) {
+      if (auto *card = dynamic_cast<CardComponent *>(child); card != nullptr)
+        card->refreshTheme();
+    }
+  }
+
+  repaint();
+}
 void WidgetLibraryPanel::refreshFromRegistry() {
+  lookAndFeelChanged();
   rebuildCategories();
   rebuildVisibleItems();
 }

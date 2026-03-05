@@ -19,6 +19,7 @@ public:
   void paint(juce::Graphics &g) override;
   void paintOverChildren(juce::Graphics &g) override;
   void resized() override;
+  void lookAndFeelChanged() override;
   bool keyPressed(const juce::KeyPress &key) override;
   bool keyPressed(const juce::KeyPress &key,
                   juce::Component *originatingComponent) override;
@@ -245,15 +246,15 @@ private:
   juce::TextEditor deltaEditor;
   juce::ComboBox targetKindCombo;
   juce::ComboBox targetIdCombo;
-  // ?�???�성 ?�택
+  // ?�???�성 ?�택
   juce::Label targetPropertyLabel;
   juce::ComboBox targetPropertyCombo;
   std::vector<juce::String> targetPropertyKeys;
-  // visible/locked/opacity ?�용 콘트�?
+  // visible/locked/opacity ?�용 콘트�?
   juce::ComboBox visibleCombo;
   juce::ComboBox lockedCombo;
   juce::TextEditor opacityEditor;
-  // ?�적 ?�집�?(?�성 kind???�라 PropertyEditorFactory가 ?�성)
+  // ?�적 ?�집�?(?�성 kind???�라 PropertyEditorFactory가 ?�성)
   juce::Label dynamicPropLabel;
   std::unique_ptr<juce::Component> dynamicPropEditor;
   std::optional<Widgets::WidgetPropertySpec> currentDynamicPropSpec;
