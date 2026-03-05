@@ -105,6 +105,11 @@ namespace Gyeol::Shell
         components.canvas.setEnabled(!state.previewBindingSimulationActive
                                      || components.canvas.isRunMode());
 
+        if (modeChanged
+            && mode == Ui::Canvas::CanvasComponent::InteractionMode::run
+            && callbacks.beginRunModeSamplingWindow)
+            callbacks.beginRunModeSamplingWindow(3000);
+
         state.suppressModeToggleCallbacks = true;
         components.previewModeButton.setToggleState(
             mode == Ui::Canvas::CanvasComponent::InteractionMode::preview,

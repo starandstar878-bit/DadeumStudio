@@ -37,6 +37,7 @@ namespace Gyeol::Shell
             std::function<void()> refreshAllPanelsFromDocument;
             std::function<void()> syncInspectorTargetFromState;
             std::function<void(bool, bool)> requestDeferredUiRefresh;
+            std::function<void(int)> beginRunModeSamplingWindow;
         };
 
         static constexpr const char* runSessionCoalescedEditKey =

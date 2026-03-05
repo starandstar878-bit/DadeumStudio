@@ -46,6 +46,13 @@ namespace Gyeol::Ui::Canvas
             int lastSelectionCount = 0;
         };
 
+        struct OverdrawHotspot
+        {
+            WidgetId widgetId = kRootId;
+            float overlapScore = 0.0f;
+            float area = 0.0f;
+        };
+
         explicit CanvasComponent(DocumentHandle& documentIn);
         CanvasComponent(DocumentHandle& documentIn,
                         const Widgets::WidgetFactory& widgetFactoryIn);
@@ -65,11 +72,14 @@ namespace Gyeol::Ui::Canvas
         void setActiveLayerResolver(std::function<std::optional<WidgetId>()> resolver);
         void setWidgetLibraryDropCallback(
             std::function<void(const juce::String&, juce::Point<float>)> callback);
-
+        void setDirtyRectCallback(
+            std::function<void(juce::Rectangle<float>)> callback);
         void setSnapSettings(const Interaction::SnapSettings& settingsIn);
         const Interaction::SnapSettings& currentSnapSettings() const noexcept;
 
         float currentZoomLevel() const noexcept;
+        bool setZoomLevel(float nextZoom);
+
         juce::Point<float> currentViewOriginWorld() const noexcept;
         juce::Rectangle<float> visibleWorldBounds() const noexcept;
 
@@ -98,6 +108,15 @@ namespace Gyeol::Ui::Canvas
         bool canUngroupSelection() const noexcept;
 
         const PerfStats& performanceStats() const noexcept;
+
+        void setValidationHoverWidget(WidgetId widgetId);
+        void clearValidationHoverWidget();
+
+        void setHeatmapMode(bool enabled);
+        bool isHeatmapMode() const noexcept;
+
+        std::vector<OverdrawHotspot> estimateOverdrawHotspots(
+            std::size_t topN = 5) const;
 
         bool isInterestedInDragSource(
             const juce::DragAndDropTarget::SourceDetails& dragSourceDetails) override;
@@ -181,7 +200,7 @@ namespace Gyeol::Ui::Canvas
         void notifyViewportChanged();
         void emitRuntimeLog(const juce::String& action,
                             const juce::String& detail);
-
+        void emitDirtyRectAsync(juce::Rectangle<float> worldRect);
         void setZoomAtPoint(float nextZoom, juce::Point<float> localAnchor);
         void clampViewOriginToCanvas();
 
@@ -272,6 +291,7 @@ namespace Gyeol::Ui::Canvas
         std::function<void()> onStateChanged;
         std::function<void()> onViewportChanged;
         std::function<void(const juce::String&, const juce::String&)> onRuntimeLog;
+        std::function<void(juce::Rectangle<float>)> onDirtyRect;
         std::function<std::optional<WidgetId>()> activeLayerResolver;
         std::function<void(const juce::String&, juce::Point<float>)> onWidgetLibraryDrop;
 
@@ -291,7 +311,8 @@ namespace Gyeol::Ui::Canvas
         PanState panState;
         GuideDragState guideDragState;
 
-        bool hasMouseLocalPoint = false;
+                bool hasMouseLocalPoint = false;
+        WidgetId validationHoverWidgetId = kRootId;
         juce::Point<float> lastMouseLocalPoint;
         bool widgetLibraryDropPreviewActive = false;
         juce::Point<float> widgetLibraryDropPreviewView;

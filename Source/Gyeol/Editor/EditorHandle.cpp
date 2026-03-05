@@ -1,7 +1,7 @@
 #include "Gyeol/Public/EditorHandle.h"
 #include "Gyeol/Editor/EditorHandleImpl.h"
 #include "Gyeol/Editor/Canvas/CanvasComponent.h"
-#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
+#include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 
 #include "Gyeol/Editor/Interaction/AlignDistributeEngine.h"
 #include "Gyeol/Editor/Interaction/LayerOrderEngine.h"
@@ -4580,9 +4580,28 @@ public:
         [this](const juce::String &action, const juce::String &detail) {
           appendHistoryEntry(action, detail);
         });
+    canvas.setDirtyRectCallback([this](juce::Rectangle<float> dirtyRect) {
+      navigatorPanel.enqueueDirtyRect(dirtyRect);
+    });
     navigatorPanel.setNavigateRequestedCallback(
         [this](juce::Point<float> worldPoint) {
           canvas.focusWorldPoint(worldPoint);
+        });
+    navigatorPanel.setZoomRequestedCallback(
+        [this](float zoom, juce::Point<float> worldCenter) {
+          canvas.setZoomLevel(zoom);
+          canvas.focusWorldPoint(worldCenter);
+          refreshViewDiagnosticsPanels();
+        });
+    navigatorPanel.setPanelBoundsRequestedCallback(
+        [this](juce::Rectangle<int> nextBounds) {
+          auto clamped = nextBounds;
+          const auto ownerBounds = owner.getLocalBounds();
+          clamped.setWidth(juce::jlimit(120, ownerBounds.getWidth(), clamped.getWidth()));
+          clamped.setHeight(juce::jlimit(120, ownerBounds.getHeight(), clamped.getHeight()));
+          clamped.setX(juce::jlimit(0, juce::jmax(0, ownerBounds.getWidth() - clamped.getWidth()), clamped.getX()));
+          clamped.setY(juce::jlimit(0, juce::jmax(0, ownerBounds.getHeight() - clamped.getHeight()), clamped.getY()));
+          navigatorPanel.setBounds(clamped);
         });
 
     layerTreePanel.setSelectionChangedCallback(
@@ -4700,7 +4719,50 @@ public:
       appendHistoryEntry("Runtime State", "Event/Action panel");
       requestDeferredUiRefresh(false, true);
     });
+    validationPanel.setSelectWidgetCallback([this](WidgetId widgetId) {
+      if (widgetId <= kRootId)
+        return;
+
+      const auto &snapshot = docHandle.snapshot();
+      const auto exists =
+          std::any_of(snapshot.widgets.begin(), snapshot.widgets.end(),
+                      [widgetId](const WidgetModel &widget) {
+                        return widget.id == widgetId;
+                      });
+      if (!exists)
+        return;
+
+      if (docHandle.editorState().selection.size() != 1 ||
+          docHandle.editorState().selection.front() != widgetId)
+        docHandle.selectSingle(widgetId);
+
+      rightPanels.setCurrentTabIndex(0, juce::dontSendNotification);
+      refreshCanvasAndRequestPanels(true, true, true);
+      syncInspectorTargetFromState();
+      canvas.focusWidget(widgetId);
+      canvas.grabKeyboardFocus();
+    });
+    validationPanel.setHoverWidgetCallback([this](WidgetId widgetId) {
+      if (widgetId > kRootId)
+        canvas.setValidationHoverWidget(widgetId);
+      else
+        canvas.clearValidationHoverWidget();
+    });
     validationPanel.setAutoRefreshEnabled(true);
+
+    performancePanel.setHeatmapToggledCallback([this](bool enabled) {
+      canvas.setHeatmapMode(enabled);
+      refreshViewDiagnosticsPanels();
+    });
+    performancePanel.setNotificationCallback(
+        [this](const juce::String &title, const juce::String &message) {
+          appendHistoryEntry("Performance", message);
+          juce::NativeMessageBox::showMessageBoxAsync(
+              juce::MessageBoxIconType::WarningIcon,
+              title,
+              message);
+        });
+
     exportPreviewPanel.setAutoRefreshEnabled(false);
     exportPreviewPanel.setGeneratePreviewCallback(
         [this](const juce::String &componentClassName,
@@ -5465,6 +5527,9 @@ static Shell::EditorLayoutCoordinator::BreakpointClass toShellBreakpoint(Breakpo
                                                 bool refreshInspector) {
       requestDeferredUiRefresh(refreshLayerTree, refreshInspector);
     };
+    callbacks.beginRunModeSamplingWindow = [this](int durationMs) {
+      performancePanel.beginRunModeSamplingWindow(durationMs);
+    };
     return callbacks;
   }
 
@@ -5590,6 +5655,54 @@ void refreshNavigatorSceneFromDocument() {
     perfSnapshot.deferredRefreshRequestCount = deferredRefreshRequestCount;
     perfSnapshot.deferredRefreshCoalescedCount = deferredRefreshCoalescedCount;
     perfSnapshot.deferredRefreshFlushCount = deferredRefreshFlushCount;
+    perfSnapshot.heatmapModeActive = canvas.isHeatmapMode();
+
+    std::map<juce::String, juce::int64> memoryBuckets;
+    memoryBuckets["Images"] = 0;
+    memoryBuckets["Fonts"] = 0;
+    memoryBuckets["Other"] = 0;
+
+    const auto projectRoot = resolveProjectRootDirectory();
+    for (const auto &asset : documentSnapshot.assets) {
+      if (asset.kind == AssetKind::colorPreset)
+        continue;
+
+      auto sourceFile = juce::File(asset.relativePath);
+      if (!juce::File::isAbsolutePath(asset.relativePath))
+        sourceFile = projectRoot.getChildFile(asset.relativePath);
+      if (!sourceFile.existsAsFile())
+        continue;
+
+      const auto bytes = juce::jmax<juce::int64>(0, sourceFile.getSize());
+      if (asset.kind == AssetKind::image)
+        memoryBuckets["Images"] += bytes;
+      else if (asset.kind == AssetKind::font)
+        memoryBuckets["Fonts"] += bytes;
+      else
+        memoryBuckets["Other"] += bytes;
+    }
+    perfSnapshot.memoryBuckets = std::move(memoryBuckets);
+
+    const auto hotspots = canvas.estimateOverdrawHotspots(5);
+    for (const auto &hotspot : hotspots) {
+      auto label = juce::String("Widget #") + juce::String(hotspot.widgetId);
+      if (const auto it = std::find_if(documentSnapshot.widgets.begin(),
+                                       documentSnapshot.widgets.end(),
+                                       [id = hotspot.widgetId](const WidgetModel &widget) {
+                                         return widget.id == id;
+                                       });
+          it != documentSnapshot.widgets.end()) {
+        if (const auto *descriptor = widgetRegistry.find(it->type); descriptor != nullptr)
+          label = (descriptor->displayName.isNotEmpty() ? descriptor->displayName
+                                                         : descriptor->typeKey) +
+                  " #" + juce::String(it->id);
+        else
+          label = juce::String("Widget #") + juce::String(it->id);
+      }
+
+      perfSnapshot.overdrawHotspotLabels.push_back(label);
+      perfSnapshot.overdrawHotspotScores.push_back(hotspot.overlapScore);
+    }
 
     performancePanel.setSnapshot(perfSnapshot);
 

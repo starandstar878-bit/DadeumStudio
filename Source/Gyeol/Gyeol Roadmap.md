@@ -121,48 +121,58 @@
 - [x] **무효 바인딩 시각적 구분**: 참조 위젯이 삭제되거나 이벤트 키가 없어진 경우 해당 바인딩 카드를 흐리게 처리 + 우측에 삭제 유도 버튼 노출
 
 #### Validation 패널
-> 현재 구조: 전체 씬 스캔 후 Error/Warning/Info 리스트 출력.
+> 구현 목표: 블로킹 없는 에러 검출과 직관적인 해결 UI 제공
 
-**✨ 현대적 UI/UX (Modern Aesthetics)**
-- [ ] **Glassmorphism 플로팅 아이템**: 리스트 항목을 단조로운 박스가 아닌, 반투명한 블러(Blur) 배경의 플로팅 카드로 렌더링하여 뒷배경(캔버스 등)이 은은하게 비치도록 연출
-- [ ] **상태별 펄스(Pulse) 애니메이션**: 치명적인 에러(Error) 배지나 아이콘에는 미세하게 숨쉬는 듯한(Pulse) 마이크로 애니메이션을 주어 시각적 중요도 강조
-- [ ] **Fluid 트랜지션**: 항목이 삭제되거나(`Fix` 등) 필터링될 때 딱딱하게 사라지지 않고, 부드럽게 접히거나(Collapse) 페이드아웃(Fade-out)되는 자연스러운 전환 애니메이션 적용
+**단계 1: 비동기 스캐닝 기반(Core Async Foundation)**
+- [ ] `SceneValidator`에 백그라운드 스레드 평가 큐 연동. 편집 이벤트 발생 시 500ms Debounce 후 `startValidationThread()` 호출
+- [ ] 검사 완료 시 `MessageManager::callAsync`를 통해 패널에 결과(에러 트리) 전달 및 캐싱
+- [ ] 상단 탭/칩스 UI 구현: `[Errors: 2] [Warnings: 5] [Infos: 1]` 형식 컴포넌트 추가 및 칩스 클릭 시 ListBox 필터링 연동
 
-**🔍 지연 검사 및 시각적 피드백 (Lazy Inspection)**
-- [ ] **에러 연쇄 추적 (Dependency Map)**: 바인딩 에러 발견 시, 파급되는 위젯 간의 의존성(DAG) 트리를 **항목 클릭 시에만 온디맨드(On-demand) 렌더링**
-- [ ] **오류 발생 영역 인라인 하이라이팅**: 리스트 항목 호버 시 캔버스 내 해당 위젯에 뷰포트 내 점선 또는 틴트 하이라이트 제공 (초당 프레임을 떨어뜨리지 않는 경량 렌더)
-- [ ] **비동기 백그라운드 스캐닝**: 무거운 씬 스캔은 메인 스레드 블로킹 방지를 위해 입력 또는 편집 중지 후 300~500ms 딜레이(Debounce)를 두고 백그라운드 스레드에서 점진적 실행
+**단계 2: 시각적 피드백 및 딥 인스펙션(UI & UX)**
+- [ ] ListBox 아이템 렌더러 교체: `GyeolCustomLookAndFeel::drawValidationItem` 구현 (에러 유형별 아이콘 및 펄스(Pulse) 애니메이션 타이머 부착)
+- [ ] 호버 및 크로스 하이라이팅: 항목 호버 시 `CanvasComponent`로 메시지를 쏴 해당 타겟 위젯에 인라인 점선 하이라이트 레이어 오버레이
+- [ ] 의존성 트리(Dependency Map) 렌더링: 리스트 아이템 확장(Expand) 시 하단에 연관된 바인딩 DAG 다이어그램 그리기 로직 추가
 
-**🎯 자동화된 해결 및 예방 (Auto-Resolution)**
-- [ ] **인터랙티브 퀵픽스(Quick Fix) 및 Diff 프리뷰**: `Fix` 버튼 제공 및 수정될 속성의 전/후 상태를 보여주는 경량 미니 모달 모드
-- [ ] **스마트 에셋 대체기 (Smart Fallback)**: 누락된 이미지/폰트 에셋 발견 시, 캐시 디렉터리나 기본 지정 폰트로 일괄 대체하는 One-Click 복구
-- [ ] **Export 호환성 사전 검증기**: "JUCE C++ Native Export" 과정에서 지원되지 않는 문법이나 형태를 스캔 과정에서 함께 캐치
+**단계 3: 이슈 해결 엔진(Actionable Resolutions)**
+- [ ] 더블클릭 이벤트 처리: 항목 더블클릭 시 캔버스 `SelectionEngine` 포커스 및 PropertyPanel 전환
+- [ ] Quick Fix 모달: "누락된 폰트/이미지" 검출 시 항목 옆 `[Fix]` 버튼 노출. 클릭 시 팝업을 띄워 로컬 에셋 브라우저 연결 또는 캐시 폰트로 대체(Command 전송)
+- [ ] 무시(Mute) 기능: 특정 항목에 대한 UUID를 저장해 다음 스캔부터 해당 경고 무시되록 필터 목록에 추가
 
 #### Navigator 패널
-> 현재 구조: Document 전체 썸네일 표시 + 현재 Viewport 오버레이
+> 구현 목표: 거대 씬 렌더링 최적화와 화면 조종 쾌감 상승
 
-**✨ 현대적 UI/UX (Modern Aesthetics)**
-- [ ] **팬텀 보더(Phantom Border) & 라운드 오버레이**: 사각형의 딱딱한 패널을 벗어나, 모서리 곡률(Border Radius)이 큰 둥근 형태의 플로팅 뷰어로 디자인하며, 가장자리에 매우 얇은 반투명 그라데이션 보더 적용
-- [ ] **시네마틱 뷰포트 아웃라인**: 현재 화면 영역을 나타내는 파란색 반투명 박스(Viewport)를 드래그할 때, 경계선에서 부드러운 네온 글로우(Glow) 효과 발생 (GyeolPalette 엑센트 컬러 기반)
-- [ ] **호버형(Hover) 투명도 조절**: 마우스를 미니맵 위로 올리지 않았을 땐 투명도를 30% 수준으로 낮춰 실제 편집 영역을 방해하지 않고, 마우스를 올릴 때만 100% 진하게 스르륵 떠오르는(Fade-in) 인터랙션 
+**단계 1: 모던 플로팅 쉘 구축(Modern Shell)**
+- [ ] 패널 자체를 사각형 컴포넌트에서 벗어나 모서리가 둥근 `DropShadow` 플로팅 윈도우(아크릴 룩)로 컨테이너화
+- [ ] 호버 반응형 투명도 상태머신: 마우스 진입 시 투명도 30% -> 100% `Fade-in` 애니메이터 연동
+- [ ] 플로팅 드래그 핸들: 패널 최상단이나 코너 드래그 시 캔버스 내 절대좌표 `setBounds()` 갱신으로 사용자 패널 커스텀 위치 이동 지원
 
-**🧭 매크로 네비게이션 및 의미론적 조작 (Semantic Navigation)**
-- [ ] **시맨틱 줌(Semantic Zoom) 렌더링 최적화**: 미니맵 축소 비율이 커질수록 텍스트 렌더나 복잡한 그룹의 그림자 연산을 생략하고 단색 사각형(LOD 블록)으로 추상화하여 미니맵 페인트 성능 대폭 개선
-- [ ] **더티 영역 교차 동기화 (Dirty Rect Caching)**: 오버레이 이미지 전체를 매 프레임 다시 그리지 않고 `setBufferedToImage(true)`를 활용해 캔버스에서 변경이 일어난 구역만 비동기로 캐시 갱신
-- [ ] **화면 밖 객체 지시기 (Off-screen Indicators)**: 바인딩이나 퀵서치로 선택된 타겟 위젯이 현재 화면 밖에 있을 때, 네비게이터 가장자리에 화살표(방향/거리) 가이드 노출
+**단계 2: 캐시 기반 시맨틱 렌더링(Semantic Render Cache)**
+- [ ] `CanvasComponent` 변경점 구독: 렌더 완료 후 `DirtyRect` 발생 시 Navigator에만 비동기 통보
+- [ ] 문서 복제 렌더러 분리: `paint()` 시 캔버스 트리를 순회하되, 배율이 낮을 경우(예: 스케일 0.1 이하) Text와 Shadow 렌더를 `ScopedSaveState`로 스킵하고 단색 `fillRect`로 치환(LOD)
+- [ ] `Image` 캐시 버퍼(`setBufferedToImage(true)`) 구성하여 프레임당 재렌더 방지
+
+**단계 3: 고급 뷰포트 인터랙션(Advanced Viewport)**
+- [ ] Viewport 사각형(아웃라인) 부드러운 네온 보더 그리기 (`GyeolPalette` 엑센트 색상 적용)
+- [ ] 뷰포트 크기 조절: 미니맵 안에서 사각형 테두리를 드래그하면 실제 메인 `Canvas`의 줌 배율(`setZoom()`) 양방향 동기화
+- [ ] 오프스크린 지시기: 선택된 타겟 위젯이 현재 범위 밖일 경우, 네비게이터 외곽선 쪽에 방향 화살표(Angle 계산) 및 거리 `drawText` 표기
 
 #### Performance 패널
-> 현재 구조: Paint Time / 렌더 카운트 등을 수치로 리포트.
+> 구현 목표: 옵트인 방식의 안전한 진단 툴링
 
-**✨ 현대적 UI/UX (Modern Aesthetics)**
-- [ ] **미니멀 스파크라인 (Sparkline Chart)**: 복잡한 눈금선이나 축이 없는, 애플 워치 스타일의 곡선형 그라데이션 라인 차트를 사용하여 프레임 타임을 세련되고 직관적으로 표시
-- [ ] **동적 컬러 리본**: 차트나 수치가 임계치(예: 16ms)에 다다르면 초록색 -> 노란색 -> 빨간색으로 그라데이션 전환되는 부드러운 색상 보간(Interpolation) 연출
-- [ ] **네오모피즘(Neumorphism) 계기판**: 패널 버튼(`진단 시작` 등)이나 게이지 바를 입체적이고 세련진 음각/양각 느낌으로 구현하여 대시보드(Dashboard) 같은 프리미엄 느낌 강조
+**단계 1: 진단 데이터 모델 및 수집기(Metrics Pipeline)**
+- [ ] `PerformanceMetricsStore` 싱글톤 또는 세션 객체 생성. 프레임당 소요 시간(Paint / Action / Layout) Rolling Buffer 기록 배열(길이 60) 마련
+- [ ] Run 모드 전환 시점 훅: `EditorModeCoordinator::setMode(Run)` 진입 시 3초간 `PerformanceMetricsStore` 강제 수집 후, 임계치 위반 시 알림(Notification) 컴포넌트 팝업
+- [ ] 진단 패널 UI 골격: 상단 "진단 시작/중지" 토글 버튼 및 3가지 탭(프레임 주기, 과결합 히트맵, 메모리) 배치
 
-**📊 시기 적절한 (Time-Sensitive) 프로파일링 및 진단**
-- [ ] **Run 모드 진입 시 자동 스모크 테스트**: 에디터에서 `Run 모드`로 전환하는 순간 백그라운드에서 짧게(약 2~3초간) 바인딩 평가 소요 시간과 평균 프레임 레이트를 추산하여, 병목이 감지되면 짧은 알림(Notification)으로 경고
-- [ ] **수동 심층 진단 (Deep Scan Button)**: 캔버스 작업 중에는 완전히 비활성화하다가 유저가 패널 내 `진단 시작` 버튼을 눌렀을 때만 60프레임 Paint 타임 스파크라인 및 Overdraw (과결합) 히트맵 오버레이를 화면에 시각화
-- [ ] **Export 직전 메타데이터 계산 (Pre-flight Check)**: 메모리 풋프린트 차트(폰트/이미지 등 예상 RAM 사용량)는 평소 계산하지 않고, 컴파일/Export(패키징) 전이나 유저가 정보 탭을 열람할 때만 일회성으로 추산
+**단계 2: UI/UX 고도화(Modern Dashboard)**
+- [ ] 스파크라인(Sparkline) 컴포넌트: `Path` 객체를 활용해 Rolling Buffer 값을 부드러운 곡선 차트로 렌더링. Y축 높이에 따라 초록-노랑-빨강 색상 보간(`Colour::interpolatedWith`) 적용
+- [ ] 네오모피즘(Neumorphism) 버튼 렌더 함수 추가 (`GyeolCustomLookAndFeel::drawPerformanceDashboardButton`)
+- [ ] 파이차트 컴포넌트: `std::map<String, int>` 형식으로 폰트 크기, 텍스처 메모리 크기 합산 후 호(Arc)로 렌더링 (Export 탭 확인 시 호출)
+
+**단계 3: 오버드로 렌더 모드(Overdraw Heatmap)**
+- [ ] "히트맵 보기" On 시 상태 트리거: `CanvasRenderer`에 `setHeatmapMode(true)` 파라미터 전달
+- [ ] 히트맵 렌더러 처리: 활성화된 경우 컴포넌트 고유 색상을 무시하고, 모든 위젯에 투명도 30%의 단일 붉은색을 덮어 칠함(교집합 영역이 진해지도록 연출).
+- [ ] 결과 레포트: 히트맵 교차 비용이 큰 Top 5 위젯 리스트업 및 `[해결 제안: 렌더 캐시 켜기]` 버튼 노출
 
 ---
 
@@ -378,28 +388,174 @@
 
 ---
 
-## Phase 7: 확장 SDK(외부 위젯/패키지)
+## Phase 7: 확장 SDK (외부 위젯/패키지 연동 체계)
 
 ### 목표
-- 외부 위젯 패키지를 안전하게 등록/조회/내보내기 가능하게 만든다.
+- 제공된 런타임 위젯 외에도, 사용자가 직접 만든 커스텀 위젯(C++ 클래스)이나 제3자가 배포하는 동적 라이브러리(DLL/SO/DYLIB)를 에디터 내에서 안전하게 로드하고, 네이티브 위젯과 동일하게 조작 및 Export 할 수 있도록 아키텍처를 확장한다.
 
-### 세부 계획
-- [ ] WidgetSDK ABI 버전 정책 확정
-- [ ] 외부 위젯 manifest + 자산 규약 확정
-- [ ] Plugin/Package 등록 관리자
-- [ ] 미설치 위젯 placeholder 정책
-- [ ] 충돌/호환성 검증 도구
+### 구현 단계 (구체화된 Step-by-Step)
 
-### 수정/추가 파일
-- 수정: `Source/Gyeol/Widgets/WidgetSDK.h`
-- 수정: `Source/Gyeol/Widgets/WidgetRegistry.*`
-- 추가: `Source/Gyeol/Widgets/WidgetPackageManager.*`
-- 추가: `Source/Gyeol/Widgets/WidgetCompatibility.*`
-- 수정: `Source/Gyeol/Core/SceneValidator.h`
+#### 단계 1: SDK ABI 및 플러그인 인터페이스 확립 (Foundation)
+- [ ] **SDK 헤더 분리**: `WidgetSDK.h`를 외부 개발자가 단독으로 Include할 수 있는 순수 가상 클래스(Interface) 레벨로 고도화 (예: `IGyeolCustomWidget`, `IPropertyProvider`)
+- [ ] **ABI 안정성 보장**: C++ Name Mangling과 메모리 할당자 이슈를 피하기 위해, 플러그인 진입점은 순수 C ABI(`extern "C"`) 함수인 `GyeolCreateWidgetInstance()`, `GyeolGetPluginManifest()` 형태로 규격화
+- [ ] **Manifest 구조체 정의**: 외부 DLL 내부에서 반환할 `PluginManifest` 정보(위젯명, 버전, 작성자, 사용하는 프로퍼티 스펙 리스트 등)를 JSON 기반 데이터 모델로 확정
+
+#### 단계 2: 에디터 내 동적 라이브러리 로더 구현 (Loader & Registry)
+- [ ] **DLL/플러그인 로드 매니저 구현**: `juce::DynamicLibrary`를 래핑한 `WidgetPackageManager`를 구현하여, 특정 디렉터리(`DadeumStudio/Plugins`) 내의 외부 파일을 스캔 및 런타임 로드
+- [ ] **레지스트리 런타임 바인딩**: 로드 성공한 커스텀 위젯을 기존 `WidgetRegistry`의 `factoryMap` 및 목록에 동적으로 주입. "Widget Library Panel"에 [External] 카테고리로 자동 분리 표시
+- [ ] **버전 호환성 및 충돌 검사**: 새로 로드되는 DLL의 SDK 버전이 에디터의 버전과 다를 경우 로드를 차단하거나, 기존 동일 UUID를 가진 위젯과 충돌할 때 경고를 발생시키는 로직 포함
+
+#### 단계 3: 안전한 렌더링 및 플레이스홀더 샌드박싱 (Error Handling)
+- [ ] **예외 포착 (Exception Boundary)**: 외부 DLL 위젯의 `paint()`나 속성 변경 함수 호출 중 발생할 수 있는 크래시(Access Violation 등)를 최소화시키기 위한 SEH/Try-Catch 보호 래퍼(Wrapper) 적용
+- [ ] **플레이스홀더 전환 (Graceful Fallback)**: DLL 파일을 찾을 수 없거나 로드에 실패한(버전 불일치, 오류 발생 등) 커스텀 위젯은 캔버스에서 투명해지는 대신, 붉은 테두리의 "Missing Plugin: [위젯명]" 형태의 **Placeholder 위젯으로 즉시 변환**
+- [ ] **Validation 패널 연동**: 로드 실패나 속성 불일치가 발생할 경우 Phase 3.5에서 만든 `Validation Panel`에 딥 링크가 연결된 치명 에러(Error)로 즉각 리포팅
+
+#### 단계 4: 완전한 Export 파이프라인 통합 (Export Bridge)
+- [ ] **Export Manifest 확장**: Document를 Export 할 때, 현재 씬에서 사용된 외부 플러그인의 리스트(버전 및 소스 DLL 포함)를 `ExportManifest.json`의 `dependencies` 항목에 자동 기록
+- [ ] **에셋 파일 패키징**: 구워진 Export 폴더 내부의 `Plugins/` 폴더로 사용된 원본 DLL/정적 라이브러리 파일들을 함께 자동 복사(Packaging)
+- [ ] **JuceProject (Jucer/CMake) 자동 갱신**: 외부 C++ 코드를 사용하는 패키지인 경우, 런타임 결과물(Jucer 프로젝트)에서 외부 소스나 Include 경로를 자동으로 주입해 주는 CMake/Jucer 스니펫(Snippet) 생성 로직 추가
+
+### 수정/추가 레퍼런스
+- 수정 대상: `Source/Gyeol/Widgets/WidgetSDK.h`, `Source/Gyeol/Widgets/GyeolWidgetPluginABI.h`
+- 내부 개편: `Source/Gyeol/Widgets/WidgetRegistry.*` (동적 주입 허용)
+- 신규 작성: `Source/Gyeol/Widgets/WidgetPackageManager.h / .cpp` (DynamicLibrary 로딩 관리)
+- 신규 작성: `Source/Gyeol/Widgets/PlaceholderWidget.h / .cpp` (Fallback 처리반)
+- 융합 로직: `Source/Gyeol/Core/SceneValidator.h` (DLL 누락/에러 리포팅 검수)
+- 융합 로직: `Source/Gyeol/Export/JuceComponentExport.*` (DLL 파일 에셋 복사 및 CMake/Jucer 링커 주입)
 
 ---
 
-## Phase 8: 안정화/성능/릴리스
+## Phase 8: 재사용 가능한 프리팹/컴포넌트 시스템 (Component & Prefab System)
+
+### 목표
+- 복잡한 UI 화면에서 반복되는 위젯 그룹(예: 리스트 아이템, 헤더, 공통 버튼 형태)을 재사용 가능한 `Prefab` 템플릿으로 캡슐화하고, 인스턴스(Instance)별 오버라이드를 지원하여 대규모 프로젝트 관리를 용이하게 한다.
+
+### 구현 단계 (Step-by-Step)
+
+#### 단계 1: 프리팹 데이터 모델 및 직렬화 정의 (Foundation)
+- [ ] **Document 모델 확장**: `DocumentModel` 내에 `prefabs` 컬렉션(사전) 추가. 각 프리팹은 마스터 노드 트리와 기본 파라미터를 소유한 가상 레이어로 기능
+- [ ] **인스턴스 모델 설계 (`PrefabWidget`)**: 특정 프리팹 ID를 참조하는 전용 위젯 생태계 정의. 원본 트리 구조는 복제하되, 오버라이드 델타(Delta) 맵만 별도 저장하는 경량 객체로 설계
+- [ ] **버전 해시 및 동기화 메커니즘**: 마스터 프리팹의 구조가 변경되었을 때 캔버스에 배치된 모든 인스턴스에 강제(또는 지연) 전파되는 로직 구현
+
+#### 단계 2: 에디터 툴링 및 분리된 작업 흐름 (Editor UX)
+- [ ] **Make Component 매니저**: 다수의 선택된 위젯을 우클릭하여 "프리팹 만들기(Make Component)" 시, 원본 트리 노드 삭제 후 즉시 해당 위치에 `PrefabWidget` 인스턴스로 감싸 교체
+- [ ] **마스터 편집 격리 뷰 (Isolation Mode)**: 마스터 프리팹 템플릿을 더블클릭할 때, 기존 캔버스를 블러 처리하고(또는 새 창 열기) 마스터 트리에 대한 독립적인 편집 환경 진입 (Figma 스타일 격리 편집)
+- [ ] **Assets 패널(Components 탭) 연동**: 생성된 프리팹 목록을 Assets(또는 별도의 Components) 패널에 등록하고 캔버스로 언제든지 드래그 앤 드롭해서 인스턴스 소환
+
+#### 단계 3: 컴포넌트 간 오버라이드 시스템 (Property Overrides)
+- [ ] **속성 차분(Delta) 검출기**: 인스턴스의 특정 노드나 파라미터를 수정하려 할 때, 마스터 값과 다른 차분(Override Map)만 인스턴스 내부에 기록하는 Getter/Setter 래퍼 구현
+- [ ] **UI 시각적 피드백**: `PropertyPanel`에서 마스터 프리팹 값이 아닌, 오버라이드(특성화)된 속성은 굵은 글씨(Bold)나 푸른색 하이라이트/Dot으로 시각적 구별 제시
+- [ ] **Reset Override 리셋 버튼**: 오버라이드된 개별 속성이나 위젯을 다시 마스터의 원본 상태로 복귀(Revert)시키는 퀵 액션 연동
+
+#### 단계 4: 런타임 바인딩 연결 관리 및 코드 Export (Export Pipeline)
+- [ ] **스코프 제어 (Event Isolation)**: 프리팹 내부에서 정의된 버튼 클릭 이벤트나 파라미터가, 부모(메인) 캔버스의 전역 범위 이름과 충돌하지 않도록 ID 네임스페이스 격리 기술(Sub-scope) 적용
+- [ ] **Export 시 C++ 클래스 분리**: Export 시, 반복 사용되는 프리팹 마스터는 독자적인 C++ `.h/.cpp` 클래스 파일로 추출(Sub-Component)하여 생성.
+- [ ] **자식 인스턴스 멤버 변수화**: 메인 캔버스 뷰 생성 시, 해당 프리팹 C++ 클래스를 멤버 변수나 `std::vector<std::unique_ptr>` 배열로 동적 로드하도록 코드 제너레이터(JuceComponentExport) 분기 확장
+
+---
+
+## Phase 9: 다중 페이지 시스템 및 라우팅 (Multi-Page & Routing System)
+
+### 목표
+- 단일 캔버스(기존 Root) 한계에서 벗어나, 앱 전체의 여러 화면(Page)을 하나의 문서(Document) 안에서 설계하고 이동할 수 있는 멀티-스크린 아키텍처를 도입한다.
+- 최상위 컨테이너 명칭을 `App`(또는 `Application`)으로 격상하고, 기존의 단일 Root 트리를 개별 `Page` 단위로 전환한다.
+
+### 구현 단계 (Step-by-Step)
+
+#### 단계 1: App-Page 데이터 모델 재편성 (Foundation)
+- [ ] **최상위 App 모델 도입**: `DocumentModel`의 메인 진입점을 `AppNode`(또는 `ApplicationModel`)로 명칭 변경 및 승격 (기존 `RootNode`는 단일 페이지를 의미)
+- [ ] **Page 리스트 컬렉션**: App 내부 상태에 `std::vector<PageNode>`(또는 Dictionary)를 두어 여러 페이지 구조체를 소유하도록 JSON 스키마 및 직렬화/역직렬화 업데이트
+- [ ] **전역(Global) vs 지역(Local) 상태 분리**: Phase 5에서 만든 파라미터들(`runtimeParams`)을 앱 전반에서 공유할 수 있는 **전역 파라미터**와 탭/페이지 종속적인 **페이지 파라미터**로 스코프 분리
+
+#### 단계 2: 에디터 캔버스 및 페이지 네비게이션 (Editor UX)
+- [ ] **페이지 브라우저 패널/탭**: 캔버스 상단 혹은 `Navigator` 패널 측면에 현재 활성화된 페이지를 전환할 수 있는 [Home] [Settings] [Login] 형태의 페이지 탭 브라우저 바 추가
+- [ ] **페이지 생성/삭제 관리**: 새 페이지 추가 템플릿 제공 및 캔버스 클리어(전환), Undo/Redo 이력의 페이징 뎁스(Context) 연동 처리
+- [ ] **Figma형 인피니트 캔버스 (선택적)**: 활성 페이지만 1:1로 보는 것이 아닌, 줌-아웃 시 모든 페이지 보드가 캔버스 평면 위에 펼쳐져 시각적으로 연결되도록 뷰포트 업그레이드 검토
+
+#### 단계 3: 런타임 라우팅 엔진 및 패널 연동 (Runtime Navigation & Event Panel)
+- [ ] **네비게이션 액션(Navigation Actions) 추가**: 버튼 클릭 등 이벤트 발생 시 실행될 `RuntimeAction` 종류에 라우팅 전용 액션(`changePage`, `pushPage`, `popPage`) 추가
+- [ ] **Event/Action 패널 UI 연동**: 위젯 속성 패널에서 액션 종류로 "Navigate To Page"를 선택하면 대상 페이지를 고를 수 있는 콤보박스(자동 완성 기능 포함) 노출 지원
+- [ ] **트랜지션 애니메이션 속성**: 페이지 이동 동작 시 페이드(Fade), 슬라이드(Slide X/Y) 같은 기본 화면 전환 효과(Transition) 파라미터 지원 및 해석기 탑재
+- [ ] **App 진입점 설정**: 에디터 및 런타임 시 앱을 시작했을 때 가장 먼저 보여줄 `Initial Page(Index)` 메타데이터 전역 속성으로 지정
+
+#### 단계 4: 복수 페이지 Export 파이프라인 (Export Pipeline)
+- [ ] **페이지별 C++ Component 분할**: 기존에 `DadeumStudio_RootComponent` 하나로 구워내던 방식을 `DadeumStudio_MainApp` 1개 + 종속되는 `LoginPage_Component`, `SettingsPage_Component` 다수로 쪼개어 파일(.cpp)별 코드로 분리 생성
+- [ ] **메인 App 라우터 컨트롤러 주입**: 분할된 C++ 클래스들을 교체해 주는 `juce::ComponentAnimator` 또는 `juce::View` 기반 컨테이너 스태킹(Stacking) 매니저를 런타임 브리지 코드로 자동 삽입
+- [ ] **전역 바인딩 연결**: 여러 페이지의 컴포넌트가 하나의 전역 `RuntimeParamStore` 변수 인스턴스를 공유(참조)하도록 의존성 주입(DI) 코드 생성 분기
+
+---
+
+## Phase 10: 고급 툴링 시스템 확장 (Advanced Tooling Framework)
+
+### 목표
+- 단순했던 기본 선택(Selection) 및 박스 생성 툴을 넘어서, UI 제작에 필수적인 다목적 제작 툴(Text, Shape, Pen, Component Tool 등)을 캔버스 툴바에 다수 이식하고 그 행동 상태(State Machine)를 정교하게 분리한다.
+
+### 구현 단계 (Step-by-Step)
+
+#### 단계 1: 툴 상태머신(Tool State Machine) 아키텍처 (Foundation)
+- [ ] **에디터 모드 관리자 분리**: 기존 `EditorInteractionEngine`의 하드코딩된 마우스 이벤트를 `IEditorTool` 가상 클래스를 기반으로 한 **상태머신(State Pattern)** 구조로 분리 (예: `SelectionTool`, `TextTool`, `ShapeTool`)
+- [ ] **툴 전환 파이프라인**: 캔버스 좌측 상단 또는 사이드의 메인 툴바 컴포넌트(`ToolbarPanel`)를 생성하고, 버튼 선택/단축키(T, V, P 등) 입력 시 `CanvasComponent`의 현재 활성화 툴이 안전하게 교체되는(Switched) 브리지 로직 연동
+- [ ] **초기화 및 클린업**: 새로운 툴로 전환될 때 기존 마우스 캡처나 진행 중인 생성 트랜잭션(드래그 중인 미완성 렌더 등)을 깔끔하게 취소(Abort)하고 기본 상태로 되돌리는 롤백 구현
+
+#### 단계 2: 신규 툴셋 구현(Core Toolset)
+- [ ] **텍스트 툴 (T 단축키)**: 선택 시 캔버스를 클릭/드래그하여 `TextWidget`의 Bounds를 생성함과 동시에, 그 자리에서 즉시 커서를 깜박이며 글씨를 입력할 수 있는 인라인 텍스트 에디터 모드 진입
+- [ ] **도형 툴 (R, O 단축키)**: `Rectangle`, `Ellipse` 툴. 드래그 중 `Shift` 홀드 시 1:1 비율(정사각형/원) 고정 렌더 트리거 추가
+- [ ] **벡터 펜 툴 (P 단축키)**: `juce::Path` 기반의 베지어 곡선(Bézier Curve)을 캔버스에 직접 찍어 다각형/자유형 곡선 형태의 커스텀 위젯을 실시간 생성하는 시스템 탑재
+- [ ] **FX 스타일 브러시 툴 (B 단축키)**: 캔버스 위에 배치된 위젯을 이 툴로 '문지르면(Drag or Click)', 브러시가 머금고 있는 특수 질감(Metallic 그라데이션, Drop Shadow, Neon Glow)을 위젯 속성에 실시간으로 버퍼링해 덧칠(Layering) 해주는 다이렉트 스타일링 모드 적용
+- [ ] **프리팹/인스턴스 툴 (C 단축키)**: 클릭하여 툴이 활성화된 상태에서 캔버스를 `클릭`하면, 이전에 Assets 패널 등에서 선택해놓은 마스터 컴포넌트(`PrefabWidget`)가 1:1 사이즈로 스냅되어 드롭됨
+
+#### 단계 3: 맥락적(Contextual) 툴 커서 및 피드백 (UX)
+- [ ] **마우스 커서 동기화**: 활성화된 툴의 종류에 따라 마우스 커서 아이콘을 동적으로 다르게 지정 (정밀 십자 커서(Crosshair), 텍스트 커서(I-Beam), 셀렉트 화살표 등)
+- [ ] **툴 힌트 HUD (Heads-up Display)**: 새 툴이 선택되면 캔버스 중앙 하단에 작게 "Shift를 눌러 정비율 생성" 같은 일시적/조건적 단축키 안내 툴팁 오버레이 제공
+- [ ] **포커스 복귀 자동화**: 신규 위젯을 `TextTool` 등으로 생성 완료 및 편집 종료 시점(엔터 등)을 감지하면 자동으로 다시 사용자에게 가장 친숙한 `SelectionTool(V)`로 모드를 복구시켜 작업 흐름 방해 최소화
+
+---
+
+## Phase 11: 태블릿/아이패드 네이티브 연동 시스템 (Remote Companion App)
+
+### 목표
+- 벡터 펜 툴 및 FX 브러시 작업 등 미세한 압력(Pressure)과 드로잉 제어가 필요한 작업을 위해, iPad/Stylus 전용 네이티브 앱(Companion App)과 데스크톱 에디터를 양방향으로 실시간 연동한다.
+
+### 구현 단계 (Step-by-Step)
+
+#### 단계 1: 실시간 동기화 네트워크 프로토콜 (Sync Protocol)
+- [ ] **소켓/OSC 통신 레이어**: 데스크톱의 `juce::InterprocessConnection` 또는 UDP/OSC (`juce::OSCSender/OSCReceiver`) 기반의 로컬 네트워크 브리지 구축. 
+- [ ] **양방향 상태 동기화**: 데스크톱의 캔버스 뷰포트 상태(Zoom/Pan)를 아이패드로 1:1 전송하고, 반대로 아이패드의 펜슬 터치/압력 데이터를 실시간 스트리밍으로 데스크톱 에디터 큐에 Push
+
+#### 단계 2: Apple Pencil 압력 및 기울기 맵핑 (Stylus Dynamics)
+- [ ] **데이터 수신 및 보간 (Interpolation)**: 아이패드에서 전송되는 터치 좌표, Pencil 압력(Pressure), 기울기(Tilt) 데이터를 수신하여 `juce::Path` 두께 조절이나 FX 브러시의 Alpha(불투명도) 값으로 변환(Mapping)하는 동적 해석기 추가
+- [ ] **지연 보상 렌더링**: 네트워크 핑(Ping)으로 인한 드로잉 지연을 덮기 위해, 데스크톱 화면에서 수신된 좌표 벡터 사이를 부드러운 스플라인(Spline) 곡선으로 잇는 브러시 스무딩(Smoothing) 구현
+
+#### 단계 3: 원격 캔버스 격리 모드 (Remote Canvas Mode)
+- [ ] **듀얼 스크린 UI 전환**: 아이패드가 연결되면 데스크톱 에디터 패널에 `[Tablet Connected]` 인디케이터 활성화. 캔버스는 순수하게 디스플레이 출력(Viewer) 역할을 담당하고, 조작(Draw) 권한과 브러시 툴바 UI는 아이패드로 일시 위임
+- [ ] **전용 에셋 전송**: 아이패드 컴패니언 앱 내에서 툴(펜, 브러시, 지우개)을 전환했을 때, 해당 ToolState와 컬러픽커 등 핵심 디자인 도구 패널을 아이패드 네이티브 UI로 렌더링(또는 WebRTC 미러링)
+
+---
+
+## Phase 12: 모션 및 키프레임 애니메이션 (Motion & Timelines)
+
+### 목표
+- 단순한 상태 전환(Hover/Click)이나 페이지 슬라이딩을 넘어서, Lottie나 After Effects처럼 **시간 축(Timeline)에 기반한 미세한 트위닝(Tweening)과 키프레임 애니메이션**을 UI 컴포넌트에 부여해 생동감 있는 인터랙션을 구축한다.
+
+### 구현 단계 (Step-by-Step)
+
+#### 단계 1: 키프레임 데이터 모델 (Foundation)
+- [ ] **Animation Track 모델링**: 위젯의 특정 속성(예: `x`, `y`, `opacity`, `rotation`) 변화를 시간에 따라 추적할 수 있는 `AnimationTrack` 데이터 구조체 추가
+- [ ] **보간기(Interpolator) 엔진**: 선형(Linear) 애니메이션의 한계를 극복하기 위해 곡선형 이징 함수(Easing Functions - `ease-in`, `ease-out`, `spring`, `bounce`)를 JUCE 애니메이터와 연동해 수학적으로 계산하는 엔진 탑재
+- [ ] **이벤트 트리거 맵핑**: 캔버스나 버튼 이벤트(onClick, onMount) 발생 시 특정 애니메이션 타임라인을 재생(Play), 정지(Stop), 역재생(Reverse) 시킬 수 있는 신규 `RuntimeAction` 연결
+
+#### 단계 2: 모션 타임라인 편집 패널 (Editor UX)
+- [ ] **타임라인 하단 도크(Dock) 패널**: 에디터 하단에 숨길 수 있는 영상 편집기 스타일의 `Timeline Panel` 구축. 위젯의 트랙을 레이어 형태로 펼치고 눈금자(Ruler) 위에서 Playhead를 드래그하도록 뷰어 구성
+- [ ] **직관적 키프레임 삽입**: 캔버스에서 특정 시간(프레임)으로 Playhead를 맞추고 위젯의 위치나 투명도를 바꾸면, 타임라인에 마름모(◆) 형태의 **자동 키프레임(Auto-Keyframe)**이 찍히는 토글 모드 지원
+- [ ] **커스텀 곡선 에디터 (Curve Editor)**: 두 키프레임 사이의 선을 클릭하면 베지어 핸들이 노출되어, 모션의 가속/감속 곡선을 사용자가 직접 시각적으로 꺾고 조절할 수 있는 미니 팝업 렌더링
+
+#### 단계 3: 모션 C++ Export 컴파일 (Export Pipeline)
+- [ ] **C++ 런타임 제너레이터**: 정의된 프레임 타겟과 Easing 타입을 순수 `juce::Desktop::getInstance().getAnimator()` 또는 별도의 경량 Delta-time 루프로 컴파일 시간에 풀어써주는 Export 로직 분기 
+- [ ] **Lottie/JSON 스니펫 호환성 검토**: 완전히 독자적인 C++ 애니메이션 루프 말고도, 타협안으로 벡터 애니메이션이 Lottie 데이터 규격과 부분 호환되도록 내보낼 수 있을지 실험
+
+---
+
+## Phase 13: 안정화/성능/릴리스
 
 ### 목표
 - 대형 문서에서도 안정적인 편집 성능과 예측 가능한 결과를 보장한다.

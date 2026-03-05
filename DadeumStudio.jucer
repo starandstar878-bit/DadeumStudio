@@ -23,10 +23,6 @@
                 file="Source/Gyeol/Core/SceneValidator.h"/>
         </GROUP>
         <GROUP id="{EEE24E8E-D0AF-566E-91B9-4B438E6639AC}" name="Editor">
-          <FILE id="EdClAF" name="GyeolCustomLookAndFeel.cpp" compile="1" resource="0"
-                file="Source/Gyeol/Editor/GyeolCustomLookAndFeel.cpp"/>
-          <FILE id="EdClAH" name="GyeolCustomLookAndFeel.h" compile="0" resource="0"
-                file="Source/Gyeol/Editor/GyeolCustomLookAndFeel.h"/>
           <FILE id="hP7zLm" name="EditorHandle.cpp" compile="1" resource="0"
                 file="Source/Gyeol/Editor/EditorHandle.cpp"/>
           <FILE id="EdImplC" name="EditorHandleImpl.cpp" compile="1" resource="0"
@@ -82,7 +78,7 @@
                   file="Source/Gyeol/Editor/Panels/PerformancePanel.cpp"/>
           </GROUP>
           <GROUP id="{A4B87F12-3C2A-4D19-9A11-58C34F4EE001}" name="Theme">
-            <FILE id="EdTh01" name="GyeolCustomLookAndFeel.cpp" compile="0" resource="0"
+            <FILE id="EdTh01" name="GyeolCustomLookAndFeel.cpp" compile="1" resource="0"
                   file="Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.cpp"/>
             <FILE id="EdTh02" name="GyeolCustomLookAndFeel.h" compile="0" resource="0"
                   file="Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"/>

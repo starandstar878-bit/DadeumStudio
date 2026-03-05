@@ -150,7 +150,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\Source\Gyeol\Core\Document.cpp"/>
     <ClCompile Include="..\..\Source\Gyeol\Core\DocumentHandle.cpp"/>
-    <ClCompile Include="..\..\Source\Gyeol\Editor\GyeolCustomLookAndFeel.cpp"/>
+    <ClCompile Include="..\..\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.cpp"/>
     <ClCompile Include="..\..\Source\Gyeol\Editor\EditorHandle.cpp"/>
     <ClCompile Include="..\\..\\Source\\Gyeol\\Editor\\EditorHandleImpl.cpp"/>
     <ClCompile Include="..\\..\\Source\\Gyeol\\Editor\\Shell\\EditorCommandSystem.cpp"/>

@@ -1,8 +1,11 @@
+
 #include "Gyeol/Editor/Panels/ValidationPanel.h"
 
 #include "Gyeol/Core/SceneValidator.h"
-#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
+#include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
+
 #include <algorithm>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -50,42 +53,24 @@ juce::File resolveInputFilePath(const juce::String &value,
 juce::String inferMimeTypeFromFile(const juce::File &file) {
   const auto ext =
       file.getFileExtension().trimCharactersAtStart(".").toLowerCase();
-  if (ext == "png")
-    return "image/png";
-  if (ext == "jpg" || ext == "jpeg")
-    return "image/jpeg";
-  if (ext == "bmp")
-    return "image/bmp";
-  if (ext == "gif")
-    return "image/gif";
-  if (ext == "svg")
-    return "image/svg+xml";
-  if (ext == "webp")
-    return "image/webp";
-  if (ext == "ttf")
-    return "font/ttf";
-  if (ext == "otf")
-    return "font/otf";
-  if (ext == "woff")
-    return "font/woff";
-  if (ext == "woff2")
-    return "font/woff2";
-  if (ext == "wav")
-    return "audio/wav";
-  if (ext == "aif" || ext == "aiff")
-    return "audio/aiff";
-  if (ext == "ogg")
-    return "audio/ogg";
-  if (ext == "flac")
-    return "audio/flac";
-  if (ext == "mp3")
-    return "audio/mpeg";
-  if (ext == "json")
-    return "application/json";
-  if (ext == "xml")
-    return "application/xml";
-  if (ext == "txt")
-    return "text/plain";
+  if (ext == "png") return "image/png";
+  if (ext == "jpg" || ext == "jpeg") return "image/jpeg";
+  if (ext == "bmp") return "image/bmp";
+  if (ext == "gif") return "image/gif";
+  if (ext == "svg") return "image/svg+xml";
+  if (ext == "webp") return "image/webp";
+  if (ext == "ttf") return "font/ttf";
+  if (ext == "otf") return "font/otf";
+  if (ext == "woff") return "font/woff";
+  if (ext == "woff2") return "font/woff2";
+  if (ext == "wav") return "audio/wav";
+  if (ext == "aif" || ext == "aiff") return "audio/aiff";
+  if (ext == "ogg") return "audio/ogg";
+  if (ext == "flac") return "audio/flac";
+  if (ext == "mp3") return "audio/mpeg";
+  if (ext == "json") return "application/json";
+  if (ext == "xml") return "application/xml";
+  if (ext == "txt") return "text/plain";
   return {};
 }
 
@@ -102,265 +87,219 @@ juce::String formatByteSize(juce::int64 bytes) {
   return juce::String(asDouble / (1024.0 * 1024.0 * 1024.0), 2) + " GB";
 }
 
-juce::String makeUtf8String(const char *utf8Text) {
-  return juce::String(juce::CharPointer_UTF8(utf8Text));
+juce::String makeIssueUuid(const juce::String &category, WidgetId relatedId,
+                           const juce::String &detail) {
+  const auto seed = category + ":" + juce::String(relatedId) + ":" + detail;
+  return juce::String::toHexString(static_cast<int64_t>(seed.hashCode64()));
 }
 
-// 필터 버튼 색상 헬퍼
-juce::Colour filterButtonActiveColour(ValidationPanel::IssueSeverity s) {
-  switch (s) {
-  case ValidationPanel::IssueSeverity::error:
-    return palette(GyeolPalette::ValidError);
-  case ValidationPanel::IssueSeverity::warning:
-    return palette(GyeolPalette::ValidWarning);
-  case ValidationPanel::IssueSeverity::info:
-    return palette(GyeolPalette::AccentPrimary);
+juce::String widgetTypeLabel(WidgetType type) {
+  switch (type) {
+  case WidgetType::button: return "Button";
+  case WidgetType::slider: return "Slider";
+  case WidgetType::meter: return "Meter";
+  case WidgetType::label: return "Label";
+  case WidgetType::knob: return "Knob";
+  case WidgetType::comboBox: return "ComboBox";
+  case WidgetType::textInput: return "TextInput";
   }
-  return palette(GyeolPalette::TextSecondary);
+  return "Widget";
+}
+
+void drawDependencyMap(juce::Graphics &g,
+                       const ValidationPanel::DependencyGraph &graph,
+                       juce::Rectangle<int> area,
+                       const juce::Component &owner) {
+  g.setColour(palette(GyeolPalette::HeaderBackground, 0.88f));
+  g.fillRoundedRectangle(area.toFloat(), 4.0f);
+  g.setColour(palette(GyeolPalette::BorderDefault, 0.9f));
+  g.drawRoundedRectangle(area.toFloat(), 4.0f, 1.0f);
+
+  if (graph.nodes.empty()) {
+    g.setColour(palette(GyeolPalette::TextDisabled));
+    g.setFont(makePanelFont(owner, 9.5f, false));
+    g.drawText("No dependency links", area.reduced(8, 4),
+               juce::Justification::centredLeft, true);
+    return;
+  }
+
+  const auto count = juce::jmin(6, static_cast<int>(graph.nodes.size()));
+  std::vector<juce::Rectangle<float>> nodes;
+  nodes.reserve(static_cast<size_t>(count));
+
+  const auto nodeWidth = juce::jlimit(56.0f, 86.0f,
+      area.getWidth() / static_cast<float>(count + 1));
+  const auto nodeHeight = 16.0f;
+  const auto step = area.getWidth() / static_cast<float>(count + 1);
+
+  for (int i = 0; i < count; ++i) {
+    const auto cx = area.getX() + step * static_cast<float>(i + 1);
+    nodes.emplace_back(0.0f, 0.0f, nodeWidth, nodeHeight);
+    nodes.back().setCentre({cx, area.getCentreY() + 3.0f});
+  }
+
+  for (const auto &edge : graph.edges) {
+    if (edge.first < 0 || edge.second < 0 || edge.first >= count || edge.second >= count)
+      continue;
+
+    const auto &fromNode = nodes[static_cast<size_t>(edge.first)];
+    const auto &toNode = nodes[static_cast<size_t>(edge.second)];
+    const auto from = juce::Point<float>(fromNode.getRight(), fromNode.getCentreY());
+    const auto to = juce::Point<float>(toNode.getX(), toNode.getCentreY());
+    g.setColour(palette(GyeolPalette::AccentPrimary, 0.78f));
+    g.drawLine(from.x, from.y, to.x, to.y, 1.0f);
+  }
+
+  g.setFont(makePanelFont(owner, 8.8f, true));
+  for (int i = 0; i < count; ++i) {
+    const auto &node = nodes[static_cast<size_t>(i)];
+    g.setColour(palette(GyeolPalette::ControlBase, 0.96f));
+    g.fillRoundedRectangle(node, 3.0f);
+    g.setColour(palette(GyeolPalette::BorderDefault));
+    g.drawRoundedRectangle(node, 3.0f, 1.0f);
+    g.setColour(palette(GyeolPalette::TextSecondary));
+    g.drawFittedText(graph.nodes[static_cast<size_t>(i)], node.toNearestInt().reduced(3, 2),
+                     juce::Justification::centred, 1);
+  }
 }
 } // namespace
 
-// ==============================================================================
-// 생성자 / 소멸자
-// ==============================================================================
 ValidationPanel::ValidationPanel(DocumentHandle &documentIn,
                                  const Widgets::WidgetRegistry &registryIn)
     : document(documentIn), registry(registryIn) {
   titleLabel.setText("Validation", juce::dontSendNotification);
   titleLabel.setFont(makePanelFont(*this, 12.0f, true));
-  titleLabel.setColour(juce::Label::textColourId,
-                       palette(GyeolPalette::TextPrimary));
+  titleLabel.setColour(juce::Label::textColourId, palette(GyeolPalette::TextPrimary));
   titleLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(titleLabel);
 
   summaryLabel.setText("Stale", juce::dontSendNotification);
-  summaryLabel.setColour(juce::Label::textColourId,
-                         palette(GyeolPalette::TextSecondary));
+  summaryLabel.setColour(juce::Label::textColourId, palette(GyeolPalette::TextSecondary));
   summaryLabel.setJustificationType(juce::Justification::centredRight);
   addAndMakeVisible(summaryLabel);
 
   autoRefreshToggle.setClickingTogglesState(true);
   autoRefreshToggle.setToggleState(autoRefresh, juce::dontSendNotification);
-  autoRefreshToggle.onClick = [this] {
-    setAutoRefreshEnabled(autoRefreshToggle.getToggleState());
-  };
+  autoRefreshToggle.onClick = [this] { setAutoRefreshEnabled(autoRefreshToggle.getToggleState()); };
   addAndMakeVisible(autoRefreshToggle);
 
   runButton.onClick = [this] { refreshValidation(); };
   addAndMakeVisible(runButton);
 
-  // ------------------------------------------------------------------
-  // 카테고리 필터 버튼 3개 (E / W / I)
-  // ------------------------------------------------------------------
-  auto setupFilterBtn = [this](juce::TextButton &btn, IssueSeverity severity,
-                               bool &flag) {
+  auto setupFilterBtn = [this](juce::TextButton &btn, bool &flag, IssueSeverity severity) {
     btn.setClickingTogglesState(true);
     btn.setToggleState(true, juce::dontSendNotification);
-    const auto activeCol = filterButtonActiveColour(severity);
-    btn.setColour(juce::TextButton::buttonOnColourId,
-                  activeCol.withAlpha(0.30f));
-    btn.setColour(juce::TextButton::buttonColourId,
-                  palette(GyeolPalette::ControlBase));
-    btn.setColour(juce::TextButton::textColourOnId, activeCol);
-    btn.setColour(juce::TextButton::textColourOffId,
-                  palette(GyeolPalette::TextDisabled));
-    btn.onClick = [this, &flag, &btn] {
+    btn.onClick = [this, &btn, &flag] {
       flag = btn.getToggleState();
       rebuildFilteredIssues();
       listBox.updateContent();
       listBox.repaint();
+      updateSummaryText();
     };
+
+    const auto accent = colorForSeverity(severity);
+    btn.setColour(juce::TextButton::buttonColourId, palette(GyeolPalette::ControlBase));
+    btn.setColour(juce::TextButton::buttonOnColourId, accent.withAlpha(0.24f));
+    btn.setColour(juce::TextButton::textColourOffId, palette(GyeolPalette::TextSecondary));
+    btn.setColour(juce::TextButton::textColourOnId, accent);
     addAndMakeVisible(btn);
   };
 
-  setupFilterBtn(filterErrorBtn, IssueSeverity::error, showErrors);
-  setupFilterBtn(filterWarningBtn, IssueSeverity::warning, showWarnings);
-  setupFilterBtn(filterInfoBtn, IssueSeverity::info, showInfo);
+  setupFilterBtn(filterErrorBtn, showErrors, IssueSeverity::error);
+  setupFilterBtn(filterWarningBtn, showWarnings, IssueSeverity::warning);
+  setupFilterBtn(filterInfoBtn, showInfo, IssueSeverity::info);
 
   listBox.setModel(this);
-  listBox.setRowHeight(42);
-  listBox.setColour(juce::ListBox::backgroundColourId,
-                    palette(GyeolPalette::CanvasBackground));
-  listBox.setColour(juce::ListBox::outlineColourId,
-                    palette(GyeolPalette::BorderDefault));
+  listBox.setRowHeight(84);
+  listBox.setMultipleSelectionEnabled(false);
+  listBox.setColour(juce::ListBox::backgroundColourId, palette(GyeolPalette::CanvasBackground));
+  listBox.setColour(juce::ListBox::outlineColourId, palette(GyeolPalette::BorderDefault));
+  listBox.addMouseListener(this, true);
   addAndMakeVisible(listBox);
 
+  startTimer(pulseTimerId, 70);
   lookAndFeelChanged();
 }
 
-ValidationPanel::~ValidationPanel() { listBox.setModel(nullptr); }
-
-// ==============================================================================
-// 공개 메서드
-// ==============================================================================
+ValidationPanel::~ValidationPanel() {
+  stopTimer(debounceTimerId);
+  stopTimer(pulseTimerId);
+  listBox.removeMouseListener(this);
+  listBox.setModel(nullptr);
+}
 
 void ValidationPanel::lookAndFeelChanged() {
   titleLabel.setFont(makePanelFont(*this, 12.0f, true));
-  titleLabel.setColour(juce::Label::textColourId,
-                       palette(GyeolPalette::TextPrimary));
-  summaryLabel.setColour(juce::Label::textColourId,
-                         palette(GyeolPalette::TextSecondary));
+  titleLabel.setColour(juce::Label::textColourId, palette(GyeolPalette::TextPrimary));
+  summaryLabel.setColour(juce::Label::textColourId, palette(GyeolPalette::TextSecondary));
 
-  const auto applyFilterPalette = [this](juce::TextButton &btn,
-                                         IssueSeverity severity) {
-    const auto activeCol = filterButtonActiveColour(severity);
-    btn.setColour(juce::TextButton::buttonOnColourId,
-                  activeCol.withAlpha(0.30f));
-    btn.setColour(juce::TextButton::buttonColourId,
-                  palette(GyeolPalette::ControlBase));
-    btn.setColour(juce::TextButton::textColourOnId, activeCol);
-    btn.setColour(juce::TextButton::textColourOffId,
-                  palette(GyeolPalette::TextDisabled));
-  };
-
-  applyFilterPalette(filterErrorBtn, IssueSeverity::error);
-  applyFilterPalette(filterWarningBtn, IssueSeverity::warning);
-  applyFilterPalette(filterInfoBtn, IssueSeverity::info);
-
-  listBox.setColour(juce::ListBox::backgroundColourId,
-                    palette(GyeolPalette::CanvasBackground));
-  listBox.setColour(juce::ListBox::outlineColourId,
-                    palette(GyeolPalette::BorderDefault));
-
-  listBox.repaint();
+  updateFilterChipLabels();
   repaint();
 }
-void ValidationPanel::setSelectWidgetCallback(
-    std::function<void(WidgetId)> callback) {
+
+void ValidationPanel::setSelectWidgetCallback(std::function<void(WidgetId)> callback) {
   onSelectWidget = std::move(callback);
+}
+
+void ValidationPanel::setHoverWidgetCallback(std::function<void(WidgetId)> callback) {
+  onHoverWidget = std::move(callback);
 }
 
 void ValidationPanel::markDirty() {
   dirty = true;
   if (autoRefresh)
-    refreshValidation();
+    queueValidation(false);
   else
     summaryLabel.setText("Stale (Run required)", juce::dontSendNotification);
 }
 
 void ValidationPanel::refreshValidation() {
-  rebuildIssues();
-  rebuildFilteredIssues();
-  dirty = false;
-
-  int errorCount = 0;
-  int warningCount = 0;
-  for (const auto &issue : allIssues) {
-    if (issue.severity == IssueSeverity::error)
-      ++errorCount;
-    else if (issue.severity == IssueSeverity::warning)
-      ++warningCount;
-  }
-
-  if (errorCount > 0) {
-    const auto errorText = makeUtf8String("\xEC\x98\xA4\xEB\xA5\x98"); // "오류"
-    const auto warningText = makeUtf8String("\xEA\xB2\xBD\xEA\xB3\xA0"); // "경고"
-    summaryLabel.setText(errorText + " " + juce::String(errorCount) +
-                             "  " + warningText + " " +
-                             juce::String(warningCount),
-                         juce::dontSendNotification);
-  } else if (warningCount > 0) {
-    const auto warningText = makeUtf8String("\xEA\xB2\xBD\xEA\xB3\xA0"); // "경고"
-    summaryLabel.setText(warningText + " " + juce::String(warningCount),
-                         juce::dontSendNotification);
-  } else {
-    summaryLabel.setText("OK", juce::dontSendNotification);
-  }
-
-  listBox.updateContent();
-  repaint();
+  dirty = true;
+  launchValidationJob();
 }
 
-bool ValidationPanel::autoRefreshEnabled() const noexcept {
-  return autoRefresh;
-}
+bool ValidationPanel::autoRefreshEnabled() const noexcept { return autoRefresh; }
 
 void ValidationPanel::setAutoRefreshEnabled(bool enabled) {
   autoRefresh = enabled;
-  autoRefreshToggle.setToggleState(autoRefresh, juce::dontSendNotification);
+  autoRefreshToggle.setToggleState(enabled, juce::dontSendNotification);
   if (autoRefresh && dirty)
-    refreshValidation();
+    queueValidation(true);
 }
 
-// ==============================================================================
-// paint / resized
-// ==============================================================================
 void ValidationPanel::paint(juce::Graphics &g) {
   g.fillAll(palette(GyeolPalette::PanelBackground));
   g.setColour(palette(GyeolPalette::BorderDefault));
   g.drawRect(getLocalBounds(), 1);
-
-  const bool allClear =
-      filteredRows.empty() ||
-      (filteredRows.size() == 1 &&
-       allIssues[static_cast<size_t>(filteredRows[0])].severity ==
-           IssueSeverity::info);
-
-  if (allClear && !dirty) {
-    auto area = listBox.getBounds().toFloat();
-    if (area.getHeight() > 60.0f) {
-      auto centerX = area.getCentreX();
-      auto centerY = area.getCentreY() - 8.0f;
-
-      juce::Path checkPath;
-      checkPath.startNewSubPath(centerX - 10.0f, centerY);
-      checkPath.lineTo(centerX - 3.0f, centerY + 7.0f);
-      checkPath.lineTo(centerX + 10.0f, centerY - 6.0f);
-
-      g.setColour(palette(GyeolPalette::ValidSuccess, 0.12f));
-      g.fillEllipse(centerX - 18.0f, centerY - 15.0f, 36.0f, 36.0f);
-      g.setColour(palette(GyeolPalette::ValidSuccess, 0.67f));
-      g.strokePath(checkPath,
-                   juce::PathStrokeType(2.5f, juce::PathStrokeType::curved,
-                                        juce::PathStrokeType::rounded));
-
-      g.setColour(palette(GyeolPalette::TextSecondary));
-      g.setFont(makePanelFont(*this, 11.5f, false));
-      g.drawText(
-          "All checks passed",
-          juce::Rectangle<int>(0, (int)(centerY + 18.0f), getWidth(), 18),
-          juce::Justification::centred, true);
-    }
-  }
 }
 
 void ValidationPanel::resized() {
   auto area = getLocalBounds().reduced(8);
 
-  // 상단 타이틀 행
   auto top = area.removeFromTop(20);
   titleLabel.setBounds(top.removeFromLeft(120));
   summaryLabel.setBounds(top);
 
   area.removeFromTop(4);
-
-  // 컨트롤 행 1: Run + Auto
   auto controls = area.removeFromTop(24);
-  runButton.setBounds(controls.removeFromLeft(110));
+  runButton.setBounds(controls.removeFromLeft(84));
   controls.removeFromLeft(6);
-  autoRefreshToggle.setBounds(controls.removeFromLeft(60));
+  autoRefreshToggle.setBounds(controls.removeFromLeft(58));
 
   area.removeFromTop(4);
-
-  // 컨트롤 행 2: 필터 버튼 (E / W / I)
-  auto filterRow = area.removeFromTop(22);
-  const int btnW = 36;
-  filterErrorBtn.setBounds(filterRow.removeFromLeft(btnW));
-  filterRow.removeFromLeft(4);
-  filterWarningBtn.setBounds(filterRow.removeFromLeft(btnW));
-  filterRow.removeFromLeft(4);
-  filterInfoBtn.setBounds(filterRow.removeFromLeft(btnW));
+  auto chips = area.removeFromTop(24);
+  const auto chipWidth = (chips.getWidth() - 8) / 3;
+  filterErrorBtn.setBounds(chips.removeFromLeft(chipWidth));
+  chips.removeFromLeft(4);
+  filterWarningBtn.setBounds(chips.removeFromLeft(chipWidth));
+  chips.removeFromLeft(4);
+  filterInfoBtn.setBounds(chips);
 
   area.removeFromTop(6);
   listBox.setBounds(area);
 }
 
-// ==============================================================================
-// ListBoxModel
-// ==============================================================================
-int ValidationPanel::getNumRows() {
-  return static_cast<int>(filteredRows.size());
-}
+int ValidationPanel::getNumRows() { return static_cast<int>(filteredRows.size()); }
 
 void ValidationPanel::paintListBoxItem(int rowNumber, juce::Graphics &g,
                                        int width, int height,
@@ -369,72 +308,72 @@ void ValidationPanel::paintListBoxItem(int rowNumber, juce::Graphics &g,
     return;
 
   const auto &issue = allIssues[static_cast<size_t>(filteredRows[rowNumber])];
-  const auto bounds = juce::Rectangle<int>(0, 0, width, height);
+  const auto expanded = expandedIssueUuids.count(issue.uuid) > 0;
+  const auto hovered = rowNumber == hoveredRow;
 
-  // 배경
-  const auto baseFill = rowIsSelected
-                            ? palette(GyeolPalette::SelectionBackground)
-                            : palette(GyeolPalette::ControlBase);
-  g.setColour(baseFill.withAlpha(rowIsSelected ? 1.0f : 0.55f));
-  g.fillRect(bounds);
-
-  // 선택 시 좌측 Accent 바
-  if (rowIsSelected) {
-    g.setColour(colorForSeverity(issue.severity));
-    g.fillRect(0, 0, 3, height);
+  if (const auto *lf = dynamic_cast<const Gyeol::GyeolCustomLookAndFeel *>(
+          &getLookAndFeel());
+      lf != nullptr) {
+    lf->drawValidationItem(g,
+                           {0, 0, width, height},
+                           labelForSeverity(issue.severity),
+                           colorForSeverity(issue.severity),
+                           issue.title,
+                           issue.message,
+                           rowIsSelected,
+                           expanded,
+                           hovered,
+                           pulsePhase,
+                           issue.quickFixAvailable,
+                           mutedIssueUuids.count(issue.uuid) > 0);
+  } else {
+    g.setColour(rowIsSelected ? palette(GyeolPalette::SelectionBackground)
+                              : palette(GyeolPalette::ControlBase));
+    g.fillRect(0, 0, width, height);
   }
 
-  g.setColour(palette(GyeolPalette::BorderDefault));
-  g.drawHorizontalLine(height - 1, 0.0f, static_cast<float>(width));
+  g.setColour(palette(GyeolPalette::TextSecondary, 0.95f));
+  g.setFont(makePanelFont(*this, 10.0f, true));
+  g.drawText(expanded ? "v" : ">",
+             juce::Rectangle<int>(6, 7, 12, 12),
+             juce::Justification::centred,
+             false);
 
-  auto textArea = bounds.reduced(8, 4);
-  auto header = textArea.removeFromTop(14);
-  const auto severityColour = colorForSeverity(issue.severity);
-
-  // 심각도 배지
-  g.setColour(severityColour.withAlpha(0.85f));
-  g.fillRoundedRectangle(
-      juce::Rectangle<float>(static_cast<float>(header.getX()),
-                             static_cast<float>(header.getY() + 1), 46.0f,
-                             12.0f),
-      3.0f);
-  g.setColour(palette(GyeolPalette::TextPrimary).contrasting(1.0f).withAlpha(0.9f));
-  g.setFont(makePanelFont(*this, 9.0f, true));
-  g.drawText(labelForSeverity(issue.severity),
-             juce::Rectangle<int>(header.getX(), header.getY() + 1, 46, 12),
-             juce::Justification::centred, true);
-
-  // 연관 위젯이 있을 경우 우측에 "위젯 이동" 힌트 아이콘 (▶)
-  int titleRightOffset = 0;
-  if (issue.relatedWidgetId > kRootId) {
-    g.setColour(palette(GyeolPalette::AccentPrimary, 0.6f));
-    g.setFont(makePanelFont(*this, 10.0f, false));
-    const juce::String hint = makeUtf8String("  \xE2\x96\xB6"); // UTF-8 right-pointing triangle
-    g.drawText(hint,
-               juce::Rectangle<int>(header.getRight() - 24, header.getY(), 24,
-                                    header.getHeight()),
-               juce::Justification::centredRight, false);
-    titleRightOffset = 26;
-  }
-
-  // 이슈 타이틀
-  g.setColour(palette(GyeolPalette::TextPrimary));
-  g.setFont(makePanelFont(*this, 11.0f, true));
-  g.drawText(issue.title,
-             juce::Rectangle<int>(header.getX() + 52, header.getY(),
-                                  header.getWidth() - 52 - titleRightOffset,
-                                  header.getHeight()),
-             juce::Justification::centredLeft, true);
-
-  // 이슈 메시지
-  g.setColour(palette(GyeolPalette::TextSecondary));
-  g.setFont(makePanelFont(*this, 10.5f, false));
-  g.drawText(issue.message, textArea, juce::Justification::centredLeft, true);
+  if (expanded)
+    drawDependencyMap(g, issue.dependency, {8, height - 28, width - 16, 22}, *this);
 }
 
-void ValidationPanel::selectedRowsChanged(int lastRowSelected) {
-  // 단순 선택만으로는 위젯 포커스를 강제하지 않음 (더블클릭으로 처리)
-  juce::ignoreUnused(lastRowSelected);
+void ValidationPanel::listBoxItemClicked(int row, const juce::MouseEvent &event) {
+  if (row < 0 || row >= static_cast<int>(filteredRows.size()))
+    return;
+
+  const auto issueIndex = filteredRows[static_cast<size_t>(row)];
+  if (issueIndex < 0 || issueIndex >= static_cast<int>(allIssues.size()))
+    return;
+
+  const auto &issue = allIssues[static_cast<size_t>(issueIndex)];
+  const auto rowBounds = listBox.getRowPosition(row, false);
+  const auto point = event.getEventRelativeTo(&listBox).position;
+  const auto localX = point.x - static_cast<float>(rowBounds.getX());
+  const auto localY = point.y - static_cast<float>(rowBounds.getY());
+  const auto rowWidth = static_cast<float>(rowBounds.getWidth());
+
+  if (localX >= 6.0f && localX <= 20.0f && localY >= 6.0f && localY <= 20.0f) {
+    toggleIssueExpanded(issue.uuid);
+    return;
+  }
+
+  if (issue.quickFixAvailable && localX >= rowWidth - 74.0f &&
+      localX <= rowWidth - 44.0f && localY >= 6.0f && localY <= 20.0f) {
+    performQuickFixForIssue(issue);
+    return;
+  }
+
+  if (localX >= rowWidth - 40.0f && localX <= rowWidth - 8.0f &&
+      localY >= 6.0f && localY <= 20.0f) {
+    toggleIssueMuted(issue.uuid);
+    return;
+  }
 }
 
 void ValidationPanel::listBoxItemDoubleClicked(int row,
@@ -447,105 +386,486 @@ void ValidationPanel::listBoxItemDoubleClicked(int row,
     onSelectWidget(issue.relatedWidgetId);
 }
 
-// ==============================================================================
-// 내부 구현
-// ==============================================================================
+void ValidationPanel::selectedRowsChanged(int lastRowSelected) {
+  juce::ignoreUnused(lastRowSelected);
+}
+
+void ValidationPanel::timerCallback(int timerId) {
+  if (timerId == debounceTimerId) {
+    stopTimer(debounceTimerId);
+    launchValidationJob();
+    return;
+  }
+
+  if (timerId == pulseTimerId) {
+    pulsePhase += 0.08f;
+    if (pulsePhase > 1.0f)
+      pulsePhase -= 1.0f;
+
+    if (!filteredRows.empty())
+      listBox.repaint();
+  }
+}
+
+void ValidationPanel::mouseMove(const juce::MouseEvent &event) {
+  const auto local = event.getEventRelativeTo(&listBox).position;
+  if (!listBox.getLocalBounds().toFloat().contains(local)) {
+    if (hoveredRow != -1) {
+      hoveredRow = -1;
+      listBox.repaint();
+      emitHoverForRow(-1);
+    }
+    return;
+  }
+
+  const auto row = listBox.getRowContainingPosition(juce::roundToInt(local.x),
+                                                     juce::roundToInt(local.y));
+  if (row == hoveredRow)
+    return;
+
+  hoveredRow = row;
+  listBox.repaint();
+  emitHoverForRow(hoveredRow);
+}
+
+void ValidationPanel::mouseExit(const juce::MouseEvent &event) {
+  juce::ignoreUnused(event);
+  if (hoveredRow == -1)
+    return;
+
+  hoveredRow = -1;
+  listBox.repaint();
+  emitHoverForRow(-1);
+}
+
+void ValidationPanel::queueValidation(bool immediate) {
+  if (!autoRefresh)
+    return;
+
+  startTimer(debounceTimerId, immediate ? 12 : 500);
+  summaryLabel.setText("Queued...", juce::dontSendNotification);
+}
+
+void ValidationPanel::launchValidationJob() {
+  if (validationJobRunning.exchange(true)) {
+    validationRerunQueued.store(true);
+    return;
+  }
+
+  const auto requestSerial = validationSerialCounter.fetch_add(1);
+  const auto snapshot = document.snapshot();
+  const auto editorState = document.editorState();
+  const auto projectRoot = resolveProjectRootDirectory();
+
+  dirty = false;
+  summaryLabel.setText("Scanning...", juce::dontSendNotification);
+
+  juce::Component::SafePointer<ValidationPanel> safeThis(this);
+  std::thread worker([safeThis, requestSerial, snapshot, editorState,
+                      projectRoot, &registry = this->registry]() mutable {
+    auto issues = ValidationPanel::buildIssues(snapshot, editorState, registry,
+                                               projectRoot);
+
+    juce::MessageManager::callAsync(
+        [safeThis, requestSerial, issues = std::move(issues)]() mutable {
+          if (safeThis == nullptr)
+            return;
+          safeThis->applyValidationResults(requestSerial, std::move(issues));
+        });
+  });
+  worker.detach();
+}
+
+void ValidationPanel::applyValidationResults(int requestSerial,
+                                             std::vector<Issue> issues) {
+  if (requestSerial >= lastAppliedValidationSerial) {
+    lastAppliedValidationSerial = requestSerial;
+    allIssues = std::move(issues);
+    rebuildFilteredIssues();
+    updateFilterChipLabels();
+    updateSummaryText();
+
+    listBox.updateContent();
+    listBox.repaint();
+    repaint();
+  }
+
+  validationJobRunning.store(false);
+  if (validationRerunQueued.exchange(false))
+    launchValidationJob();
+}
+
 void ValidationPanel::rebuildFilteredIssues() {
   filteredRows.clear();
   filteredRows.reserve(allIssues.size());
 
   for (int i = 0; i < static_cast<int>(allIssues.size()); ++i) {
-    const auto &issue = allIssues[static_cast<size_t>(i)];
-    switch (issue.severity) {
-    case IssueSeverity::error:
-      if (showErrors)
-        filteredRows.push_back(i);
-      break;
-    case IssueSeverity::warning:
-      if (showWarnings)
-        filteredRows.push_back(i);
-      break;
-    case IssueSeverity::info:
-      if (showInfo)
-        filteredRows.push_back(i);
-      break;
-    }
+    if (isIssueVisible(allIssues[static_cast<size_t>(i)]))
+      filteredRows.push_back(i);
   }
+
+  if (hoveredRow >= static_cast<int>(filteredRows.size()))
+    hoveredRow = -1;
 }
 
-void ValidationPanel::rebuildIssues() {
-  allIssues.clear();
+bool ValidationPanel::isIssueVisible(const Issue &issue) const {
+  if (mutedIssueUuids.count(issue.uuid) > 0)
+    return false;
 
-  const auto &snapshot = document.snapshot();
-  const auto &editorState = document.editorState();
-  const auto sceneResult =
-      Core::SceneValidator::validateScene(snapshot, &editorState);
-  if (sceneResult.failed())
-    pushIssue(IssueSeverity::error, "Scene validation failed",
-              sceneResult.getErrorMessage());
+  switch (issue.severity) {
+  case IssueSeverity::error: return showErrors;
+  case IssueSeverity::warning: return showWarnings;
+  case IssueSeverity::info: return showInfo;
+  }
+  return true;
+}
+
+void ValidationPanel::updateFilterChipLabels() {
+  int errorCount = 0;
+  int warningCount = 0;
+  int infoCount = 0;
+
+  for (const auto &issue : allIssues) {
+    if (mutedIssueUuids.count(issue.uuid) > 0)
+      continue;
+
+    switch (issue.severity) {
+    case IssueSeverity::error: ++errorCount; break;
+    case IssueSeverity::warning: ++warningCount; break;
+    case IssueSeverity::info: ++infoCount; break;
+    }
+  }
+
+  filterErrorBtn.setButtonText("Errors: " + juce::String(errorCount));
+  filterWarningBtn.setButtonText("Warnings: " + juce::String(warningCount));
+  filterInfoBtn.setButtonText("Infos: " + juce::String(infoCount));
+}
+
+void ValidationPanel::updateSummaryText() {
+  int errorCount = 0;
+  int warningCount = 0;
+  int infoCount = 0;
+
+  for (const auto row : filteredRows) {
+    if (row < 0 || row >= static_cast<int>(allIssues.size()))
+      continue;
+
+    const auto &issue = allIssues[static_cast<size_t>(row)];
+    switch (issue.severity) {
+    case IssueSeverity::error: ++errorCount; break;
+    case IssueSeverity::warning: ++warningCount; break;
+    case IssueSeverity::info: ++infoCount; break;
+    }
+  }
+
+  summaryLabel.setText("E " + juce::String(errorCount) + "  W " +
+                           juce::String(warningCount) + "  I " +
+                           juce::String(infoCount),
+                       juce::dontSendNotification);
+}
+
+void ValidationPanel::emitHoverForRow(int row) {
+  if (!onHoverWidget)
+    return;
+
+  if (row < 0 || row >= static_cast<int>(filteredRows.size())) {
+    onHoverWidget(kRootId);
+    return;
+  }
+
+  const auto idx = filteredRows[static_cast<size_t>(row)];
+  if (idx < 0 || idx >= static_cast<int>(allIssues.size())) {
+    onHoverWidget(kRootId);
+    return;
+  }
+
+  const auto relatedId = allIssues[static_cast<size_t>(idx)].relatedWidgetId;
+  onHoverWidget(relatedId > kRootId ? relatedId : kRootId);
+}
+
+void ValidationPanel::toggleIssueExpanded(const juce::String &issueUuid) {
+  if (expandedIssueUuids.count(issueUuid) > 0)
+    expandedIssueUuids.erase(issueUuid);
   else
-    pushIssue(IssueSeverity::info, "Scene validation passed",
-              "Core model invariants are valid.");
+    expandedIssueUuids.insert(issueUuid);
 
-  if (snapshot.widgets.empty())
-    pushIssue(IssueSeverity::warning, "Empty document",
+  listBox.repaint();
+}
+
+void ValidationPanel::toggleIssueMuted(const juce::String &issueUuid) {
+  if (mutedIssueUuids.count(issueUuid) > 0)
+    mutedIssueUuids.erase(issueUuid);
+  else
+    mutedIssueUuids.insert(issueUuid);
+
+  rebuildFilteredIssues();
+  updateFilterChipLabels();
+  updateSummaryText();
+  listBox.updateContent();
+  listBox.repaint();
+}
+
+bool ValidationPanel::performQuickFixForIssue(const Issue &issue) {
+  if (!issue.quickFixAvailable || issue.relatedAssetId <= kRootId)
+    return false;
+
+  juce::String wildcard;
+  switch (issue.relatedAssetKind) {
+  case AssetKind::image: wildcard = "*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.svg;*.webp"; break;
+  case AssetKind::font: wildcard = "*.ttf;*.otf;*.woff;*.woff2"; break;
+  default: wildcard = "*"; break;
+  }
+
+  constexpr int chooserFlags = juce::FileBrowserComponent::openMode
+                             | juce::FileBrowserComponent::canSelectFiles;
+
+  quickFixChooser = std::make_unique<juce::FileChooser>("Choose replacement asset", juce::File(), wildcard);
+  juce::Component::SafePointer<ValidationPanel> safeThis(this);
+  const auto issueCopy = issue;
+
+  quickFixChooser->launchAsync(chooserFlags,
+                               [safeThis, issueCopy](const juce::FileChooser &chooser) {
+    if (safeThis == nullptr)
+      return;
+
+    safeThis->quickFixChooser.reset();
+
+    const auto selectedFile = chooser.getResult();
+    if (!selectedFile.existsAsFile())
+      return;
+
+    auto assets = safeThis->document.snapshot().assets;
+    const auto it = std::find_if(assets.begin(), assets.end(),
+        [assetId = issueCopy.relatedAssetId](const AssetModel &asset) {
+          return asset.id == assetId;
+        });
+    if (it == assets.end())
+      return;
+
+    const auto projectRoot = resolveProjectRootDirectory();
+    auto relativePath = selectedFile.getRelativePathFrom(projectRoot);
+    if (relativePath.startsWith(".."))
+      relativePath = selectedFile.getFullPathName();
+
+    it->relativePath = relativePath.replaceCharacter('\\', '/');
+
+    const auto inferredMime = inferMimeTypeFromFile(selectedFile);
+    if (inferredMime.isNotEmpty())
+      it->mimeType = inferredMime;
+
+    if (safeThis->document.setAssets(std::move(assets))) {
+      safeThis->markDirty();
+      safeThis->refreshValidation();
+    }
+  });
+
+  return true;
+}
+std::vector<ValidationPanel::Issue>
+ValidationPanel::buildIssues(const DocumentModel &snapshot,
+                             const EditorStateModel &editorState,
+                             const Widgets::WidgetRegistry &registry,
+                             const juce::File &projectRoot) {
+  std::vector<Issue> issues;
+
+  std::unordered_map<WidgetId, const WidgetModel *> widgetById;
+  widgetById.reserve(snapshot.widgets.size());
+  for (const auto &widget : snapshot.widgets)
+    widgetById.emplace(widget.id, &widget);
+
+  const auto widgetName = [&widgetById](WidgetId widgetId) {
+    if (const auto it = widgetById.find(widgetId);
+        it != widgetById.end() && it->second != nullptr) {
+      return widgetTypeLabel(it->second->type) + " #" + juce::String(widgetId);
+    }
+    return juce::String("Widget #") + juce::String(widgetId);
+  };
+
+  std::unordered_map<WidgetId, DependencyGraph> dependencyCache;
+  const auto graphForWidget = [&](WidgetId widgetId) -> const DependencyGraph & {
+    if (const auto it = dependencyCache.find(widgetId); it != dependencyCache.end())
+      return it->second;
+
+    DependencyGraph graph;
+    std::unordered_map<juce::String, int> nodeIndex;
+
+    const auto addNode = [&](const juce::String &label) {
+      const auto key = label.trim();
+      if (const auto it = nodeIndex.find(key); it != nodeIndex.end())
+        return it->second;
+      const auto idx = static_cast<int>(graph.nodes.size());
+      graph.nodes.push_back(key);
+      nodeIndex.emplace(key, idx);
+      return idx;
+    };
+
+    const auto addEdge = [&](int from, int to) {
+      if (from < 0 || to < 0 || from == to)
+        return;
+      const auto duplicated = std::any_of(graph.edges.begin(), graph.edges.end(),
+          [from, to](const std::pair<int, int> &edge) { return edge.first == from && edge.second == to; });
+      if (!duplicated)
+        graph.edges.emplace_back(from, to);
+    };
+
+    for (const auto &binding : snapshot.runtimeBindings) {
+      auto touches = binding.sourceWidgetId == widgetId;
+      if (!touches) {
+        for (const auto &action : binding.actions) {
+          if ((action.target.kind == NodeKind::widget && action.target.id == widgetId) ||
+              action.targetWidgetId == widgetId) {
+            touches = true;
+            break;
+          }
+        }
+      }
+
+      if (!touches)
+        continue;
+
+      const auto sourceIdx = addNode(widgetName(binding.sourceWidgetId));
+      const auto bindingIdx =
+          addNode("Binding #" + juce::String(binding.id) + " (" + binding.eventKey + ")");
+      addEdge(sourceIdx, bindingIdx);
+
+      for (const auto &action : binding.actions) {
+        if (action.target.kind == NodeKind::widget && action.target.id > kRootId) {
+          addEdge(bindingIdx, addNode(widgetName(action.target.id)));
+        } else if (action.targetWidgetId > kRootId) {
+          addEdge(bindingIdx, addNode(widgetName(action.targetWidgetId)));
+        } else if (action.paramKey.trim().isNotEmpty()) {
+          addEdge(bindingIdx, addNode("Param: " + action.paramKey.trim()));
+        }
+      }
+    }
+
+    for (const auto &binding : snapshot.propertyBindings) {
+      if (binding.targetWidgetId != widgetId)
+        continue;
+
+      const auto expr = binding.expression.trim();
+      const auto exprNode = addNode("Expr: " +
+                                    (expr.length() > 20
+                                         ? expr.substring(0, 20) + "..."
+                                         : expr));
+      addEdge(exprNode, addNode(widgetName(binding.targetWidgetId)));
+    }
+
+    return dependencyCache.emplace(widgetId, std::move(graph)).first->second;
+  };
+
+  const auto pushIssue = [&](IssueSeverity severity, const juce::String &category,
+                             const juce::String &title,
+                             const juce::String &message,
+                             WidgetId relatedWidgetId = kRootId,
+                             bool quickFixAvailable = false,
+                             WidgetId relatedAssetId = kRootId,
+                             AssetKind relatedAssetKind = AssetKind::file,
+                             const juce::String &missingAssetPath = {}) {
+    Issue issue;
+    issue.uuid = makeIssueUuid(category, relatedWidgetId,
+                               (title + ":" + message).trim().toLowerCase());
+    issue.severity = severity;
+    issue.title = title;
+    issue.message = message;
+    issue.relatedWidgetId = relatedWidgetId;
+    issue.quickFixAvailable = quickFixAvailable;
+    issue.relatedAssetId = relatedAssetId;
+    issue.relatedAssetKind = relatedAssetKind;
+    issue.missingAssetPath = missingAssetPath;
+
+    if (relatedWidgetId > kRootId)
+      issue.dependency = graphForWidget(relatedWidgetId);
+
+    issues.push_back(std::move(issue));
+  };
+
+  const auto sceneResult = Core::SceneValidator::validateScene(snapshot, &editorState);
+  if (sceneResult.failed()) {
+    pushIssue(IssueSeverity::error,
+              "scene-invalid",
+              "Scene validation failed",
+              sceneResult.getErrorMessage());
+  } else {
+    pushIssue(IssueSeverity::info,
+              "scene-valid",
+              "Scene validation passed",
+              "Core model invariants are valid.");
+  }
+
+  if (snapshot.widgets.empty()) {
+    pushIssue(IssueSeverity::warning,
+              "empty-document",
+              "Empty document",
               "No widgets in current document.");
+  }
 
   int hiddenLayerCount = 0;
   int lockedLayerCount = 0;
   for (const auto &layer : snapshot.layers) {
     hiddenLayerCount += layer.visible ? 0 : 1;
     lockedLayerCount += layer.locked ? 1 : 0;
+
     if (layer.memberWidgetIds.empty() && layer.memberGroupIds.empty()) {
-      pushIssue(IssueSeverity::info, "Empty layer: " + layer.name,
+      pushIssue(IssueSeverity::info,
+                "empty-layer",
+                "Empty layer: " + layer.name,
                 "Layer has no widget/group members.");
     }
   }
 
   if (!snapshot.layers.empty() &&
-      hiddenLayerCount == static_cast<int>(snapshot.layers.size()))
-    pushIssue(IssueSeverity::warning, "All layers hidden",
+      hiddenLayerCount == static_cast<int>(snapshot.layers.size())) {
+    pushIssue(IssueSeverity::warning,
+              "all-hidden",
+              "All layers hidden",
               "Canvas may render as empty.");
+  }
+
   if (!snapshot.layers.empty() &&
-      lockedLayerCount == static_cast<int>(snapshot.layers.size()))
-    pushIssue(IssueSeverity::warning, "All layers locked",
+      lockedLayerCount == static_cast<int>(snapshot.layers.size())) {
+    pushIssue(IssueSeverity::warning,
+              "all-locked",
+              "All layers locked",
               "Editing interaction will be blocked.");
+  }
 
   std::unordered_set<juce::String> seenLayerNames;
   for (const auto &layer : snapshot.layers) {
     const auto normalized = layer.name.trim().toLowerCase();
     if (normalized.isEmpty())
       continue;
+
     if (!seenLayerNames.insert(normalized).second) {
-      pushIssue(IssueSeverity::warning, "Duplicate layer name",
+      pushIssue(IssueSeverity::warning,
+                "duplicate-layer",
+                "Duplicate layer name",
                 "Layer name '" + layer.name + "' is duplicated.");
     }
   }
 
   for (const auto &widget : snapshot.widgets) {
     if (registry.find(widget.type) == nullptr) {
-      pushIssue(IssueSeverity::warning, "Unknown widget descriptor",
+      pushIssue(IssueSeverity::warning,
+                "unknown-widget",
+                "Unknown widget descriptor",
                 "Widget id=" + juce::String(widget.id) +
                     " has no descriptor in registry.",
                 widget.id);
     }
   }
 
-  const auto runtimeIssues =
-      Core::SceneValidator::validateRuntimeBindings(snapshot);
-  for (const auto &issue : runtimeIssues) {
-    const auto severity =
-        issue.severity ==
-                Core::SceneValidator::RuntimeBindingIssueSeverity::error
-            ? IssueSeverity::error
-            : IssueSeverity::warning;
-    pushIssue(severity, issue.title, issue.message);
+  const auto runtimeIssues = Core::SceneValidator::validateRuntimeBindings(snapshot);
+  for (const auto &runtimeIssue : runtimeIssues) {
+    const auto severity = runtimeIssue.severity ==
+                                  Core::SceneValidator::RuntimeBindingIssueSeverity::error
+                              ? IssueSeverity::error
+                              : IssueSeverity::warning;
+    pushIssue(severity,
+              "runtime-binding",
+              runtimeIssue.title,
+              runtimeIssue.message);
   }
-
-  std::unordered_map<WidgetId, const WidgetModel *> widgetById;
-  widgetById.reserve(snapshot.widgets.size());
-  for (const auto &widget : snapshot.widgets)
-    widgetById.emplace(widget.id, &widget);
 
   for (const auto &binding : snapshot.runtimeBindings) {
     const auto widgetIt = widgetById.find(binding.sourceWidgetId);
@@ -562,22 +882,23 @@ void ValidationPanel::rebuildIssues() {
           return eventSpec.key == binding.eventKey;
         });
     if (!supported) {
-      pushIssue(IssueSeverity::warning, "Unsupported event key",
+      pushIssue(IssueSeverity::warning,
+                "unsupported-event",
+                "Unsupported event key",
                 "Binding id=" + juce::String(binding.id) + " event '" +
-                    binding.eventKey + "' is not supported by widget type '" +
+                    binding.eventKey +
+                    "' is not supported by widget type '" +
                     descriptor->typeKey + "'.",
                 binding.sourceWidgetId);
     }
   }
 
-  const auto projectRoot = resolveProjectRootDirectory();
   constexpr juce::int64 kLargeAssetWarnBytes = 5 * 1024 * 1024;
   constexpr int kLargeImageDimension = 4096;
 
   for (const auto &asset : snapshot.assets) {
-    const auto assetLabel = asset.name.trim().isNotEmpty()
-                                ? asset.name.trim()
-                                : asset.refKey.trim();
+    const auto assetLabel = asset.name.trim().isNotEmpty() ? asset.name.trim()
+                                                            : asset.refKey.trim();
     const auto displayLabel = assetLabel.isNotEmpty()
                                   ? assetLabel
                                   : ("Asset #" + juce::String(asset.id));
@@ -587,21 +908,37 @@ void ValidationPanel::rebuildIssues() {
 
     const auto normalizedPath = asset.relativePath.trim();
     if (normalizedPath.isEmpty()) {
-      pushIssue(IssueSeverity::warning, "Asset path missing",
-                displayLabel + " has an empty relative path.");
+      pushIssue(IssueSeverity::warning,
+                "asset-path-empty",
+                "Asset path missing",
+                displayLabel + " has an empty relative path.",
+                kRootId,
+                asset.kind == AssetKind::image || asset.kind == AssetKind::font,
+                asset.id,
+                asset.kind,
+                normalizedPath);
       continue;
     }
 
     const auto sourceFile = resolveInputFilePath(normalizedPath, projectRoot);
     if (!sourceFile.existsAsFile()) {
-      pushIssue(IssueSeverity::warning, "Asset file missing",
-                displayLabel + " path not found: " + normalizedPath);
+      pushIssue(IssueSeverity::warning,
+                "asset-file-missing",
+                "Asset file missing",
+                displayLabel + " path not found: " + normalizedPath,
+                kRootId,
+                asset.kind == AssetKind::image || asset.kind == AssetKind::font,
+                asset.id,
+                asset.kind,
+                normalizedPath);
       continue;
     }
 
     const auto fileSize = sourceFile.getSize();
     if (fileSize > kLargeAssetWarnBytes) {
-      pushIssue(IssueSeverity::warning, "Large asset file",
+      pushIssue(IssueSeverity::warning,
+                "asset-large",
+                "Large asset file",
                 displayLabel + " is " + formatByteSize(fileSize) + " (" +
                     sourceFile.getFileName() + ").");
     }
@@ -609,12 +946,16 @@ void ValidationPanel::rebuildIssues() {
     if (asset.kind == AssetKind::image) {
       const auto image = juce::ImageFileFormat::loadFrom(sourceFile);
       if (!image.isValid()) {
-        pushIssue(IssueSeverity::warning, "Image decode failed",
+        pushIssue(IssueSeverity::warning,
+                  "asset-image-decode",
+                  "Image decode failed",
                   displayLabel + " could not be decoded as image (" +
                       sourceFile.getFileName() + ").");
       } else if (image.getWidth() > kLargeImageDimension ||
                  image.getHeight() > kLargeImageDimension) {
-        pushIssue(IssueSeverity::warning, "Large image resolution",
+        pushIssue(IssueSeverity::warning,
+                  "asset-large-image",
+                  "Large image resolution",
                   displayLabel + " resolution is " +
                       juce::String(image.getWidth()) + "x" +
                       juce::String(image.getHeight()) + " (>" +
@@ -626,23 +967,15 @@ void ValidationPanel::rebuildIssues() {
     const auto recordedMime = asset.mimeType.trim().toLowerCase();
     if (expectedMime.isNotEmpty() && recordedMime.isNotEmpty() &&
         !expectedMime.equalsIgnoreCase(recordedMime)) {
-      pushIssue(IssueSeverity::warning, "Asset MIME mismatch",
-                displayLabel + " MIME is '" + asset.mimeType + "', expected '" +
-                    expectedMime + "'.");
+      pushIssue(IssueSeverity::warning,
+                "asset-mime-mismatch",
+                "Asset MIME mismatch",
+                displayLabel + " MIME is '" + asset.mimeType +
+                    "', expected '" + expectedMime + "'.");
     }
   }
-}
 
-void ValidationPanel::pushIssue(IssueSeverity severity,
-                                const juce::String &title,
-                                const juce::String &message,
-                                WidgetId relatedWidgetId) {
-  Issue issue;
-  issue.severity = severity;
-  issue.title = title;
-  issue.message = message;
-  issue.relatedWidgetId = relatedWidgetId;
-  allIssues.push_back(std::move(issue));
+  return issues;
 }
 
 juce::Colour ValidationPanel::colorForSeverity(IssueSeverity severity) {

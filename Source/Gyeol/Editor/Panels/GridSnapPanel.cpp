@@ -1,6 +1,6 @@
-#include "Gyeol/Editor/Panels/GridSnapPanel.h"
+﻿#include "Gyeol/Editor/Panels/GridSnapPanel.h"
 
-#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
+#include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 
 namespace {
 using Gyeol::GyeolPalette;

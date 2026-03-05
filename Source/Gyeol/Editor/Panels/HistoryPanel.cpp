@@ -1,6 +1,6 @@
-#include "Gyeol/Editor/Panels/HistoryPanel.h"
+﻿#include "Gyeol/Editor/Panels/HistoryPanel.h"
 
-#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
+#include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 
 #include <algorithm>
 

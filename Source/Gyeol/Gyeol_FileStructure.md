@@ -104,10 +104,10 @@ Source/Gyeol/
 
 These items are considered temporary, redundant, or unnecessary in the target layout.
 
-- `Source/Gyeol/Render/` (`.gitkeep` only)
+- [DONE] `Source/Gyeol/Render/` (`.gitkeep` only)
 - [DONE] `Source/Gyeol/EditorHandle_Init_Snippet.txt` (temporary snippet)
-- `Source/Gyeol/Gyeol_Roadmap_Dump.txt` (roadmap dump copy, if present)
-- `Source/Gyeol/Editor/Panels/ValidationPanel_Test.h` (duplicate stub header)
+- [DONE] `Source/Gyeol/Gyeol_Roadmap_Dump.txt` (roadmap dump copy, if present)
+- [DONE] `Source/Gyeol/Editor/Panels/ValidationPanel_Test.h` (duplicate stub header)
 
 ## Refactor Change Set
 
@@ -119,13 +119,13 @@ when the structure above is applied.
 
 ### Files To Delete
 
-- `Source/Gyeol/Render/.gitkeep`
+- [DONE] `Source/Gyeol/Render/.gitkeep`
 - [DONE] `Source/Gyeol/EditorHandle_Init_Snippet.txt`
-- `Source/Gyeol/Gyeol_Roadmap_Dump.txt` (if present)
-- `Source/Gyeol/Editor/Panels/ValidationPanel_Test.h`
-- `Source/Gyeol/Public/LayerModel.h` (if compatibility layer is no longer needed)
-- `Source/Gyeol/Editor/GyeolCustomLookAndFeel.h` (moved)
-- `Source/Gyeol/Editor/GyeolCustomLookAndFeel.cpp` (moved)
+- [DONE] `Source/Gyeol/Gyeol_Roadmap_Dump.txt` (if present)
+- [DONE] `Source/Gyeol/Editor/Panels/ValidationPanel_Test.h`
+- [DONE] `Source/Gyeol/Public/LayerModel.h` (if compatibility layer is no longer needed)
+- [DONE] `Source/Gyeol/Editor/GyeolCustomLookAndFeel.h` (moved)
+- [DONE] `Source/Gyeol/Editor/GyeolCustomLookAndFeel.cpp` (moved)
 
 ### Files To Add
 
@@ -149,8 +149,8 @@ when the structure above is applied.
 ### Files To Modify
 
 - [DONE] `Source/Gyeol/Gyeol.h` (umbrella include path updates)
-- `Source/Gyeol/Public/EditorHandle.h` (Impl split integration)
-- `Source/Gyeol/Editor/EditorHandle.cpp` (reduced to thin orchestrator)
+- [DONE] `Source/Gyeol/Public/EditorHandle.h` (Impl split integration)
+- [DONE] `Source/Gyeol/Editor/EditorHandle.cpp` (reduced to thin orchestrator)
 - [DONE] `Source/Gyeol/Editor/Canvas/CanvasComponent.h`
 - [DONE] `Source/Gyeol/Editor/Canvas/CanvasComponent.cpp`
 - [DONE] `Source/Gyeol/Editor/Canvas/CanvasRenderer.h`
