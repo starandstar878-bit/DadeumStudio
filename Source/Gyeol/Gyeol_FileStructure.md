@@ -131,20 +131,20 @@ when the structure above is applied.
 
 - [DONE] `Source/Gyeol/Editor/EditorHandleImpl.h`
 - [DONE] `Source/Gyeol/Editor/EditorHandleImpl.cpp`
-- `Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h`
-- `Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.cpp`
+- [DONE] `Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h`
+- [DONE] `Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.cpp`
 - [DONE] `Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.h`
 - [DONE] `Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.cpp`
 - [DONE] `Source/Gyeol/Editor/Shell/EditorPanelMediator.h`
 - [DONE] `Source/Gyeol/Editor/Shell/EditorPanelMediator.cpp`
-- `Source/Gyeol/Editor/Shell/EditorSettingsStore.h`
-- `Source/Gyeol/Editor/Shell/EditorSettingsStore.cpp`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorSettingsStore.h`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorSettingsStore.cpp`
 - [DONE] `Source/Gyeol/Editor/Shell/EditorModeCoordinator.h`
 - [DONE] `Source/Gyeol/Editor/Shell/EditorModeCoordinator.cpp`
 - [DONE] `Source/Gyeol/Editor/Shell/EditorHistoryBridge.h`
 - [DONE] `Source/Gyeol/Editor/Shell/EditorHistoryBridge.cpp`
-- `Source/Gyeol/Editor/Shell/EditorCommandSystem.h`
-- `Source/Gyeol/Editor/Shell/EditorCommandSystem.cpp`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorCommandSystem.h`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorCommandSystem.cpp`
 
 ### Files To Modify
 
