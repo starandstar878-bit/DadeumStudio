@@ -18,15 +18,15 @@
 ### 구현 단계
 
 #### 단계 1: 노드 데이터 모델
-- [ ] **`TNode` 구조체 정의**: `NodeId`, 타입 키(typeKey), 위치(x, y), 파라미터 맵(`std::map<String, var>`) 소유
-- [ ] **`TPort` 구조체 정의**: 포트 ID, 방향(Input/Output), 데이터 타입(Audio, CV, MIDI, Control), 이름, 소유자 NodeId
-- [ ] **`TConnection` 구조체 정의**: 고유 ID, 소스 NodeId+PortId, 대상 NodeId+PortId
-- [ ] **`TGraphDocument` 모델**: `TNode`, `TPort`, `TConnection` 컬렉션 소유하는 최상위 문서 객체
+- [x] **`TNode` 구조체 정의**: `NodeId`, 타입 키(typeKey), 위치(x, y), 파라미터 맵(`std::map<String, var>`) 소유
+- [x] **`TPort` 구조체 정의**: 포트 ID, 방향(Input/Output), 데이터 타입(Audio, CV, MIDI, Control), 이름, 소유자 NodeId
+- [x] **`TConnection` 구조체 정의**: 고유 ID, 소스 NodeId+PortId, 대상 NodeId+PortId
+- [x] **`TGraphDocument` 모델**: `TNode`, `TPort`, `TConnection` 컬렉션 소유하는 최상위 문서 객체
 
 #### 단계 2: 직렬화 / 역직렬화
-- [ ] **JSON 스키마 확정**: `nodes[]`, `connections[]`, `graph_meta{}` 최상위 키 구조로 문서 규약 정의
-- [ ] **직렬화 함수 구현**: `TGraphDocument → juce::var` 변환 (`toJson()`)
-- [ ] **역직렬화 함수 구현**: `juce::var → TGraphDocument` 복구, 버전 불일치 시 Migration fallback 처리
+- [x] **JSON 스키마 확정**: `nodes[]`, `connections[]`, `graph_meta{}` 최상위 키 구조로 문서 규약 정의
+- [x] **직렬화 함수 구현**: `TGraphDocument → juce::var` 변환 (`toJson()`)
+- [x] **역직렬화 함수 구현**: `juce::var → TGraphDocument` 복구, 버전 불일치 시 Migration fallback 처리
 - [ ] **파일 저장/불러오기**: `.teul` 확장자 기반 로컬 파일 입출력 연동
 
 #### 단계 3: Undo/Redo 히스토리

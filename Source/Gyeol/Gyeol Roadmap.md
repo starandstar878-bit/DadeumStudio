@@ -397,7 +397,7 @@
 
 #### 단계 0: 위젯 속성 스키마 확장 (Schema Expansion)
 - [ ] **속성 확장 스펙 고정**: 외부 위젯 메타데이터/프로퍼티/이벤트 payload 스키마를 `WidgetSDK.h`와 `GyeolWidgetPluginABI.h`에 동기화한다.
-- [ ] **레지스트리 검증 규칙 확장**: 신규 속성의 필수/선택/자동 필드를 구분해 `WidgetRegistry::registerWidget` 검증 규칙에 반영한다.
+- [ ] **레지스트리 검증 규칙 확장**: 신규 속성의 필수/권장/선택/자동 필드를 구분해 `WidgetRegistry::registerWidget` 검증 규칙에 반영한다.
 - [ ] **매니페스트/Export 연계**: 새 속성이 `WidgetLibraryManifest`, `ExportManifest`, 코드 생성 경로에 누락 없이 전달되는지 검증한다.
 
 ##### 확장된 위젯 속성 리스트 (v2, 확정안)
@@ -415,7 +415,7 @@
 - **보안/권한 정책**: `permissions`, `sandboxLevel`, `fileAccess`, `networkAccess`, `midiAccess`, `scriptAccess`
 - **Export/빌드 요구사항 메타**: `requiredJuceModules`, `requiredHeaders`, `requiredLibraries`, `requiredCompileDefinitions`, `requiredLinkOptions`, `codegenApiVersion`, `exportTargetType`
 
-##### 분류: 사용자가 최소한으로 정해야 하는 속성 (필수)
+##### 분류: 사용자가 반드시 정해야 하는 속성 (Core, Required)
 - **정체성/버전**: `schemaVersion`, `manifestVersion`, `typeKey`, `displayName`, `category`, `pluginId`, `pluginVersion`
 - **호환성/안전성**: `sdkMinVersion`, `abiVersion`, `abiHash`, `permissions` (빈 배열 허용)
 - **기본 레이아웃/기본값**: `defaultBounds`, `minSize`, `defaultProperties`
@@ -423,17 +423,23 @@
 - **이벤트 스펙 핵심**: `runtimeEvents`의 `key`, `displayLabel`, `payloadSchema.required`
 - **렌더 진입점**: `painter` 또는 외부 위젯의 동등 렌더 진입 함수
 
-##### 분류: 사용자가 사용할 만한 속성 (선택)
-- **가시성/탐색성**: `tags`, `iconKey`, `releaseChannel`, `localeKey`
-- **UX 고도화**: `unit`, `displayFormat`, `valueCurve`, `hint`, `advanced`, `readOnly`, `dependsOnKey`, `dependsOnValue`
-- **입력 검증/제약 강화**: `min`, `max`, `step`, `minLength`, `maxLength`, `regex`, `enumOptions`
-- **에셋 제약 고도화**: `acceptedAssetKinds`, `acceptedMimeTypes`, `maxAssetBytes`, `fallbackAssetId`, `preloadAssets`, `supportsStreaming`
-- **성능/동작 힌트**: `capabilities`, `repaintPolicy`, `tickRateHintHz`, `supportsOffscreenCache`, `estimatedPaintCost`, `memoryBudgetKb`
-- **이벤트 전송 품질**: `throttleMs`, `debounceMs`, `reliability`, `channel`
-- **접근성/테스트/운영성**: `a11yRole`, `a11yLabelKey`, `testId`, `diagnosticsContract`, `telemetryTags`
-- **Export/빌드 세부 요구사항**: `requiredJuceModules`, `requiredHeaders`, `requiredLibraries`, `requiredCompileDefinitions`, `requiredLinkOptions`, `exportTargetType`
+##### 분류: 사용자가 가급적 지정해야 하는 속성 (Recommended)
+- **호환성 완성도**: `supportedHostVersions`, `platformTargets`, `architectureTargets`, `threadingModel`
+- **운영/배포 식별성**: `vendor`, `releaseChannel`, `tags`, `iconKey`
+- **성능 힌트**: `capabilities`, `repaintPolicy`, `tickRateHintHz`, `supportsOffscreenCache`, `estimatedPaintCost`, `memoryBudgetKb`
+- **프로퍼티 품질**: `unit`, `displayFormat`, `valueCurve`, `min`, `max`, `step`, `minLength`, `maxLength`, `regex`, `enumOptions`
+- **접근성/테스트**: `a11yRole`, `a11yLabelKey`, `testId`
 
-##### 분류: 자동화할 속성 (호스트/빌드 파이프라인 산출)
+##### 분류: 사용자가 필요 시 지정하는 속성 (Optional)
+- **고급 UX 메타**: `localeKey`, `hint`, `advanced`, `readOnly`, `dependsOnKey`, `dependsOnValue`
+- **에셋 제약 고도화**: `acceptedAssetKinds`, `acceptedMimeTypes`, `maxAssetBytes`, `fallbackAssetId`, `preloadAssets`, `supportsStreaming`
+- **이벤트 전송 정책**: `throttleMs`, `debounceMs`, `reliability`, `channel`
+- **액션/상태 바인딩 확장**: `supportedActions`, `propertyBindings`, `stateInputs`, `stateOutputs`
+- **상태/마이그레이션 정책**: `statePolicy`, `persistedKeys`, `resetPolicy`, `migrationPolicy`, `widgetTypeVersion`, `migrationRules`
+- **운영 관측성 확장**: `diagnosticsContract`, `telemetryTags`
+- **빌드 세부 요구사항**: `requiredCompileDefinitions`, `requiredLinkOptions`, `exportTargetType`
+
+##### 분류: 자동 생성/보정 속성 (Generated)
 - `sdkMaxVersion` 기본값 보정 (`Host SDK Major`)
 - `supportedHostVersions` 자동 채움 (호스트 릴리스 메타데이터 기준)
 - `platformTargets`/`architectureTargets` 자동 채움 (빌드 타겟 기준)
@@ -447,6 +453,8 @@
 - `migrationRules` 템플릿 자동 생성 (`widgetTypeVersion` 증가 시)
 - `diagnosticsContract` 기본 에러 코드 세트 자동 주입
 
+##### 관련 문서
+- `Source/Gyeol/Widgets/WidgetSchemaReference.md` (속성별 정의/타입/예시/검증 규칙)
 ##### 단계 0 완료 기준 (Definition of Done)
 - `WidgetSDK.h`, `GyeolWidgetPluginABI.h`, `WidgetRegistry` 검증 규칙이 위 `v2` 필드 정의와 1:1로 동기화되어야 한다.
 - `WidgetLibraryManifest`와 `ExportManifest`에서 `v2` 필드 라운드트립(로드→저장→재로드) 결과가 동일해야 한다.
