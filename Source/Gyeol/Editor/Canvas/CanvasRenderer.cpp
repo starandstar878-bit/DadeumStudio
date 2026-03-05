@@ -1,5 +1,5 @@
 #include "Gyeol/Editor/Canvas/CanvasRenderer.h"
-#include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
+#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 
 #include <algorithm>
 #include <cmath>
@@ -42,16 +42,6 @@ namespace Gyeol::Ui::Canvas
     CanvasRenderer::CanvasRenderer(const Widgets::WidgetFactory& widgetFactoryIn) noexcept
         : widgetFactory(widgetFactoryIn)
     {
-    }
-
-    void CanvasRenderer::setHeatmapMode(bool enabled) noexcept
-    {
-        heatmapModeEnabled = enabled;
-    }
-
-    bool CanvasRenderer::isHeatmapMode() const noexcept
-    {
-        return heatmapModeEnabled;
     }
 
     void CanvasRenderer::paintCanvas(juce::Graphics& g,
@@ -264,22 +254,13 @@ namespace Gyeol::Ui::Canvas
         const auto clampedOpacity = juce::jlimit(0.0f, 1.0f, effectiveOpacity);
 
         g.saveState();
-        if (!heatmapModeEnabled && clampedOpacity < 0.999f)
+        if (clampedOpacity < 0.999f)
             g.beginTransparencyLayer(clampedOpacity);
 
-        if (heatmapModeEnabled)
-        {
-            g.setColour(juce::Colour::fromRGBA(230, 68, 57, 76));
-            g.fillRoundedRectangle(body, 4.0f);
-            g.setColour(juce::Colour::fromRGBA(230, 68, 57, 150));
-            g.drawRoundedRectangle(body, 5.0f, 1.0f);
-        }
-        else if (const auto* descriptor = widgetFactory.descriptorFor(widget.type);
-                 descriptor != nullptr && static_cast<bool>(descriptor->painter))
+        if (const auto* descriptor = widgetFactory.descriptorFor(widget.type);
+            descriptor != nullptr && static_cast<bool>(descriptor->painter))
         {
             descriptor->painter(g, widget, body);
-            g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
-            g.drawRoundedRectangle(body, 5.0f, 1.0f);
         }
         else
         {
@@ -292,11 +273,12 @@ namespace Gyeol::Ui::Canvas
                              body.reduced(4.0f).toNearestInt(),
                              juce::Justification::centred,
                              1);
-            g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
-            g.drawRoundedRectangle(body, 5.0f, 1.0f);
         }
 
-        if (!heatmapModeEnabled && clampedOpacity < 0.999f)
+        g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
+        g.drawRoundedRectangle(body, 5.0f, 1.0f);
+
+        if (clampedOpacity < 0.999f)
             g.endTransparencyLayer();
         g.restoreState();
 
@@ -334,6 +316,7 @@ namespace Gyeol::Ui::Canvas
                       radius * 0.7f,
                       radius * 0.7f);
     }
+
     juce::Rectangle<float> CanvasRenderer::resizeHandleBounds(const juce::Rectangle<float>& localBounds) const noexcept
     {
         const auto handleSize = std::min({ kResizeHandleSize,
