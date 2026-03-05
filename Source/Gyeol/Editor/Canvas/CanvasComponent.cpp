@@ -475,6 +475,60 @@ namespace Gyeol::Ui::Canvas
                 }
             }
 
+            if (!transientSmartSpacingHints.empty())
+            {
+                static constexpr float dashPattern[] { 5.0f, 4.0f };
+                g.setColour(juce::Colour::fromRGBA(84, 212, 255, 220));
+                g.setFont(juce::FontOptions(11.0f));
+
+                const auto drawGapLabel = [&g](float centerX, float centerY, const juce::String& text)
+                {
+                    auto box = juce::Rectangle<int>(juce::roundToInt(centerX - 24.0f),
+                                                    juce::roundToInt(centerY - 7.0f),
+                                                    48,
+                                                    14);
+                    g.setColour(juce::Colour::fromRGBA(14, 22, 32, 220));
+                    g.fillRoundedRectangle(box.toFloat(), 3.0f);
+                    g.setColour(juce::Colour::fromRGBA(84, 212, 255, 230));
+                    g.drawRoundedRectangle(box.toFloat(), 3.0f, 1.0f);
+                    g.setColour(juce::Colour::fromRGBA(176, 230, 255, 245));
+                    g.drawText(text, box, juce::Justification::centred, false);
+                };
+
+                for (const auto& hint : transientSmartSpacingHints)
+                {
+                    const auto text = juce::String(hint.gap, 1);
+                    if (hint.horizontal)
+                    {
+                        const auto y = worldToView({ 0.0f, hint.axisPosition }).y;
+                        const auto x1a = worldToView({ hint.firstStart, 0.0f }).x;
+                        const auto x1b = worldToView({ hint.firstEnd, 0.0f }).x;
+                        const auto x2a = worldToView({ hint.secondStart, 0.0f }).x;
+                        const auto x2b = worldToView({ hint.secondEnd, 0.0f }).x;
+
+                        g.drawDashedLine({ x1a, y, x1b, y }, dashPattern, 2, 1.2f);
+                        g.drawDashedLine({ x2a, y, x2b, y }, dashPattern, 2, 1.2f);
+
+                        drawGapLabel((x1a + x1b) * 0.5f, y - 18.0f, text);
+                        drawGapLabel((x2a + x2b) * 0.5f, y - 18.0f, text);
+                    }
+                    else
+                    {
+                        const auto x = worldToView({ hint.axisPosition, 0.0f }).x;
+                        const auto y1a = worldToView({ 0.0f, hint.firstStart }).y;
+                        const auto y1b = worldToView({ 0.0f, hint.firstEnd }).y;
+                        const auto y2a = worldToView({ 0.0f, hint.secondStart }).y;
+                        const auto y2b = worldToView({ 0.0f, hint.secondEnd }).y;
+
+                        g.drawDashedLine({ x, y1a, x, y1b }, dashPattern, 2, 1.2f);
+                        g.drawDashedLine({ x, y2a, x, y2b }, dashPattern, 2, 1.2f);
+
+                        drawGapLabel(x + 30.0f, (y1a + y1b) * 0.5f, text);
+                        drawGapLabel(x + 30.0f, (y2a + y2b) * 0.5f, text);
+                    }
+                }
+            }
+
             g.restoreState();
         }
 
@@ -1124,13 +1178,21 @@ namespace Gyeol::Ui::Canvas
 
     void CanvasComponent::clearTransientSnapGuides()
     {
+        const auto hadSpacingHints = !transientSmartSpacingHints.empty();
         transientSnapGuides.clear();
+        transientSmartSpacingHints.clear();
         snapGuideOverlay.clearGuides();
+
+        if (hadSpacingHints)
+            repaint();
     }
 
     void CanvasComponent::updateTransientSnapGuides(const Interaction::SnapResult& snapResult)
     {
+        const auto hadSpacingHints = !transientSmartSpacingHints.empty();
         transientSnapGuides.clear();
+        transientSmartSpacingHints = snapResult.spacingHints;
+
         std::vector<juce::Line<float>> lines;
         const auto viewport = viewportBounds().toFloat();
 
@@ -1148,6 +1210,9 @@ namespace Gyeol::Ui::Canvas
         }
 
         snapGuideOverlay.setGuides(std::move(lines));
+
+        if (hadSpacingHints || !transientSmartSpacingHints.empty())
+            repaint();
     }
 
     WidgetComponent* CanvasComponent::findWidgetView(WidgetId id) noexcept

@@ -282,6 +282,7 @@ namespace Gyeol::Ui::Canvas
         Interaction::SnapSettings snapSettings;
         std::vector<Guide> guides;
         std::vector<Guide> transientSnapGuides;
+        std::vector<Interaction::SmartSpacingHint> transientSmartSpacingHints;
 
         float zoomLevel = 1.0f;
         juce::Point<float> viewOriginWorld;
