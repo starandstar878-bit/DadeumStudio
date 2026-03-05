@@ -97,6 +97,8 @@ namespace Gyeol::Ui::Canvas
         panState = {};
         guideDragState = {};
         clearTransientSnapGuides();
+        clearWidgetLibraryDropPreview();
+        clearAssetDropPreview();
         syncSelectionToViews();
         repaint();
     }
@@ -443,7 +445,9 @@ juce::Point<float> CanvasComponent::currentViewOriginWorld() const noexcept
     {
         if (isRunMode())
             return false;
-        return extractWidgetLibraryTypeKey(dragSourceDetails.description).has_value();
+
+        return extractWidgetLibraryTypeKey(dragSourceDetails.description).has_value()
+            || extractAssetDragPayload(dragSourceDetails.description).has_value();
     }
 
     void CanvasComponent::itemDragEnter(
@@ -457,62 +461,106 @@ juce::Point<float> CanvasComponent::currentViewOriginWorld() const noexcept
     {
         if (isRunMode())
         {
-            widgetLibraryDropPreviewActive = false;
-            repaint();
+            clearWidgetLibraryDropPreview();
+            clearAssetDropPreview();
             return;
         }
 
-        if (!extractWidgetLibraryTypeKey(dragSourceDetails.description).has_value())
+        if (extractWidgetLibraryTypeKey(dragSourceDetails.description).has_value())
         {
-            if (widgetLibraryDropPreviewActive)
+            clearAssetDropPreview();
+            const auto point = dragSourceDetails.localPosition.toFloat();
+            if (!isPointInCanvasView(point))
             {
-                widgetLibraryDropPreviewActive = false;
+                clearWidgetLibraryDropPreview();
+                return;
+            }
+
+            if (!widgetLibraryDropPreviewActive
+                || point.getDistanceFrom(widgetLibraryDropPreviewView) > 0.5f)
+            {
+                widgetLibraryDropPreviewActive = true;
+                widgetLibraryDropPreviewView = point;
                 repaint();
             }
             return;
         }
 
+        const auto assetPayload = extractAssetDragPayload(dragSourceDetails.description);
+        if (!assetPayload.has_value())
+        {
+            clearWidgetLibraryDropPreview();
+            clearAssetDropPreview();
+            return;
+        }
+
+        clearWidgetLibraryDropPreview();
         const auto point = dragSourceDetails.localPosition.toFloat();
-        if (!viewportBounds().toFloat().contains(point))
+        if (!isPointInCanvasView(point))
         {
-            if (widgetLibraryDropPreviewActive)
-            {
-                widgetLibraryDropPreviewActive = false;
-                repaint();
-            }
+            clearAssetDropPreview();
             return;
         }
 
-        widgetLibraryDropPreviewActive = true;
-        widgetLibraryDropPreviewView = point;
-        repaint();
+        const auto targetWidgetId = hitTestWidgetIdAtViewPoint(point);
+        bool canDrop = false;
+        if (targetWidgetId.has_value() && !isWidgetLockedForCanvas(*targetWidgetId))
+        {
+            if (const auto options = resolveAssetDropOptions(*targetWidgetId, *assetPayload);
+                options.has_value())
+                canDrop = !options->empty();
+        }
+
+        updateAssetDropPreview(point, targetWidgetId, canDrop, assetPayload->refKey);
     }
 
     void CanvasComponent::itemDragExit(
         const juce::DragAndDropTarget::SourceDetails&)
     {
-        if (!widgetLibraryDropPreviewActive)
-            return;
-        widgetLibraryDropPreviewActive = false;
-        repaint();
+        clearWidgetLibraryDropPreview();
+        clearAssetDropPreview();
     }
 
     void CanvasComponent::itemDropped(
         const juce::DragAndDropTarget::SourceDetails& dragSourceDetails)
     {
+        if (isRunMode())
+            return;
+
         const auto typeKey = extractWidgetLibraryTypeKey(dragSourceDetails.description);
         const auto point = dragSourceDetails.localPosition.toFloat();
-        widgetLibraryDropPreviewActive = false;
-        repaint();
+        clearWidgetLibraryDropPreview();
+        clearAssetDropPreview();
 
-        if (!typeKey.has_value())
+        if (typeKey.has_value())
+        {
+            if (!isPointInCanvasView(point))
+                return;
+            if (onWidgetLibraryDrop == nullptr)
+                return;
+
+            onWidgetLibraryDrop(*typeKey, viewToWorld(point));
             return;
-        if (!viewportBounds().toFloat().contains(point))
-            return;
-        if (onWidgetLibraryDrop == nullptr)
+        }
+
+        const auto assetPayload = extractAssetDragPayload(dragSourceDetails.description);
+        if (!assetPayload.has_value() || !isPointInCanvasView(point))
             return;
 
-        onWidgetLibraryDrop(*typeKey, viewToWorld(point));
+        const auto targetWidgetId = hitTestWidgetIdAtViewPoint(point);
+        if (!targetWidgetId.has_value())
+            return;
+        if (isWidgetLockedForCanvas(*targetWidgetId))
+            return;
+
+        auto options = resolveAssetDropOptions(*targetWidgetId, *assetPayload);
+        if (!options.has_value() || options->empty())
+            return;
+
+        applyAssetDropWithSelection(*targetWidgetId,
+                                    *assetPayload,
+                                    std::move(*options),
+                                    dragSourceDetails.localPosition.toInt());
     }
 
     void CanvasComponent::paint(juce::Graphics& g)
@@ -734,6 +782,51 @@ juce::Point<float> CanvasComponent::currentViewOriginWorld() const noexcept
             g.setColour(palette(Gyeol::GyeolPalette::AccentPrimary, 0.86f));
             g.drawLine(p.x - 10.0f, p.y, p.x + 10.0f, p.y, 1.4f);
             g.drawLine(p.x, p.y - 10.0f, p.x, p.y + 10.0f, 1.4f);
+        }
+
+        if (assetDropPreviewActive)
+        {
+            const auto previewColor = assetDropPreviewValid
+                ? palette(Gyeol::GyeolPalette::ValidSuccess, 0.95f)
+                : palette(Gyeol::GyeolPalette::ValidError, 0.95f);
+
+            if (assetDropPreviewWidgetId > kRootId)
+            {
+                if (const auto* widget = findWidgetModel(assetDropPreviewWidgetId); widget != nullptr)
+                {
+                    const auto bounds = worldToViewRect(widget->bounds).expanded(2.0f);
+                    g.setColour(previewColor.withAlpha(0.24f));
+                    g.fillRoundedRectangle(bounds, 5.0f);
+                    g.setColour(previewColor);
+                    g.drawRoundedRectangle(bounds, 5.0f, 2.0f);
+
+                    if (assetDropPreviewRefKey.isNotEmpty())
+                    {
+                        auto labelBounds = bounds.withSizeKeepingCentre(std::min(180.0f, bounds.getWidth()), 18.0f)
+                                               .withY(bounds.getY() - 22.0f);
+                        if (labelBounds.getY() < visibleCanvas.getY())
+                            labelBounds.setY(bounds.getBottom() + 4.0f);
+
+                        g.setColour(palette(Gyeol::GyeolPalette::PanelBackground, 0.92f));
+                        g.fillRoundedRectangle(labelBounds, 4.0f);
+                        g.setColour(previewColor);
+                        g.drawRoundedRectangle(labelBounds, 4.0f, 1.0f);
+                        g.setColour(palette(Gyeol::GyeolPalette::TextPrimary));
+                        g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+                        g.drawFittedText(assetDropPreviewRefKey,
+                                         labelBounds.toNearestInt(),
+                                         juce::Justification::centred,
+                                         1);
+                    }
+                }
+            }
+            else
+            {
+                const auto p = assetDropPreviewView;
+                g.setColour(previewColor);
+                g.drawLine(p.x - 8.0f, p.y - 8.0f, p.x + 8.0f, p.y + 8.0f, 1.4f);
+                g.drawLine(p.x - 8.0f, p.y + 8.0f, p.x + 8.0f, p.y - 8.0f, 1.4f);
+            }
         }
 
         if (hasMouseLocalPoint)
@@ -1423,6 +1516,221 @@ juce::Point<float> CanvasComponent::currentViewOriginWorld() const noexcept
 
         const auto key = props["typeKey"].toString().trim();
         return key.isEmpty() ? std::optional<juce::String>{} : std::optional<juce::String>{ key };
+    }
+
+    std::optional<CanvasComponent::AssetDragPayload> CanvasComponent::extractAssetDragPayload(const juce::var& description) const
+    {
+        const auto* object = description.getDynamicObject();
+        if (object == nullptr)
+            return std::nullopt;
+
+        const auto& props = object->getProperties();
+        if (!props.contains("kind") || props["kind"].toString() != "assetRef")
+            return std::nullopt;
+        if (!props.contains("refKey"))
+            return std::nullopt;
+
+        AssetDragPayload payload;
+        payload.refKey = props["refKey"].toString().trim();
+        if (payload.refKey.isEmpty())
+            return std::nullopt;
+
+        payload.displayName = props.getWithDefault("name", juce::var()).toString();
+        payload.mime = props.getWithDefault("mime", juce::var()).toString();
+
+        const auto kindKey = props.getWithDefault("assetKind", juce::var()).toString();
+        if (const auto parsedKind = assetKindFromKey(kindKey); parsedKind.has_value())
+            payload.kind = *parsedKind;
+
+        const auto assetIdText = props.getWithDefault("assetId", juce::var()).toString().trim();
+        if (const auto parsedId = widgetIdFromJsonString(assetIdText); parsedId.has_value())
+            payload.assetId = *parsedId;
+
+        return payload;
+    }
+
+    std::optional<WidgetId> CanvasComponent::hitTestWidgetIdAtViewPoint(juce::Point<float> viewPoint)
+    {
+        auto* component = getComponentAt(viewPoint.toInt());
+        while (component != nullptr)
+        {
+            if (const auto* widgetComponent = dynamic_cast<WidgetComponent*>(component);
+                widgetComponent != nullptr)
+            {
+                return widgetComponent->widgetId();
+            }
+            component = component->getParentComponent();
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<std::vector<Widgets::DropOption>> CanvasComponent::resolveAssetDropOptions(
+        WidgetId widgetId,
+        const AssetDragPayload& payload) const
+    {
+        const auto* widget = findWidgetModel(widgetId);
+        if (widget == nullptr)
+            return std::nullopt;
+
+        const auto* descriptor = widgetFactory.descriptorFor(widget->type);
+        if (descriptor == nullptr || !static_cast<bool>(descriptor->dropOptions))
+            return std::nullopt;
+
+        Widgets::AssetRef assetRef;
+        assetRef.assetId = payload.refKey;
+        assetRef.displayName = payload.displayName;
+        assetRef.mime = payload.mime;
+
+        auto options = descriptor->dropOptions(*widget, assetRef);
+        options.erase(std::remove_if(options.begin(),
+                                     options.end(),
+                                     [](const Widgets::DropOption& option)
+                                     {
+                                         return option.propKey.toString().trim().isEmpty();
+                                     }),
+                      options.end());
+        return options;
+    }
+
+    bool CanvasComponent::applyAssetDropToWidget(WidgetId widgetId,
+                                                 const AssetDragPayload& payload,
+                                                 const Widgets::DropOption& option)
+    {
+        const auto* widget = findWidgetModel(widgetId);
+        if (widget == nullptr)
+            return false;
+
+        const auto* descriptor = widgetFactory.descriptorFor(widget->type);
+        if (descriptor == nullptr)
+            return false;
+
+        Widgets::AssetRef assetRef;
+        assetRef.assetId = payload.refKey;
+        assetRef.displayName = payload.displayName;
+        assetRef.mime = payload.mime;
+
+        PropertyBag patch;
+        if (static_cast<bool>(descriptor->applyDrop))
+        {
+            const auto result = descriptor->applyDrop(patch, *widget, assetRef, option);
+            if (result.failed())
+                return false;
+        }
+        else
+        {
+            if (option.propKey.toString().trim().isEmpty())
+                return false;
+            patch.set(option.propKey, payload.refKey);
+        }
+
+        if (patch.size() == 0)
+            return false;
+
+        SetPropsAction action;
+        action.kind = NodeKind::widget;
+        action.ids = { widgetId };
+        WidgetPropsPatch widgetPatch;
+        for (int i = 0; i < patch.size(); ++i)
+            widgetPatch.patch.set(patch.getName(i), patch.getValueAt(i));
+        action.patch = std::move(widgetPatch);
+        return document.setProps(action);
+    }
+
+    void CanvasComponent::applyAssetDropWithSelection(WidgetId widgetId,
+                                                      AssetDragPayload payload,
+                                                      std::vector<Widgets::DropOption> options,
+                                                      juce::Point<int> localDropPoint)
+    {
+        if (options.empty())
+            return;
+
+        if (options.size() == 1)
+        {
+            if (!applyAssetDropToWidget(widgetId, payload, options.front()))
+                return;
+
+            document.selectSingle(widgetId);
+            refreshFromDocument();
+            grabKeyboardFocus();
+            return;
+        }
+
+        juce::PopupMenu menu;
+        for (size_t i = 0; i < options.size(); ++i)
+        {
+            const auto& option = options[i];
+            auto label = option.label.trim();
+            if (label.isEmpty())
+                label = option.propKey.toString();
+            menu.addItem(static_cast<int>(i + 1), label);
+        }
+
+        const auto screenPoint = localPointToGlobal(localDropPoint);
+        const auto targetArea = juce::Rectangle<int>(screenPoint.x, screenPoint.y, 1, 1);
+        const juce::Component::SafePointer<CanvasComponent> safeThis(this);
+        menu.showMenuAsync(
+            juce::PopupMenu::Options().withTargetScreenArea(targetArea),
+            [safeThis, widgetId, payload = std::move(payload), options = std::move(options)](int result) mutable
+            {
+                if (safeThis == nullptr || result <= 0)
+                    return;
+
+                const auto optionIndex = static_cast<size_t>(result - 1);
+                if (optionIndex >= options.size())
+                    return;
+
+                if (!safeThis->applyAssetDropToWidget(widgetId, payload, options[optionIndex]))
+                    return;
+
+                safeThis->document.selectSingle(widgetId);
+                safeThis->refreshFromDocument();
+                safeThis->grabKeyboardFocus();
+            });
+    }
+
+    void CanvasComponent::clearWidgetLibraryDropPreview()
+    {
+        if (!widgetLibraryDropPreviewActive)
+            return;
+
+        widgetLibraryDropPreviewActive = false;
+        repaint();
+    }
+
+    void CanvasComponent::clearAssetDropPreview()
+    {
+        if (!assetDropPreviewActive)
+            return;
+
+        assetDropPreviewActive = false;
+        assetDropPreviewWidgetId = kRootId;
+        assetDropPreviewValid = false;
+        assetDropPreviewRefKey.clear();
+        repaint();
+    }
+
+    void CanvasComponent::updateAssetDropPreview(juce::Point<float> viewPoint,
+                                                 std::optional<WidgetId> targetWidgetId,
+                                                 bool valid,
+                                                 const juce::String& refKey)
+    {
+        const auto nextWidgetId = targetWidgetId.value_or(kRootId);
+        const auto changed = !assetDropPreviewActive
+            || viewPoint.getDistanceFrom(assetDropPreviewView) > 0.5f
+            || assetDropPreviewWidgetId != nextWidgetId
+            || assetDropPreviewValid != valid
+            || assetDropPreviewRefKey != refKey;
+
+        if (!changed)
+            return;
+
+        assetDropPreviewActive = true;
+        assetDropPreviewView = viewPoint;
+        assetDropPreviewWidgetId = nextWidgetId;
+        assetDropPreviewValid = valid;
+        assetDropPreviewRefKey = refKey;
+        repaint();
     }
 
     std::optional<WidgetId> CanvasComponent::resolveActiveLayerId() const

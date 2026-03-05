@@ -192,6 +192,15 @@ namespace Gyeol::Ui::Canvas
             bool previewInViewport = false;
         };
 
+        struct AssetDragPayload
+        {
+            WidgetId assetId = kRootId;
+            juce::String refKey;
+            juce::String displayName;
+            juce::String mime;
+            AssetKind kind = AssetKind::file;
+        };
+
         void rebuildWidgetViews();
         void updateAllWidgetViewBounds();
         void syncSelectionToViews();
@@ -242,6 +251,27 @@ namespace Gyeol::Ui::Canvas
         float effectiveOpacityForWidget(WidgetId id) const noexcept;
         std::optional<juce::String> extractWidgetLibraryTypeKey(
             const juce::var& description) const;
+
+        std::optional<AssetDragPayload> extractAssetDragPayload(
+            const juce::var& description) const;
+        std::optional<WidgetId> hitTestWidgetIdAtViewPoint(
+            juce::Point<float> viewPoint);
+        std::optional<std::vector<Widgets::DropOption>> resolveAssetDropOptions(
+            WidgetId widgetId,
+            const AssetDragPayload& payload) const;
+        bool applyAssetDropToWidget(WidgetId widgetId,
+                                    const AssetDragPayload& payload,
+                                    const Widgets::DropOption& option);
+        void applyAssetDropWithSelection(WidgetId widgetId,
+                                         AssetDragPayload payload,
+                                         std::vector<Widgets::DropOption> options,
+                                         juce::Point<int> localDropPoint);
+        void clearWidgetLibraryDropPreview();
+        void clearAssetDropPreview();
+        void updateAssetDropPreview(juce::Point<float> viewPoint,
+                                    std::optional<WidgetId> targetWidgetId,
+                                    bool valid,
+                                    const juce::String& refKey);
 
         std::optional<WidgetId> resolveActiveLayerId() const;
 
@@ -316,6 +346,11 @@ namespace Gyeol::Ui::Canvas
         juce::Point<float> lastMouseLocalPoint;
         bool widgetLibraryDropPreviewActive = false;
         juce::Point<float> widgetLibraryDropPreviewView;
+        bool assetDropPreviewActive = false;
+        juce::Point<float> assetDropPreviewView;
+        WidgetId assetDropPreviewWidgetId = kRootId;
+        bool assetDropPreviewValid = false;
+        juce::String assetDropPreviewRefKey;
 
         std::vector<WidgetId> lastSelectionSnapshot;
         PerfStats perf;
