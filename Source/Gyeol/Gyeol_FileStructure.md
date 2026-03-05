@@ -111,6 +111,9 @@ These items are considered temporary, redundant, or unnecessary in the target la
 
 ## Refactor Change Set
 
+Status Legend: [DONE] completed in current migration history.
+
+
 This section tracks which files are expected to be deleted, added, or modified
 when the structure above is applied.
 
@@ -126,20 +129,20 @@ when the structure above is applied.
 
 ### Files To Add
 
-- `Source/Gyeol/Editor/EditorHandleImpl.h`
-- `Source/Gyeol/Editor/EditorHandleImpl.cpp`
+- [DONE] `Source/Gyeol/Editor/EditorHandleImpl.h`
+- [DONE] `Source/Gyeol/Editor/EditorHandleImpl.cpp`
 - `Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h`
 - `Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.cpp`
-- `Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.h`
-- `Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.cpp`
-- `Source/Gyeol/Editor/Shell/EditorPanelMediator.h`
-- `Source/Gyeol/Editor/Shell/EditorPanelMediator.cpp`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.h`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.cpp`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorPanelMediator.h`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorPanelMediator.cpp`
 - `Source/Gyeol/Editor/Shell/EditorSettingsStore.h`
 - `Source/Gyeol/Editor/Shell/EditorSettingsStore.cpp`
-- `Source/Gyeol/Editor/Shell/EditorModeCoordinator.h`
-- `Source/Gyeol/Editor/Shell/EditorModeCoordinator.cpp`
-- `Source/Gyeol/Editor/Shell/EditorHistoryBridge.h`
-- `Source/Gyeol/Editor/Shell/EditorHistoryBridge.cpp`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorModeCoordinator.h`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorModeCoordinator.cpp`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorHistoryBridge.h`
+- [DONE] `Source/Gyeol/Editor/Shell/EditorHistoryBridge.cpp`
 - `Source/Gyeol/Editor/Shell/EditorCommandSystem.h`
 - `Source/Gyeol/Editor/Shell/EditorCommandSystem.cpp`
 
@@ -148,12 +151,12 @@ when the structure above is applied.
 - `Source/Gyeol/Gyeol.h` (umbrella include path updates)
 - `Source/Gyeol/Public/EditorHandle.h` (Impl split integration)
 - `Source/Gyeol/Editor/EditorHandle.cpp` (reduced to thin orchestrator)
-- `Source/Gyeol/Editor/Canvas/CanvasComponent.h`
-- `Source/Gyeol/Editor/Canvas/CanvasComponent.cpp`
-- `Source/Gyeol/Editor/Canvas/CanvasRenderer.h`
-- `Source/Gyeol/Editor/Canvas/CanvasRenderer.cpp`
-- `Source/Gyeol/Editor/Canvas/WidgetComponent.h`
-- `Source/Gyeol/Editor/Canvas/WidgetComponent.cpp`
+- [DONE] `Source/Gyeol/Editor/Canvas/CanvasComponent.h`
+- [DONE] `Source/Gyeol/Editor/Canvas/CanvasComponent.cpp`
+- [DONE] `Source/Gyeol/Editor/Canvas/CanvasRenderer.h`
+- [DONE] `Source/Gyeol/Editor/Canvas/CanvasRenderer.cpp`
+- [DONE] `Source/Gyeol/Editor/Canvas/WidgetComponent.h`
+- [DONE] `Source/Gyeol/Editor/Canvas/WidgetComponent.cpp`
 - `Source/Gyeol/Editor/Panels/AssetsPanel.h` / `.cpp` (mediator callback integration)
 - `Source/Gyeol/Editor/Panels/EventActionPanel.h` / `.cpp` (mediator callback integration)
 - `Source/Gyeol/Editor/Panels/PropertyPanel.h` / `.cpp` (mediator callback integration)
