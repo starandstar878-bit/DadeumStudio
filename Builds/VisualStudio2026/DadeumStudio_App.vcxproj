@@ -194,6 +194,7 @@
     <ClCompile Include="..\..\Source\Main.cpp"/>
     <ClCompile Include="..\..\Source\MainComponent.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Teul.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp"/>
     <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_audio_basics\audio_play_head\juce_AudioPlayHead.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>
@@ -2565,6 +2566,7 @@
     <ClInclude Include="..\..\Source\Teul\Model\TNode.h"/>
     <ClInclude Include="..\..\Source\Teul\Model\TConnection.h"/>
     <ClInclude Include="..\..\Source\Teul\Model\TGraphDocument.h"/>
+    <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h"/>
     <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_audio_basics\audio_play_head\juce_AudioPlayHead.h"/>
     <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_audio_basics\buffers\juce_AudioChannelSet.h"/>
     <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_audio_basics\buffers\juce_AudioDataConverters.h"/>

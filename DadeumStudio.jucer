@@ -201,6 +201,10 @@
           <FILE id="TlMd04" name="TConnection.h"    compile="0" resource="0" file="Source/Teul/Model/TConnection.h"/>
           <FILE id="TlMd05" name="TGraphDocument.h" compile="0" resource="0" file="Source/Teul/Model/TGraphDocument.h"/>
         </GROUP>
+        <GROUP id="{T0EU1000-0000-0000-0000-000000000003}" name="Serialization">
+          <FILE id="TlSz01" name="TSerializer.h"   compile="0" resource="0" file="Source/Teul/Serialization/TSerializer.h"/>
+          <FILE id="TlSz02" name="TSerializer.cpp" compile="1" resource="0" file="Source/Teul/Serialization/TSerializer.cpp"/>
+        </GROUP>
         <FILE id="TlEd01" name="Teul.h"            compile="0" resource="0" file="Source/Teul/Teul.h"/>
         <FILE id="TlEd02" name="Teul.cpp"           compile="1" resource="0" file="Source/Teul/Teul.cpp"/>
         <FILE id="TlRm01" name="Teul Roadmap.md"    compile="0" resource="1" file="Source/Teul/Teul Roadmap.md"/>

@@ -400,39 +400,59 @@
 - [ ] **레지스트리 검증 규칙 확장**: 신규 속성의 필수/선택/자동 필드를 구분해 `WidgetRegistry::registerWidget` 검증 규칙에 반영한다.
 - [ ] **매니페스트/Export 연계**: 새 속성이 `WidgetLibraryManifest`, `ExportManifest`, 코드 생성 경로에 누락 없이 전달되는지 검증한다.
 
-##### 확장된 위젯 속성 리스트 (v1)
-- **플러그인 식별/호환성**: `pluginId`, `pluginVersion`, `vendor`, `sdkMinVersion`, `sdkMaxVersion`
-- **위젯 능력/성능 힌트**: `capabilities`, `repaintPolicy`, `tickRateHintHz`, `supportsOffscreenCache`
-- **프로퍼티 표현 메타**: `unit`, `displayFormat`, `valueCurve`, `required`, `minLength`, `maxLength`, `regex`
-- **에셋 제약 메타**: `acceptedMimeTypes`, `maxAssetBytes`, `fallbackAssetId`
-- **런타임 이벤트 메타**: `payloadSchema` (키/타입/필수 여부)
-- **접근성/테스트 메타**: `a11yRole`, `a11yLabelKey`, `testId`
-- **Export 요구사항 메타**: `requiredJuceModules`, `requiredHeaders`, `requiredLibraries`, `codegenApiVersion`
+##### 확장된 위젯 속성 리스트 (v2, 확정안)
+- **스키마/버전 계약**: `schemaVersion`, `manifestVersion`, `widgetTypeVersion`, `migrationRules`
+- **ABI/호환성 계약**: `abiVersion`, `abiHash`, `sdkMinVersion`, `sdkMaxVersion`, `supportedHostVersions`, `platformTargets`, `architectureTargets`
+- **플러그인 식별/신뢰성**: `pluginId`, `pluginVersion`, `vendor`, `releaseChannel`, `publisherFingerprint`, `signature`
+- **위젯 능력/성능 힌트**: `capabilities`, `repaintPolicy`, `tickRateHintHz`, `supportsOffscreenCache`, `estimatedPaintCost`, `memoryBudgetKb`
+- **렌더/스레드 정책**: `threadingModel`, `realtimeSafe`, `renderThreadOnly`
+- **프로퍼티 표현/검증 메타**: `unit`, `displayFormat`, `valueCurve`, `required`, `min`, `max`, `step`, `minLength`, `maxLength`, `regex`, `enumOptions`, `localeKey`
+- **에셋/리소스 제약 메타**: `acceptedAssetKinds`, `acceptedMimeTypes`, `maxAssetBytes`, `fallbackAssetId`, `preloadAssets`, `supportsStreaming`
+- **런타임 이벤트 계약**: `runtimeEvents`의 `key`, `displayLabel`, `payloadSchema`, `throttleMs`, `debounceMs`, `reliability`, `channel`
+- **액션/상태 바인딩 계약**: `supportedActions`, `propertyBindings`, `stateInputs`, `stateOutputs`
+- **접근성/테스트/관측성 메타**: `a11yRole`, `a11yLabelKey`, `testId`, `diagnosticsContract`, `telemetryTags`
+- **상태/영속성 정책**: `statePolicy`, `persistedKeys`, `resetPolicy`, `migrationPolicy`
+- **보안/권한 정책**: `permissions`, `sandboxLevel`, `fileAccess`, `networkAccess`, `midiAccess`, `scriptAccess`
+- **Export/빌드 요구사항 메타**: `requiredJuceModules`, `requiredHeaders`, `requiredLibraries`, `requiredCompileDefinitions`, `requiredLinkOptions`, `codegenApiVersion`, `exportTargetType`
 
 ##### 분류: 사용자가 최소한으로 정해야 하는 속성 (필수)
-- `typeKey`, `displayName`, `category`
-- `defaultBounds`, `minSize`, `defaultProperties`
-- `propertySpecs`의 `key`, `label`, `kind`, `defaultValue`
-- `runtimeEvents`의 `key`, `displayLabel`
-- `pluginId`, `pluginVersion`, `sdkMinVersion`
-- `painter`(또는 외부 위젯의 동등 렌더 진입점)
+- **정체성/버전**: `schemaVersion`, `manifestVersion`, `typeKey`, `displayName`, `category`, `pluginId`, `pluginVersion`
+- **호환성/안전성**: `sdkMinVersion`, `abiVersion`, `abiHash`, `permissions` (빈 배열 허용)
+- **기본 레이아웃/기본값**: `defaultBounds`, `minSize`, `defaultProperties`
+- **프로퍼티 스펙 핵심**: `propertySpecs`의 `key`, `label`, `kind`, `defaultValue`, `required`
+- **이벤트 스펙 핵심**: `runtimeEvents`의 `key`, `displayLabel`, `payloadSchema.required`
+- **렌더 진입점**: `painter` 또는 외부 위젯의 동등 렌더 진입 함수
 
 ##### 분류: 사용자가 사용할 만한 속성 (선택)
-- `tags`, `iconKey`, `exportTargetType`
-- `unit`, `displayFormat`, `valueCurve`
-- `hint`, `advanced`, `readOnly`, `dependsOnKey`, `dependsOnValue`
-- `acceptedAssetKinds`, `acceptedMimeTypes`, `maxAssetBytes`, `fallbackAssetId`
-- `capabilities`, `repaintPolicy`, `tickRateHintHz`
-- `payloadSchema`, `a11yRole`, `a11yLabelKey`, `testId`
-- `requiredJuceModules`, `requiredHeaders`, `requiredLibraries`
+- **가시성/탐색성**: `tags`, `iconKey`, `releaseChannel`, `localeKey`
+- **UX 고도화**: `unit`, `displayFormat`, `valueCurve`, `hint`, `advanced`, `readOnly`, `dependsOnKey`, `dependsOnValue`
+- **입력 검증/제약 강화**: `min`, `max`, `step`, `minLength`, `maxLength`, `regex`, `enumOptions`
+- **에셋 제약 고도화**: `acceptedAssetKinds`, `acceptedMimeTypes`, `maxAssetBytes`, `fallbackAssetId`, `preloadAssets`, `supportsStreaming`
+- **성능/동작 힌트**: `capabilities`, `repaintPolicy`, `tickRateHintHz`, `supportsOffscreenCache`, `estimatedPaintCost`, `memoryBudgetKb`
+- **이벤트 전송 품질**: `throttleMs`, `debounceMs`, `reliability`, `channel`
+- **접근성/테스트/운영성**: `a11yRole`, `a11yLabelKey`, `testId`, `diagnosticsContract`, `telemetryTags`
+- **Export/빌드 세부 요구사항**: `requiredJuceModules`, `requiredHeaders`, `requiredLibraries`, `requiredCompileDefinitions`, `requiredLinkOptions`, `exportTargetType`
 
 ##### 분류: 자동화할 속성 (호스트/빌드 파이프라인 산출)
 - `sdkMaxVersion` 기본값 보정 (`Host SDK Major`)
+- `supportedHostVersions` 자동 채움 (호스트 릴리스 메타데이터 기준)
+- `platformTargets`/`architectureTargets` 자동 채움 (빌드 타겟 기준)
 - `vendor` 기본값 채우기 (플러그인 매니페스트/서명 정보 기반)
+- `publisherFingerprint`/`signature` 해시 검증 결과 주입
 - `testId` 자동 생성 (`pluginId.typeKey.propertyKey`)
-- `requiredJuceModules`/`requiredHeaders` 추론 (codegen, include scan)
-- `supportedMimeTypes` 파생값 생성 (`acceptedAssetKinds` 기반)
+- `requiredJuceModules`/`requiredHeaders`/`requiredLibraries` 추론 (codegen, include/link scan)
+- `requiredCompileDefinitions`/`requiredLinkOptions` 추론 (빌드 스크립트 스캔)
 - `codegenApiVersion` 자동 주입 (Export 시점)
+- `abiHash` 자동 생성 (SDK 공개 헤더 해시 기반)
+- `migrationRules` 템플릿 자동 생성 (`widgetTypeVersion` 증가 시)
+- `diagnosticsContract` 기본 에러 코드 세트 자동 주입
+
+##### 단계 0 완료 기준 (Definition of Done)
+- `WidgetSDK.h`, `GyeolWidgetPluginABI.h`, `WidgetRegistry` 검증 규칙이 위 `v2` 필드 정의와 1:1로 동기화되어야 한다.
+- `WidgetLibraryManifest`와 `ExportManifest`에서 `v2` 필드 라운드트립(로드→저장→재로드) 결과가 동일해야 한다.
+- ABI 불일치(`abiVersion`/`abiHash`) 시 로더가 즉시 차단하고 Validation 패널에 원인 코드가 보고되어야 한다.
+- `permissions` 위반(예: 금지된 file/network 접근) 시 런타임에서 호출이 거부되고 진단 이벤트가 남아야 한다.
+- 동일 입력 문서 기준 Export 산출물의 메타데이터(`codegenApiVersion`, 의존성 목록, 빌드 요구사항)가 재현 가능해야 한다.
 #### 단계 1: SDK ABI 및 플러그인 인터페이스 확립 (Foundation)
 - [ ] **SDK 헤더 분리**: `WidgetSDK.h`를 외부 개발자가 단독으로 Include할 수 있는 순수 가상 클래스(Interface) 레벨로 고도화 (예: `IGyeolCustomWidget`, `IPropertyProvider`)
 - [ ] **ABI 안정성 보장**: C++ Name Mangling과 메모리 할당자 이슈를 피하기 위해, 플러그인 진입점은 순수 C ABI(`extern "C"`) 함수인 `GyeolCreateWidgetInstance()`, `GyeolGetPluginManifest()` 형태로 규격화

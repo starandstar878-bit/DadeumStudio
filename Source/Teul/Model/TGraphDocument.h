@@ -105,6 +105,17 @@ struct TGraphDocument {
   // -------------------------------------------------------------------------
   bool wouldCreateCycle(NodeId fromNodeId, NodeId toNodeId) const noexcept;
 
+  // -------------------------------------------------------------------------
+  //  ID 상태 관리 (직렬화용)
+  // -------------------------------------------------------------------------
+  NodeId getNextNodeId() const noexcept { return nextNodeId; }
+  PortId getNextPortId() const noexcept { return nextPortId; }
+  ConnectionId getNextConnectionId() const noexcept { return nextConnectionId; }
+
+  void setNextNodeId(NodeId id) noexcept { nextNodeId = id; }
+  void setNextPortId(PortId id) noexcept { nextPortId = id; }
+  void setNextConnectionId(ConnectionId id) noexcept { nextConnectionId = id; }
+
 private:
   NodeId nextNodeId = 1;
   PortId nextPortId = 1;
