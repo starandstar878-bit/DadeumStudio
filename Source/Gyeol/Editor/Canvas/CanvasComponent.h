@@ -164,6 +164,15 @@ namespace Gyeol::Ui::Canvas
             float worldPosition = 0.0f;
         };
 
+        struct GuideDragState
+        {
+            bool active = false;
+            bool vertical = true;
+            juce::Point<float> startMouse;
+            float worldPosition = 0.0f;
+            bool previewInViewport = false;
+        };
+
         void rebuildWidgetViews();
         void updateAllWidgetViewBounds();
         void syncSelectionToViews();
@@ -175,6 +184,12 @@ namespace Gyeol::Ui::Canvas
 
         void setZoomAtPoint(float nextZoom, juce::Point<float> localAnchor);
         void clampViewOriginToCanvas();
+
+        juce::Rectangle<int> topRulerBounds() const noexcept;
+        juce::Rectangle<int> leftRulerBounds() const noexcept;
+        bool isPointInTopRuler(juce::Point<float> localPoint) const noexcept;
+        bool isPointInLeftRuler(juce::Point<float> localPoint) const noexcept;
+        bool isPointInCanvasView(juce::Point<float> localPoint) const noexcept;
 
         bool beginDragForSelection(WidgetId anchorId,
                                    juce::Point<float> startMouseView);
@@ -189,12 +204,15 @@ namespace Gyeol::Ui::Canvas
         std::vector<WidgetId> orderedWidgetIdsForCanvas() const;
         std::vector<juce::Rectangle<float>> collectNearbyBoundsForSnap(
             const std::vector<WidgetId>& excludedWidgetIds) const;
+        std::vector<float> collectRulerGuidePositions(bool vertical) const;
         Interaction::SnapRequest makeSnapRequest(
             const juce::Rectangle<float>& proposedBounds,
             const std::vector<WidgetId>& excludedWidgetIds) const;
 
         void clearTransientSnapGuides();
         void updateTransientSnapGuides(const Interaction::SnapResult& snapResult);
+        bool removeGuideNearPoint(juce::Point<float> localPoint,
+                                  std::optional<bool> verticalOnly);
 
         WidgetComponent* findWidgetView(WidgetId id) noexcept;
         const WidgetComponent* findWidgetView(WidgetId id) const noexcept;
@@ -237,6 +255,7 @@ namespace Gyeol::Ui::Canvas
             juce::Point<float> b) noexcept;
 
         static constexpr int rulerThicknessPx = 20;
+        static constexpr float guideRemoveThresholdPx = 8.0f;
         static constexpr float minCanvasZoom = 0.2f;
         static constexpr float maxCanvasZoom = 4.0f;
         static constexpr float canvasWorldWidth = 1600.0f;
@@ -261,6 +280,7 @@ namespace Gyeol::Ui::Canvas
 
         Interaction::SnapEngine snapEngine;
         Interaction::SnapSettings snapSettings;
+        std::vector<Guide> guides;
         std::vector<Guide> transientSnapGuides;
 
         float zoomLevel = 1.0f;
@@ -268,6 +288,7 @@ namespace Gyeol::Ui::Canvas
         DragState dragState;
         MarqueeState marqueeState;
         PanState panState;
+        GuideDragState guideDragState;
 
         bool hasMouseLocalPoint = false;
         juce::Point<float> lastMouseLocalPoint;

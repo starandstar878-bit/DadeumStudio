@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <limits>
 
 namespace Gyeol::Ui::Canvas
 {
@@ -88,6 +89,7 @@ namespace Gyeol::Ui::Canvas
         dragState = {};
         marqueeState = {};
         panState = {};
+        guideDragState = {};
         clearTransientSnapGuides();
         syncSelectionToViews();
         repaint();
@@ -255,6 +257,7 @@ namespace Gyeol::Ui::Canvas
         dragState = {};
         marqueeState = {};
         panState = {};
+        guideDragState = {};
         marqueeOverlay.clearMarquee();
         clearTransientSnapGuides();
         rebuildWidgetViews();
@@ -426,6 +429,120 @@ namespace Gyeol::Ui::Canvas
 
     void CanvasComponent::paintOverChildren(juce::Graphics& g)
     {
+        const auto viewport = viewportBounds();
+        const auto visibleCanvas = worldToViewRect(canvasWorldBounds()).getIntersection(viewport.toFloat());
+
+        if (!visibleCanvas.isEmpty())
+        {
+            g.saveState();
+            g.reduceClipRegion(visibleCanvas.toNearestInt());
+
+            g.setColour(juce::Colour::fromRGBA(255, 160, 75, 210));
+            for (const auto& guide : guides)
+            {
+                if (guide.vertical)
+                {
+                    const auto x = worldToView({ guide.worldPosition, 0.0f }).x;
+                    g.drawVerticalLine(juce::roundToInt(x),
+                                       visibleCanvas.getY(),
+                                       visibleCanvas.getBottom());
+                }
+                else
+                {
+                    const auto y = worldToView({ 0.0f, guide.worldPosition }).y;
+                    g.drawHorizontalLine(juce::roundToInt(y),
+                                         visibleCanvas.getX(),
+                                         visibleCanvas.getRight());
+                }
+            }
+
+            if (guideDragState.active && guideDragState.previewInViewport)
+            {
+                g.setColour(juce::Colour::fromRGBA(255, 212, 140, 225));
+                if (guideDragState.vertical)
+                {
+                    const auto x = worldToView({ guideDragState.worldPosition, 0.0f }).x;
+                    g.drawVerticalLine(juce::roundToInt(x),
+                                       visibleCanvas.getY(),
+                                       visibleCanvas.getBottom());
+                }
+                else
+                {
+                    const auto y = worldToView({ 0.0f, guideDragState.worldPosition }).y;
+                    g.drawHorizontalLine(juce::roundToInt(y),
+                                         visibleCanvas.getX(),
+                                         visibleCanvas.getRight());
+                }
+            }
+
+            g.restoreState();
+        }
+
+        const auto topRuler = topRulerBounds();
+        const auto leftRuler = leftRulerBounds();
+
+        g.setColour(juce::Colour::fromRGBA(255, 160, 75, 220));
+        for (const auto& guide : guides)
+        {
+            if (guide.vertical)
+            {
+                const auto x = worldToView({ guide.worldPosition, 0.0f }).x;
+                if (x >= static_cast<float>(topRuler.getX())
+                    && x <= static_cast<float>(topRuler.getRight()))
+                {
+                    g.drawLine(x,
+                               static_cast<float>(topRuler.getY()),
+                               x,
+                               static_cast<float>(topRuler.getBottom()),
+                               1.5f);
+                }
+            }
+            else
+            {
+                const auto y = worldToView({ 0.0f, guide.worldPosition }).y;
+                if (y >= static_cast<float>(leftRuler.getY())
+                    && y <= static_cast<float>(leftRuler.getBottom()))
+                {
+                    g.drawLine(static_cast<float>(leftRuler.getX()),
+                               y,
+                               static_cast<float>(leftRuler.getRight()),
+                               y,
+                               1.5f);
+                }
+            }
+        }
+
+        if (guideDragState.active && guideDragState.previewInViewport)
+        {
+            g.setColour(juce::Colour::fromRGBA(255, 212, 140, 230));
+            if (guideDragState.vertical)
+            {
+                const auto x = worldToView({ guideDragState.worldPosition, 0.0f }).x;
+                if (x >= static_cast<float>(topRuler.getX())
+                    && x <= static_cast<float>(topRuler.getRight()))
+                {
+                    g.drawLine(x,
+                               static_cast<float>(topRuler.getY()),
+                               x,
+                               static_cast<float>(topRuler.getBottom()),
+                               1.5f);
+                }
+            }
+            else
+            {
+                const auto y = worldToView({ 0.0f, guideDragState.worldPosition }).y;
+                if (y >= static_cast<float>(leftRuler.getY())
+                    && y <= static_cast<float>(leftRuler.getBottom()))
+                {
+                    g.drawLine(static_cast<float>(leftRuler.getX()),
+                               y,
+                               static_cast<float>(leftRuler.getRight()),
+                               y,
+                               1.5f);
+                }
+            }
+        }
+
         if (widgetLibraryDropPreviewActive)
         {
             const auto p = widgetLibraryDropPreviewView;
@@ -436,9 +553,6 @@ namespace Gyeol::Ui::Canvas
 
         if (hasMouseLocalPoint)
         {
-            const auto viewport = viewportBounds();
-            const auto topRuler = juce::Rectangle<int>(viewport.getX(), 0, viewport.getWidth(), viewport.getY());
-            const auto leftRuler = juce::Rectangle<int>(0, viewport.getY(), viewport.getX(), viewport.getHeight());
             g.setColour(juce::Colour::fromRGBA(120, 170, 245, 220));
             if (!topRuler.isEmpty())
             {
@@ -482,6 +596,9 @@ namespace Gyeol::Ui::Canvas
         if (!event.mods.isLeftButtonDown())
             return;
 
+        if (event.getNumberOfClicks() > 1)
+            return;
+
         grabKeyboardFocus();
         if (juce::KeyPress::isKeyCurrentlyDown(juce::KeyPress::spaceKey))
         {
@@ -494,7 +611,17 @@ namespace Gyeol::Ui::Canvas
         if (isRunMode())
             return;
 
-        if (!viewportBounds().toFloat().contains(event.position))
+        if (isPointInTopRuler(event.position) || isPointInLeftRuler(event.position))
+        {
+            guideDragState = {};
+            guideDragState.active = true;
+            guideDragState.vertical = isPointInTopRuler(event.position);
+            guideDragState.startMouse = event.position;
+            guideDragState.previewInViewport = false;
+            return;
+        }
+
+        if (!isPointInCanvasView(event.position))
             return;
 
         dragState = {};
@@ -532,6 +659,26 @@ namespace Gyeol::Ui::Canvas
         if (isRunMode())
             return;
 
+        if (guideDragState.active)
+        {
+            const auto previousPreviewInViewport = guideDragState.previewInViewport;
+            const auto previousWorldPosition = guideDragState.worldPosition;
+            guideDragState.previewInViewport = isPointInCanvasView(event.position);
+            if (guideDragState.previewInViewport)
+            {
+                const auto worldPoint = viewToWorld(event.position);
+                guideDragState.worldPosition = guideDragState.vertical ? worldPoint.x : worldPoint.y;
+            }
+
+            if (previousPreviewInViewport != guideDragState.previewInViewport
+                || (guideDragState.previewInViewport
+                    && !areClose(previousWorldPosition, guideDragState.worldPosition)))
+            {
+                repaint();
+            }
+            return;
+        }
+
         if (dragState.active)
         {
             updateDragPreview(event.position);
@@ -559,6 +706,31 @@ namespace Gyeol::Ui::Canvas
         if (isRunMode())
             return;
 
+        if (guideDragState.active)
+        {
+            const auto hadPreviewGuide = guideDragState.previewInViewport;
+            const auto previewGuideVertical = guideDragState.vertical;
+            const auto previewGuideWorldPosition = guideDragState.worldPosition;
+            if (guideDragState.previewInViewport)
+            {
+                const auto exists = std::any_of(guides.begin(),
+                                                guides.end(),
+                                                [previewGuideVertical,
+                                                 previewGuideWorldPosition](const Guide& guide)
+                                                {
+                                                    return guide.vertical == previewGuideVertical
+                                                        && areClose(guide.worldPosition,
+                                                                    previewGuideWorldPosition);
+                                                });
+                if (!exists)
+                    guides.push_back({ previewGuideVertical, previewGuideWorldPosition });
+            }
+            guideDragState = {};
+            if (hadPreviewGuide)
+                repaint();
+            return;
+        }
+
         if (dragState.active)
         {
             commitDrag();
@@ -578,6 +750,11 @@ namespace Gyeol::Ui::Canvas
     {
         if (isRunMode())
             return;
+
+        setMouseTrackerPoint(event.position);
+        if (!event.mods.isLeftButtonDown())
+            return;
+
         handleCanvasDoubleClick(event.position);
     }
 
@@ -741,6 +918,33 @@ namespace Gyeol::Ui::Canvas
             viewOriginWorld.y = juce::jlimit(canvas.getY(), canvas.getBottom() - visibleH, viewOriginWorld.y);
     }
 
+    juce::Rectangle<int> CanvasComponent::topRulerBounds() const noexcept
+    {
+        const auto viewport = viewportBounds();
+        return { viewport.getX(), 0, viewport.getWidth(), viewport.getY() };
+    }
+
+    juce::Rectangle<int> CanvasComponent::leftRulerBounds() const noexcept
+    {
+        const auto viewport = viewportBounds();
+        return { 0, viewport.getY(), viewport.getX(), viewport.getHeight() };
+    }
+
+    bool CanvasComponent::isPointInTopRuler(juce::Point<float> localPoint) const noexcept
+    {
+        return topRulerBounds().toFloat().contains(localPoint);
+    }
+
+    bool CanvasComponent::isPointInLeftRuler(juce::Point<float> localPoint) const noexcept
+    {
+        return leftRulerBounds().toFloat().contains(localPoint);
+    }
+
+    bool CanvasComponent::isPointInCanvasView(juce::Point<float> localPoint) const noexcept
+    {
+        return viewportBounds().toFloat().contains(localPoint);
+    }
+
     bool CanvasComponent::beginDragForSelection(WidgetId anchorId, juce::Point<float> startMouseView)
     {
         auto ids = document.editorState().selection;
@@ -895,6 +1099,16 @@ namespace Gyeol::Ui::Canvas
         return bounds;
     }
 
+    std::vector<float> CanvasComponent::collectRulerGuidePositions(bool vertical) const
+    {
+        std::vector<float> positions;
+        positions.reserve(guides.size());
+        for (const auto& guide : guides)
+            if (guide.vertical == vertical)
+                positions.push_back(guide.worldPosition);
+        return positions;
+    }
+
     Interaction::SnapRequest CanvasComponent::makeSnapRequest(
         const juce::Rectangle<float>& proposedBounds,
         const std::vector<WidgetId>& excludedWidgetIds) const
@@ -902,6 +1116,8 @@ namespace Gyeol::Ui::Canvas
         Interaction::SnapRequest req;
         req.proposedBounds = proposedBounds;
         req.nearbyBounds = collectNearbyBoundsForSnap(excludedWidgetIds);
+        req.verticalGuides = collectRulerGuidePositions(true);
+        req.horizontalGuides = collectRulerGuidePositions(false);
         req.settings = snapSettings;
         return req;
     }
@@ -1064,7 +1280,58 @@ namespace Gyeol::Ui::Canvas
             commitDrag();
     }
 
-    void CanvasComponent::handleCanvasDoubleClick(juce::Point<float>) { clearTransientSnapGuides(); }
+    bool CanvasComponent::removeGuideNearPoint(juce::Point<float> localPoint,
+                                               std::optional<bool> verticalOnly)
+    {
+        if (guides.empty())
+            return false;
+
+        auto bestIt = guides.end();
+        auto bestDistance = std::numeric_limits<float>::max();
+
+        for (auto it = guides.begin(); it != guides.end(); ++it)
+        {
+            if (verticalOnly.has_value() && it->vertical != *verticalOnly)
+                continue;
+
+            const auto linePosition = it->vertical
+                ? worldToView({ it->worldPosition, 0.0f }).x
+                : worldToView({ 0.0f, it->worldPosition }).y;
+            const auto mousePosition = it->vertical ? localPoint.x : localPoint.y;
+            const auto distance = std::abs(mousePosition - linePosition);
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestIt = it;
+            }
+        }
+
+        if (bestIt == guides.end() || bestDistance > guideRemoveThresholdPx)
+            return false;
+
+        guides.erase(bestIt);
+        repaint();
+        return true;
+    }
+
+    void CanvasComponent::handleCanvasDoubleClick(juce::Point<float> localPoint)
+    {
+        const auto hadPreviewGuide = guideDragState.active && guideDragState.previewInViewport;
+        if (guideDragState.active)
+            guideDragState = {};
+
+        auto removed = false;
+        if (isPointInTopRuler(localPoint))
+            removed = removeGuideNearPoint(localPoint, std::optional<bool>{ true });
+        else if (isPointInLeftRuler(localPoint))
+            removed = removeGuideNearPoint(localPoint, std::optional<bool>{ false });
+        else if (isPointInCanvasView(localPoint))
+            removed = removeGuideNearPoint(localPoint, std::nullopt);
+
+        if (hadPreviewGuide || removed)
+            repaint();
+    }
 
     void CanvasComponent::setMouseTrackerPoint(juce::Point<float> localPoint)
     {
