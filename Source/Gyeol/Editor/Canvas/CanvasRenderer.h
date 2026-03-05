@@ -19,6 +19,11 @@ namespace Gyeol::Ui::Canvas
                          float zoomLevel,
                          const Interaction::SnapSettings& snapSettings) const;
 
+        void paintRulers(juce::Graphics& g,
+                        juce::Rectangle<int> viewportBounds,
+                        juce::Rectangle<float> visibleWorldBounds,
+                        float zoomLevel) const;
+
         void paintWidget(juce::Graphics& g,
                          const WidgetModel& widget,
                          juce::Rectangle<float> localBounds,

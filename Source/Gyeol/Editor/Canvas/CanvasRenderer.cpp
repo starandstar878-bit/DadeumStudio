@@ -158,63 +158,86 @@ namespace Gyeol::Ui::Canvas
 
         g.restoreState();
 
+    }
+
+    void CanvasRenderer::paintRulers(juce::Graphics& g,
+                                     juce::Rectangle<int> viewportBounds,
+                                     juce::Rectangle<float> visibleWorldBounds,
+                                     float zoomLevel) const
+    {
+        if (viewportBounds.isEmpty())
+            return;
+
         const auto topRuler = juce::Rectangle<int>(viewportBounds.getX(), 0, viewportBounds.getWidth(), viewportBounds.getY());
         const auto leftRuler = juce::Rectangle<int>(0, viewportBounds.getY(), viewportBounds.getX(), viewportBounds.getHeight());
-        if (!topRuler.isEmpty() || !leftRuler.isEmpty())
+        if (topRuler.isEmpty() && leftRuler.isEmpty())
+            return;
+
+        const auto toViewX = [x0 = static_cast<float>(viewportBounds.getX()),
+                              worldX = visibleWorldBounds.getX(),
+                              zoomLevel](float world) noexcept
+            {
+                return x0 + (world - worldX) * zoomLevel;
+            };
+        const auto toViewY = [y0 = static_cast<float>(viewportBounds.getY()),
+                              worldY = visibleWorldBounds.getY(),
+                              zoomLevel](float world) noexcept
+            {
+                return y0 + (world - worldY) * zoomLevel;
+            };
+
+        g.setColour(palette(Gyeol::GyeolPalette::HeaderBackground));
+        if (!topRuler.isEmpty())
+            g.fillRect(topRuler);
+        if (!leftRuler.isEmpty())
+            g.fillRect(leftRuler);
+
+        g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
+        if (!topRuler.isEmpty())
+            g.drawHorizontalLine(topRuler.getBottom() - 1,
+                                 static_cast<float>(topRuler.getX()),
+                                 static_cast<float>(topRuler.getRight()));
+        if (!leftRuler.isEmpty())
+            g.drawVerticalLine(leftRuler.getRight() - 1,
+                               static_cast<float>(leftRuler.getY()),
+                               static_cast<float>(leftRuler.getBottom()));
+
+        const auto rawMajorStep = std::max(2.0f, 80.0f / std::max(0.0001f, zoomLevel));
+        const auto magnitude = std::pow(10.0f, std::floor(std::log10(rawMajorStep)));
+        float majorStep = magnitude;
+        for (const auto candidate : { 1.0f, 2.0f, 5.0f, 10.0f })
         {
-            g.setColour(palette(Gyeol::GyeolPalette::HeaderBackground));
-            if (!topRuler.isEmpty())
-                g.fillRect(topRuler);
-            if (!leftRuler.isEmpty())
-                g.fillRect(leftRuler);
+            majorStep = magnitude * candidate;
+            if (majorStep >= rawMajorStep)
+                break;
+        }
+        const auto minorStep = majorStep / 5.0f;
 
-            g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
-            if (!topRuler.isEmpty())
-                g.drawHorizontalLine(topRuler.getBottom() - 1,
-                                     static_cast<float>(topRuler.getX()),
-                                     static_cast<float>(topRuler.getRight()));
-            if (!leftRuler.isEmpty())
-                g.drawVerticalLine(leftRuler.getRight() - 1,
-                                   static_cast<float>(leftRuler.getY()),
-                                   static_cast<float>(leftRuler.getBottom()));
-
-            const auto rawMajorStep = std::max(2.0f, 80.0f / std::max(0.0001f, zoomLevel));
-            const auto magnitude = std::pow(10.0f, std::floor(std::log10(rawMajorStep)));
-            float majorStep = magnitude;
-            for (const auto candidate : { 1.0f, 2.0f, 5.0f, 10.0f })
+        if (!topRuler.isEmpty())
+        {
+            auto start = std::floor(visibleWorldBounds.getX() / minorStep) * minorStep;
+            for (float x = start; x <= visibleWorldBounds.getRight() + minorStep; x += minorStep)
             {
-                majorStep = magnitude * candidate;
-                if (majorStep >= rawMajorStep)
-                    break;
+                const auto viewX = toViewX(x);
+                const auto isMajor = isNearMajorGrid(x, majorStep, minorStep);
+                const auto tick = isMajor ? 10.0f : 6.0f;
+                g.setColour(palette(Gyeol::GyeolPalette::TextSecondary, isMajor ? 0.82f : 0.47f));
+                g.drawLine(viewX, static_cast<float>(topRuler.getBottom()) - tick,
+                           viewX, static_cast<float>(topRuler.getBottom()));
             }
-            const auto minorStep = majorStep / 5.0f;
+        }
 
-            if (!topRuler.isEmpty())
+        if (!leftRuler.isEmpty())
+        {
+            auto start = std::floor(visibleWorldBounds.getY() / minorStep) * minorStep;
+            for (float y = start; y <= visibleWorldBounds.getBottom() + minorStep; y += minorStep)
             {
-                auto start = std::floor(visibleWorldBounds.getX() / minorStep) * minorStep;
-                for (float x = start; x <= visibleWorldBounds.getRight() + minorStep; x += minorStep)
-                {
-                    const auto viewX = toViewX(x);
-                    const auto isMajor = isNearMajorGrid(x, majorStep, minorStep);
-                    const auto tick = isMajor ? 10.0f : 6.0f;
-                    g.setColour(palette(Gyeol::GyeolPalette::TextSecondary, isMajor ? 0.82f : 0.47f));
-                    g.drawLine(viewX, static_cast<float>(topRuler.getBottom()) - tick,
-                               viewX, static_cast<float>(topRuler.getBottom()));
-                }
-            }
-
-            if (!leftRuler.isEmpty())
-            {
-                auto start = std::floor(visibleWorldBounds.getY() / minorStep) * minorStep;
-                for (float y = start; y <= visibleWorldBounds.getBottom() + minorStep; y += minorStep)
-                {
-                    const auto viewY = toViewY(y);
-                    const auto isMajor = isNearMajorGrid(y, majorStep, minorStep);
-                    const auto tick = isMajor ? 10.0f : 6.0f;
-                    g.setColour(palette(Gyeol::GyeolPalette::TextSecondary, isMajor ? 0.82f : 0.47f));
-                    g.drawLine(static_cast<float>(leftRuler.getRight()) - tick, viewY,
-                               static_cast<float>(leftRuler.getRight()), viewY);
-                }
+                const auto viewY = toViewY(y);
+                const auto isMajor = isNearMajorGrid(y, majorStep, minorStep);
+                const auto tick = isMajor ? 10.0f : 6.0f;
+                g.setColour(palette(Gyeol::GyeolPalette::TextSecondary, isMajor ? 0.82f : 0.47f));
+                g.drawLine(static_cast<float>(leftRuler.getRight()) - tick, viewY,
+                           static_cast<float>(leftRuler.getRight()), viewY);
             }
         }
     }

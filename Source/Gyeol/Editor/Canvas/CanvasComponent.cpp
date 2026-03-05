@@ -538,6 +538,8 @@ namespace Gyeol::Ui::Canvas
             g.restoreState();
         }
 
+        renderer.paintRulers(g, viewport, visibleWorldBounds(), zoomLevel);
+
         const auto topRuler = topRulerBounds();
         const auto leftRuler = leftRulerBounds();
 
