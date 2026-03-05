@@ -94,16 +94,28 @@ namespace Gyeol::Ui::Canvas
             const auto worldMinY = gridWorldBounds.getY();
             const auto worldMaxY = gridWorldBounds.getBottom();
 
-            const auto gridFade = juce::jlimit(0.0f, 1.0f, (zoomLevel - 0.3f) / 0.6f);
-            const auto minorAlpha = static_cast<juce::uint8>(juce::jlimit(0.0f, 255.0f, 14.0f * gridFade));
-            const auto majorAlpha = static_cast<juce::uint8>(juce::jlimit(0.0f, 255.0f, 28.0f * gridFade));
+            const auto gridFade = juce::jlimit(0.0f, 1.0f, (zoomLevel - 0.22f) / 0.62f);
+            const auto canvasFill = palette(Gyeol::GyeolPalette::ControlBase);
+            const auto minorGridBase = palette(Gyeol::GyeolPalette::GridLine);
+            const auto majorGridBase = palette(Gyeol::GyeolPalette::BorderDefault);
+            const auto contrastDelta = std::abs(minorGridBase.getPerceivedBrightness()
+                                                - canvasFill.getPerceivedBrightness());
+            const auto contrastBoost = juce::jmap(juce::jlimit(0.0f, 0.35f, contrastDelta),
+                                                  0.0f,
+                                                  0.35f,
+                                                  1.45f,
+                                                  1.0f);
+            const auto minorAlpha = static_cast<juce::uint8>(
+                juce::jlimit(0.0f, 255.0f, 26.0f * gridFade * contrastBoost));
+            const auto majorAlpha = static_cast<juce::uint8>(
+                juce::jlimit(0.0f, 255.0f, 62.0f * gridFade * contrastBoost));
 
             g.saveState();
             g.reduceClipRegion(visibleCanvasBounds.toNearestInt());
 
             if (minorAlpha > 0)
             {
-                g.setColour(palette(Gyeol::GyeolPalette::GridLine, static_cast<float>(minorAlpha) / 255.0f));
+                g.setColour(minorGridBase.withAlpha(static_cast<float>(minorAlpha) / 255.0f));
                 auto startX = std::floor(worldMinX / gridSize) * gridSize;
                 for (float x = startX; x <= worldMaxX + gridSize; x += gridSize)
                     g.drawVerticalLine(juce::roundToInt(toViewX(x)),
@@ -119,7 +131,7 @@ namespace Gyeol::Ui::Canvas
 
             if (majorAlpha > 0)
             {
-                g.setColour(palette(Gyeol::GyeolPalette::GridLine, static_cast<float>(majorAlpha) / 255.0f));
+                g.setColour(majorGridBase.withAlpha(static_cast<float>(majorAlpha) / 255.0f));
                 auto startX = std::floor(worldMinX / majorStep) * majorStep;
                 for (float x = startX; x <= worldMaxX + majorStep; x += majorStep)
                     g.drawVerticalLine(juce::roundToInt(toViewX(x)),
