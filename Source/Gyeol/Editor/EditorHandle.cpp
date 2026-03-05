@@ -7024,10 +7024,14 @@ void setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode mode) {
         editorShellState.layout,
         owner,
         leftDock,
-        [this] { owner.resized(); },
-        [this] { owner.repaint(); },
-        [this] { saveUiSettings(); });
+        {},
+        {},
+        {});
     syncShellStateToLegacy();
+
+    owner.resized();
+    owner.repaint();
+    saveUiSettings();
   }
 
   void rebuildShortcutBindings() {
