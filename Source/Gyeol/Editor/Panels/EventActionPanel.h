@@ -202,6 +202,10 @@ private:
   PanelMode panelMode = PanelMode::eventAction;
   std::vector<WidgetOption> widgetOptions;
   uint64_t widgetOptionsHash = 0;
+  uint64_t bindingsFingerprint = 0;
+  uint64_t runtimeParamsFingerprint = 0;
+  uint64_t propertyBindingsFingerprint = 0;
+  bool documentSnapshotFingerprintsReady = false;
   std::vector<RuntimeBindingModel> bindings;
   std::vector<RuntimeParamModel> runtimeParams;
   std::vector<PropertyBindingModel> propertyBindings;

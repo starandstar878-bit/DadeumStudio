@@ -1,11 +1,12 @@
 #include "Gyeol/Editor/Panels/EventActionPanel.h"
 
-#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
+#include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Editor/Panels/PropertyEditorFactory.h"
 #include "Gyeol/Runtime/PropertyBindingResolver.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <map>
 
 namespace Gyeol::Ui::Panels {
@@ -339,6 +340,159 @@ uint64_t widgetCatalogHash(const DocumentModel &snapshot) noexcept {
                           ? widget.properties["name"].toString()
                           : juce::String();
     hash = hashCombine(hash, hashString(name));
+  }
+
+  return hash;
+}
+
+uint64_t hashDoubleValue(double value) noexcept {
+  uint64_t bits = 0;
+  std::memcpy(&bits, &value, sizeof(value));
+  return bits;
+}
+
+uint64_t hashVarValue(const juce::var &value) noexcept {
+  if (value.isVoid())
+    return 0x06f329a5d7f4c6a1ull;
+
+  if (value.isBool())
+    return static_cast<bool>(value) ? 0x93d765f8f4bbf50dull
+                                   : 0x4e9d8e5526b041d2ull;
+
+  if (value.isInt()) {
+    return hashCombine(0x47c2d8bc7a0a4d21ull,
+                       static_cast<uint64_t>(static_cast<int>(value)));
+  }
+
+  if (value.isDouble())
+    return hashCombine(0xb6f0f5cc0e9c3221ull,
+                       hashDoubleValue(static_cast<double>(value)));
+
+  if (value.isString())
+    return hashCombine(0x8ca9d2f57eb25b01ull, hashString(value.toString()));
+
+  if (const auto *array = value.getArray(); array != nullptr) {
+    uint64_t hash = hashCombine(0x2cb0f6a89d2e41d3ull,
+                                static_cast<uint64_t>(array->size()));
+    for (const auto &item : *array)
+      hash = hashCombine(hash, hashVarValue(item));
+    return hash;
+  }
+
+  if (const auto *object = value.getDynamicObject(); object != nullptr) {
+    const auto &props = object->getProperties();
+    uint64_t hash =
+        hashCombine(0x769c6a8dbaf50be1ull, static_cast<uint64_t>(props.size()));
+    for (int i = 0; i < props.size(); ++i) {
+      hash = hashCombine(hash, hashString(props.getName(i).toString()));
+      hash = hashCombine(hash, hashVarValue(props.getValueAt(i)));
+    }
+    return hash;
+  }
+
+  return hashCombine(0x35df2a7f9c14f6abull, hashString(value.toString()));
+}
+
+uint64_t hashPropertyBag(const PropertyBag &bag) noexcept {
+  uint64_t hash =
+      hashCombine(0x59e9705a4a9f3ce1ull, static_cast<uint64_t>(bag.size()));
+  for (int i = 0; i < bag.size(); ++i) {
+    hash = hashCombine(hash, hashString(bag.getName(i).toString()));
+    hash = hashCombine(hash, hashVarValue(bag.getValueAt(i)));
+  }
+
+  return hash;
+}
+
+uint64_t hashRuntimeAction(const RuntimeActionModel &model) noexcept {
+  uint64_t hash = hashCombine(0xae5cb8df9b34c221ull,
+                              static_cast<uint64_t>(model.kind));
+  hash = hashCombine(hash, hashString(model.paramKey));
+  hash = hashCombine(hash, hashVarValue(model.value));
+  hash = hashCombine(hash, hashDoubleValue(model.delta));
+  hash = hashCombine(hash, static_cast<uint64_t>(model.target.kind));
+  hash = hashCombine(hash, static_cast<uint64_t>(model.target.id));
+
+  const auto visibleTag =
+      !model.visible.has_value() ? 0ull : (*model.visible ? 2ull : 1ull);
+  const auto lockedTag =
+      !model.locked.has_value() ? 0ull : (*model.locked ? 2ull : 1ull);
+  hash = hashCombine(hash, visibleTag);
+  hash = hashCombine(hash, lockedTag);
+
+  if (model.opacity.has_value()) {
+    hash = hashCombine(hash,
+                       hashDoubleValue(static_cast<double>(*model.opacity)));
+  } else {
+    hash = hashCombine(hash, 0x5a5a5a5a5a5a5a5aull);
+  }
+
+  hash = hashCombine(hash, hashPropertyBag(model.patch));
+  hash = hashCombine(hash, static_cast<uint64_t>(model.targetWidgetId));
+  hash = hashCombine(hash, hashDoubleValue(model.bounds.getX()));
+  hash = hashCombine(hash, hashDoubleValue(model.bounds.getY()));
+  hash = hashCombine(hash, hashDoubleValue(model.bounds.getWidth()));
+  hash = hashCombine(hash, hashDoubleValue(model.bounds.getHeight()));
+  return hash;
+}
+
+uint64_t computeRuntimeBindingsFingerprint(
+    const std::vector<RuntimeBindingModel> &models) noexcept {
+  uint64_t hash = hashCombine(0x0d8f3eb5a7a6e9c1ull,
+                              static_cast<uint64_t>(models.size()));
+
+  for (const auto &model : models) {
+    uint64_t modelHash =
+        hashCombine(0x18db2ff9cb0a4681ull, static_cast<uint64_t>(model.id));
+    modelHash = hashCombine(modelHash, hashString(model.name));
+    modelHash = hashCombine(modelHash, model.enabled ? 2ull : 1ull);
+    modelHash =
+        hashCombine(modelHash, static_cast<uint64_t>(model.sourceWidgetId));
+    modelHash = hashCombine(modelHash, hashString(model.eventKey));
+    modelHash =
+        hashCombine(modelHash, static_cast<uint64_t>(model.actions.size()));
+    for (const auto &action : model.actions)
+      modelHash = hashCombine(modelHash, hashRuntimeAction(action));
+
+    hash = hashCombine(hash, modelHash);
+  }
+
+  return hash;
+}
+
+uint64_t computeRuntimeParamsFingerprint(
+    const std::vector<RuntimeParamModel> &models) noexcept {
+  uint64_t hash = hashCombine(0x2f1876d09d3f4b21ull,
+                              static_cast<uint64_t>(models.size()));
+
+  for (const auto &model : models) {
+    uint64_t modelHash =
+        hashCombine(0x84d17fd3b9f4e255ull, hashString(model.key));
+    modelHash = hashCombine(modelHash, static_cast<uint64_t>(model.type));
+    modelHash = hashCombine(modelHash, hashVarValue(model.defaultValue));
+    modelHash = hashCombine(modelHash, hashString(model.description));
+    modelHash = hashCombine(modelHash, model.exposed ? 2ull : 1ull);
+    hash = hashCombine(hash, modelHash);
+  }
+
+  return hash;
+}
+
+uint64_t computePropertyBindingsFingerprint(
+    const std::vector<PropertyBindingModel> &models) noexcept {
+  uint64_t hash = hashCombine(0x7f86bc14d5a83111ull,
+                              static_cast<uint64_t>(models.size()));
+
+  for (const auto &model : models) {
+    uint64_t modelHash =
+        hashCombine(0x9f21ce80e7d4bb21ull, static_cast<uint64_t>(model.id));
+    modelHash = hashCombine(modelHash, hashString(model.name));
+    modelHash = hashCombine(modelHash, model.enabled ? 2ull : 1ull);
+    modelHash =
+        hashCombine(modelHash, static_cast<uint64_t>(model.targetWidgetId));
+    modelHash = hashCombine(modelHash, hashString(model.targetProperty));
+    modelHash = hashCombine(modelHash, hashString(model.expression));
+    hash = hashCombine(hash, modelHash);
   }
 
   return hash;
@@ -921,9 +1075,34 @@ void EventActionPanel::setBindingsChangedCallback(
 
 void EventActionPanel::refreshFromDocument() {
   const auto &snapshot = document.snapshot();
-  bindings = snapshot.runtimeBindings;
-  runtimeParams = snapshot.runtimeParams;
-  propertyBindings = snapshot.propertyBindings;
+
+  const auto nextBindingsFingerprint =
+      computeRuntimeBindingsFingerprint(snapshot.runtimeBindings);
+  const auto nextRuntimeParamsFingerprint =
+      computeRuntimeParamsFingerprint(snapshot.runtimeParams);
+  const auto nextPropertyBindingsFingerprint =
+      computePropertyBindingsFingerprint(snapshot.propertyBindings);
+
+  const auto firstSnapshotSync = !documentSnapshotFingerprintsReady;
+  const auto bindingsChanged =
+      firstSnapshotSync || nextBindingsFingerprint != bindingsFingerprint;
+  const auto runtimeParamsChanged =
+      firstSnapshotSync || nextRuntimeParamsFingerprint != runtimeParamsFingerprint;
+  const auto propertyBindingsChanged =
+      firstSnapshotSync ||
+      nextPropertyBindingsFingerprint != propertyBindingsFingerprint;
+
+  if (bindingsChanged)
+    bindings = snapshot.runtimeBindings;
+  if (runtimeParamsChanged)
+    runtimeParams = snapshot.runtimeParams;
+  if (propertyBindingsChanged)
+    propertyBindings = snapshot.propertyBindings;
+
+  bindingsFingerprint = nextBindingsFingerprint;
+  runtimeParamsFingerprint = nextRuntimeParamsFingerprint;
+  propertyBindingsFingerprint = nextPropertyBindingsFingerprint;
+  documentSnapshotFingerprintsReady = true;
 
   const auto nextWidgetHash = widgetCatalogHash(snapshot);
   const auto widgetsChanged =
@@ -937,11 +1116,31 @@ void EventActionPanel::refreshFromDocument() {
   if (widgetsChanged || filterChanged || sourceCombo.getNumItems() == 0)
     rebuildCreateCombos(filterChanged || widgetsChanged);
 
-  applySearchFilterNow();
-  refreshStateEditors();
+  const auto shouldRefreshBindingViews =
+      widgetsChanged || bindingsChanged || filterChanged;
+  bool refreshedDetailEditors = false;
+  if (shouldRefreshBindingViews) {
+    applySearchFilterNow();
+    refreshedDetailEditors = true;
+  } else if (runtimeParamsChanged) {
+    refreshDetailEditors();
+    refreshedDetailEditors = true;
+  }
+
+  const auto shouldRefreshStateEditors =
+      widgetsChanged || runtimeParamsChanged || propertyBindingsChanged;
+  bool refreshedStateEditors = false;
+  if (shouldRefreshStateEditors) {
+    refreshStateEditors();
+    refreshedStateEditors = true;
+  }
+
   updatePanelModeVisibility();
-  updatePropertyBindingExpressionPreview();
-  updateValidationUi();
+
+  if (!refreshedDetailEditors && !refreshedStateEditors) {
+    updatePropertyBindingExpressionPreview();
+    updateValidationUi();
+  }
 }
 
 void EventActionPanel::paint(juce::Graphics &g) {
@@ -3448,6 +3647,9 @@ bool EventActionPanel::commitBindings(const juce::String &) {
     onBindingsChanged();
 
   bindings = document.snapshot().runtimeBindings;
+  bindingsFingerprint = computeRuntimeBindingsFingerprint(bindings);
+  documentSnapshotFingerprintsReady = true;
+
   applySearchFilterNow();
   updatePanelModeVisibility();
   updateValidationUi();
@@ -3462,10 +3664,11 @@ bool EventActionPanel::commitRuntimeParams(const juce::String &) {
     onBindingsChanged();
 
   runtimeParams = document.snapshot().runtimeParams;
+  runtimeParamsFingerprint = computeRuntimeParamsFingerprint(runtimeParams);
+  documentSnapshotFingerprintsReady = true;
+
   refreshDetailEditors();
   refreshStateEditors();
-  updatePropertyBindingExpressionPreview();
-  updateValidationUi();
   return true;
 }
 
@@ -3477,9 +3680,11 @@ bool EventActionPanel::commitPropertyBindings(const juce::String &) {
     onBindingsChanged();
 
   propertyBindings = document.snapshot().propertyBindings;
+  propertyBindingsFingerprint =
+      computePropertyBindingsFingerprint(propertyBindings);
+  documentSnapshotFingerprintsReady = true;
+
   refreshStateEditors();
-  updatePropertyBindingExpressionPreview();
-  updateValidationUi();
   return true;
 }
 
