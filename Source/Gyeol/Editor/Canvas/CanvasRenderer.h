@@ -11,6 +11,8 @@ namespace Gyeol::Ui::Canvas
     {
     public:
         explicit CanvasRenderer(const Widgets::WidgetFactory& widgetFactoryIn) noexcept;
+        void setHeatmapMode(bool enabled) noexcept;
+        bool isHeatmapMode() const noexcept;
 
         void paintCanvas(juce::Graphics& g,
                          juce::Rectangle<int> viewportBounds,
@@ -38,5 +40,6 @@ namespace Gyeol::Ui::Canvas
 
     private:
         const Widgets::WidgetFactory& widgetFactory;
+        bool heatmapModeEnabled = false;
     };
 }

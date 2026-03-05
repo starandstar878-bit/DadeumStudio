@@ -1,5 +1,5 @@
 #include "Gyeol/Editor/Canvas/CanvasComponent.h"
-#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
+#include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
 
 #include <algorithm>
 #include <chrono>
@@ -154,7 +154,14 @@ namespace Gyeol::Ui::Canvas
         onWidgetLibraryDrop = std::move(callback);
     }
 
-    void CanvasComponent::setSnapSettings(const Interaction::SnapSettings& settingsIn)
+    
+    void CanvasComponent::setDirtyRectCallback(
+        std::function<void(juce::Rectangle<float>)> callback)
+    {
+        onDirtyRect = std::move(callback);
+    }
+
+void CanvasComponent::setSnapSettings(const Interaction::SnapSettings& settingsIn)
     {
         snapSettings = settingsIn;
         repaint();
@@ -167,7 +174,18 @@ namespace Gyeol::Ui::Canvas
 
     float CanvasComponent::currentZoomLevel() const noexcept { return zoomLevel; }
 
-    juce::Point<float> CanvasComponent::currentViewOriginWorld() const noexcept
+    bool CanvasComponent::setZoomLevel(float nextZoom)
+    {
+        const auto viewport = viewportBounds();
+        if (viewport.isEmpty())
+            return false;
+
+        const auto before = zoomLevel;
+        setZoomAtPoint(nextZoom, viewport.getCentre().toFloat());
+        return std::abs(before - zoomLevel) > 0.0001f;
+    }
+
+juce::Point<float> CanvasComponent::currentViewOriginWorld() const noexcept
     {
         return viewOriginWorld;
     }
@@ -340,6 +358,85 @@ namespace Gyeol::Ui::Canvas
     const CanvasComponent::PerfStats& CanvasComponent::performanceStats() const noexcept
     {
         return perf;
+    }
+
+    void CanvasComponent::setValidationHoverWidget(WidgetId widgetId)
+    {
+        if (validationHoverWidgetId == widgetId)
+            return;
+
+        validationHoverWidgetId = widgetId;
+        repaint();
+    }
+
+    void CanvasComponent::clearValidationHoverWidget()
+    {
+        setValidationHoverWidget(kRootId);
+    }
+
+    void CanvasComponent::setHeatmapMode(bool enabled)
+    {
+        if (renderer.isHeatmapMode() == enabled)
+            return;
+
+        renderer.setHeatmapMode(enabled);
+        repaint();
+    }
+
+    bool CanvasComponent::isHeatmapMode() const noexcept
+    {
+        return renderer.isHeatmapMode();
+    }
+
+    std::vector<CanvasComponent::OverdrawHotspot>
+    CanvasComponent::estimateOverdrawHotspots(std::size_t topN) const
+    {
+        std::vector<OverdrawHotspot> hotspots;
+        const auto& widgets = document.snapshot().widgets;
+        hotspots.reserve(widgets.size());
+
+        for (size_t i = 0; i < widgets.size(); ++i)
+        {
+            const auto& lhs = widgets[i];
+            if (!lhs.visible)
+                continue;
+
+            OverdrawHotspot hotspot;
+            hotspot.widgetId = lhs.id;
+            hotspot.area = lhs.bounds.getWidth() * lhs.bounds.getHeight();
+
+            for (size_t j = 0; j < widgets.size(); ++j)
+            {
+                if (i == j)
+                    continue;
+
+                const auto& rhs = widgets[j];
+                if (!rhs.visible)
+                    continue;
+
+                const auto overlap = lhs.bounds.getIntersection(rhs.bounds);
+                if (overlap.isEmpty())
+                    continue;
+
+                const auto overlapArea = overlap.getWidth() * overlap.getHeight();
+                hotspot.overlapScore += overlapArea / juce::jmax(1.0f, hotspot.area);
+            }
+
+            hotspots.push_back(hotspot);
+        }
+
+        std::sort(hotspots.begin(), hotspots.end(),
+                  [](const OverdrawHotspot& lhs, const OverdrawHotspot& rhs)
+                  {
+                      if (lhs.overlapScore != rhs.overlapScore)
+                          return lhs.overlapScore > rhs.overlapScore;
+                      return lhs.area > rhs.area;
+                  });
+
+        if (hotspots.size() > topN)
+            hotspots.resize(topN);
+
+        return hotspots;
     }
     bool CanvasComponent::isInterestedInDragSource(
         const juce::DragAndDropTarget::SourceDetails& dragSourceDetails)
@@ -536,6 +633,32 @@ namespace Gyeol::Ui::Canvas
             }
 
             g.restoreState();
+        }
+
+        if (validationHoverWidgetId > kRootId)
+        {
+            if (const auto* widget = findWidgetModel(validationHoverWidgetId); widget != nullptr)
+            {
+                auto highlightBounds = worldToViewRect(widget->bounds).expanded(3.0f);
+                if (highlightBounds.intersects(visibleCanvas))
+                {
+                    g.setColour(palette(Gyeol::GyeolPalette::AccentPrimary,
+                                        0.45f + 0.25f * (0.5f + 0.5f * std::sin(static_cast<float>(juce::Time::getMillisecondCounterHiRes() * 0.006)))));
+                    const float dashPattern[] { 6.0f, 3.0f };
+                    g.drawDashedLine({ highlightBounds.getX(), highlightBounds.getY(),
+                                       highlightBounds.getRight(), highlightBounds.getY() },
+                                     dashPattern, 2, 1.2f);
+                    g.drawDashedLine({ highlightBounds.getRight(), highlightBounds.getY(),
+                                       highlightBounds.getRight(), highlightBounds.getBottom() },
+                                     dashPattern, 2, 1.2f);
+                    g.drawDashedLine({ highlightBounds.getRight(), highlightBounds.getBottom(),
+                                       highlightBounds.getX(), highlightBounds.getBottom() },
+                                     dashPattern, 2, 1.2f);
+                    g.drawDashedLine({ highlightBounds.getX(), highlightBounds.getBottom(),
+                                       highlightBounds.getX(), highlightBounds.getY() },
+                                     dashPattern, 2, 1.2f);
+                }
+            }
         }
 
         renderer.paintRulers(g, viewport, visibleWorldBounds(), zoomLevel);
@@ -942,6 +1065,15 @@ namespace Gyeol::Ui::Canvas
     void CanvasComponent::notifyViewportChanged() { if (onViewportChanged) onViewportChanged(); }
     void CanvasComponent::emitRuntimeLog(const juce::String& action, const juce::String& detail) { if (onRuntimeLog) onRuntimeLog(action, detail); }
 
+    void CanvasComponent::emitDirtyRectAsync(juce::Rectangle<float> worldRect)
+    {
+        if (onDirtyRect == nullptr || worldRect.isEmpty())
+            return;
+
+        auto callback = onDirtyRect;
+        juce::MessageManager::callAsync([callback, worldRect]() mutable { callback(worldRect); });
+    }
+
     void CanvasComponent::setZoomAtPoint(float nextZoom, juce::Point<float> localAnchor)
     {
         nextZoom = juce::jlimit(minCanvasZoom, maxCanvasZoom, nextZoom);
@@ -1067,6 +1199,20 @@ namespace Gyeol::Ui::Canvas
             if (auto* view = findWidgetView(item.widgetId))
                 view->setViewBounds(worldToViewRect(item.currentBounds));
         }
+
+        auto dirtyWorld = juce::Rectangle<float>();
+        auto hasDirtyWorld = false;
+        for (const auto& item : dragState.items)
+        {
+            dirtyWorld = hasDirtyWorld
+                ? unionRect(dirtyWorld, unionRect(item.startBounds, item.currentBounds))
+                : unionRect(item.startBounds, item.currentBounds);
+            hasDirtyWorld = true;
+        }
+
+        if (hasDirtyWorld)
+            emitDirtyRectAsync(dirtyWorld);
+
         repaint();
     }
 
