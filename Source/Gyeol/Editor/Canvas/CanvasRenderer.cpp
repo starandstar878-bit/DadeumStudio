@@ -56,42 +56,56 @@ namespace Gyeol::Ui::Canvas
         g.saveState();
         g.reduceClipRegion(viewportBounds);
 
-        if (snapSettings.enableGrid)
-        {
-            const auto toViewX = [x0 = static_cast<float>(viewportBounds.getX()),
-                                  worldX = visibleWorldBounds.getX(),
-                                  zoomLevel](float world) noexcept
+        const auto toViewX = [x0 = static_cast<float>(viewportBounds.getX()),
+                              worldX = visibleWorldBounds.getX(),
+                              zoomLevel](float world) noexcept
             {
                 return x0 + (world - worldX) * zoomLevel;
             };
-            const auto toViewY = [y0 = static_cast<float>(viewportBounds.getY()),
-                                  worldY = visibleWorldBounds.getY(),
-                                  zoomLevel](float world) noexcept
+        const auto toViewY = [y0 = static_cast<float>(viewportBounds.getY()),
+                              worldY = visibleWorldBounds.getY(),
+                              zoomLevel](float world) noexcept
             {
                 return y0 + (world - worldY) * zoomLevel;
             };
 
+        const auto canvasViewBounds = juce::Rectangle<float>(toViewX(canvasWorldBounds.getX()),
+                                                             toViewY(canvasWorldBounds.getY()),
+                                                             canvasWorldBounds.getWidth() * zoomLevel,
+                                                             canvasWorldBounds.getHeight() * zoomLevel);
+        const auto visibleCanvasBounds = canvasViewBounds.getIntersection(viewportBounds.toFloat());
+
+        if (snapSettings.enableGrid && !visibleCanvasBounds.isEmpty())
+        {
             const auto gridSize = std::max(1.0f, snapSettings.gridSize);
             const auto majorStep = gridSize * 4.0f;
-            const auto worldMinX = visibleWorldBounds.getX();
-            const auto worldMaxX = visibleWorldBounds.getRight();
-            const auto worldMinY = visibleWorldBounds.getY();
-            const auto worldMaxY = visibleWorldBounds.getBottom();
+            const auto gridWorldBounds = visibleWorldBounds.getIntersection(canvasWorldBounds);
+            const auto worldMinX = gridWorldBounds.getX();
+            const auto worldMaxX = gridWorldBounds.getRight();
+            const auto worldMinY = gridWorldBounds.getY();
+            const auto worldMaxY = gridWorldBounds.getBottom();
 
             const auto gridFade = juce::jlimit(0.0f, 1.0f, (zoomLevel - 0.3f) / 0.6f);
             const auto minorAlpha = static_cast<juce::uint8>(juce::jlimit(0.0f, 255.0f, 14.0f * gridFade));
             const auto majorAlpha = static_cast<juce::uint8>(juce::jlimit(0.0f, 255.0f, 28.0f * gridFade));
+
+            g.saveState();
+            g.reduceClipRegion(visibleCanvasBounds.toNearestInt());
 
             if (minorAlpha > 0)
             {
                 g.setColour(juce::Colour::fromRGBA(255, 255, 255, minorAlpha));
                 auto startX = std::floor(worldMinX / gridSize) * gridSize;
                 for (float x = startX; x <= worldMaxX + gridSize; x += gridSize)
-                    g.drawVerticalLine(juce::roundToInt(toViewX(x)), static_cast<float>(viewportBounds.getY()), static_cast<float>(viewportBounds.getBottom()));
+                    g.drawVerticalLine(juce::roundToInt(toViewX(x)),
+                                       visibleCanvasBounds.getY(),
+                                       visibleCanvasBounds.getBottom());
 
                 auto startY = std::floor(worldMinY / gridSize) * gridSize;
                 for (float y = startY; y <= worldMaxY + gridSize; y += gridSize)
-                    g.drawHorizontalLine(juce::roundToInt(toViewY(y)), static_cast<float>(viewportBounds.getX()), static_cast<float>(viewportBounds.getRight()));
+                    g.drawHorizontalLine(juce::roundToInt(toViewY(y)),
+                                         visibleCanvasBounds.getX(),
+                                         visibleCanvasBounds.getRight());
             }
 
             if (majorAlpha > 0)
@@ -99,20 +113,22 @@ namespace Gyeol::Ui::Canvas
                 g.setColour(juce::Colour::fromRGBA(255, 255, 255, majorAlpha));
                 auto startX = std::floor(worldMinX / majorStep) * majorStep;
                 for (float x = startX; x <= worldMaxX + majorStep; x += majorStep)
-                    g.drawVerticalLine(juce::roundToInt(toViewX(x)), static_cast<float>(viewportBounds.getY()), static_cast<float>(viewportBounds.getBottom()));
+                    g.drawVerticalLine(juce::roundToInt(toViewX(x)),
+                                       visibleCanvasBounds.getY(),
+                                       visibleCanvasBounds.getBottom());
 
                 auto startY = std::floor(worldMinY / majorStep) * majorStep;
                 for (float y = startY; y <= worldMaxY + majorStep; y += majorStep)
-                    g.drawHorizontalLine(juce::roundToInt(toViewY(y)), static_cast<float>(viewportBounds.getX()), static_cast<float>(viewportBounds.getRight()));
+                    g.drawHorizontalLine(juce::roundToInt(toViewY(y)),
+                                         visibleCanvasBounds.getX(),
+                                         visibleCanvasBounds.getRight());
             }
 
-            const auto canvasViewX = toViewX(canvasWorldBounds.getX());
-            const auto canvasViewY = toViewY(canvasWorldBounds.getY());
-            const auto canvasViewW = canvasWorldBounds.getWidth() * zoomLevel;
-            const auto canvasViewH = canvasWorldBounds.getHeight() * zoomLevel;
-            g.setColour(juce::Colour::fromRGBA(82, 140, 220, 90));
-            g.drawRect(juce::Rectangle<float>(canvasViewX, canvasViewY, canvasViewW, canvasViewH).toNearestInt(), 1);
+            g.restoreState();
         }
+
+        g.setColour(juce::Colour::fromRGBA(82, 140, 220, 90));
+        g.drawRect(canvasViewBounds.toNearestInt(), 1);
 
         g.restoreState();
 
@@ -135,19 +151,6 @@ namespace Gyeol::Ui::Canvas
                 g.drawVerticalLine(leftRuler.getRight() - 1,
                                    static_cast<float>(leftRuler.getY()),
                                    static_cast<float>(leftRuler.getBottom()));
-
-            const auto toViewX = [x0 = static_cast<float>(viewportBounds.getX()),
-                                  worldX = visibleWorldBounds.getX(),
-                                  zoomLevel](float world) noexcept
-            {
-                return x0 + (world - worldX) * zoomLevel;
-            };
-            const auto toViewY = [y0 = static_cast<float>(viewportBounds.getY()),
-                                  worldY = visibleWorldBounds.getY(),
-                                  zoomLevel](float world) noexcept
-            {
-                return y0 + (world - worldY) * zoomLevel;
-            };
 
             const auto rawMajorStep = std::max(2.0f, 80.0f / std::max(0.0001f, zoomLevel));
             const auto magnitude = std::pow(10.0f, std::floor(std::log10(rawMajorStep)));
