@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 #include "Gyeol/Gyeol.h"
 #include <JuceHeader.h>
 
@@ -26,6 +25,5 @@ private:
   static juce::File sessionFilePath();
 
   std::unique_ptr<Gyeol::EditorHandle> gyeolEditor;
-  Gyeol::GyeolCustomLookAndFeel customLookAndFeel;
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

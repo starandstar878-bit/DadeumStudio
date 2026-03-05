@@ -4526,6 +4526,7 @@ public:
     owner.setWantsKeyboardFocus(true);
     owner.setFocusContainerType(
         juce::Component::FocusContainerType::focusContainer);
+    owner.setLookAndFeel(&editorLookAndFeel);
 
     initializeSettingsFile();
     loadUiSettings();
@@ -4976,6 +4977,7 @@ public:
   ~Impl() override {
     saveUiSettings();
     cancelPendingUpdate();
+    owner.setLookAndFeel(nullptr);
   }
 
   DocumentHandle &document() noexcept { return docHandle; }
@@ -6758,11 +6760,7 @@ void setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode mode) {
   void applyThemeState() {
     setGyeolThemeVariant(themeVariant);
     setGyeolReducedMotionEnabled(reducedMotionEnabled);
-
-    if (auto *lf = dynamic_cast<GyeolCustomLookAndFeel *>(
-            &juce::LookAndFeel::getDefaultLookAndFeel())) {
-      lf->refreshFromTheme();
-    }
+    editorLookAndFeel.refreshFromTheme();
   }
 
   void loadUiSettings() {
@@ -7934,6 +7932,7 @@ void setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode mode) {
   }
 
   EditorHandle &owner;
+  GyeolCustomLookAndFeel editorLookAndFeel;
   static constexpr int toolbarHeight = 44;
   static constexpr int layerPanelWidth = 300;
   static constexpr int rightPanelWidth = 360;

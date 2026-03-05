@@ -2,8 +2,6 @@
 
 //==============================================================================
 MainComponent::MainComponent() {
-  juce::LookAndFeel::setDefaultLookAndFeel(&customLookAndFeel);
-
   gyeolEditor = Gyeol::createEditor();
   addAndMakeVisible(*gyeolEditor);
   restoreSession();
@@ -12,7 +10,6 @@ MainComponent::MainComponent() {
 
 MainComponent::~MainComponent() {
   persistSession();
-  juce::LookAndFeel::setDefaultLookAndFeel(nullptr);
 }
 
 //==============================================================================
