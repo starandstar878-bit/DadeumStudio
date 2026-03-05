@@ -1,4 +1,3 @@
-﻿
 #include "Gyeol/Editor/Panels/PerformancePanel.h"
 
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
@@ -372,14 +371,14 @@ void PerformancePanel::resized() {
   contentBounds = getLocalBounds().reduced(8);
 
   auto top = contentBounds;
-  top.removeFromTop(20);
+  auto topRow = top.removeFromTop(20);
 
-  diagnosticsToggle.setBounds(top.removeFromLeft(100));
-  frameTabButton.setBounds(top.removeFromLeft(68));
-  top.removeFromLeft(4);
-  heatmapTabButton.setBounds(top.removeFromLeft(76));
-  top.removeFromLeft(4);
-  memoryTabButton.setBounds(top.removeFromLeft(68));
+  diagnosticsToggle.setBounds(topRow.removeFromLeft(100));
+  frameTabButton.setBounds(topRow.removeFromLeft(68));
+  topRow.removeFromLeft(4);
+  heatmapTabButton.setBounds(topRow.removeFromLeft(76));
+  topRow.removeFromLeft(4);
+  memoryTabButton.setBounds(topRow.removeFromLeft(68));
 
   auto heatmapControls = getLocalBounds();
   heatmapControls.removeFromTop(78);
