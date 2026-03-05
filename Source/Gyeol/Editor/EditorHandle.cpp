@@ -1,4 +1,6 @@
 #include "Gyeol/Public/EditorHandle.h"
+#include "Gyeol/Editor/EditorHandleImpl.h"
+#include "Gyeol/Editor/Canvas/CanvasComponent.h"
 #include "Gyeol/Editor/GyeolCustomLookAndFeel.h"
 
 #include "Gyeol/Editor/Interaction/AlignDistributeEngine.h"
@@ -249,8 +251,8 @@ public:
     g.restoreState();
 
     if (selected) {
-      // Phase 3: �׿� Glow �ܰ��� (�ٱ��������
-      // ���� ���̾�)
+      // Phase 3: draw a soft multi-pass glow around selected widgets.
+      // Keeps selected outlines legible on dense backgrounds.
       g.setColour(selectionOutline.withAlpha(0.08f));
       g.drawRoundedRectangle(body.expanded(3.0f), 7.0f, 4.0f);
       g.setColour(selectionOutline.withAlpha(0.15f));
@@ -264,7 +266,7 @@ public:
         const auto handleRadius =
             std::min(handle.getWidth(), handle.getHeight()) * 0.5f;
 
-        // Phase 3: �������� �ڵ��� ���� + Glow�� ��ü
+        // Phase 3: hot resize handle gets an extra glow pass for feedback.
         if (resizeHandleHot) {
           g.setColour(selectionOutline.withAlpha(0.15f));
           g.fillEllipse(handleCenter.x - handleRadius - 3.0f,
@@ -277,7 +279,7 @@ public:
         g.fillEllipse(handleCenter.x - handleRadius,
                       handleCenter.y - handleRadius, handleRadius * 2.0f,
                       handleRadius * 2.0f);
-        // ��� ���� ��
+        // Inner white dot keeps the handle visible across themes.
         g.setColour(juce::Colours::white);
         g.fillEllipse(handleCenter.x - handleRadius * 0.35f,
                       handleCenter.y - handleRadius * 0.35f,
@@ -1550,17 +1552,12 @@ public:
       const auto minorStep = std::max(1.0f, snapSettings.gridSize);
       const auto majorStep = minorStep * 4.0f;
 
-      // Phase 3: �� ������ ���� �׸���
-      // ���̵�ƿ�
-      // ���� �۾������� �׸��尡
-      // �������� �ð��� ����� ����
-      const auto gridFade =
-          juce::jlimit(0.0f, 1.0f,
-                       (zoomLevel - 0.3f) / 0.5f); // 0.3 ���Ͽ��� ���� ����
-      const auto minorAlpha = static_cast<juce::uint8>(
-          juce::jlimit(0.0f, 255.0f, 12.0f * gridFade));
-      const auto majorAlpha = static_cast<juce::uint8>(
-          juce::jlimit(0.0f, 255.0f, 24.0f * gridFade));
+      // Fade grid based on zoom level to reduce clutter at low zoom.
+      const auto gridFade = juce::jlimit(0.0f, 1.0f, (zoomLevel - 0.3f) / 0.5f);
+      const auto minorAlpha =
+          static_cast<juce::uint8>(juce::jlimit(0.0f, 255.0f, 12.0f * gridFade));
+      const auto majorAlpha =
+          static_cast<juce::uint8>(juce::jlimit(0.0f, 255.0f, 24.0f * gridFade));
 
       if (minorAlpha > 0)
         drawGrid(minorStep, juce::Colour::fromRGBA(255, 255, 255, minorAlpha));
@@ -1763,7 +1760,7 @@ public:
     if (computeCurrentSelectionUnionBounds(selectionBounds)) {
       const auto outline = juce::Colour::fromRGB(78, 156, 255);
 
-      // Phase 3: �׿� Glow �ܰ��� (��Ƽ ������)
+      // Phase 3: draw a soft multi-pass glow around current selection.
       g.setColour(outline.withAlpha(0.06f));
       g.drawRoundedRectangle(selectionBounds.expanded(2.5f), 7.0f, 4.0f);
       g.setColour(outline.withAlpha(0.12f));
@@ -1771,7 +1768,7 @@ public:
       g.setColour(outline);
       g.drawRoundedRectangle(selectionBounds.reduced(0.5f), 5.0f, 1.5f);
 
-      // Phase 3: �������� �ڵ� ���� + Glow
+      // Phase 3: selection handle glow for clear resize affordance.
       const auto handle = selectionResizeHandleBounds(selectionBounds);
       const auto handleCenter = handle.getCentre();
       const auto handleRadius =
@@ -4824,16 +4821,16 @@ public:
     previewModeButton.onClick = [this] {
       if (suppressModeToggleCallbacks)
         return;
-      setEditorMode(Ui::CanvasComponent::InteractionMode::preview);
+      setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode::preview);
     };
 
     runModeButton.onClick = [this] {
       if (suppressModeToggleCallbacks)
         return;
       if (canvas.isRunMode())
-        setEditorMode(Ui::CanvasComponent::InteractionMode::preview);
+        setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode::preview);
       else
-        setEditorMode(Ui::CanvasComponent::InteractionMode::run);
+        setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode::run);
     };
 
     gridSnapMenuButton.onClick = [this] {
@@ -4971,7 +4968,7 @@ public:
                            juce::Colour::fromRGB(170, 175, 186));
     shortcutHint.setInterceptsMouseClicks(false, false);
     updateShortcutHintForMode();
-    setEditorMode(Ui::CanvasComponent::InteractionMode::preview);
+    setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode::preview);
 
     refreshAllPanelsFromDocument();
   }
@@ -5018,225 +5015,19 @@ public:
         juce::Time::getMillisecondCounterHiRes() - paintStartMs;
   }
   void resized(juce::Rectangle<int> bounds) {
-    const auto layoutStartMs = juce::Time::getMillisecondCounterHiRes();
-    const auto nowMs = juce::Time::getMillisecondCounterHiRes();
-    const auto throttledResize = (nowMs - lastResizeMs) < 18.0;
-    if (throttledResize)
-      ++resizeThrottleCount;
-    lastResizeMs = nowMs;
-
-    breakpointClass = classifyBreakpoint(bounds.getWidth());
-    forceSingleColumnEditorsActive =
-        breakpointClass != BreakpointClass::narrow && bounds.getWidth() < 1120;
-
-    const auto tokens = currentDensityTokens();
-    applyDensityTypography(tokens, forceSingleColumnEditorsActive);
-    applyCompactionRules(bounds.getWidth());
-
-    auto &profile = ensureLayoutProfile(breakpointClass, bounds);
-
-    separatorXs.clear();
-    auto toolbar = bounds.removeFromTop(tokens.toolbarHeight)
-                       .reduced(tokens.spacing * 2, tokens.spacing);
-
-    const auto compactToolbar = bounds.getWidth() < 1280;
-    const auto iconButtonWidth = tokens.buttonWidth;
-    const auto compactButtonWidth = iconButtonWidth + tokens.spacing * 2;
-    const auto modeButtonWidth =
-        juce::roundToInt(static_cast<float>(tokens.buttonWidth) * 2.2f);
-
-    auto place = [&toolbar, tokens](juce::Button &button, int width) {
-      auto slot = toolbar.removeFromLeft(width);
-      const auto controlHeight =
-          juce::jmin(tokens.controlHeight, slot.getHeight());
-      const auto controlY =
-          slot.getY() + (slot.getHeight() - controlHeight) / 2;
-      button.setBounds(slot.withY(controlY).withHeight(controlHeight));
-      toolbar.removeFromLeft(tokens.spacing);
-    };
-
-    auto addSeparator = [&toolbar, this, tokens]() {
-      toolbar.removeFromLeft(tokens.spacing);
-      separatorXs.push_back(toolbar.getX());
-      toolbar.removeFromLeft(tokens.spacing * 2);
-    };
-
-    for (auto &entry : createButtons)
-      place(*entry.button, iconButtonWidth);
-
-    addSeparator();
-    place(undoButton, iconButtonWidth);
-    place(redoButton, iconButtonWidth);
-    place(deleteSelected, iconButtonWidth);
-    place(groupSelected, iconButtonWidth);
-    place(ungroupSelected, iconButtonWidth);
-    place(arrangeMenuButton, iconButtonWidth);
-
-    addSeparator();
-    place(dumpJsonButton, compactToolbar ? compactButtonWidth
-                                         : compactButtonWidth + tokens.spacing);
-    place(exportJuceButton, compactToolbar
-                                ? compactButtonWidth
-                                : compactButtonWidth + tokens.spacing);
-
-    addSeparator();
-    place(previewModeButton, modeButtonWidth);
-    place(runModeButton, modeButtonWidth);
-    place(previewBindingSimToggle, modeButtonWidth + tokens.spacing);
-    place(gridSnapMenuButton, compactToolbar
-                                  ? compactButtonWidth
-                                  : compactButtonWidth + tokens.spacing);
-
-    addSeparator();
-    place(leftDockButton, compactButtonWidth);
-    place(rightDockButton, compactButtonWidth);
-    place(uiMenuButton, compactButtonWidth);
-
-    shortcutHint.setBounds(toolbar);
-
-    auto content = bounds.reduced(tokens.spacing * 2);
-    lastContentBounds = content;
-
-    const auto minLeft = juce::roundToInt(200.0f * uiScaleFactor());
-    const auto maxLeft = juce::jmax(
-        minLeft, juce::jmin(juce::roundToInt(420.0f * uiScaleFactor()),
-                            juce::roundToInt(content.getWidth() * 0.62f)));
-    const auto minRight = juce::roundToInt(250.0f * uiScaleFactor());
-    const auto maxRight = juce::jmax(
-        minRight, juce::jmin(juce::roundToInt(520.0f * uiScaleFactor()),
-                             juce::roundToInt(content.getWidth() * 0.68f)));
-
-    profile.leftWidth = juce::jlimit(minLeft, maxLeft, profile.leftWidth);
-    profile.rightWidth = juce::jlimit(minRight, maxRight, profile.rightWidth);
-
-    const auto historyMax =
-        juce::jmax(tokens.historyCollapsed + tokens.spacing * 4,
-                   juce::roundToInt(content.getHeight() * 0.40f));
-    profile.historyHeight =
-        juce::jlimit(tokens.historyCollapsed + tokens.spacing * 2, historyMax,
-                     profile.historyHeight);
-
-    const auto historyDockHeight = historyPanel.isCollapsed()
-                                       ? tokens.historyCollapsed
-                                       : profile.historyHeight;
-    auto historyBounds = content.removeFromBottom(historyDockHeight);
-
-    panelLayoutTelemetryMs.clear();
-    const auto setBoundsWithTelemetry =
-        [this](juce::Component &component,
-               const juce::Rectangle<int> &nextBounds,
-               const juce::String &name) {
-          const auto beginMs = juce::Time::getMillisecondCounterHiRes();
-          component.setBounds(nextBounds);
-          panelLayoutTelemetryMs[name] =
-              juce::Time::getMillisecondCounterHiRes() - beginMs;
-        };
-
-    if (breakpointClass == BreakpointClass::narrow) {
-      profile.leftDockVisible = true;
-      profile.rightDockVisible = true;
-
-      setBoundsWithTelemetry(canvas, content, "canvas");
-      setBoundsWithTelemetry(historyPanel, historyBounds, "history");
-
-      leftPanels.setVisible(profile.leftOverlayOpen);
-      rightPanels.setVisible(profile.rightOverlayOpen);
-
-      if (profile.leftOverlayOpen) {
-        auto overlayBounds = content.reduced(tokens.spacing);
-        const auto overlayWidth = juce::jlimit(
-            minLeft,
-            juce::jmax(minLeft, content.getWidth() - tokens.spacing * 8),
-            profile.leftWidth);
-        overlayBounds.setWidth(overlayWidth);
-        setBoundsWithTelemetry(leftPanels, overlayBounds, "leftOverlay");
-        leftPanels.toFront(false);
-      }
-
-      if (profile.rightOverlayOpen) {
-        auto overlayBounds = content.reduced(tokens.spacing);
-        const auto overlayWidth = juce::jlimit(
-            minRight,
-            juce::jmax(minRight, content.getWidth() - tokens.spacing * 8),
-            profile.rightWidth);
-        overlayBounds.setWidth(overlayWidth);
-        overlayBounds.setX(content.getRight() - overlayWidth - tokens.spacing);
-        setBoundsWithTelemetry(rightPanels, overlayBounds, "rightOverlay");
-        rightPanels.toFront(false);
-      }
-    } else {
-      profile.leftOverlayOpen = false;
-
-      auto canvasBounds = content;
-      if (profile.leftDockVisible) {
-        auto leftBounds = canvasBounds.removeFromLeft(profile.leftWidth);
-        setBoundsWithTelemetry(leftPanels, leftBounds, "leftDock");
-        leftPanels.setVisible(true);
-      } else {
-        leftPanels.setVisible(false);
-      }
-
-      if (forceSingleColumnEditorsActive) {
-        if (profile.rightOverlayOpen) {
-          auto overlayBounds = content.reduced(tokens.spacing);
-          const auto overlayWidth = juce::jlimit(
-              minRight,
-              juce::jmax(minRight, content.getWidth() - tokens.spacing * 8),
-              profile.rightWidth);
-          overlayBounds.setWidth(overlayWidth);
-          overlayBounds.setX(content.getRight() - overlayWidth -
-                             tokens.spacing);
-          setBoundsWithTelemetry(rightPanels, overlayBounds, "rightOverlay");
-          rightPanels.setVisible(true);
-          rightPanels.toFront(false);
-        } else {
-          rightPanels.setVisible(false);
-        }
-      } else {
-        profile.rightOverlayOpen = false;
-        if (profile.rightDockVisible) {
-          auto rightBounds = canvasBounds.removeFromRight(profile.rightWidth);
-          setBoundsWithTelemetry(rightPanels, rightBounds, "rightDock");
-          rightPanels.setVisible(true);
-        } else {
-          rightPanels.setVisible(false);
-        }
-      }
-
-      setBoundsWithTelemetry(canvas, canvasBounds, "canvas");
-      setBoundsWithTelemetry(historyPanel, historyBounds, "history");
-    }
-
-    auto navBounds = canvas.getBounds();
-    navBounds.setSize(tokens.navSize, tokens.navSize);
-    navBounds.setPosition(
-        canvas.getRight() - tokens.navSize - tokens.spacing * 4,
-        canvas.getBottom() - tokens.navSize - tokens.spacing * 4);
-    setBoundsWithTelemetry(navigatorPanel, navBounds, "navigator");
-
-    if (gridSnapPanel.isVisible()) {
-      const auto popupWidth = juce::roundToInt(220.0f * uiScaleFactor());
-      const auto popupHeight = juce::roundToInt(170.0f * uiScaleFactor());
-      gridSnapPanel.setBounds(gridSnapMenuButton.getRight() - popupWidth,
-                              tokens.toolbarHeight + tokens.spacing, popupWidth,
-                              popupHeight);
-    }
-
-    juce::StringArray telemetryTokens;
-    for (const auto &[name, elapsedMs] : panelLayoutTelemetryMs)
-      telemetryTokens.add(name + "=" + juce::String(elapsedMs, 3) + "ms");
-    panelLayoutSummary = telemetryTokens.joinIntoString(", ");
-
-    if (!applyingLayoutForSnapshot)
-      saveUiSettings();
-
-    if (!throttledResize)
-      refreshViewDiagnosticsPanels();
-    else if (!isUpdatePending())
-      triggerAsyncUpdate();
-
-    lastLayoutMs = juce::Time::getMillisecondCounterHiRes() - layoutStartMs;
+    syncLegacyToShellState();
+    auto toolbarComponents = makeLayoutToolbarComponents();
+    auto panelComponents = makeLayoutPanelComponents();
+    editorShell.layoutCoordinator().resized(
+        editorShellState.layout,
+        owner,
+        toolbarComponents,
+        panelComponents,
+        bounds,
+        makeLayoutCallbacks());
+    syncShellStateToLegacy();
   }
+
   bool keyPressed(const juce::KeyPress &key) {
     const auto keyCode = key.getKeyCode();
     const auto mods = key.getModifiers();
@@ -5341,7 +5132,7 @@ public:
     if (canvas.isRunMode()) {
       if (!mods.isAnyModifierKeyDown() &&
           key.getKeyCode() == juce::KeyPress::escapeKey) {
-        setEditorMode(Ui::CanvasComponent::InteractionMode::preview);
+        setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode::preview);
         return true;
       }
       return canvas.keyPressed(key);
@@ -5421,24 +5212,307 @@ public:
   }
 
 private:
-  void refreshNavigatorSceneFromDocument() {
-    const auto &snapshot = docHandle.snapshot();
-    const auto &selection = docHandle.editorState().selection;
-    std::unordered_set<WidgetId> selectedWidgetIds(selection.begin(),
-                                                   selection.end());
-
-    std::vector<Ui::Panels::NavigatorPanel::SceneItem> items;
-    items.reserve(snapshot.widgets.size());
-    for (const auto &widget : snapshot.widgets) {
-      Ui::Panels::NavigatorPanel::SceneItem item;
-      item.bounds = widget.bounds;
-      item.selected = selectedWidgetIds.count(widget.id) > 0;
-      item.visible = widget.visible;
-      item.locked = widget.locked;
-      items.push_back(std::move(item));
+static Shell::EditorLayoutCoordinator::BreakpointClass toShellBreakpoint(BreakpointClass bp) {
+    switch (bp) {
+    case BreakpointClass::wide:
+      return Shell::EditorLayoutCoordinator::BreakpointClass::wide;
+    case BreakpointClass::desktop:
+      return Shell::EditorLayoutCoordinator::BreakpointClass::desktop;
+    case BreakpointClass::tablet:
+      return Shell::EditorLayoutCoordinator::BreakpointClass::tablet;
+    case BreakpointClass::narrow:
+    default:
+      return Shell::EditorLayoutCoordinator::BreakpointClass::narrow;
     }
+  }
 
-    navigatorPanel.setScene(canvas.canvasWorldBounds(), std::move(items));
+  static BreakpointClass fromShellBreakpoint(
+      Shell::EditorLayoutCoordinator::BreakpointClass bp) {
+    switch (bp) {
+    case Shell::EditorLayoutCoordinator::BreakpointClass::wide:
+      return BreakpointClass::wide;
+    case Shell::EditorLayoutCoordinator::BreakpointClass::desktop:
+      return BreakpointClass::desktop;
+    case Shell::EditorLayoutCoordinator::BreakpointClass::tablet:
+      return BreakpointClass::tablet;
+    case Shell::EditorLayoutCoordinator::BreakpointClass::narrow:
+    default:
+      return BreakpointClass::narrow;
+    }
+  }
+
+  static Shell::EditorLayoutCoordinator::DensityPreset toShellDensity(
+      DensityPreset preset) {
+    switch (preset) {
+    case DensityPreset::compact:
+      return Shell::EditorLayoutCoordinator::DensityPreset::compact;
+    case DensityPreset::comfortable:
+      return Shell::EditorLayoutCoordinator::DensityPreset::comfortable;
+    case DensityPreset::spacious:
+    default:
+      return Shell::EditorLayoutCoordinator::DensityPreset::spacious;
+    }
+  }
+
+  static DensityPreset fromShellDensity(
+      Shell::EditorLayoutCoordinator::DensityPreset preset) {
+    switch (preset) {
+    case Shell::EditorLayoutCoordinator::DensityPreset::compact:
+      return DensityPreset::compact;
+    case Shell::EditorLayoutCoordinator::DensityPreset::comfortable:
+      return DensityPreset::comfortable;
+    case Shell::EditorLayoutCoordinator::DensityPreset::spacious:
+    default:
+      return DensityPreset::spacious;
+    }
+  }
+
+  static Shell::EditorLayoutCoordinator::LayoutProfile toShellLayoutProfile(
+      const LayoutProfile &profile) {
+    Shell::EditorLayoutCoordinator::LayoutProfile shellProfile;
+    shellProfile.leftWidth = profile.leftWidth;
+    shellProfile.rightWidth = profile.rightWidth;
+    shellProfile.historyHeight = profile.historyHeight;
+    shellProfile.leftDockVisible = profile.leftDockVisible;
+    shellProfile.rightDockVisible = profile.rightDockVisible;
+    shellProfile.leftOverlayOpen = profile.leftOverlayOpen;
+    shellProfile.rightOverlayOpen = profile.rightOverlayOpen;
+    return shellProfile;
+  }
+
+  static LayoutProfile fromShellLayoutProfile(
+      const Shell::EditorLayoutCoordinator::LayoutProfile &profile) {
+    LayoutProfile legacy;
+    legacy.leftWidth = profile.leftWidth;
+    legacy.rightWidth = profile.rightWidth;
+    legacy.historyHeight = profile.historyHeight;
+    legacy.leftDockVisible = profile.leftDockVisible;
+    legacy.rightDockVisible = profile.rightDockVisible;
+    legacy.leftOverlayOpen = profile.leftOverlayOpen;
+    legacy.rightOverlayOpen = profile.rightOverlayOpen;
+    return legacy;
+  }
+
+  void syncLegacyToShellState() {
+    editorShellState.layout.breakpointClass = toShellBreakpoint(breakpointClass);
+    editorShellState.layout.densityPreset = toShellDensity(densityPreset);
+    editorShellState.layout.layoutProfiles.clear();
+    for (const auto &[key, profile] : layoutProfiles)
+      editorShellState.layout.layoutProfiles[key] = toShellLayoutProfile(profile);
+    editorShellState.layout.resizeThrottleCount = resizeThrottleCount;
+    editorShellState.layout.lastLayoutMs = lastLayoutMs;
+    editorShellState.layout.lastResizeMs = lastResizeMs;
+    editorShellState.layout.panelLayoutTelemetryMs = panelLayoutTelemetryMs;
+    editorShellState.layout.panelLayoutSummary = panelLayoutSummary;
+    editorShellState.layout.applyingLayoutForSnapshot = applyingLayoutForSnapshot;
+    editorShellState.layout.forceSingleColumnEditorsActive =
+        forceSingleColumnEditorsActive;
+    editorShellState.layout.uiScaleOverride = uiScaleOverride;
+    editorShellState.layout.lastContentBounds = lastContentBounds;
+    editorShellState.layout.separatorXs = separatorXs;
+
+    editorShellState.mode.previewBindingSimulationActive =
+        previewBindingSimulationActive;
+    editorShellState.mode.suppressModeToggleCallbacks =
+        suppressModeToggleCallbacks;
+    editorShellState.mode.suppressPreviewBindingToggleCallbacks =
+        suppressPreviewBindingToggleCallbacks;
+
+    editorShellState.history.suppressNextCanvasMutationHistory =
+        suppressNextCanvasMutationHistory;
+
+    editorShellState.panels.activeLayerOverrideId = activeLayerOverrideId;
+    editorShellState.panels.pendingLayerTreeRefresh = pendingLayerTreeRefresh;
+    editorShellState.panels.pendingInspectorSync = pendingInspectorSync;
+    editorShellState.panels.pendingEventActionSync = pendingEventActionSync;
+    editorShellState.panels.pendingAssetsSync = pendingAssetsSync;
+    editorShellState.panels.deferredRefreshRequestCount =
+        deferredRefreshRequestCount;
+    editorShellState.panels.deferredRefreshCoalescedCount =
+        deferredRefreshCoalescedCount;
+    editorShellState.panels.deferredRefreshFlushCount =
+        deferredRefreshFlushCount;
+    editorShellState.panels.lastDocumentDigest = lastDocumentDigest;
+
+    editorShellState.recentWidgetIds = recentWidgetIds;
+  }
+
+  void syncShellStateToLegacy() {
+    breakpointClass = fromShellBreakpoint(editorShellState.layout.breakpointClass);
+    densityPreset = fromShellDensity(editorShellState.layout.densityPreset);
+
+    layoutProfiles.clear();
+    for (const auto &[key, profile] : editorShellState.layout.layoutProfiles)
+      layoutProfiles[key] = fromShellLayoutProfile(profile);
+
+    resizeThrottleCount = editorShellState.layout.resizeThrottleCount;
+    lastLayoutMs = editorShellState.layout.lastLayoutMs;
+    lastResizeMs = editorShellState.layout.lastResizeMs;
+    panelLayoutTelemetryMs = editorShellState.layout.panelLayoutTelemetryMs;
+    panelLayoutSummary = editorShellState.layout.panelLayoutSummary;
+    applyingLayoutForSnapshot = editorShellState.layout.applyingLayoutForSnapshot;
+    forceSingleColumnEditorsActive =
+        editorShellState.layout.forceSingleColumnEditorsActive;
+    uiScaleOverride = editorShellState.layout.uiScaleOverride;
+    lastContentBounds = editorShellState.layout.lastContentBounds;
+    separatorXs = editorShellState.layout.separatorXs;
+
+    previewBindingSimulationActive =
+        editorShellState.mode.previewBindingSimulationActive;
+    suppressModeToggleCallbacks =
+        editorShellState.mode.suppressModeToggleCallbacks;
+    suppressPreviewBindingToggleCallbacks =
+        editorShellState.mode.suppressPreviewBindingToggleCallbacks;
+
+    suppressNextCanvasMutationHistory =
+        editorShellState.history.suppressNextCanvasMutationHistory;
+
+    activeLayerOverrideId = editorShellState.panels.activeLayerOverrideId;
+    pendingLayerTreeRefresh = editorShellState.panels.pendingLayerTreeRefresh;
+    pendingInspectorSync = editorShellState.panels.pendingInspectorSync;
+    pendingEventActionSync = editorShellState.panels.pendingEventActionSync;
+    pendingAssetsSync = editorShellState.panels.pendingAssetsSync;
+    deferredRefreshRequestCount =
+        editorShellState.panels.deferredRefreshRequestCount;
+    deferredRefreshCoalescedCount =
+        editorShellState.panels.deferredRefreshCoalescedCount;
+    deferredRefreshFlushCount =
+        editorShellState.panels.deferredRefreshFlushCount;
+    lastDocumentDigest = editorShellState.panels.lastDocumentDigest;
+
+    recentWidgetIds = editorShellState.recentWidgetIds;
+  }
+
+  std::vector<juce::Button *> collectCreateButtons() const {
+    std::vector<juce::Button *> buttons;
+    buttons.reserve(createButtons.size());
+    for (const auto &entry : createButtons)
+      buttons.push_back(entry.button.get());
+    return buttons;
+  }
+
+  Shell::EditorPanelMediator::Components makePanelMediatorComponents() {
+    return {docHandle,
+            canvas,
+            layerTreePanel,
+            widgetLibraryPanel,
+            assetsPanel,
+            eventActionPanel,
+            validationPanel,
+            exportPreviewPanel,
+            propertyPanel,
+            historyPanel,
+            navigatorPanel};
+  }
+
+  Shell::EditorPanelMediator::ToolbarComponents
+  makePanelMediatorToolbarComponents() {
+    return {collectCreateButtons(),
+            historyPanel,
+            deleteSelected,
+            groupSelected,
+            ungroupSelected,
+            arrangeMenuButton,
+            dumpJsonButton,
+            exportJuceButton,
+            undoButton,
+            redoButton,
+            previewBindingSimToggle,
+            gridSnapMenuButton,
+            leftDockButton,
+            rightDockButton,
+            uiMenuButton};
+  }
+
+  Shell::EditorHistoryBridge::Context makeHistoryContext() {
+    return {docHandle, canvas, historyPanel};
+  }
+
+  Shell::EditorModeCoordinator::Components makeModeComponents() {
+    return {docHandle,
+            canvas,
+            previewModeButton,
+            runModeButton,
+            previewBindingSimToggle,
+            leftPanels,
+            rightPanels,
+            gridSnapPanel,
+            historyPanel,
+            shortcutHint};
+  }
+
+  Shell::EditorModeCoordinator::Callbacks makeModeCallbacks() {
+    Shell::EditorModeCoordinator::Callbacks callbacks;
+    callbacks.refreshToolbarState = [this] { refreshToolbarState(); };
+    callbacks.refreshAllPanelsFromDocument =
+        [this] { refreshAllPanelsFromDocument(); };
+    callbacks.syncInspectorTargetFromState =
+        [this] { syncInspectorTargetFromState(); };
+    callbacks.requestDeferredUiRefresh = [this](bool refreshLayerTree,
+                                                bool refreshInspector) {
+      requestDeferredUiRefresh(refreshLayerTree, refreshInspector);
+    };
+    return callbacks;
+  }
+
+  Shell::EditorLayoutCoordinator::ToolbarComponents
+  makeLayoutToolbarComponents() {
+    return {collectCreateButtons(),
+            undoButton,
+            redoButton,
+            deleteSelected,
+            groupSelected,
+            ungroupSelected,
+            arrangeMenuButton,
+            dumpJsonButton,
+            exportJuceButton,
+            previewModeButton,
+            runModeButton,
+            previewBindingSimToggle,
+            gridSnapMenuButton,
+            leftDockButton,
+            rightDockButton,
+            uiMenuButton,
+            shortcutHint};
+  }
+
+  Shell::EditorLayoutCoordinator::PanelComponents makeLayoutPanelComponents() {
+    return {leftPanels,
+            rightPanels,
+            canvas,
+            historyPanel,
+            navigatorPanel,
+            gridSnapPanel};
+  }
+
+  Shell::EditorLayoutCoordinator::Callbacks makeLayoutCallbacks() {
+    Shell::EditorLayoutCoordinator::Callbacks callbacks;
+    callbacks.applyDensityTypography =
+        [this](const Shell::EditorLayoutCoordinator::DensityTokens &tokens,
+               bool forceSingleColumnEditors) {
+          applyDensityTypography(tokens, forceSingleColumnEditors);
+        };
+    callbacks.applyCompactionRules =
+        [this](int width) { applyCompactionRules(width); };
+    callbacks.refreshViewDiagnosticsPanels =
+        [this] { refreshViewDiagnosticsPanels(); };
+    callbacks.saveUiSettings = [this] {
+      if (!applyingLayoutForSnapshot)
+        saveUiSettings();
+    };
+    callbacks.isAsyncUpdatePending = [this] { return isUpdatePending(); };
+    callbacks.triggerAsyncUpdate = [this] {
+      if (!isUpdatePending())
+        triggerAsyncUpdate();
+    };
+    return callbacks;
+  }
+
+void refreshNavigatorSceneFromDocument() {
+    syncLegacyToShellState();
+    editorShell.panelMediator().refreshNavigatorSceneFromDocument(
+        makePanelMediatorComponents());
+    syncShellStateToLegacy();
   }
 
   void refreshViewDiagnosticsPanels() {
@@ -5509,21 +5583,14 @@ private:
     lastTelemetryMs =
         juce::Time::getMillisecondCounterHiRes() - telemetryStartMs;
   }
-  void refreshAllPanelsFromDocument() {
-    canvas.refreshFromDocument();
-    layerTreePanel.refreshFromDocument();
-    widgetLibraryPanel.refreshFromRegistry();
-    assetsPanel.refreshFromDocument();
-    refreshNavigatorSceneFromDocument();
-    eventActionPanel.refreshFromDocument();
-    validationPanel.refreshValidation();
-    exportPreviewPanel.markDirty();
-    refreshViewDiagnosticsPanels();
-    refreshToolbarState();
-    syncInspectorTargetFromState();
-    historyPanel.setStackState(docHandle.undoDepth(), docHandle.redoDepth(),
-                               docHandle.historySerial());
-    lastDocumentDigest = computeDocumentDigest();
+void refreshAllPanelsFromDocument() {
+    syncLegacyToShellState();
+    editorShell.panelMediator().refreshAllPanelsFromDocument(
+        editorShellState.panels,
+        makePanelMediatorComponents(),
+        [this] { refreshViewDiagnosticsPanels(); },
+        [this] { refreshToolbarState(); });
+    syncShellStateToLegacy();
   }
 
 public:
@@ -6044,71 +6111,51 @@ private:
     canvas.grabKeyboardFocus();
   }
 
-  void requestDeferredUiRefresh(bool refreshLayerTree, bool refreshInspector) {
-    deferredRefreshRequestCount += 1;
-    const auto alreadyPending = pendingLayerTreeRefresh ||
-                                pendingInspectorSync ||
-                                pendingEventActionSync || pendingAssetsSync;
-    pendingLayerTreeRefresh = pendingLayerTreeRefresh || refreshLayerTree;
-    pendingInspectorSync = pendingInspectorSync || refreshInspector;
-    pendingEventActionSync = pendingEventActionSync || refreshLayerTree;
-    pendingAssetsSync = pendingAssetsSync || refreshLayerTree;
-    if (alreadyPending)
-      deferredRefreshCoalescedCount += 1;
-    if ((pendingLayerTreeRefresh || pendingInspectorSync ||
-         pendingEventActionSync || pendingAssetsSync) &&
-        !isUpdatePending())
+void requestDeferredUiRefresh(bool refreshLayerTree, bool refreshInspector) {
+    syncLegacyToShellState();
+    const auto shouldTrigger = editorShell.panelMediator().requestDeferredUiRefresh(
+        editorShellState.panels,
+        refreshLayerTree,
+        refreshInspector,
+        isUpdatePending());
+    syncShellStateToLegacy();
+    if (shouldTrigger && !isUpdatePending())
       triggerAsyncUpdate();
   }
 
-  void refreshCanvasAndRequestPanels(bool refreshCanvas, bool refreshLayerTree,
+void refreshCanvasAndRequestPanels(bool refreshCanvas, bool refreshLayerTree,
                                      bool refreshInspector) {
-    if (refreshCanvas) {
-      suppressNextCanvasMutationHistory = true;
-      canvas.refreshFromDocument();
-    }
-    refreshToolbarState();
-    requestDeferredUiRefresh(refreshLayerTree, refreshInspector);
+    syncLegacyToShellState();
+    editorShell.panelMediator().refreshCanvasAndRequestPanels(
+        editorShellState.panels,
+        makePanelMediatorComponents(),
+        refreshCanvas,
+        refreshLayerTree,
+        refreshInspector,
+        editorShellState.history.suppressNextCanvasMutationHistory,
+        [this] { refreshToolbarState(); },
+        isUpdatePending(),
+        [this] {
+          if (!isUpdatePending())
+            triggerAsyncUpdate();
+        });
+    syncShellStateToLegacy();
   }
 
-  void handleAsyncUpdate() override {
-    deferredRefreshFlushCount += 1;
-    const auto shouldRefreshLayerTree = pendingLayerTreeRefresh;
-    const auto shouldSyncInspector = pendingInspectorSync;
-    const auto shouldSyncEventAction = pendingEventActionSync;
-    const auto shouldSyncAssets = pendingAssetsSync;
-    pendingLayerTreeRefresh = false;
-    pendingInspectorSync = false;
-    pendingEventActionSync = false;
-    pendingAssetsSync = false;
-
-    if (shouldRefreshLayerTree)
-      layerTreePanel.refreshFromDocument();
-    if (shouldSyncInspector)
-      syncInspectorTargetFromState();
-    if (shouldSyncEventAction)
-      eventActionPanel.refreshFromDocument();
-    if (shouldSyncAssets)
-      assetsPanel.refreshFromDocument();
-    if (shouldRefreshLayerTree || shouldSyncInspector ||
-        shouldSyncEventAction || shouldSyncAssets)
-      refreshNavigatorSceneFromDocument();
-
-    refreshViewDiagnosticsPanels();
-
-    if (deferredRefreshFlushCount % 120 == 0) {
-      DBG(juce::String("[Gyeol][Editor][Perf] deferredRefresh flush#") +
-          juce::String(static_cast<int64_t>(deferredRefreshFlushCount)) +
-          " requests=" +
-          juce::String(static_cast<int64_t>(deferredRefreshRequestCount)) +
-          " coalesced=" +
-          juce::String(static_cast<int64_t>(deferredRefreshCoalescedCount)));
-    }
+void handleAsyncUpdate() override {
+    syncLegacyToShellState();
+    editorShell.panelMediator().flushDeferredUiRefresh(
+        editorShellState.panels,
+        makePanelMediatorComponents(),
+        [this] { refreshViewDiagnosticsPanels(); });
+    syncShellStateToLegacy();
   }
 
-  void syncInspectorTargetFromState() {
-    propertyPanel.setInspectorTarget(resolveInspectorTarget());
-    propertyPanel.refreshFromDocument();
+void syncInspectorTargetFromState() {
+    syncLegacyToShellState();
+    editorShell.panelMediator().syncInspectorTargetFromState(
+        makePanelMediatorComponents());
+    syncShellStateToLegacy();
   }
 
   struct CreateButtonEntry {
@@ -6409,240 +6456,99 @@ private:
     exportPreviewPanel.markDirty();
   }
 
-  void appendHistoryEntry(const juce::String &action,
+void appendHistoryEntry(const juce::String &action,
                           const juce::String &detail) {
-    historyPanel.setStackState(docHandle.undoDepth(), docHandle.redoDepth(),
-                               docHandle.historySerial());
-    historyPanel.appendEntry(action, detail);
-    historyPanel.setCanUndoRedo(docHandle.canUndo(), docHandle.canRedo());
+    syncLegacyToShellState();
+    editorShell.historyBridge().appendHistoryEntry(makeHistoryContext(), action,
+                                                   detail);
+    syncShellStateToLegacy();
   }
 
-  std::uint64_t computeDocumentDigest() const {
-    auto hash = static_cast<std::uint64_t>(1469598103934665603ULL);
-    const auto mix = [&hash](std::uint64_t value) {
-      hash ^= value + 0x9e3779b97f4a7c15ULL + (hash << 6) + (hash >> 2);
-    };
-    const auto mixFloat = [&mix](float value) {
-      const auto quantized = static_cast<std::int64_t>(
-          std::llround(static_cast<double>(value) * 1000.0));
-      mix(static_cast<std::uint64_t>(quantized));
-    };
-    const auto mixBool = [&mix](bool value) { mix(value ? 1ULL : 0ULL); };
-    const auto mixString = [&mix](const juce::String &value) {
-      mix(static_cast<std::uint64_t>(value.hashCode64()));
-    };
-
-    const auto &snapshot = docHandle.snapshot();
-    mix(static_cast<std::uint64_t>(snapshot.widgets.size()));
-    mix(static_cast<std::uint64_t>(snapshot.groups.size()));
-    mix(static_cast<std::uint64_t>(snapshot.layers.size()));
-
-    for (const auto &widget : snapshot.widgets) {
-      mix(static_cast<std::uint64_t>(widget.id));
-      mix(static_cast<std::uint64_t>(widget.type));
-      mixFloat(widget.bounds.getX());
-      mixFloat(widget.bounds.getY());
-      mixFloat(widget.bounds.getWidth());
-      mixFloat(widget.bounds.getHeight());
-      mixBool(widget.visible);
-      mixBool(widget.locked);
-      mixFloat(widget.opacity);
-
-      mix(static_cast<std::uint64_t>(widget.properties.size()));
-      for (int i = 0; i < widget.properties.size(); ++i) {
-        mixString(widget.properties.getName(i).toString());
-        mixString(widget.properties.getValueAt(i).toString());
-      }
-    }
-
-    for (const auto &group : snapshot.groups) {
-      mix(static_cast<std::uint64_t>(group.id));
-      mixString(group.name);
-      mixBool(group.visible);
-      mixBool(group.locked);
-      mixFloat(group.opacity);
-      mix(static_cast<std::uint64_t>(group.parentGroupId.value_or(kRootId)));
-      for (const auto memberId : group.memberWidgetIds)
-        mix(static_cast<std::uint64_t>(memberId));
-      for (const auto childGroupId : group.memberGroupIds)
-        mix(static_cast<std::uint64_t>(childGroupId));
-    }
-
-    for (const auto &layer : snapshot.layers) {
-      mix(static_cast<std::uint64_t>(layer.id));
-      mixString(layer.name);
-      mix(static_cast<std::uint64_t>(layer.order));
-      mixBool(layer.visible);
-      mixBool(layer.locked);
-      for (const auto memberId : layer.memberWidgetIds)
-        mix(static_cast<std::uint64_t>(memberId));
-      for (const auto groupId : layer.memberGroupIds)
-        mix(static_cast<std::uint64_t>(groupId));
-    }
-
-    return hash;
+std::uint64_t computeDocumentDigest() const {
+    return editorShell.computeDocumentDigest(docHandle);
   }
 
-  void handleCanvasStateChanged() {
+void handleCanvasStateChanged() {
     refreshToolbarState();
     requestDeferredUiRefresh(true, true);
     refreshNavigatorSceneFromDocument();
     refreshViewDiagnosticsPanels();
 
-    const auto nextDigest = computeDocumentDigest();
-    const auto changed = nextDigest != lastDocumentDigest;
+    syncLegacyToShellState();
+    const auto changed = editorShell.updateDocumentDigest(editorShellState,
+                                                          docHandle);
     if (changed) {
       validationPanel.markDirty();
       exportPreviewPanel.markDirty();
 
-      if (!suppressNextCanvasMutationHistory)
+      if (!editorShellState.history.suppressNextCanvasMutationHistory)
         appendHistoryEntry("Canvas Edit", "Direct canvas interaction");
-      lastDocumentDigest = nextDigest;
     }
 
-    suppressNextCanvasMutationHistory = false;
+    editorShellState.history.suppressNextCanvasMutationHistory = false;
+    syncShellStateToLegacy();
   }
 
-  void performUndoFromToolbar() {
-    if (canvas.isRunMode())
-      return;
-
-    suppressNextCanvasMutationHistory = true;
-    if (canvas.performUndo())
-      appendHistoryEntry("Undo", "Toolbar");
-    else
-      suppressNextCanvasMutationHistory = false;
+void performUndoFromToolbar() {
+    syncLegacyToShellState();
+    editorShell.historyBridge().performUndoFromToolbar(editorShellState.history,
+                                                       makeHistoryContext());
+    syncShellStateToLegacy();
   }
 
-  void performRedoFromToolbar() {
-    if (canvas.isRunMode())
-      return;
-
-    suppressNextCanvasMutationHistory = true;
-    if (canvas.performRedo())
-      appendHistoryEntry("Redo", "Toolbar");
-    else
-      suppressNextCanvasMutationHistory = false;
+void performRedoFromToolbar() {
+    syncLegacyToShellState();
+    editorShell.historyBridge().performRedoFromToolbar(editorShellState.history,
+                                                       makeHistoryContext());
+    syncShellStateToLegacy();
   }
 
-  void performUndoFromHistoryPanel() {
-    if (canvas.isRunMode())
-      return;
-
-    suppressNextCanvasMutationHistory = true;
-    if (canvas.performUndo())
-      appendHistoryEntry("Undo", "History panel");
-    else
-      suppressNextCanvasMutationHistory = false;
+void performUndoFromHistoryPanel() {
+    syncLegacyToShellState();
+    editorShell.historyBridge().performUndoFromHistoryPanel(
+        editorShellState.history,
+        makeHistoryContext());
+    syncShellStateToLegacy();
   }
 
-  void performRedoFromHistoryPanel() {
-    if (canvas.isRunMode())
-      return;
-
-    suppressNextCanvasMutationHistory = true;
-    if (canvas.performRedo())
-      appendHistoryEntry("Redo", "History panel");
-    else
-      suppressNextCanvasMutationHistory = false;
+void performRedoFromHistoryPanel() {
+    syncLegacyToShellState();
+    editorShell.historyBridge().performRedoFromHistoryPanel(
+        editorShellState.history,
+        makeHistoryContext());
+    syncShellStateToLegacy();
   }
 
-  void updateShortcutHintForMode() {
-    const auto previewText =
-        "Preview: Cmd/Ctrl+K palette  Cmd/Ctrl+P switcher  Del delete  "
-        "Cmd/Ctrl+G group  Cmd/Ctrl+Shift+G ungroup  "
-        "Cmd/Ctrl+Alt+Arrows/H/V align  Cmd/Ctrl+Alt+Shift+H/V distribute  "
-        "Cmd/Ctrl+[ ] layer order  Cmd/Ctrl+Z/Y undo/redo";
-    const auto previewSimText = "Preview(Sim Bind): bindings simulated as "
-                                "temporary preview. Toggle off to rollback.";
-    const auto runText = "Run: interact with widgets, runtimeBindings execute, "
-                         "click Run again or Esc to return Preview(rollback)";
-    if (canvas.isRunMode())
-      shortcutHint.setText(runText, juce::dontSendNotification);
-    else if (previewBindingSimulationActive)
-      shortcutHint.setText(previewSimText, juce::dontSendNotification);
-    else
-      shortcutHint.setText(previewText, juce::dontSendNotification);
+void updateShortcutHintForMode() {
+    syncLegacyToShellState();
+    editorShell.modeCoordinator().updateShortcutHintForMode(
+        editorShellState.mode,
+        makeModeComponents());
+    syncShellStateToLegacy();
   }
 
-  void setPreviewBindingSimulation(bool enabled) {
-    if (previewBindingSimulationActive == enabled)
-      return;
-
-    if (enabled && canvas.isRunMode())
-      return;
-
-    if (enabled) {
-      if (!docHandle.beginCoalescedEdit(previewBindingSimCoalescedEditKey)) {
-        DBG("[Gyeol][PreviewSim] beginCoalescedEdit failed");
-        return;
-      }
-    } else {
-      if (!docHandle.endCoalescedEdit(previewBindingSimCoalescedEditKey, false))
-        DBG("[Gyeol][PreviewSim] rollback failed");
-    }
-
-    previewBindingSimulationActive = enabled;
-    canvas.setPreviewBindingSimulationEnabled(enabled);
-    canvas.setEnabled(!previewBindingSimulationActive || canvas.isRunMode());
-
-    suppressPreviewBindingToggleCallbacks = true;
-    previewBindingSimToggle.setToggleState(previewBindingSimulationActive,
-                                           juce::dontSendNotification);
-    suppressPreviewBindingToggleCallbacks = false;
-
-    const auto interactionLocked =
-        canvas.isRunMode() || previewBindingSimulationActive;
-    leftPanels.setEnabled(!interactionLocked);
-    rightPanels.setEnabled(!interactionLocked);
-    gridSnapPanel.setEnabled(!interactionLocked);
-
-    updateShortcutHintForMode();
-    refreshToolbarState();
-    refreshAllPanelsFromDocument();
+void setPreviewBindingSimulation(bool enabled) {
+    syncLegacyToShellState();
+    auto components = makeModeComponents();
+    auto callbacks = makeModeCallbacks();
+    editorShell.modeCoordinator().setPreviewBindingSimulation(
+        editorShellState.mode,
+        components,
+        enabled,
+        callbacks);
+    syncShellStateToLegacy();
   }
 
-  void setEditorMode(Ui::CanvasComponent::InteractionMode mode) {
-    if (mode == Ui::CanvasComponent::InteractionMode::run &&
-        previewBindingSimulationActive)
-      setPreviewBindingSimulation(false);
-
-    const auto previousMode = canvas.interactionMode();
-    const auto modeChanged = previousMode != mode;
-
-    if (modeChanged && mode == Ui::CanvasComponent::InteractionMode::run) {
-      if (!docHandle.beginCoalescedEdit(runSessionCoalescedEditKey))
-        DBG("[Gyeol][RunMode] beginCoalescedEdit failed");
-    } else if (modeChanged &&
-               previousMode == Ui::CanvasComponent::InteractionMode::run) {
-      if (!docHandle.endCoalescedEdit(runSessionCoalescedEditKey, false))
-        DBG("[Gyeol][RunMode] rollback failed");
-    }
-
-    canvas.setInteractionMode(mode);
-    canvas.setEnabled(!previewBindingSimulationActive || canvas.isRunMode());
-
-    suppressModeToggleCallbacks = true;
-    previewModeButton.setToggleState(
-        mode == Ui::CanvasComponent::InteractionMode::preview,
-        juce::dontSendNotification);
-    runModeButton.setToggleState(mode ==
-                                     Ui::CanvasComponent::InteractionMode::run,
-                                 juce::dontSendNotification);
-    suppressModeToggleCallbacks = false;
-
-    const auto interactionLocked =
-        canvas.isRunMode() || previewBindingSimulationActive;
-    leftPanels.setEnabled(!interactionLocked);
-    rightPanels.setEnabled(!interactionLocked);
-    gridSnapPanel.setEnabled(!interactionLocked);
-    historyPanel.setEnabled(true);
-
-    updateShortcutHintForMode();
-    refreshAllPanelsFromDocument();
-    refreshToolbarState();
-    syncInspectorTargetFromState();
-    requestDeferredUiRefresh(false, true);
+void setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode mode) {
+    syncLegacyToShellState();
+    auto components = makeModeComponents();
+    auto callbacks = makeModeCallbacks();
+    editorShell.modeCoordinator().setEditorMode(
+        editorShellState.mode,
+        components,
+        mode,
+        callbacks);
+    syncShellStateToLegacy();
   }
 
   static int breakpointStorageKey(BreakpointClass bp) {
@@ -6971,8 +6877,9 @@ private:
     }
   }
 
-  void applyDensityTypography(const DensityTokens &tokens,
-                              bool forceSingleColumnEditors) {
+  void applyDensityTypography(
+      const Shell::EditorLayoutCoordinator::DensityTokens &tokens,
+      bool forceSingleColumnEditors) {
     leftPanels.setTabBarDepth(tokens.tabDepth);
     rightPanels.setTabBarDepth(tokens.tabDepth);
     historyPanel.setRowHeight(tokens.rowHeight);
@@ -7085,17 +6992,11 @@ private:
     historyPanel.setBufferedToImage(true);
   }
   void rememberRecentSelection() {
-    const auto &selection = docHandle.editorState().selection;
-    for (const auto id : selection) {
-      recentWidgetIds.erase(
-          std::remove(recentWidgetIds.begin(), recentWidgetIds.end(), id),
-          recentWidgetIds.end());
-      recentWidgetIds.insert(recentWidgetIds.begin(), id);
-    }
-
-    if (recentWidgetIds.size() > 20)
-      recentWidgetIds.resize(20);
+    syncLegacyToShellState();
+    editorShell.rememberRecentSelection(editorShellState, docHandle, 20);
+    syncShellStateToLegacy();
   }
+
   juce::KeyPress effectiveShortcut(const ShortcutBinding &binding) const {
     return binding.userKey.isValid() ? binding.userKey : binding.defaultKey;
   }
@@ -7120,34 +7021,15 @@ private:
   }
 
   void toggleDockVisibility(bool leftDock) {
-    auto &profile = activeLayoutProfile();
-    const auto rightPopoverMode = !leftDock &&
-                                  breakpointClass != BreakpointClass::narrow &&
-                                  forceSingleColumnEditorsActive;
-
-    if (breakpointClass == BreakpointClass::narrow) {
-      if (leftDock) {
-        profile.leftOverlayOpen = !profile.leftOverlayOpen;
-        if (profile.leftOverlayOpen)
-          profile.rightOverlayOpen = false;
-      } else {
-        profile.rightOverlayOpen = !profile.rightOverlayOpen;
-        if (profile.rightOverlayOpen)
-          profile.leftOverlayOpen = false;
-      }
-    } else if (rightPopoverMode) {
-      profile.rightOverlayOpen = !profile.rightOverlayOpen;
-    } else {
-      profile.rightOverlayOpen = false;
-      if (leftDock)
-        profile.leftDockVisible = !profile.leftDockVisible;
-      else
-        profile.rightDockVisible = !profile.rightDockVisible;
-    }
-
-    owner.resized();
-    owner.repaint();
-    saveUiSettings();
+    syncLegacyToShellState();
+    editorShell.layoutCoordinator().toggleDockVisibility(
+        editorShellState.layout,
+        owner,
+        leftDock,
+        [this] { owner.resized(); },
+        [this] { owner.repaint(); },
+        [this] { saveUiSettings(); });
+    syncShellStateToLegacy();
   }
 
   void rebuildShortcutBindings() {
@@ -8040,39 +7922,17 @@ private:
         "UI Accessibility Audit", summary);
   }
   void refreshToolbarState() {
-    const auto runMode = canvas.isRunMode();
-    const auto interactionLocked = runMode || previewBindingSimulationActive;
-
-    for (auto &entry : createButtons) {
-      if (entry.button != nullptr)
-        entry.button->setEnabled(!interactionLocked);
-    }
-
-    deleteSelected.setEnabled(!interactionLocked &&
-                              !docHandle.editorState().selection.empty());
-    groupSelected.setEnabled(!interactionLocked && canvas.canGroupSelection());
-    ungroupSelected.setEnabled(!interactionLocked &&
-                               canvas.canUngroupSelection());
-    arrangeMenuButton.setEnabled(!interactionLocked &&
-                                 docHandle.editorState().selection.size() >= 2);
-    dumpJsonButton.setEnabled(!interactionLocked);
-    exportJuceButton.setEnabled(!interactionLocked);
-    undoButton.setEnabled(!interactionLocked && docHandle.canUndo());
-    redoButton.setEnabled(!interactionLocked && docHandle.canRedo());
-    historyPanel.setCanUndoRedo(!interactionLocked && docHandle.canUndo(),
-                                !interactionLocked && docHandle.canRedo());
-    previewBindingSimToggle.setEnabled(!runMode);
-    gridSnapMenuButton.setEnabled(!interactionLocked);
-    leftDockButton.setEnabled(true);
-    rightDockButton.setEnabled(true);
-    uiMenuButton.setEnabled(true);
-    suppressPreviewBindingToggleCallbacks = true;
-    previewBindingSimToggle.setToggleState(previewBindingSimulationActive,
-                                           juce::dontSendNotification);
-    suppressPreviewBindingToggleCallbacks = false;
-    historyPanel.setStackState(docHandle.undoDepth(), docHandle.redoDepth(),
-                               docHandle.historySerial());
+    syncLegacyToShellState();
+    auto toolbar = makePanelMediatorToolbarComponents();
+    editorShell.panelMediator().refreshToolbarState(
+        toolbar,
+        docHandle,
+        canvas,
+        editorShellState.mode.previewBindingSimulationActive,
+        editorShellState.mode.suppressPreviewBindingToggleCallbacks);
+    syncShellStateToLegacy();
   }
+
   EditorHandle &owner;
   static constexpr int toolbarHeight = 44;
   static constexpr int layerPanelWidth = 300;
@@ -8084,9 +7944,11 @@ private:
       "gyeol.preview.binding-sim";
 
   DocumentHandle docHandle;
+  EditorHandleImpl editorShell;
+  EditorHandleImpl::State editorShellState;
   Widgets::WidgetRegistry widgetRegistry;
   Widgets::WidgetFactory widgetFactory;
-  Ui::CanvasComponent canvas;
+  Ui::Canvas::CanvasComponent canvas;
   Ui::Interaction::AlignDistributeEngine alignDistributeEngine;
   Ui::Interaction::LayerOrderEngine layerOrderEngine;
   Ui::Panels::GridSnapPanel gridSnapPanel;
