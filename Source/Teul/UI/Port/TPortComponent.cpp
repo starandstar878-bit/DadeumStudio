@@ -2,13 +2,11 @@
 #include "../../UI/TeulPalette.h"
 #include "../Node/TNodeComponent.h"
 
-
 namespace Teul {
 
 TPortComponent::TPortComponent(TNodeComponent &owner, const TPort &port)
     : ownerNode(owner), portData(port) {
   setSize(14, 14); // 잭의 기본 사이즈
-  setTooltip(portData.name);
 }
 
 TPortComponent::~TPortComponent() {}
