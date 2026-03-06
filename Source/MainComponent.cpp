@@ -6,16 +6,16 @@
 // =============================================================================
 MainComponent::MainComponent(AppServices &services) : appServices(services) {
   // ------------------------------------------------------------------
-  //  페이지 생성 (addChildComponent → 처음엔 숨겨져 있음)
+  //  ??륁뵠筌왖 ??밴쉐 (addChildComponent ??筌ｌ꼷?????ｊ볼????됱벉)
   // ------------------------------------------------------------------
   gyeolPage = Gyeol::createEditor();
-  teulPage = Teul::createEditor();
+  teulPage = Teul::createEditor(&appServices.audioDeviceManager);
 
   addChildComponent(*gyeolPage);
   addChildComponent(*teulPage);
 
   // ------------------------------------------------------------------
-  //  탭바 생성 및 콜백 연결
+  //  ??而???밴쉐 獄??꾩뮆媛??怨뚭퍙
   // ------------------------------------------------------------------
   pageTabBar = std::make_unique<AppPageTabBar>(currentPage);
   addAndMakeVisible(*pageTabBar);
@@ -23,13 +23,13 @@ MainComponent::MainComponent(AppServices &services) : appServices(services) {
   pageTabBar->onPageSelected = [this](AppPage page) { switchToPage(page); };
 
   // ------------------------------------------------------------------
-  //  초기 페이지 활성化
+  //  ?λ뜃由???륁뵠筌왖 ??뽮쉐??
   // ------------------------------------------------------------------
   switchToPage(currentPage);
 
   // ------------------------------------------------------------------
-  //  세션 복원 (Gyeol 문서)
-  //  TODO [Phase 1]: Teul 그래프 문서도 함께 복원
+  //  ?紐꾨?癰귣벊??(Gyeol ?얜챷苑?
+  //  TODO [Phase 1]: Teul 域밸챶????얜챷苑????ｍ뜞 癰귣벊??
   // ------------------------------------------------------------------
   restoreSession();
 
@@ -39,13 +39,13 @@ MainComponent::MainComponent(AppServices &services) : appServices(services) {
 MainComponent::~MainComponent() { persistSession(); }
 
 // =============================================================================
-//  페이지 전환
+//  ??륁뵠筌왖 ?袁れ넎
 // =============================================================================
 void MainComponent::switchToPage(AppPage page) {
   currentPage = page;
 
-  //  숨기기 / 보이기만 한다 — 인스턴스는 절대 파괴하지 않음.
-  //  → Teul 의 TGraphRuntime 은 숨겨져도 오디오 스레드에서 계속 동작한다.
+  //  ??ｋ┛疫?/ 癰귣똻?졿묾怨뺤춸 ??뺣뼄 ???紐꾨뮞??곷뮞????? ???댘??? ??놁벉.
+  //  ??Teul ??TGraphRuntime ?? ??ｊ볼?紐껊즲 ??삳탵????살쟿??뽯퓠???④쑴????덉삂??뺣뼄.
   gyeolPage->setVisible(page == AppPage::Gyeol);
   teulPage->setVisible(page == AppPage::Teul);
 
@@ -63,15 +63,15 @@ void MainComponent::paint(juce::Graphics &g) {
 void MainComponent::resized() {
   auto bounds = getLocalBounds();
 
-  // TODO [UI]: GlobalToolbar 가 생기면 아래 주석 해제
+  // TODO [UI]: GlobalToolbar 揶쎛 ??룸┛筌??袁⑥삋 雅뚯눘苑???곸젫
   // if (globalToolbar != nullptr)
   //     globalToolbar->setBounds (bounds.removeFromTop (42));
 
-  // 하단 탭바
+  // ??롫뼊 ??而?
   if (pageTabBar != nullptr)
     pageTabBar->setBounds(bounds.removeFromBottom(40));
 
-  // 나머지 = 페이지 영역 (모든 페이지 동일 크기로 설정)
+  // ??롢돢筌왖 = ??륁뵠筌왖 ?怨몃열 (筌뤴뫀諭???륁뵠筌왖 ??덉뵬 ??由경에???쇱젟)
   if (gyeolPage != nullptr)
     gyeolPage->setBounds(bounds);
   if (teulPage != nullptr)
@@ -79,7 +79,7 @@ void MainComponent::resized() {
 }
 
 // =============================================================================
-//  세션 저장 / 복원
+//  ?紐꾨?????/ 癰귣벊??
 // =============================================================================
 juce::File MainComponent::sessionFilePath() {
   auto dir =
@@ -115,7 +115,7 @@ void MainComponent::restoreSession() {
 
   gyeolPage->refreshFromDocument();
 
-  // TODO [Phase 1]: Teul 세션도 함께 복원
+  // TODO [Phase 1]: Teul ?紐꾨????ｍ뜞 癰귣벊??
   //   auto teulFile = sessionFilePath().getSiblingFile("autosave-teul.json");
   //   teulPage->document().loadFromFile(teulFile);
 }
@@ -133,7 +133,7 @@ void MainComponent::persistSession() const {
   if (result.failed())
     DBG("[Gyeol] Session save failed: " + result.getErrorMessage());
 
-  // TODO [Phase 1]: Teul 세션도 함께 저장
+  // TODO [Phase 1]: Teul ?紐꾨????ｍ뜞 ????
   //   auto teulFile = file.getSiblingFile("autosave-teul.json");
   //   teulPage->document().saveToFile(teulFile);
 }

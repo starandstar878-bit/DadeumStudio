@@ -12,7 +12,14 @@ public:
     desc.category = "Mixer";
     desc.capabilities.canMute = true;
 
-    desc.paramSpecs = {{"gain", "Gain", 1.0f}};
+    auto gain = makeFloatParamSpec("gain", "Gain", 1.0f, 0.0f, 2.0f, 0.001f,
+                                   {}, 3, "Level",
+                                   "Linear gain applied before CV modulation.");
+    gain.showInNodeBody = true;
+    gain.preferredBindingKey = "vcaGain";
+    gain.categoryPath = "VCA/Level";
+    desc.paramSpecs = {gain};
+
     desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "In"},
                       {TPortDirection::Input, TPortDataType::CV, "CV"},
                       {TPortDirection::Output, TPortDataType::Audio, "Out"}};
@@ -30,7 +37,14 @@ public:
     desc.category = "Mixer";
     desc.capabilities.canMute = true;
 
-    desc.paramSpecs = {{"pan", "Pan", 0.0f}};
+    auto pan = makeFloatParamSpec("pan", "Pan", 0.0f, -1.0f, 1.0f, 0.001f,
+                                  {}, 3, "Placement",
+                                  "-1 is left, +1 is right.");
+    pan.showInNodeBody = true;
+    pan.preferredBindingKey = "pan";
+    pan.categoryPath = "StereoPanner/Placement";
+    desc.paramSpecs = {pan};
+
     desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "In"},
                       {TPortDirection::Input, TPortDataType::CV, "Pan CV"},
                       {TPortDirection::Output, TPortDataType::Audio, "L Out"},
@@ -66,7 +80,6 @@ public:
     desc.displayName = "Audio Output";
     desc.category = "Routing";
 
-    // 최종 출력이므로 뮤트는 허용하지만 껐다켰다 하는 바이패스는 금지
     desc.capabilities.canMute = true;
     desc.capabilities.canBypass = false;
     desc.capabilities.minInstances = 1;

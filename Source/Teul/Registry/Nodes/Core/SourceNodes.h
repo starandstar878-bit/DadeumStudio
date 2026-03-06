@@ -59,7 +59,25 @@ public:
     desc.typeKey = "Teul.Source.LFO";
     desc.displayName = "LFO";
     desc.category = "Source";
-    desc.paramSpecs = {{"waveform", "Waveform", 0}, {"rate", "Rate", 1.0f}};
+
+    auto waveform = makeEnumParamSpec(
+        "waveform", "Waveform", 0,
+        {makeParamOption("sine", "Sine", 0),
+         makeParamOption("triangle", "Triangle", 1),
+         makeParamOption("square", "Square", 2),
+         makeParamOption("saw", "Saw", 3)},
+        "Tone", "Selects the modulation waveform.");
+    waveform.preferredBindingKey = "lfoWaveform";
+    waveform.categoryPath = "LFO/Tone";
+
+    auto rate = makeFloatParamSpec("rate", "Rate", 1.0f, 0.01f, 20.0f,
+                                   0.01f, "Hz", 2, "Motion",
+                                   "LFO rate in cycles per second.");
+    rate.showInNodeBody = true;
+    rate.preferredBindingKey = "lfoRate";
+    rate.categoryPath = "LFO/Motion";
+
+    desc.paramSpecs = {waveform, rate};
     desc.portSpecs = {{TPortDirection::Output, TPortDataType::CV, "Out"}};
     return desc;
   }

@@ -6,6 +6,29 @@
 
 namespace Teul {
 
+enum class TParamValueType {
+  Auto,
+  Float,
+  Int,
+  Bool,
+  Enum,
+  String,
+};
+
+enum class TParamWidgetHint {
+  Auto,
+  Slider,
+  Combo,
+  Toggle,
+  Text,
+};
+
+struct TParamOptionSpec {
+  juce::String id;
+  juce::String label;
+  juce::var value;
+};
+
 struct TTeulExposedParam {
   juce::String paramId;
   NodeId nodeId = kInvalidNodeId;
@@ -15,6 +38,26 @@ struct TTeulExposedParam {
   juce::String paramLabel;
   juce::var defaultValue;
   juce::var currentValue;
+  TParamValueType valueType = TParamValueType::Auto;
+  juce::var minValue;
+  juce::var maxValue;
+  juce::var step;
+  juce::String unitLabel;
+  int displayPrecision = 2;
+  juce::String group;
+  juce::String description;
+  std::vector<TParamOptionSpec> enumOptions;
+  TParamWidgetHint preferredWidget = TParamWidgetHint::Auto;
+  bool showInNodeBody = false;
+  bool showInPropertyPanel = true;
+  bool isReadOnly = false;
+  bool isAutomatable = true;
+  bool isModulatable = true;
+  bool isDiscrete = false;
+  bool exposeToIeum = true;
+  juce::String preferredBindingKey;
+  juce::String exportSymbol;
+  juce::String categoryPath;
 };
 
 inline juce::String makeTeulParamId(NodeId nodeId,

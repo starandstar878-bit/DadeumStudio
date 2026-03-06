@@ -374,6 +374,11 @@ void TGraphCanvas::setNodePropertiesRequestHandler(
   nodePropertiesRequestHandler = std::move(handler);
 }
 
+void TGraphCanvas::setNodeSelectionChangedHandler(
+    NodeSelectionChangedHandler handler) {
+  nodeSelectionChangedHandler = std::move(handler);
+}
+
 juce::Point<float> TGraphCanvas::getViewCenter() const {
   return {getWidth() * 0.5f, getHeight() * 0.5f};
 }
@@ -577,6 +582,7 @@ void TGraphCanvas::rebuildNodeComponents() {
     searchOverlay->toFront(false);
 
   updateChildPositions();
+  syncNodeSelectionToComponents();
   repaint();
 }
 
@@ -1635,6 +1641,7 @@ void TGraphCanvas::showCommandPaletteOverlay() {
                      bookmark.focusY = viewOriginWorld.y;
                      bookmark.zoom = zoomLevel;
                      document.bookmarks.push_back(bookmark);
+                     document.touch(false);
                      pushStatusHint("Added bookmark.");
                    });
         addCommand("Duplicate Selection", "Ctrl+D",
@@ -1739,6 +1746,7 @@ void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
           frame.height = 220.0f;
           frame.colorArgb = 0x334d8bf7;
           self.document.frames.push_back(frame);
+          self.document.touch(false);
           self.repaint();
           return;
         }
@@ -1752,6 +1760,7 @@ void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
           bookmark.focusY = world.y - (self.getHeight() * 0.5f) / self.zoomLevel;
           bookmark.zoom = self.zoomLevel;
           self.document.bookmarks.push_back(bookmark);
+          self.document.touch(false);
           return;
         }
 
@@ -1832,6 +1841,9 @@ void TGraphCanvas::selectOnlyNode(NodeId nodeId) {
 void TGraphCanvas::syncNodeSelectionToComponents() {
   for (auto &comp : nodeComponents)
     comp->isSelected = isNodeSelected(comp->getNodeId());
+
+  if (nodeSelectionChangedHandler != nullptr)
+    nodeSelectionChangedHandler(selectedNodeIds);
 
   repaint();
 }
@@ -2135,7 +2147,31 @@ void TGraphCanvas::updateFrameDrag(juce::Point<float> mouseView) {
   repaint();
 }
 
-void TGraphCanvas::endFrameDrag() { frameDragState = FrameDragState{}; }
+void TGraphCanvas::endFrameDrag() {
+  bool didMove = false;
+
+  if (frameDragState.active) {
+    if (const auto *frame = document.findFrame(frameDragState.frameId)) {
+      didMove = frame->x != frameDragState.startFramePosWorld.x ||
+                frame->y != frameDragState.startFramePosWorld.y;
+    }
+
+    if (!didMove) {
+      for (const auto &pair : frameDragState.containedNodeStartWorld) {
+        if (const auto *node = document.findNode(pair.first)) {
+          if (node->x != pair.second.x || node->y != pair.second.y) {
+            didMove = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  frameDragState = FrameDragState{};
+  if (didMove)
+    document.touch(false);
+}
 
 void TGraphCanvas::startNodeDrag(NodeId nodeId, juce::Point<float> mouseView) {
   nodeDragState = NodeDragState{};
@@ -2219,8 +2255,22 @@ void TGraphCanvas::updateNodeDrag(juce::Point<float> mouseView) {
 }
 
 void TGraphCanvas::endNodeDrag() {
+  bool didMove = false;
+  if (nodeDragState.active) {
+    for (const auto &pair : nodeDragState.startWorldByNode) {
+      if (const auto *node = document.findNode(pair.first)) {
+        if (node->x != pair.second.x || node->y != pair.second.y) {
+          didMove = true;
+          break;
+        }
+      }
+    }
+  }
+
   nodeDragState = NodeDragState{};
   snapGuideState = SnapGuideState{};
+  if (didMove)
+    document.touch(false);
   repaint();
 }
 
@@ -2415,6 +2465,7 @@ void TGraphCanvas::toggleBypassSelection() {
       node->bypassed = !node->bypassed;
   }
 
+  document.touch(true);
   repaint();
 }
 
@@ -2428,11 +2479,16 @@ void TGraphCanvas::alignSelectionLeft() {
       minX = juce::jmin(minX, node->x);
   }
 
+  bool didMove = false;
   for (const NodeId id : selectedNodeIds) {
-    if (TNode *node = document.findNode(id))
+    if (TNode *node = document.findNode(id)) {
+      didMove = didMove || node->x != minX;
       node->x = minX;
+    }
   }
 
+  if (didMove)
+    document.touch(false);
   updateChildPositions();
 }
 
@@ -2446,11 +2502,16 @@ void TGraphCanvas::alignSelectionTop() {
       minY = juce::jmin(minY, node->y);
   }
 
+  bool didMove = false;
   for (const NodeId id : selectedNodeIds) {
-    if (TNode *node = document.findNode(id))
+    if (TNode *node = document.findNode(id)) {
+      didMove = didMove || node->y != minY;
       node->y = minY;
+    }
   }
 
+  if (didMove)
+    document.touch(false);
   updateChildPositions();
 }
 
@@ -2474,9 +2535,15 @@ void TGraphCanvas::distributeSelectionHorizontally() {
   const float end = nodes.back()->x;
   const float step = (end - start) / (float)(nodes.size() - 1);
 
-  for (size_t i = 1; i + 1 < nodes.size(); ++i)
-    nodes[i]->x = start + step * (float)i;
+  bool didMove = false;
+  for (size_t i = 1; i + 1 < nodes.size(); ++i) {
+    const float nextX = start + step * (float)i;
+    didMove = didMove || nodes[i]->x != nextX;
+    nodes[i]->x = nextX;
+  }
 
+  if (didMove)
+    document.touch(false);
   updateChildPositions();
 }
 
@@ -2500,9 +2567,15 @@ void TGraphCanvas::distributeSelectionVertically() {
   const float end = nodes.back()->y;
   const float step = (end - start) / (float)(nodes.size() - 1);
 
-  for (size_t i = 1; i + 1 < nodes.size(); ++i)
-    nodes[i]->y = start + step * (float)i;
+  bool didMove = false;
+  for (size_t i = 1; i + 1 < nodes.size(); ++i) {
+    const float nextY = start + step * (float)i;
+    didMove = didMove || nodes[i]->y != nextY;
+    nodes[i]->y = nextY;
+  }
 
+  if (didMove)
+    document.touch(false);
   updateChildPositions();
 }
 bool TGraphCanvas::isReplacementCompatible(const TNode &oldNode,
@@ -2742,6 +2815,7 @@ void TGraphCanvas::showNodeContextMenu(NodeId nodeId,
               node->colorTag = tag;
           }
 
+          self.document.touch(false);
           self.repaint();
           return;
         }
@@ -2809,17 +2883,20 @@ void TGraphCanvas::showFrameContextMenu(int frameId,
 
         if (result == 1) {
           it->collapsed = !it->collapsed;
+          self.document.touch(false);
           self.updateChildPositions();
           self.repaint();
           return;
         }
         if (result == 2) {
           it->locked = !it->locked;
+          self.document.touch(false);
           self.repaint();
           return;
         }
         if (result == 3) {
           self.document.frames.erase(it);
+          self.document.touch(false);
           self.updateChildPositions();
           self.repaint();
           return;
@@ -2833,6 +2910,7 @@ void TGraphCanvas::showFrameContextMenu(int frameId,
             it->colorArgb = 0x33f59e0b;
           else if (result == 103)
             it->colorArgb = 0x33ef4444;
+          self.document.touch(false);
           self.repaint();
           return;
         }

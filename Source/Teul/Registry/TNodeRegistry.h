@@ -8,29 +8,6 @@
 
 namespace Teul {
 
-enum class TParamValueType {
-  Auto,
-  Float,
-  Int,
-  Bool,
-  Enum,
-  String,
-};
-
-enum class TParamWidgetHint {
-  Auto,
-  Slider,
-  Combo,
-  Toggle,
-  Text,
-};
-
-struct TParamOptionSpec {
-  juce::String id;
-  juce::String label;
-  juce::var value;
-};
-
 struct TParamSpec {
   juce::String key;
   juce::String label;

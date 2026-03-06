@@ -62,6 +62,47 @@ void normalizeParamSpec(TParamSpec &spec) {
     spec.isDiscrete = true;
 }
 
+void applySpecMetadata(TTeulExposedParam &param, const TParamSpec &spec) {
+  param.valueType = spec.valueType;
+  param.minValue = spec.minValue;
+  param.maxValue = spec.maxValue;
+  param.step = spec.step;
+  param.unitLabel = spec.unitLabel;
+  param.displayPrecision = spec.displayPrecision;
+  param.group = spec.group;
+  param.description = spec.description;
+  param.enumOptions = spec.enumOptions;
+  param.preferredWidget = spec.preferredWidget;
+  param.showInNodeBody = spec.showInNodeBody;
+  param.showInPropertyPanel = spec.showInPropertyPanel;
+  param.isReadOnly = spec.isReadOnly;
+  param.isAutomatable = spec.isAutomatable;
+  param.isModulatable = spec.isModulatable;
+  param.isDiscrete = spec.isDiscrete;
+  param.exposeToIeum = spec.exposeToIeum;
+  param.preferredBindingKey = spec.preferredBindingKey;
+  param.exportSymbol = spec.exportSymbol;
+  param.categoryPath = spec.categoryPath;
+}
+
+void applyFallbackMetadata(TTeulExposedParam &param, const juce::var &value,
+                           const juce::String &key) {
+  param.valueType = value.isBool() ? TParamValueType::Bool
+                                   : (value.isInt() || value.isInt64())
+                                         ? TParamValueType::Int
+                                         : value.isString() ? TParamValueType::String
+                                                            : TParamValueType::Float;
+  param.preferredWidget = param.valueType == TParamValueType::Bool
+                              ? TParamWidgetHint::Toggle
+                              : param.valueType == TParamValueType::String
+                                    ? TParamWidgetHint::Text
+                                    : TParamWidgetHint::Slider;
+  param.isDiscrete = param.valueType == TParamValueType::Bool ||
+                     param.valueType == TParamValueType::Int;
+  param.preferredBindingKey = key;
+  param.exportSymbol = key;
+}
+
 std::vector<TTeulExposedParam> buildFallbackExposedParams(
     const TNode &node,
     const juce::String &displayName,
@@ -92,6 +133,7 @@ std::vector<TTeulExposedParam> buildFallbackExposedParams(
     else
       param.currentValue = spec.defaultValue;
 
+    applySpecMetadata(param, spec);
     result.push_back(std::move(param));
     seenKeys.insert(spec.key);
   }
@@ -109,6 +151,7 @@ std::vector<TTeulExposedParam> buildFallbackExposedParams(
     param.paramLabel = key;
     param.defaultValue = value;
     param.currentValue = value;
+    applyFallbackMetadata(param, value, key);
     result.push_back(std::move(param));
   }
 

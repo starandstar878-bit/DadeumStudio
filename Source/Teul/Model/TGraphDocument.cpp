@@ -23,6 +23,8 @@ TGraphDocument::TGraphDocument(const TGraphDocument &other) {
   nextConnectionId = other.nextConnectionId;
   nextFrameId = other.nextFrameId;
   nextBookmarkId = other.nextBookmarkId;
+  documentRevision = other.documentRevision;
+  runtimeRevision = other.runtimeRevision;
   historyStack = std::make_unique<THistoryStack>();
 }
 
@@ -39,6 +41,8 @@ TGraphDocument &TGraphDocument::operator=(const TGraphDocument &other) {
     nextConnectionId = other.nextConnectionId;
     nextFrameId = other.nextFrameId;
     nextBookmarkId = other.nextBookmarkId;
+    documentRevision = other.documentRevision;
+    runtimeRevision = other.runtimeRevision;
     historyStack = std::make_unique<THistoryStack>();
   }
   return *this;
@@ -49,25 +53,38 @@ TGraphDocument &
 TGraphDocument::operator=(TGraphDocument &&other) noexcept = default;
 
 void TGraphDocument::executeCommand(std::unique_ptr<TCommand> command) {
-  if (historyStack)
-    historyStack->pushNext(std::move(command), *this);
+  if (!historyStack || command == nullptr)
+    return;
+
+  historyStack->pushNext(std::move(command), *this);
+  touch(true);
 }
 
 bool TGraphDocument::undo() {
-  if (historyStack)
-    return historyStack->undo(*this);
+  if (historyStack && historyStack->undo(*this)) {
+    touch(true);
+    return true;
+  }
   return false;
 }
 
 bool TGraphDocument::redo() {
-  if (historyStack)
-    return historyStack->redo(*this);
+  if (historyStack && historyStack->redo(*this)) {
+    touch(true);
+    return true;
+  }
   return false;
 }
 
 void TGraphDocument::clearHistory() {
   if (historyStack)
     historyStack->clear();
+}
+
+void TGraphDocument::touch(bool runtimeRelevant) noexcept {
+  ++documentRevision;
+  if (runtimeRelevant)
+    ++runtimeRevision;
 }
 
 bool TGraphDocument::wouldCreateCycle(NodeId fromNodeId,

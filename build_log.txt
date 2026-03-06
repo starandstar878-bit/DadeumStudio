@@ -1,5 +1,31 @@
 
+  Main.cpp
+  MainComponent.cpp
+  TSerializer.cpp
   Teul.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\AppServices.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Main.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\AppServices.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TConnection.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Serialization/TSerializer.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Serialization/TSerializer.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Serialization/TSerializer.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Serialization/TSerializer.cpp'을(를) 컴파일하는 중)
+  
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
@@ -27,6 +53,9 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\CoreNodes.h(1,1):
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\FXNodes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
@@ -51,9 +80,6 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(138,50): warning C4100: 'ctx': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MixerNodes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
-  
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(131,34): warning C4244: '인수': 'const int'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
@@ -68,6 +94,9 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(186,3
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(189,36): warning C4244: '인수': 'const int'에서 'float'(으)로 변환하면서 데이터가 손실될 수 있습니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
   
   DadeumStudio_App.vcxproj -> C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\x64\Debug\App\DadeumStudio.exe
 EXIT_CODE=0 

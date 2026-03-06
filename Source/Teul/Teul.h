@@ -11,7 +11,7 @@ namespace Teul {
 
 class EditorHandle : public juce::Component {
 public:
-  EditorHandle();
+  explicit EditorHandle(juce::AudioDeviceManager *audioDeviceManager = nullptr);
   ~EditorHandle() override;
 
   TGraphDocument &document() noexcept;
@@ -29,6 +29,6 @@ private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EditorHandle)
 };
 
-std::unique_ptr<EditorHandle> createEditor();
+std::unique_ptr<EditorHandle> createEditor(juce::AudioDeviceManager *audioDeviceManager = nullptr);
 
 } // namespace Teul

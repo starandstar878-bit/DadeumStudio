@@ -214,6 +214,7 @@ void TNodeComponent::mouseDown(const juce::MouseEvent &e) {
   if (getCollapseButtonBounds().contains(e.getPosition()) && e.mods.isLeftButtonDown()) {
     if (TNode *nodePtr = ownerCanvas.getDocument().findNode(nodeId)) {
       nodePtr->collapsed = !nodePtr->collapsed;
+      ownerCanvas.getDocument().touch(false);
       recalculateHeight();
       resized();
       repaint();

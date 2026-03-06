@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <map>
 #include <set>
 
 // Teul sources are included here because the generated project currently compiles
@@ -345,10 +346,13 @@ private:
   std::vector<DisplayItem> filtered;
 };
 
-class NodePropertiesPanel : public juce::Component {
+class NodePropertiesPanel : public juce::Component,
+                            private juce::Timer,
+                            private ITeulParamProvider::Listener {
 public:
   NodePropertiesPanel(TGraphDocument &docIn, TGraphCanvas &canvasIn,
-                      const TNodeRegistry &registryIn)
+                      const TNodeRegistry &registryIn,
+                      ITeulParamProvider *providerIn)
       : document(docIn), canvas(canvasIn), registry(registryIn) {
     addAndMakeVisible(headerLabel);
     addAndMakeVisible(typeLabel);
@@ -397,7 +401,38 @@ public:
     applyButton.onClick = [this] { applyChanges(); };
     closeButton.onClick = [this] { hidePanel(); };
 
+    setParamProvider(providerIn);
     setVisible(false);
+  }
+
+  ~NodePropertiesPanel() override {
+    stopTimer();
+    if (paramProvider != nullptr)
+      paramProvider->removeListener(this);
+  }
+
+  void setParamProvider(ITeulParamProvider *provider) {
+    if (paramProvider == provider) {
+      refreshRuntimeSurface();
+      updateRuntimeValueLabels();
+      return;
+    }
+
+    if (paramProvider != nullptr)
+      paramProvider->removeListener(this);
+
+    paramProvider = provider;
+    runtimeParamsById.clear();
+
+    if (paramProvider != nullptr) {
+      paramProvider->addListener(this);
+      refreshRuntimeSurface();
+      startTimerHz(12);
+    } else {
+      stopTimer();
+    }
+
+    updateRuntimeValueLabels();
   }
 
   void setLayoutChangedCallback(std::function<void()> callback) {
@@ -488,12 +523,213 @@ public:
 
 private:
   struct ParamEditor {
-    juce::String key;
+    TParamSpec spec;
+    juce::String paramId;
     juce::var originalValue;
-    bool isBool = false;
+    std::unique_ptr<juce::Label> groupLabel;
     std::unique_ptr<juce::Label> caption;
+    std::unique_ptr<juce::Label> descriptionLabel;
+    std::unique_ptr<juce::Label> runtimeValueLabel;
+    std::unique_ptr<juce::Label> bindingInfoLabel;
     std::unique_ptr<juce::Component> editor;
   };
+
+  static TParamValueType inferValueType(const juce::var &value) {
+    if (value.isBool())
+      return TParamValueType::Bool;
+    if (value.isInt() || value.isInt64())
+      return TParamValueType::Int;
+    if (value.isString())
+      return TParamValueType::String;
+    return TParamValueType::Float;
+  }
+
+  static bool isNumericValue(const juce::var &value) {
+    return value.isBool() || value.isInt() || value.isInt64() || value.isDouble();
+  }
+
+  static double numericValue(const juce::var &value) {
+    if (value.isBool())
+      return (bool)value ? 1.0 : 0.0;
+    if (value.isInt())
+      return (double)(int)value;
+    if (value.isInt64())
+      return (double)(juce::int64)value;
+    if (value.isDouble())
+      return (double)value;
+    if (value.isString())
+      return value.toString().getDoubleValue();
+    return 0.0;
+  }
+
+  static bool hasNumericRange(const TParamSpec &spec) {
+    return isNumericValue(spec.minValue) && isNumericValue(spec.maxValue);
+  }
+
+  static double sliderIntervalFor(const TParamSpec &spec) {
+    if (isNumericValue(spec.step) && numericValue(spec.step) > 0.0)
+      return numericValue(spec.step);
+
+    if (spec.valueType == TParamValueType::Int || spec.valueType == TParamValueType::Bool ||
+        spec.valueType == TParamValueType::Enum || spec.isDiscrete) {
+      return 1.0;
+    }
+
+    return 0.0;
+  }
+
+  static TParamSpec makeFallbackParamSpec(const juce::String &key,
+                                          const juce::var &value) {
+    TParamSpec spec;
+    spec.key = key;
+    spec.label = key;
+    spec.defaultValue = value;
+    spec.valueType = inferValueType(value);
+    spec.preferredWidget = spec.valueType == TParamValueType::Bool
+                               ? TParamWidgetHint::Toggle
+                               : TParamWidgetHint::Text;
+    spec.showInPropertyPanel = true;
+    spec.preferredBindingKey = key;
+    spec.exportSymbol = key;
+    return spec;
+  }
+
+  static TParamSpec makeSpecFromExposedParam(const TTeulExposedParam &param) {
+    TParamSpec spec;
+    spec.key = param.paramKey;
+    spec.label = param.paramLabel;
+    spec.defaultValue = param.defaultValue;
+    spec.valueType = param.valueType;
+    spec.minValue = param.minValue;
+    spec.maxValue = param.maxValue;
+    spec.step = param.step;
+    spec.unitLabel = param.unitLabel;
+    spec.displayPrecision = param.displayPrecision;
+    spec.group = param.group;
+    spec.description = param.description;
+    spec.enumOptions = param.enumOptions;
+    spec.preferredWidget = param.preferredWidget;
+    spec.showInNodeBody = param.showInNodeBody;
+    spec.showInPropertyPanel = param.showInPropertyPanel;
+    spec.isReadOnly = param.isReadOnly;
+    spec.isAutomatable = param.isAutomatable;
+    spec.isModulatable = param.isModulatable;
+    spec.isDiscrete = param.isDiscrete;
+    spec.exposeToIeum = param.exposeToIeum;
+    spec.preferredBindingKey = param.preferredBindingKey;
+    spec.exportSymbol = param.exportSymbol;
+    spec.categoryPath = param.categoryPath;
+    return spec;
+  }
+
+  static juce::String formatValueForDisplay(const juce::var &value,
+                                            const TParamSpec &spec) {
+    if (value.isVoid())
+      return "-";
+
+    switch (spec.valueType) {
+    case TParamValueType::Bool:
+      return (bool)value ? "On" : "Off";
+    case TParamValueType::Enum:
+      for (const auto &option : spec.enumOptions) {
+        if (varEquals(option.value, value))
+          return option.label.isNotEmpty() ? option.label : option.id;
+      }
+      return value.toString();
+    case TParamValueType::Int: {
+      juce::String text((int)juce::roundToInt(numericValue(value)));
+      if (spec.unitLabel.isNotEmpty())
+        text << " " << spec.unitLabel;
+      return text;
+    }
+    case TParamValueType::Float: {
+      juce::String text(numericValue(value), juce::jlimit(0, 6, spec.displayPrecision));
+      if (spec.unitLabel.isNotEmpty())
+        text << " " << spec.unitLabel;
+      return text;
+    }
+    case TParamValueType::String:
+    case TParamValueType::Auto:
+      break;
+    }
+
+    return value.toString();
+  }
+
+  static juce::var parseTextValue(const juce::String &text, const TParamSpec &spec,
+                                  const juce::var &prototype) {
+    if (spec.valueType == TParamValueType::Bool)
+      return parseEditedValue(text, prototype.isVoid() ? juce::var(false) : prototype);
+
+    if (spec.valueType == TParamValueType::Int)
+      return juce::roundToInt(text.getDoubleValue());
+
+    if (spec.valueType == TParamValueType::Float)
+      return text.getDoubleValue();
+
+    if (spec.valueType == TParamValueType::Enum) {
+      for (const auto &option : spec.enumOptions) {
+        if (option.id.equalsIgnoreCase(text) ||
+            option.label.equalsIgnoreCase(text) ||
+            option.value.toString().equalsIgnoreCase(text)) {
+          return option.value;
+        }
+      }
+    }
+
+    return parseEditedValue(text, prototype);
+  }
+
+  static int editorHeightFor(const ParamEditor &entry) {
+    if (dynamic_cast<juce::Slider *>(entry.editor.get()) != nullptr)
+      return 32;
+    return 24;
+  }
+
+  void timerCallback() override {
+    if (!isPanelOpen() || paramProvider == nullptr)
+      return;
+
+    bool didChange = false;
+    for (auto &entry : paramEditors) {
+      if (entry->paramId.isEmpty())
+        continue;
+
+      auto it = runtimeParamsById.find(entry->paramId);
+      if (it == runtimeParamsById.end())
+        continue;
+
+      const juce::var nextValue = paramProvider->getParam(entry->paramId);
+      if (!nextValue.isVoid() && !varEquals(nextValue, it->second.currentValue)) {
+        it->second.currentValue = nextValue;
+        didChange = true;
+      }
+    }
+
+    if (didChange)
+      updateRuntimeValueLabels();
+  }
+
+  void teulParamSurfaceChanged() override {
+    refreshRuntimeSurface();
+    if (isPanelOpen())
+      updateRuntimeValueLabels();
+  }
+
+  void teulParamValueChanged(const TTeulExposedParam &param) override {
+    runtimeParamsById[param.paramId] = param;
+    if (isPanelOpen() && param.nodeId == inspectedNodeId)
+      updateRuntimeValueLabels();
+  }
+
+  void refreshRuntimeSurface() {
+    runtimeParamsById.clear();
+    if (paramProvider == nullptr)
+      return;
+
+    for (const auto &param : paramProvider->listExposedParams())
+      runtimeParamsById[param.paramId] = param;
+  }
 
   void rebuildFromDocument() {
     const TNode *node = document.findNode(inspectedNodeId);
@@ -501,6 +737,8 @@ private:
       hidePanel();
       return;
     }
+
+    refreshRuntimeSurface();
 
     const auto *desc = registry.descriptorFor(node->typeKey);
     headerLabel.setText(nodeLabelForInspector(*node, registry),
@@ -520,12 +758,8 @@ private:
   }
 
   void clearParamEditors() {
-    for (auto &editor : paramEditors) {
-      if (editor->caption)
-        paramsContent->removeChildComponent(editor->caption.get());
-      if (editor->editor)
-        paramsContent->removeChildComponent(editor->editor.get());
-    }
+    if (paramsContent != nullptr)
+      paramsContent->removeAllChildren();
 
     paramEditors.clear();
     if (paramsContent != nullptr)
@@ -535,73 +769,229 @@ private:
   void rebuildParamEditors(const TNode &node, const TNodeDescriptor *desc) {
     clearParamEditors();
     std::set<juce::String> seenKeys;
+    juce::String lastGroup;
 
-    auto appendParam = [&](const juce::String &key, const juce::String &label,
-                           const juce::var &value) {
+    auto appendParam = [&](TParamSpec spec, const juce::var &value) {
+      if (!spec.showInPropertyPanel)
+        return;
+
       auto entry = std::make_unique<ParamEditor>();
-      entry->key = key;
+      entry->spec = std::move(spec);
+      entry->paramId = makeTeulParamId(node.nodeId, entry->spec.key);
       entry->originalValue = value;
-      entry->isBool = value.isBool();
+
+      if (entry->spec.group.isNotEmpty() && entry->spec.group != lastGroup) {
+        entry->groupLabel = std::make_unique<juce::Label>();
+        entry->groupLabel->setText(entry->spec.group, juce::dontSendNotification);
+        entry->groupLabel->setJustificationType(juce::Justification::centredLeft);
+        entry->groupLabel->setColour(juce::Label::textColourId,
+                                     juce::Colours::white.withAlpha(0.86f));
+        entry->groupLabel->setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        paramsContent->addAndMakeVisible(entry->groupLabel.get());
+        lastGroup = entry->spec.group;
+      }
+
       entry->caption = std::make_unique<juce::Label>();
-      entry->caption->setText(label.isNotEmpty() ? label : key,
+      entry->caption->setText(entry->spec.label.isNotEmpty() ? entry->spec.label
+                                                             : entry->spec.key,
                               juce::dontSendNotification);
       entry->caption->setJustificationType(juce::Justification::centredLeft);
       entry->caption->setColour(juce::Label::textColourId,
-                                juce::Colours::white.withAlpha(0.72f));
+                                juce::Colours::white.withAlpha(0.74f));
+      paramsContent->addAndMakeVisible(entry->caption.get());
 
-      if (entry->isBool) {
+      if (entry->spec.preferredWidget == TParamWidgetHint::Combo &&
+          !entry->spec.enumOptions.empty()) {
+        auto combo = std::make_unique<juce::ComboBox>();
+        int id = 1;
+        int selectedId = 0;
+        for (const auto &option : entry->spec.enumOptions) {
+          combo->addItem(option.label.isNotEmpty() ? option.label : option.id, id);
+          if (selectedId == 0 && varEquals(option.value, value))
+            selectedId = id;
+          ++id;
+        }
+        combo->setSelectedId(selectedId > 0 ? selectedId : 1,
+                             juce::dontSendNotification);
+        combo->setEnabled(!entry->spec.isReadOnly);
+        entry->editor = std::move(combo);
+      } else if (entry->spec.preferredWidget == TParamWidgetHint::Toggle ||
+                 entry->spec.valueType == TParamValueType::Bool) {
         auto toggle = std::make_unique<juce::ToggleButton>();
-        const juce::String lowered = value.toString().trim().toLowerCase();
-        const bool isOn = lowered == "1" || lowered == "true" ||
-                          lowered == "yes" || lowered == "on";
-        toggle->setToggleState(isOn, juce::dontSendNotification);
+        toggle->setToggleState((bool)value, juce::dontSendNotification);
+        toggle->setEnabled(!entry->spec.isReadOnly);
         entry->editor = std::move(toggle);
+      } else if (entry->spec.preferredWidget == TParamWidgetHint::Slider &&
+                 hasNumericRange(entry->spec)) {
+        auto slider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal,
+                                                     juce::Slider::TextBoxRight);
+        slider->setRange(numericValue(entry->spec.minValue),
+                         numericValue(entry->spec.maxValue),
+                         sliderIntervalFor(entry->spec));
+        slider->setValue(numericValue(value), juce::dontSendNotification);
+        slider->setNumDecimalPlacesToDisplay(
+            entry->spec.valueType == TParamValueType::Int || entry->spec.isDiscrete
+                ? 0
+                : juce::jlimit(0, 6, entry->spec.displayPrecision));
+        slider->setTextValueSuffix(entry->spec.unitLabel.isNotEmpty()
+                                       ? " " + entry->spec.unitLabel
+                                       : juce::String());
+        slider->setDoubleClickReturnValue(true, numericValue(entry->spec.defaultValue));
+        slider->setEnabled(!entry->spec.isReadOnly);
+        entry->editor = std::move(slider);
       } else {
         auto textEditor = std::make_unique<juce::TextEditor>();
-        textEditor->setText(value.toString(), juce::dontSendNotification);
+        textEditor->setText(formatValueForDisplay(value, entry->spec),
+                            juce::dontSendNotification);
         textEditor->setColour(juce::TextEditor::backgroundColourId,
                               juce::Colour(0xff171717));
         textEditor->setColour(juce::TextEditor::textColourId,
                               juce::Colours::white);
         textEditor->setColour(juce::TextEditor::outlineColourId,
                               juce::Colour(0xff343434));
+        textEditor->setReadOnly(entry->spec.isReadOnly);
         entry->editor = std::move(textEditor);
       }
 
-      paramsContent->addAndMakeVisible(entry->caption.get());
+      entry->descriptionLabel = std::make_unique<juce::Label>();
+      entry->descriptionLabel->setText(entry->spec.description,
+                                       juce::dontSendNotification);
+      entry->descriptionLabel->setJustificationType(juce::Justification::centredLeft);
+      entry->descriptionLabel->setColour(juce::Label::textColourId,
+                                         juce::Colours::white.withAlpha(0.46f));
+      entry->descriptionLabel->setFont(juce::FontOptions(10.5f));
+      entry->descriptionLabel->setVisible(entry->spec.description.isNotEmpty());
+      paramsContent->addAndMakeVisible(entry->descriptionLabel.get());
+
+      entry->runtimeValueLabel = std::make_unique<juce::Label>();
+      entry->runtimeValueLabel->setJustificationType(juce::Justification::centredLeft);
+      entry->runtimeValueLabel->setColour(juce::Label::textColourId,
+                                          juce::Colour(0xff8fb8ff));
+      entry->runtimeValueLabel->setFont(juce::FontOptions(10.5f));
+      paramsContent->addAndMakeVisible(entry->runtimeValueLabel.get());
+
+      entry->bindingInfoLabel = std::make_unique<juce::Label>();
+      entry->bindingInfoLabel->setJustificationType(juce::Justification::centredLeft);
+      entry->bindingInfoLabel->setColour(juce::Label::textColourId,
+                                         juce::Colours::white.withAlpha(0.44f));
+      entry->bindingInfoLabel->setFont(juce::FontOptions(10.0f));
+      paramsContent->addAndMakeVisible(entry->bindingInfoLabel.get());
+
       paramsContent->addAndMakeVisible(entry->editor.get());
       paramEditors.push_back(std::move(entry));
-      seenKeys.insert(key);
     };
 
     if (desc != nullptr) {
       for (const auto &spec : desc->paramSpecs) {
-        auto it = node.params.find(spec.key);
-        appendParam(spec.key, spec.label,
-                    it != node.params.end() ? it->second : spec.defaultValue);
+        seenKeys.insert(spec.key);
+        if (!spec.showInPropertyPanel)
+          continue;
+
+        const auto it = node.params.find(spec.key);
+        appendParam(spec, it != node.params.end() ? it->second : spec.defaultValue);
       }
     }
 
     for (const auto &pair : node.params) {
       if (seenKeys.find(pair.first) != seenKeys.end())
         continue;
-      appendParam(pair.first, pair.first, pair.second);
+
+      TParamSpec spec = makeFallbackParamSpec(pair.first, pair.second);
+      const juce::String paramId = makeTeulParamId(node.nodeId, pair.first);
+      if (const auto it = runtimeParamsById.find(paramId); it != runtimeParamsById.end())
+        spec = makeSpecFromExposedParam(it->second);
+
+      appendParam(std::move(spec), pair.second);
     }
+
+    updateRuntimeValueLabels();
   }
 
   void layoutParamEditors() {
     if (paramsContent == nullptr)
       return;
 
-    const int width = juce::jmax(120, paramViewport.getMaximumVisibleWidth() - 10);
+    const int width = juce::jmax(140, paramViewport.getWidth() - 18);
     int y = 0;
+
     for (auto &entry : paramEditors) {
-      entry->caption->setBounds(0, y, width / 2 - 6, 24);
-      entry->editor->setBounds(width / 2, y, width - width / 2, 24);
-      y += 30;
+      if (entry->groupLabel != nullptr) {
+        entry->groupLabel->setBounds(0, y, width, 18);
+        y += 22;
+      }
+
+      entry->caption->setBounds(0, y, width, 16);
+      y += 18;
+
+      entry->editor->setBounds(0, y, width, editorHeightFor(*entry));
+      y += editorHeightFor(*entry) + 4;
+
+      if (entry->descriptionLabel->isVisible()) {
+        entry->descriptionLabel->setBounds(0, y, width, 14);
+        y += 16;
+      }
+
+      entry->runtimeValueLabel->setBounds(0, y, width, 14);
+      y += 16;
+      entry->bindingInfoLabel->setBounds(0, y, width, 14);
+      y += 22;
     }
 
     paramsContent->setSize(width, juce::jmax(y, paramViewport.getHeight()));
+  }
+
+  juce::var readEditorValue(const ParamEditor &entry) const {
+    if (const auto *combo = dynamic_cast<juce::ComboBox *>(entry.editor.get())) {
+      const int index = combo->getSelectedItemIndex();
+      if (index >= 0 && index < (int)entry.spec.enumOptions.size())
+        return entry.spec.enumOptions[(size_t)index].value;
+      return entry.originalValue;
+    }
+
+    if (const auto *toggle = dynamic_cast<juce::ToggleButton *>(entry.editor.get()))
+      return toggle->getToggleState();
+
+    if (const auto *slider = dynamic_cast<juce::Slider *>(entry.editor.get())) {
+      if (entry.spec.valueType == TParamValueType::Int || entry.spec.isDiscrete)
+        return juce::roundToInt(slider->getValue());
+      return slider->getValue();
+    }
+
+    if (const auto *editor = dynamic_cast<juce::TextEditor *>(entry.editor.get()))
+      return parseTextValue(editor->getText(), entry.spec, entry.originalValue);
+
+    return entry.originalValue;
+  }
+
+  void updateRuntimeValueLabels() {
+    for (auto &entry : paramEditors) {
+      juce::String runtimeText;
+      const auto it = runtimeParamsById.find(entry->paramId);
+      if (it != runtimeParamsById.end()) {
+        runtimeText = "Runtime: " + formatValueForDisplay(it->second.currentValue,
+                                                           entry->spec);
+      } else if (entry->spec.exposeToIeum && paramProvider != nullptr) {
+        runtimeText = "Runtime: unavailable";
+      } else {
+        runtimeText = "Document: " + formatValueForDisplay(entry->originalValue,
+                                                            entry->spec);
+      }
+      entry->runtimeValueLabel->setText(runtimeText, juce::dontSendNotification);
+
+      juce::String bindingText = entry->spec.exposeToIeum ? "Ieum: exposed"
+                                                          : "Ieum: hidden";
+      if (entry->spec.exposeToIeum && entry->spec.preferredBindingKey.isNotEmpty())
+        bindingText << " / key: " << entry->spec.preferredBindingKey;
+      if (entry->spec.isAutomatable)
+        bindingText << " / auto";
+      if (entry->spec.isModulatable)
+        bindingText << " / mod";
+      if (entry->spec.isReadOnly)
+        bindingText << " / read-only";
+      entry->bindingInfoLabel->setText(bindingText, juce::dontSendNotification);
+    }
+
+    repaint();
   }
 
   void applyChanges() {
@@ -609,30 +999,54 @@ private:
     if (node == nullptr)
       return;
 
-    node->label = nameEditor.getText().trim();
-    node->colorTag = colorTagFromId(colorBox.getSelectedId());
-    node->bypassed = bypassToggle.getToggleState();
-    node->collapsed = collapsedToggle.getToggleState();
+    bool documentDirty = false;
+    bool runtimeDirty = false;
+
+    const juce::String nextLabel = nameEditor.getText().trim();
+    if (node->label != nextLabel) {
+      node->label = nextLabel;
+      documentDirty = true;
+    }
+
+    const juce::String nextColorTag = colorTagFromId(colorBox.getSelectedId());
+    if (node->colorTag != nextColorTag) {
+      node->colorTag = nextColorTag;
+      documentDirty = true;
+    }
+
+    const bool nextBypassed = bypassToggle.getToggleState();
+    if (node->bypassed != nextBypassed) {
+      node->bypassed = nextBypassed;
+      documentDirty = true;
+      runtimeDirty = true;
+    }
+
+    const bool nextCollapsed = collapsedToggle.getToggleState();
+    if (node->collapsed != nextCollapsed) {
+      node->collapsed = nextCollapsed;
+      documentDirty = true;
+    }
 
     for (const auto &entry : paramEditors) {
-      juce::var nextValue;
-      if (entry->isBool) {
-        if (auto *toggle = dynamic_cast<juce::ToggleButton *>(entry->editor.get()))
-          nextValue = toggle->getToggleState();
-      } else if (auto *editor =
-                     dynamic_cast<juce::TextEditor *>(entry->editor.get())) {
-        nextValue = parseEditedValue(editor->getText(), entry->originalValue);
-      }
+      if (entry->spec.isReadOnly)
+        continue;
 
-      auto currentIt = node->params.find(entry->key);
-      const juce::var currentValue =
-          currentIt != node->params.end() ? currentIt->second : entry->originalValue;
+      const juce::var nextValue = readEditorValue(*entry);
+      auto currentIt = node->params.find(entry->spec.key);
+      const juce::var currentValue = currentIt != node->params.end()
+                                         ? currentIt->second
+                                         : entry->originalValue;
       if (varEquals(currentValue, nextValue))
         continue;
 
       document.executeCommand(std::make_unique<SetParamCommand>(
-          inspectedNodeId, entry->key, currentValue, nextValue));
+          inspectedNodeId, entry->spec.key, currentValue, nextValue));
+      if (paramProvider != nullptr && entry->spec.exposeToIeum)
+        paramProvider->setParam(entry->paramId, nextValue);
     }
+
+    if (documentDirty)
+      document.touch(runtimeDirty);
 
     canvas.rebuildNodeComponents();
     canvas.repaint();
@@ -642,6 +1056,7 @@ private:
   TGraphDocument &document;
   TGraphCanvas &canvas;
   const TNodeRegistry &registry;
+  ITeulParamProvider *paramProvider = nullptr;
   std::function<void()> onLayoutChanged;
 
   NodeId inspectedNodeId = kInvalidNodeId;
@@ -656,13 +1071,17 @@ private:
   juce::Viewport paramViewport;
   std::unique_ptr<juce::Component> paramsContent;
   std::vector<std::unique_ptr<ParamEditor>> paramEditors;
+  std::map<juce::String, TTeulExposedParam> runtimeParamsById;
 };
 
 } // namespace
 
-struct EditorHandle::Impl {
-  explicit Impl(EditorHandle &ownerIn)
-      : owner(ownerIn), registry(makeDefaultNodeRegistry()) {
+struct EditorHandle::Impl : private juce::Timer {
+  explicit Impl(EditorHandle &ownerIn,
+                juce::AudioDeviceManager *audioDeviceManagerIn)
+      : owner(ownerIn), registry(makeDefaultNodeRegistry()),
+        runtime(registry.get()),
+        audioDeviceManager(audioDeviceManagerIn) {
     canvas = std::make_unique<TGraphCanvas>(doc);
     canvas->setNodePropertiesRequestHandler(
         [this](NodeId nodeId) { openProperties(nodeId); });
@@ -675,9 +1094,15 @@ struct EditorHandle::Impl {
         });
     owner.addAndMakeVisible(*libraryPanel);
 
-    propertiesPanel = std::make_unique<NodePropertiesPanel>(doc, *canvas, *registry);
+    propertiesPanel = std::make_unique<NodePropertiesPanel>(doc, *canvas, *registry,
+                                                            &runtime);
     propertiesPanel->setLayoutChangedCallback([this] { owner.resized(); });
     owner.addAndMakeVisible(*propertiesPanel);
+
+    canvas->setNodeSelectionChangedHandler(
+        [this](const std::vector<NodeId> &selectedNodeIds) {
+          handleSelectionChanged(selectedNodeIds);
+        });
 
     owner.addAndMakeVisible(toggleLibraryButton);
     owner.addAndMakeVisible(quickAddButton);
@@ -710,6 +1135,59 @@ struct EditorHandle::Impl {
       if (canvas)
         canvas->openCommandPalette();
     };
+
+    rebuildAll(true);
+
+    if (audioDeviceManager != nullptr)
+      audioDeviceManager->addAudioCallback(&runtime);
+
+    startTimerHz(20);
+  }
+
+  ~Impl() override {
+    stopTimer();
+    if (audioDeviceManager != nullptr)
+      audioDeviceManager->removeAudioCallback(&runtime);
+  }
+
+  void timerCallback() override {
+    const auto currentRuntimeRevision = doc.getRuntimeRevision();
+    if (currentRuntimeRevision != lastRuntimeRevision) {
+      runtime.buildGraph(doc);
+      lastRuntimeRevision = currentRuntimeRevision;
+    }
+
+    const auto currentDocumentRevision = doc.getDocumentRevision();
+    if (currentDocumentRevision != lastDocumentRevision) {
+      if (propertiesPanel)
+        propertiesPanel->refreshFromDocument();
+      lastDocumentRevision = currentDocumentRevision;
+    }
+  }
+
+  void rebuildAll(bool rebuildRuntime) {
+    if (canvas)
+      canvas->rebuildNodeComponents();
+    if (rebuildRuntime)
+      runtime.buildGraph(doc);
+    if (propertiesPanel) {
+      propertiesPanel->setParamProvider(&runtime);
+      propertiesPanel->refreshFromDocument();
+    }
+
+    lastDocumentRevision = doc.getDocumentRevision();
+    lastRuntimeRevision = doc.getRuntimeRevision();
+    owner.resized();
+  }
+
+  void handleSelectionChanged(const std::vector<NodeId> &selectedNodeIds) {
+    if (!propertiesPanel)
+      return;
+
+    if (selectedNodeIds.size() == 1)
+      propertiesPanel->inspectNode(selectedNodeIds.front());
+    else
+      propertiesPanel->hidePanel();
   }
 
   void openProperties(NodeId nodeId) {
@@ -722,9 +1200,11 @@ struct EditorHandle::Impl {
   EditorHandle &owner;
   TGraphDocument doc;
   std::unique_ptr<TNodeRegistry> registry;
+  TGraphRuntime runtime;
   std::unique_ptr<TGraphCanvas> canvas;
   std::unique_ptr<NodeLibraryPanel> libraryPanel;
   std::unique_ptr<NodePropertiesPanel> propertiesPanel;
+  juce::AudioDeviceManager *audioDeviceManager = nullptr;
 
   juce::TextButton toggleLibraryButton;
   juce::TextButton quickAddButton;
@@ -732,20 +1212,19 @@ struct EditorHandle::Impl {
   juce::TextButton commandPaletteButton;
 
   bool libraryVisible = true;
+  std::uint64_t lastDocumentRevision = 0;
+  std::uint64_t lastRuntimeRevision = 0;
 };
 
-EditorHandle::EditorHandle() : impl(std::make_unique<Impl>(*this)) {}
+EditorHandle::EditorHandle(juce::AudioDeviceManager *audioDeviceManager)
+    : impl(std::make_unique<Impl>(*this, audioDeviceManager)) {}
 EditorHandle::~EditorHandle() = default;
 
 TGraphDocument &EditorHandle::document() noexcept { return impl->doc; }
 const TGraphDocument &EditorHandle::document() const noexcept { return impl->doc; }
 
 void EditorHandle::refreshFromDocument() {
-  if (impl->canvas)
-    impl->canvas->rebuildNodeComponents();
-  if (impl->propertiesPanel)
-    impl->propertiesPanel->refreshFromDocument();
-  resized();
+  impl->rebuildAll(true);
 }
 
 void EditorHandle::paint(juce::Graphics &g) {
@@ -781,8 +1260,9 @@ void EditorHandle::resized() {
     impl->canvas->setBounds(area);
 }
 
-std::unique_ptr<EditorHandle> createEditor() {
-  return std::make_unique<EditorHandle>();
+std::unique_ptr<EditorHandle> createEditor(
+    juce::AudioDeviceManager *audioDeviceManager) {
+  return std::make_unique<EditorHandle>(audioDeviceManager);
 }
 
 } // namespace Teul

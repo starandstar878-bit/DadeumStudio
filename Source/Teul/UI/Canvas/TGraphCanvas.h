@@ -77,6 +77,9 @@ public:
   using NodePropertiesRequestHandler = std::function<void(NodeId)>;
   void setNodePropertiesRequestHandler(NodePropertiesRequestHandler handler);
 
+  using NodeSelectionChangedHandler = std::function<void(const std::vector<NodeId> &)>;
+  void setNodeSelectionChangedHandler(NodeSelectionChangedHandler handler);
+
   void openQuickAddAt(juce::Point<float> pointView);
   void openNodeSearchPrompt();
   void openCommandPalette();
@@ -284,6 +287,7 @@ private:
 
   const TNodeRegistry *nodeRegistry = nullptr;
   NodePropertiesRequestHandler nodePropertiesRequestHandler;
+  NodeSelectionChangedHandler nodeSelectionChangedHandler;
 
   class SearchOverlay;
   std::unique_ptr<SearchOverlay> searchOverlay;

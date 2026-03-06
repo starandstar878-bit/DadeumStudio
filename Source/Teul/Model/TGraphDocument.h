@@ -139,6 +139,8 @@ struct TGraphDocument {
   ConnectionId getNextConnectionId() const noexcept { return nextConnectionId; }
   int getNextFrameId() const noexcept { return nextFrameId; }
   int getNextBookmarkId() const noexcept { return nextBookmarkId; }
+  std::uint64_t getDocumentRevision() const noexcept { return documentRevision; }
+  std::uint64_t getRuntimeRevision() const noexcept { return runtimeRevision; }
 
   void setNextNodeId(NodeId id) noexcept { nextNodeId = id; }
   void setNextPortId(PortId id) noexcept { nextPortId = id; }
@@ -150,6 +152,7 @@ struct TGraphDocument {
   bool undo();
   bool redo();
   void clearHistory();
+  void touch(bool runtimeRelevant = false) noexcept;
 
 private:
   NodeId nextNodeId = 1;
@@ -157,6 +160,8 @@ private:
   ConnectionId nextConnectionId = 1;
   int nextFrameId = 1;
   int nextBookmarkId = 1;
+  std::uint64_t documentRevision = 0;
+  std::uint64_t runtimeRevision = 0;
 
   std::unique_ptr<THistoryStack> historyStack;
 };
