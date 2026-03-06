@@ -17,6 +17,13 @@ public:
     descriptor.exportTargetType = "juce::Label";
     descriptor.defaultBounds = {0.0f, 0.0f, 120.0f, 28.0f};
     descriptor.minSize = {60.0f, 20.0f};
+    applyBuiltinDescriptorDefaults(descriptor, "label", "widget.label.label");
+    descriptor.capabilities = {"acceptsAssetDrop"};
+    descriptor.supportsOffscreenCache = true;
+    descriptor.estimatedPaintCost = 0.06;
+    descriptor.memoryBudgetKb = 48;
+    descriptor.supportedActions = {"setNodeProps", "setNodeBounds"};
+    descriptor.stateOutputs = {"text"};
     descriptor.defaultProperties.set("text", juce::String("Label"));
     {
       WidgetPropertySpec textSpec;
@@ -28,6 +35,8 @@ public:
       textSpec.order = 10;
       textSpec.hint = "Displayed label text";
       textSpec.defaultValue = juce::var("Label");
+      textSpec.required = true;
+      textSpec.maxLength = 256;
       descriptor.propertySpecs.push_back(std::move(textSpec));
 
       WidgetPropertySpec bgImageSpec;
@@ -39,6 +48,8 @@ public:
       bgImageSpec.order = 100;
       bgImageSpec.hint = "Optional image asset id for label background";
       bgImageSpec.acceptedAssetKinds = {AssetKind::image};
+      bgImageSpec.acceptedMimeTypes = {"image/png", "image/jpeg", "image/webp"};
+      bgImageSpec.maxAssetBytes = 8 * 1024 * 1024;
       bgImageSpec.advanced = true;
       descriptor.propertySpecs.push_back(std::move(bgImageSpec));
     }

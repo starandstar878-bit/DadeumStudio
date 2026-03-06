@@ -150,9 +150,9 @@
 ### 구현 단계
 
 #### 단계 1: 그래프 평가기 (Graph Evaluator)
-- [ ] **위상 정렬(Topological Sort)**: 연결을 따라 순환 참조(Cycle) 감지 후, 안전한 처리 순서 배열 계산
-- [ ] **오디오 버퍼 라우팅**: 각 연결(Connection)마다 `juce::AudioBuffer<float>` 중간 버퍼 할당 및 포트 간 데이터 전달
-- [ ] **`TGraphRuntime::process(AudioBuffer, MidiBuffer, sampleRate)`**: 정렬된 순서로 노드들의 `processSamples()` 순차 호출
+- [x] **위상 정렬(Topological Sort)**: 연결을 따라 순환 참조(Cycle) 감지 후, 안전한 처리 순서 배열 계산
+- [x] **오디오 버퍼 라우팅**: 각 연결(Connection)마다 `juce::AudioBuffer<float>` 중간 버퍼 할당 및 포트 간 데이터 전달
+- [x] **`TGraphRuntime::process(AudioBuffer, MidiBuffer, sampleRate)`**: 정렬된 순서로 노드들의 `processSamples()` 순차 호출
 
 #### 단계 2: 오디오 스레드 안전성
 - [ ] **락-프리 파라미터 교환**: UI 스레드에서 파라미터 값 변경 시, `std::atomic` 또는 FIFO 큐로 오디오 스레드에 락 없이 전달

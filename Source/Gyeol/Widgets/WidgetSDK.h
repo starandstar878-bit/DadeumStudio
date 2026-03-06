@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Gyeol/Public/Types.h"
 #include <algorithm>
@@ -269,11 +269,21 @@ inline bool isAssetKindAccepted(const WidgetPropertySpec &spec,
                    kind) != spec.acceptedAssetKinds.end();
 }
 
-inline juce::var emptyRequiredPayloadSchema() {
+inline juce::var makePayloadSchema(const juce::StringArray &requiredKeys = {}) {
   auto payload = std::make_unique<juce::DynamicObject>();
   juce::Array<juce::var> required;
+  required.ensureStorageAllocated(requiredKeys.size());
+  for (const auto &key : requiredKeys) {
+    const auto normalized = key.trim();
+    if (normalized.isNotEmpty())
+      required.add(normalized);
+  }
   payload->setProperty("required", juce::var(required));
   return juce::var(payload.release());
+}
+
+inline juce::var emptyRequiredPayloadSchema() {
+  return makePayloadSchema();
 }
 
 inline juce::String widgetPropertyKindToKey(WidgetPropertyKind kind) {
@@ -368,6 +378,37 @@ inline juce::var assetKindsToVar(const std::vector<AssetKind> &values) {
   for (const auto kind : values)
     array.add(assetKindToKey(kind));
   return juce::var(array);
+}
+inline void applyBuiltinDescriptorDefaults(WidgetDescriptor &descriptor,
+                                           const juce::String &a11yRole,
+                                           const juce::String &a11yLabelKey) {
+  const auto normalizedTypeKey = descriptor.typeKey.trim();
+  if (normalizedTypeKey.isNotEmpty()) {
+    descriptor.typeKey = normalizedTypeKey;
+    descriptor.pluginId = "com.dadeum.gyeol.builtin." + normalizedTypeKey;
+  }
+
+  descriptor.schemaVersion = "2.0.0";
+  descriptor.manifestVersion = "1.0.0";
+  descriptor.widgetTypeVersion = juce::jmax(1, descriptor.widgetTypeVersion);
+  descriptor.pluginVersion = "1.0.0";
+  descriptor.vendor = "Dadeum";
+  descriptor.releaseChannel = "stable";
+  descriptor.sdkMinVersion = "1.0.0";
+  descriptor.abiVersion = "1";
+  descriptor.supportedHostVersions = {"1.0.0"};
+  descriptor.permissions.clear();
+  descriptor.sandboxLevel = "strict";
+
+  descriptor.requiredJuceModules = {"juce_gui_basics"};
+  descriptor.requiredHeaders = {"<JuceHeader.h>"};
+  descriptor.requiredLibraries.clear();
+  descriptor.requiredCompileDefinitions.clear();
+  descriptor.requiredLinkOptions.clear();
+  descriptor.codegenApiVersion = "2.1";
+
+  descriptor.a11yRole = a11yRole;
+  descriptor.a11yLabelKey = a11yLabelKey;
 }
 
 inline juce::var serializeWidgetPropertySpecV2(const WidgetPropertySpec &spec) {

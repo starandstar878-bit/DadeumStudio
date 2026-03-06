@@ -43,7 +43,12 @@ std::unique_ptr<TNodeRegistry> makeDefaultNodeRegistry() {
 
     auto nodeClass = factory();
     if (nodeClass) {
-      registry->registerNode(nodeClass->makeDescriptor());
+      TNodeDescriptor desc = nodeClass->makeDescriptor();
+      desc.instanceFactory = [factory]() {
+        auto nc = factory();
+        return nc ? nc->createInstance() : nullptr;
+      };
+      registry->registerNode(desc);
     }
   }
 

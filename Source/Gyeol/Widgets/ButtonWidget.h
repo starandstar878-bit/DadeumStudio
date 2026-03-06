@@ -17,11 +17,22 @@ public:
     descriptor.exportTargetType = "juce::TextButton";
     descriptor.defaultBounds = {0.0f, 0.0f, 96.0f, 30.0f};
     descriptor.minSize = {48.0f, 24.0f};
+    applyBuiltinDescriptorDefaults(descriptor, "button", "widget.button.label");
+    descriptor.capabilities = {"emitsRuntimeEvents", "acceptsAssetDrop"};
+    descriptor.supportsOffscreenCache = true;
+    descriptor.estimatedPaintCost = 0.12;
+    descriptor.memoryBudgetKb = 64;
+    descriptor.supportedActions = {"setRuntimeParam", "adjustRuntimeParam",
+                                   "toggleRuntimeParam", "setNodeProps",
+                                   "setNodeBounds"};
+    descriptor.stateOutputs = {"pressed"};
     descriptor.defaultProperties.set("text", juce::String("Button"));
     descriptor.runtimeEvents = {
         {"onClick", "Click", "Fires when the button is clicked", false},
         {"onPress", "Press", "Fires when mouse/touch is pressed", false},
         {"onRelease", "Release", "Fires when mouse/touch is released", false}};
+    for (auto &eventSpec : descriptor.runtimeEvents)
+      eventSpec.payloadSchema = makePayloadSchema();
     {
       WidgetPropertySpec textSpec;
       textSpec.key = juce::Identifier("text");
@@ -32,6 +43,8 @@ public:
       textSpec.order = 10;
       textSpec.hint = "Button caption text";
       textSpec.defaultValue = juce::var("Button");
+      textSpec.required = true;
+      textSpec.maxLength = 128;
       descriptor.propertySpecs.push_back(std::move(textSpec));
 
       WidgetPropertySpec bgImageSpec;
@@ -43,6 +56,8 @@ public:
       bgImageSpec.order = 100;
       bgImageSpec.hint = "Optional image asset id for button body";
       bgImageSpec.acceptedAssetKinds = {AssetKind::image};
+      bgImageSpec.acceptedMimeTypes = {"image/png", "image/jpeg", "image/webp"};
+      bgImageSpec.maxAssetBytes = 8 * 1024 * 1024;
       bgImageSpec.advanced = false;
       descriptor.propertySpecs.push_back(std::move(bgImageSpec));
 
@@ -55,6 +70,8 @@ public:
       iconImageSpec.order = 110;
       iconImageSpec.hint = "Optional image asset id for icon";
       iconImageSpec.acceptedAssetKinds = {AssetKind::image};
+      iconImageSpec.acceptedMimeTypes = {"image/png", "image/jpeg", "image/webp"};
+      iconImageSpec.maxAssetBytes = 8 * 1024 * 1024;
       iconImageSpec.advanced = true;
       descriptor.propertySpecs.push_back(std::move(iconImageSpec));
     }

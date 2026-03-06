@@ -5,8 +5,9 @@
 #include <memory>
 #include <vector>
 
-
 namespace Teul {
+
+class TNodeInstance;
 
 // =============================================================================
 //  TNodeClass / Auto-Registration 시스템 (Gyeol WidgetSDK 참고)
@@ -17,6 +18,11 @@ class TNodeClass {
 public:
   virtual ~TNodeClass() = default;
   virtual TNodeDescriptor makeDescriptor() const = 0;
+
+  // 런타임 객체 생성 인터페이스 (커스텀 DSP 클래스가 오버라이드하여 제공)
+  virtual std::unique_ptr<TNodeInstance> createInstance() const {
+    return nullptr;
+  }
 };
 
 using TNodeClassFactory = std::function<std::unique_ptr<TNodeClass>()>;

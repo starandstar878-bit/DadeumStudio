@@ -21,10 +21,26 @@ public:
     descriptor.exportTargetType = "juce::Slider::LinearHorizontal";
     descriptor.defaultBounds = {0.0f, 0.0f, 170.0f, 34.0f};
     descriptor.minSize = {80.0f, 24.0f};
+    applyBuiltinDescriptorDefaults(descriptor, "slider", "widget.slider.label");
+    descriptor.capabilities = {"emitsRuntimeEvents", "acceptsAssetDrop",
+                               "customCodegen"};
+    descriptor.supportsOffscreenCache = true;
+    descriptor.estimatedPaintCost = 0.22;
+    descriptor.memoryBudgetKb = 96;
+    descriptor.supportedActions = {"setRuntimeParam", "adjustRuntimeParam",
+                                   "toggleRuntimeParam", "setNodeProps",
+                                   "setNodeBounds"};
+    descriptor.stateInputs = {"slider.rangeMin", "slider.rangeMax", "value",
+                              "minValue", "maxValue"};
+    descriptor.stateOutputs = {"value", "minValue", "maxValue"};
     descriptor.runtimeEvents = {{"onValueChanged", "Value Changed",
                                  "Fires while value is changing", true},
                                 {"onValueCommit", "Value Commit",
                                  "Fires when value edit is committed", false}};
+    for (auto &eventSpec : descriptor.runtimeEvents)
+      eventSpec.payloadSchema = makePayloadSchema();
+    if (!descriptor.runtimeEvents.empty())
+      descriptor.runtimeEvents.front().throttleMs = 16;
 
     descriptor.defaultProperties.set("slider.style", "linearHorizontal");
     descriptor.defaultProperties.set("slider.rangeMin", 0.0);
@@ -45,6 +61,7 @@ public:
       styleSpec.hint =
           "JUCE linear/range slider style (rotary uses Knob widget)";
       styleSpec.defaultValue = juce::var("linearHorizontal");
+      styleSpec.required = true;
       styleSpec.enumOptions = {
           {"linearHorizontal", "Linear Horizontal"},
           {"linearVertical", "Linear Vertical"},
@@ -66,6 +83,8 @@ public:
       rangeMinSpec.order = 10;
       rangeMinSpec.hint = "Minimum range value";
       rangeMinSpec.defaultValue = juce::var(0.0);
+      rangeMinSpec.required = true;
+      rangeMinSpec.unit = "value";
       rangeMinSpec.decimals = 4;
       descriptor.propertySpecs.push_back(std::move(rangeMinSpec));
 
@@ -78,6 +97,8 @@ public:
       rangeMaxSpec.order = 20;
       rangeMaxSpec.hint = "Maximum range value";
       rangeMaxSpec.defaultValue = juce::var(1.0);
+      rangeMaxSpec.required = true;
+      rangeMaxSpec.unit = "value";
       rangeMaxSpec.decimals = 4;
       descriptor.propertySpecs.push_back(std::move(rangeMaxSpec));
 
@@ -90,6 +111,7 @@ public:
       rangeStepSpec.order = 30;
       rangeStepSpec.hint = "0 means continuous";
       rangeStepSpec.defaultValue = juce::var(0.0);
+      rangeStepSpec.unit = "value";
       rangeStepSpec.minValue = 0.0;
       rangeStepSpec.decimals = 6;
       descriptor.propertySpecs.push_back(std::move(rangeStepSpec));
@@ -103,6 +125,8 @@ public:
       valueSpec.order = 10;
       valueSpec.hint = "Single-value and three-value center";
       valueSpec.defaultValue = juce::var(0.5);
+      valueSpec.required = true;
+      valueSpec.unit = "value";
       valueSpec.step = 0.01;
       valueSpec.decimals = 3;
       descriptor.propertySpecs.push_back(std::move(valueSpec));
@@ -116,6 +140,7 @@ public:
       minValueSpec.order = 20;
       minValueSpec.hint = "Range start (two/three-value style)";
       minValueSpec.defaultValue = juce::var(0.25);
+      minValueSpec.unit = "value";
       minValueSpec.decimals = 3;
       descriptor.propertySpecs.push_back(std::move(minValueSpec));
 
@@ -128,6 +153,7 @@ public:
       maxValueSpec.order = 30;
       maxValueSpec.hint = "Range end (two/three-value style)";
       maxValueSpec.defaultValue = juce::var(0.75);
+      maxValueSpec.unit = "value";
       maxValueSpec.decimals = 3;
       descriptor.propertySpecs.push_back(std::move(maxValueSpec));
 
@@ -140,6 +166,8 @@ public:
       thumbImageSpec.order = 100;
       thumbImageSpec.hint = "Optional image asset id for thumb";
       thumbImageSpec.acceptedAssetKinds = {AssetKind::image};
+      thumbImageSpec.acceptedMimeTypes = {"image/png", "image/jpeg", "image/webp"};
+      thumbImageSpec.maxAssetBytes = 8 * 1024 * 1024;
       thumbImageSpec.advanced = true;
       descriptor.propertySpecs.push_back(std::move(thumbImageSpec));
 
@@ -152,6 +180,8 @@ public:
       trackImageSpec.order = 110;
       trackImageSpec.hint = "Optional image asset id for track";
       trackImageSpec.acceptedAssetKinds = {AssetKind::image};
+      trackImageSpec.acceptedMimeTypes = {"image/png", "image/jpeg", "image/webp"};
+      trackImageSpec.maxAssetBytes = 8 * 1024 * 1024;
       trackImageSpec.advanced = true;
       descriptor.propertySpecs.push_back(std::move(trackImageSpec));
     }

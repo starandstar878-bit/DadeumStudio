@@ -44,6 +44,8 @@ struct TNodeCapabilities {
       1; // 상대적인 CPU 소모량 (1: 아주 가벼움[Add], 10: 무거움[Reverb])
 };
 
+class TNodeInstance;
+
 // =============================================================================
 //  TNodeDescriptor — 특정 타입 노드의 카탈로그 정보
 // =============================================================================
@@ -56,6 +58,9 @@ struct TNodeDescriptor {
 
   std::vector<TParamSpec> paramSpecs;
   std::vector<TPortSpec> portSpecs;
+
+  // 런타임에 처리할 실제 DSP 인스턴스 팩토리 (TNodeSDK 가 자동 연동)
+  std::function<std::unique_ptr<TNodeInstance>()> instanceFactory;
 };
 
 // =============================================================================
