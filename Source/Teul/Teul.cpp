@@ -465,6 +465,11 @@ public:
     rebuildFromDocument();
   }
 
+  void refreshBindingSummaries() {
+    if (isPanelOpen())
+      updateRuntimeValueLabels();
+  }
+
   void hidePanel() {
     if (!isVisible() && inspectedNodeId == kInvalidNodeId)
       return;
@@ -1008,8 +1013,7 @@ private:
       } else if (bindingSummaryResolver == nullptr) {
         gyeolBindingText = "Gyeol: source unavailable";
       } else {
-        const auto summary = bindingSummaryResolver(entry->paramId,
-                                                    entry->spec.preferredBindingKey);
+        const auto summary = bindingSummaryResolver(entry->paramId);
         if (summary.isNotEmpty())
           gyeolBindingText =
               juce::String(juce::CharPointer_UTF8("ð ")) + summary;
@@ -1118,10 +1122,12 @@ private:
 struct EditorHandle::Impl : private juce::Timer {
   explicit Impl(EditorHandle &ownerIn,
                 juce::AudioDeviceManager *audioDeviceManagerIn,
-                ParamBindingSummaryResolver bindingSummaryResolverIn)
+                ParamBindingSummaryResolver bindingSummaryResolverIn,
+                ParamBindingRevisionProvider bindingRevisionProviderIn)
       : owner(ownerIn), registry(makeDefaultNodeRegistry()),
         runtime(registry.get()),
-        audioDeviceManager(audioDeviceManagerIn) {
+        audioDeviceManager(audioDeviceManagerIn),
+        bindingRevisionProvider(std::move(bindingRevisionProviderIn)) {
     canvas = std::make_unique<TGraphCanvas>(doc);
     canvas->setNodePropertiesRequestHandler(
         [this](NodeId nodeId) { openProperties(nodeId); });
@@ -1203,6 +1209,14 @@ struct EditorHandle::Impl : private juce::Timer {
         propertiesPanel->refreshFromDocument();
       lastDocumentRevision = currentDocumentRevision;
     }
+
+    const auto currentBindingRevision =
+        bindingRevisionProvider != nullptr ? bindingRevisionProvider() : 0;
+    if (currentBindingRevision != lastBindingRevision) {
+      if (propertiesPanel)
+        propertiesPanel->refreshBindingSummaries();
+      lastBindingRevision = currentBindingRevision;
+    }
   }
 
   void rebuildAll(bool rebuildRuntime) {
@@ -1254,12 +1268,16 @@ struct EditorHandle::Impl : private juce::Timer {
   bool libraryVisible = true;
   std::uint64_t lastDocumentRevision = 0;
   std::uint64_t lastRuntimeRevision = 0;
+  std::uint64_t lastBindingRevision = 0;
+  ParamBindingRevisionProvider bindingRevisionProvider;
 };
 
 EditorHandle::EditorHandle(juce::AudioDeviceManager *audioDeviceManager,
-                           ParamBindingSummaryResolver bindingSummaryResolver)
+                           ParamBindingSummaryResolver bindingSummaryResolver,
+                           ParamBindingRevisionProvider bindingRevisionProvider)
     : impl(std::make_unique<Impl>(*this, audioDeviceManager,
-                                  std::move(bindingSummaryResolver))) {}
+                                  std::move(bindingSummaryResolver),
+                                  std::move(bindingRevisionProvider))) {}
 EditorHandle::~EditorHandle() = default;
 
 TGraphDocument &EditorHandle::document() noexcept { return impl->doc; }
@@ -1304,9 +1322,11 @@ void EditorHandle::resized() {
 
 std::unique_ptr<EditorHandle> createEditor(
     juce::AudioDeviceManager *audioDeviceManager,
-    ParamBindingSummaryResolver bindingSummaryResolver) {
+    ParamBindingSummaryResolver bindingSummaryResolver,
+    ParamBindingRevisionProvider bindingRevisionProvider) {
   return std::make_unique<EditorHandle>(audioDeviceManager,
-                                        std::move(bindingSummaryResolver));
+                                        std::move(bindingSummaryResolver),
+                                        std::move(bindingRevisionProvider));
 }
 
 } // namespace Teul

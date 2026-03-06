@@ -54,26 +54,18 @@ bool isBindingIdentifierBody(juce::juce_wchar ch) noexcept {
   return isBindingIdentifierStart(ch) || (ch >= '0' && ch <= '9') || ch == '.';
 }
 
-bool matchesBindingKey(const juce::String &text, const juce::StringArray &keys,
-                       juce::String *matchedKey = nullptr) {
+bool matchesBindingKey(const juce::String &text,
+                       const juce::String &paramId) {
   const auto trimmed = text.trim();
-  if (trimmed.isEmpty())
-    return false;
-
-  for (const auto &key : keys) {
-    if (!trimmed.equalsIgnoreCase(key))
-      continue;
-    if (matchedKey != nullptr)
-      *matchedKey = key;
-    return true;
-  }
-
-  return false;
+  return trimmed.isNotEmpty() && trimmed.equalsIgnoreCase(paramId.trim());
 }
 
 bool expressionMentionsBindingKey(const juce::String &expression,
-                                  const juce::StringArray &keys,
-                                  juce::String *matchedKey = nullptr) {
+                                  const juce::String &paramId) {
+  const auto normalizedParamId = paramId.trim();
+  if (normalizedParamId.isEmpty())
+    return false;
+
   for (int index = 0; index < expression.length();) {
     const auto ch = expression[index];
     if (!isBindingIdentifierStart(ch)) {
@@ -86,7 +78,7 @@ bool expressionMentionsBindingKey(const juce::String &expression,
            isBindingIdentifierBody(expression[index]))
       ++index;
 
-    if (matchesBindingKey(expression.substring(start, index), keys, matchedKey))
+    if (matchesBindingKey(expression.substring(start, index), normalizedParamId))
       return true;
   }
 
@@ -111,22 +103,12 @@ juce::String gyeolEventSummary(const juce::String &eventKey) {
 }
 
 juce::String buildTeulBindingSummary(const Gyeol::DocumentHandle &document,
-                                     const juce::String &paramId,
-                                     const juce::String &preferredBindingKey) {
-  juce::StringArray candidateKeys;
-  auto addKey = [&candidateKeys](const juce::String &key) {
-    const auto trimmed = key.trim();
-    if (trimmed.isNotEmpty() && !candidateKeys.contains(trimmed, true))
-      candidateKeys.add(trimmed);
-  };
-
-  addKey(paramId);
-  addKey(preferredBindingKey);
-  if (candidateKeys.isEmpty())
+                                     const juce::String &paramId) {
+  const auto normalizedParamId = paramId.trim();
+  if (normalizedParamId.isEmpty())
     return {};
 
   const auto &snapshot = document.snapshot();
-  const juce::String primaryKey = candidateKeys.isEmpty() ? juce::String() : candidateKeys[0];
 
   auto findWidget = [&snapshot](Gyeol::WidgetId id) -> const Gyeol::WidgetModel * {
     const auto it =
@@ -142,8 +124,7 @@ juce::String buildTeulBindingSummary(const Gyeol::DocumentHandle &document,
   };
 
   for (const auto &binding : snapshot.propertyBindings) {
-    juce::String matchedKey;
-    if (!expressionMentionsBindingKey(binding.expression, candidateKeys, &matchedKey))
+    if (!expressionMentionsBindingKey(binding.expression, normalizedParamId))
       continue;
 
     const auto *widget = findWidget(binding.targetWidgetId);
@@ -152,21 +133,17 @@ juce::String buildTeulBindingSummary(const Gyeol::DocumentHandle &document,
                 " [read " + binding.targetProperty.trim() + "]";
     if (!binding.enabled)
       item << " off";
-    if (primaryKey.isNotEmpty() && matchedKey.isNotEmpty() &&
-        !matchedKey.equalsIgnoreCase(primaryKey))
-      item << " via " << matchedKey;
     addItem(item);
   }
 
   for (const auto &binding : snapshot.runtimeBindings) {
-    juce::String matchedKey;
     bool touchesParam = false;
     for (const auto &action : binding.actions) {
       switch (action.kind) {
       case Gyeol::RuntimeActionKind::setRuntimeParam:
       case Gyeol::RuntimeActionKind::adjustRuntimeParam:
       case Gyeol::RuntimeActionKind::toggleRuntimeParam:
-        touchesParam = matchesBindingKey(action.paramKey, candidateKeys, &matchedKey);
+        touchesParam = matchesBindingKey(action.paramKey, normalizedParamId);
         break;
       default:
         break;
@@ -185,9 +162,6 @@ juce::String buildTeulBindingSummary(const Gyeol::DocumentHandle &document,
                 " [write " + gyeolEventSummary(binding.eventKey) + "]";
     if (!binding.enabled)
       item << " off";
-    if (primaryKey.isNotEmpty() && matchedKey.isNotEmpty() &&
-        !matchedKey.equalsIgnoreCase(primaryKey))
-      item << " via " << matchedKey;
     addItem(item);
   }
 
@@ -221,12 +195,15 @@ MainComponent::MainComponent(AppServices &services) : appServices(services) {
   gyeolPage = Gyeol::createEditor();
   teulPage = Teul::createEditor(
       &appServices.audioDeviceManager,
-      [this](const juce::String &paramId,
-             const juce::String &preferredBindingKey) -> juce::String {
+      [this](const juce::String &paramId) -> juce::String {
         if (gyeolPage == nullptr)
           return {};
-        return buildTeulBindingSummary(gyeolPage->document(), paramId,
-                                       preferredBindingKey);
+        return buildTeulBindingSummary(gyeolPage->document(), paramId);
+      },
+      [this]() -> std::uint64_t {
+        if (gyeolPage == nullptr)
+          return 0;
+        return gyeolPage->document().historySerial();
       });
 
   addChildComponent(*gyeolPage);

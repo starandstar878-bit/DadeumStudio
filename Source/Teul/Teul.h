@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <cstdint>
 #include <functional>
 #include <memory>
 
@@ -11,14 +12,15 @@ struct TGraphDocument;
 namespace Teul {
 
 using ParamBindingSummaryResolver =
-    std::function<juce::String(const juce::String &paramId,
-                               const juce::String &preferredBindingKey)>;
+    std::function<juce::String(const juce::String &paramId)>;
+using ParamBindingRevisionProvider = std::function<std::uint64_t()>;
 
 class EditorHandle : public juce::Component {
 public:
   explicit EditorHandle(
       juce::AudioDeviceManager *audioDeviceManager = nullptr,
-      ParamBindingSummaryResolver bindingSummaryResolver = {});
+      ParamBindingSummaryResolver bindingSummaryResolver = {},
+      ParamBindingRevisionProvider bindingRevisionProvider = {});
   ~EditorHandle() override;
 
   TGraphDocument &document() noexcept;
@@ -38,6 +40,7 @@ private:
 
 std::unique_ptr<EditorHandle> createEditor(
     juce::AudioDeviceManager *audioDeviceManager = nullptr,
-    ParamBindingSummaryResolver bindingSummaryResolver = {});
+    ParamBindingSummaryResolver bindingSummaryResolver = {},
+    ParamBindingRevisionProvider bindingRevisionProvider = {});
 
 } // namespace Teul
