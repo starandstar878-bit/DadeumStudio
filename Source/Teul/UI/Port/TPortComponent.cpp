@@ -1,15 +1,16 @@
 #include "TPortComponent.h"
 #include "../../UI/TeulPalette.h"
+#include "../Canvas/TGraphCanvas.h"
 #include "../Node/TNodeComponent.h"
 
 namespace Teul {
 
 TPortComponent::TPortComponent(TNodeComponent &owner, const TPort &port)
     : ownerNode(owner), portData(port) {
-  setSize(14, 14); // 잭의 기본 사이즈
+  setSize(14, 14);
 }
 
-TPortComponent::~TPortComponent() {}
+TPortComponent::~TPortComponent() = default;
 
 juce::Colour TPortComponent::getPortColor() const {
   switch (portData.dataType) {
@@ -17,6 +18,8 @@ juce::Colour TPortComponent::getPortColor() const {
     return TeulPalette::PortAudio;
   case TPortDataType::CV:
     return TeulPalette::PortCV;
+  case TPortDataType::Gate:
+    return TeulPalette::PortGate;
   case TPortDataType::MIDI:
     return TeulPalette::PortMIDI;
   case TPortDataType::Control:
@@ -26,25 +29,40 @@ juce::Colour TPortComponent::getPortColor() const {
   }
 }
 
-void TPortComponent::paint(juce::Graphics &g) {
-  auto bounds = getLocalBounds().toFloat();
-  juce::Colour baseColor = getPortColor();
+void TPortComponent::setDragTargetHighlight(bool enabled, bool validType) {
+  if (isDragTargetHighlighted == enabled && isDragTargetTypeValid == validType)
+    return;
 
-  if (isHovered) {
-    // 호버 시 살짝 밝게 + 미세한 외곽 광원 효과
+  isDragTargetHighlighted = enabled;
+  isDragTargetTypeValid = validType;
+  repaint();
+}
+
+void TPortComponent::paint(juce::Graphics &g) {
+  const auto bounds = getLocalBounds().toFloat();
+  const juce::Colour baseColor = getPortColor();
+
+  if (isDragTargetHighlighted) {
+    const juce::Colour targetColor =
+        isDragTargetTypeValid ? baseColor.brighter(0.35f) : juce::Colours::red;
+    g.setColour(targetColor.withAlpha(0.22f));
+    g.fillEllipse(bounds.expanded(3.0f));
+    g.setColour(targetColor.withAlpha(0.9f));
+    g.drawEllipse(bounds.expanded(1.5f), 2.0f);
+  }
+
+  if (isHovered || isDragTargetHighlighted) {
     g.setColour(baseColor.brighter(0.2f));
     g.fillEllipse(bounds.reduced(1.0f));
-
-    g.setColour(baseColor.withAlpha(0.4f));
+    g.setColour(baseColor.withAlpha(0.45f));
     g.drawEllipse(bounds, 1.5f);
-  } else {
-    // 기본 포트 렌더링
-    g.setColour(baseColor);
-    g.fillEllipse(bounds.reduced(2.0f));
-
-    g.setColour(juce::Colours::black.withAlpha(0.6f));
-    g.drawEllipse(bounds.reduced(2.0f), 1.0f);
+    return;
   }
+
+  g.setColour(baseColor);
+  g.fillEllipse(bounds.reduced(2.0f));
+  g.setColour(juce::Colours::black.withAlpha(0.6f));
+  g.drawEllipse(bounds.reduced(2.0f), 1.0f);
 }
 
 void TPortComponent::mouseEnter(const juce::MouseEvent &) {
@@ -57,9 +75,35 @@ void TPortComponent::mouseExit(const juce::MouseEvent &) {
   repaint();
 }
 
-// TODO: Phase 3 (연결선 드로잉 시스템)용 핸들러 예약
-void TPortComponent::mouseDown(const juce::MouseEvent &) {}
-void TPortComponent::mouseDrag(const juce::MouseEvent &) {}
-void TPortComponent::mouseUp(const juce::MouseEvent &) {}
+void TPortComponent::mouseDown(const juce::MouseEvent &e) {
+  if (!e.mods.isLeftButtonDown())
+    return;
+
+  if (portData.direction != TPortDirection::Output)
+    return;
+
+  auto &canvas = ownerNode.getOwnerCanvas();
+  const auto posInCanvas = e.getEventRelativeTo(&canvas).position;
+  canvas.beginConnectionDrag(portData, posInCanvas);
+}
+
+void TPortComponent::mouseDrag(const juce::MouseEvent &e) {
+  if (!e.mods.isLeftButtonDown())
+    return;
+
+  if (portData.direction != TPortDirection::Output)
+    return;
+
+  auto &canvas = ownerNode.getOwnerCanvas();
+  canvas.updateConnectionDrag(e.getEventRelativeTo(&canvas).position);
+}
+
+void TPortComponent::mouseUp(const juce::MouseEvent &e) {
+  if (portData.direction != TPortDirection::Output)
+    return;
+
+  auto &canvas = ownerNode.getOwnerCanvas();
+  canvas.endConnectionDrag(e.getEventRelativeTo(&canvas).position);
+}
 
 } // namespace Teul

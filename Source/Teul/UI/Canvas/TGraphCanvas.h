@@ -2,18 +2,17 @@
 
 #include "../../Model/TGraphDocument.h"
 #include <JuceHeader.h>
+#include <functional>
+#include <memory>
+#include <vector>
 
 namespace Teul {
 
-// =============================================================================
-//  TGraphCanvas — 정밀한 오디오 DSP 그래프 인피니트 캔버스
-//
-//  [기능]
-//  - 무한 확장/이동 가능한 World 토대를 렌더하고 사용자 View 영역을 투영
-//  - 마우스 줌, 패닝(Pan) 기능
-//  - 줌 레벨에 따라 LOD (가시성) 가 자동 조절되는 그리드(Grid) 렌더
-// =============================================================================
-class TGraphCanvas : public juce::Component {
+class TNodeComponent;
+class TPortComponent;
+class TNodeRegistry;
+
+class TGraphCanvas : public juce::Component, private juce::Timer {
 public:
   explicit TGraphCanvas(TGraphDocument &doc);
   ~TGraphCanvas() override;
@@ -27,11 +26,9 @@ public:
   void mouseWheelMove(const juce::MouseEvent &event,
                       const juce::MouseWheelDetails &wheel) override;
 
-  // 키보드 입력 포커스용
   bool keyPressed(const juce::KeyPress &key) override;
   bool keyStateChanged(bool isKeyDown) override;
 
-  // Viewport 조작 헬퍼
   void setZoomLevel(float newZoom, juce::Point<float> anchorPosView);
 
   juce::Point<float> viewToWorld(juce::Point<float> viewPos) const;
@@ -40,22 +37,61 @@ public:
   TGraphDocument &getDocument() { return document; }
   const TGraphDocument &getDocument() const { return document; }
 
-  // 데이터 모델 변경 시 노드 컴포넌트들을 다시 매핑
   void rebuildNodeComponents();
-
-  // 패닝/줌 시 자식 노드 컴포넌트들의 위치를 동기화
   void updateChildPositions();
 
+  void beginConnectionDrag(const TPort &sourcePort,
+                           juce::Point<float> mousePosView);
+  void updateConnectionDrag(juce::Point<float> mousePosView);
+  void endConnectionDrag(juce::Point<float> mousePosView);
+  void cancelConnectionDrag();
+
+  using ConnectionLevelProvider = std::function<float(const TConnection &)>;
+  void setConnectionLevelProvider(ConnectionLevelProvider provider);
+
 private:
+  void timerCallback() override;
+
   void drawInfiniteGrid(juce::Graphics &g);
   void drawZoomIndicator(juce::Graphics &g);
+  void drawConnections(juce::Graphics &g);
 
-  // 문서 데이터 참조 (렌더링 및 상태 복원/저장용)
+  juce::Path makeWirePath(juce::Point<float> from,
+                          juce::Point<float> to) const;
+  juce::Colour colorForPortType(TPortDataType type) const;
+
+  const TPort *findPortModel(NodeId nodeId, PortId portId) const;
+
+  TNodeComponent *findNodeComponent(NodeId nodeId) noexcept;
+  const TNodeComponent *findNodeComponent(NodeId nodeId) const noexcept;
+
+  TPortComponent *findPortComponent(NodeId nodeId, PortId portId) noexcept;
+  const TPortComponent *findPortComponent(NodeId nodeId,
+                                          PortId portId) const noexcept;
+
+  juce::Point<float> portCentreInCanvas(NodeId nodeId, PortId portId) const;
+
+  ConnectionId hitTestConnection(juce::Point<float> pointView,
+                                 float hitThickness = 7.0f) const;
+
+  void clearDragTargetHighlight();
+  void updateDragTargetFromMouse(juce::Point<float> mousePosView);
+  bool isCurrentDragTargetConnectable() const;
+  void tryCreateConnectionFromDrag();
+
+  void deleteConnectionWithAnimation(ConnectionId connectionId,
+                                     juce::Point<float> breakPointView,
+                                     juce::Point<float> impulseView);
+
+  void startDisconnectAnimation(juce::Point<float> anchorPosView,
+                                juce::Point<float> loosePosView,
+                                juce::Point<float> impulseView,
+                                TPortDataType type);
+
   TGraphDocument &document;
 
   float zoomLevel = 1.0f;
-  juce::Point<float>
-      viewOriginWorld; // 월드 좌표계 기준 현재 화면의 좌측 상단 위치
+  juce::Point<float> viewOriginWorld;
 
   struct PanState {
     bool active = false;
@@ -63,11 +99,42 @@ private:
     juce::Point<float> startViewOriginWorld;
   } panState;
 
-  std::vector<std::unique_ptr<juce::Component>>
-      nodeComponents; // TNodeComponent 타입
+  std::vector<std::unique_ptr<TNodeComponent>> nodeComponents;
 
-  // (Phase 2) Registry 참고
-  const class TNodeRegistry *nodeRegistry = nullptr;
+  struct WireDragState {
+    bool active = false;
+    NodeId sourceNodeId = kInvalidNodeId;
+    PortId sourcePortId = kInvalidPortId;
+    TPortDataType sourceType = TPortDataType::Audio;
+
+    juce::Point<float> sourcePosView;
+    juce::Point<float> mousePosView;
+
+    NodeId targetNodeId = kInvalidNodeId;
+    PortId targetPortId = kInvalidPortId;
+
+    bool targetTypeMatch = false;
+    bool targetCycleFree = false;
+  } wireDragState;
+
+  ConnectionId selectedConnectionId = kInvalidConnectionId;
+  ConnectionId pressedConnectionId = kInvalidConnectionId;
+  juce::Point<float> pressedConnectionPointView;
+  bool connectionBreakDragArmed = false;
+
+  struct DisconnectAnimationState {
+    bool active = false;
+    juce::Point<float> anchorPosView;
+    juce::Point<float> loosePosView;
+    juce::Point<float> velocityViewPerSecond;
+    float alpha = 0.0f;
+    TPortDataType type = TPortDataType::Audio;
+  } disconnectAnimation;
+
+  float flowPhase = 0.0f;
+  ConnectionLevelProvider connectionLevelProvider;
+
+  const TNodeRegistry *nodeRegistry = nullptr;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TGraphCanvas)
 };
