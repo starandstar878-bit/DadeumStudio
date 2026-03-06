@@ -19,6 +19,16 @@ public:
     descriptor.exportTargetType = "gyeol::Meter";
     descriptor.defaultBounds = {0.0f, 0.0f, 36.0f, 120.0f};
     descriptor.minSize = {20.0f, 48.0f};
+    applyBuiltinDescriptorDefaults(descriptor, "meter", "widget.meter.label");
+    descriptor.capabilities = {"acceptsAssetDrop", "customCodegen"};
+    descriptor.supportsOffscreenCache = true;
+    descriptor.estimatedPaintCost = 0.09;
+    descriptor.memoryBudgetKb = 72;
+    descriptor.supportedActions = {"setRuntimeParam", "adjustRuntimeParam",
+                                   "setNodeProps", "setNodeBounds"};
+    descriptor.stateInputs = {"meter.orientation", "meter.rangeMin",
+                              "meter.rangeMax", "value"};
+    descriptor.stateOutputs = {"value"};
 
     descriptor.defaultProperties.set("meter.orientation", "vertical");
     descriptor.defaultProperties.set("meter.rangeMin", 0.0);
@@ -35,6 +45,7 @@ public:
       orientationSpec.order = 10;
       orientationSpec.hint = "Meter fill direction";
       orientationSpec.defaultValue = juce::var("vertical");
+      orientationSpec.required = true;
       orientationSpec.enumOptions = {{"vertical", "Vertical"},
                                      {"horizontal", "Horizontal"}};
       descriptor.propertySpecs.push_back(std::move(orientationSpec));
@@ -48,6 +59,8 @@ public:
       rangeMinSpec.order = 10;
       rangeMinSpec.hint = "Minimum range value";
       rangeMinSpec.defaultValue = juce::var(0.0);
+      rangeMinSpec.required = true;
+      rangeMinSpec.unit = "value";
       rangeMinSpec.decimals = 4;
       descriptor.propertySpecs.push_back(std::move(rangeMinSpec));
 
@@ -60,6 +73,8 @@ public:
       rangeMaxSpec.order = 20;
       rangeMaxSpec.hint = "Maximum range value";
       rangeMaxSpec.defaultValue = juce::var(1.0);
+      rangeMaxSpec.required = true;
+      rangeMaxSpec.unit = "value";
       rangeMaxSpec.decimals = 4;
       descriptor.propertySpecs.push_back(std::move(rangeMaxSpec));
 
@@ -72,6 +87,8 @@ public:
       valueSpec.order = 10;
       valueSpec.hint = "Current meter level";
       valueSpec.defaultValue = juce::var(0.62);
+      valueSpec.required = true;
+      valueSpec.unit = "value";
       valueSpec.step = 0.01;
       valueSpec.decimals = 4;
       descriptor.propertySpecs.push_back(std::move(valueSpec));
@@ -85,6 +102,8 @@ public:
       fillImageSpec.order = 100;
       fillImageSpec.hint = "Optional image asset id for fill area";
       fillImageSpec.acceptedAssetKinds = {AssetKind::image};
+      fillImageSpec.acceptedMimeTypes = {"image/png", "image/jpeg", "image/webp"};
+      fillImageSpec.maxAssetBytes = 8 * 1024 * 1024;
       fillImageSpec.advanced = true;
       descriptor.propertySpecs.push_back(std::move(fillImageSpec));
 
@@ -97,6 +116,8 @@ public:
       bgImageSpec.order = 110;
       bgImageSpec.hint = "Optional image asset id for meter body";
       bgImageSpec.acceptedAssetKinds = {AssetKind::image};
+      bgImageSpec.acceptedMimeTypes = {"image/png", "image/jpeg", "image/webp"};
+      bgImageSpec.maxAssetBytes = 8 * 1024 * 1024;
       bgImageSpec.advanced = true;
       descriptor.propertySpecs.push_back(std::move(bgImageSpec));
     }

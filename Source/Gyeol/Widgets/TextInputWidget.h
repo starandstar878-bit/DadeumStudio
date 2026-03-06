@@ -17,8 +17,21 @@ public:
     descriptor.exportTargetType = "juce::TextEditor";
     descriptor.defaultBounds = {0.0f, 0.0f, 180.0f, 32.0f};
     descriptor.minSize = {90.0f, 24.0f};
+    applyBuiltinDescriptorDefaults(descriptor, "textbox", "widget.textInput.label");
+    descriptor.capabilities = {"emitsRuntimeEvents", "customCodegen"};
+    descriptor.supportsOffscreenCache = true;
+    descriptor.estimatedPaintCost = 0.16;
+    descriptor.memoryBudgetKb = 96;
+    descriptor.supportedActions = {"setRuntimeParam", "setNodeProps",
+                                   "setNodeBounds"};
+    descriptor.stateInputs = {"text", "textInput.placeholder",
+                              "textInput.multiline", "textInput.readOnly",
+                              "textInput.passwordChar"};
+    descriptor.stateOutputs = {"text"};
     descriptor.runtimeEvents = {{"onTextCommit", "Text Commit",
                                  "Fires when text input is committed", false}};
+    for (auto &eventSpec : descriptor.runtimeEvents)
+      eventSpec.payloadSchema = makePayloadSchema();
 
     descriptor.defaultProperties.set("text", juce::String());
     descriptor.defaultProperties.set("textInput.placeholder",
@@ -37,6 +50,8 @@ public:
       textSpec.order = 10;
       textSpec.hint = "Initial text";
       textSpec.defaultValue = juce::var(juce::String());
+      textSpec.required = true;
+      textSpec.maxLength = 4096;
       descriptor.propertySpecs.push_back(std::move(textSpec));
 
       WidgetPropertySpec placeholderSpec;
@@ -48,6 +63,7 @@ public:
       placeholderSpec.order = 20;
       placeholderSpec.hint = "Shown when text is empty";
       placeholderSpec.defaultValue = juce::var("Type...");
+      placeholderSpec.maxLength = 256;
       descriptor.propertySpecs.push_back(std::move(placeholderSpec));
 
       WidgetPropertySpec multilineSpec;
@@ -59,6 +75,7 @@ public:
       multilineSpec.order = 30;
       multilineSpec.hint = "Enable multi-line editing";
       multilineSpec.defaultValue = juce::var(false);
+      multilineSpec.required = true;
       descriptor.propertySpecs.push_back(std::move(multilineSpec));
 
       WidgetPropertySpec readOnlySpec;
@@ -70,6 +87,7 @@ public:
       readOnlySpec.order = 40;
       readOnlySpec.hint = "Disable user editing";
       readOnlySpec.defaultValue = juce::var(false);
+      readOnlySpec.required = true;
       descriptor.propertySpecs.push_back(std::move(readOnlySpec));
 
       WidgetPropertySpec passwordSpec;
@@ -81,6 +99,7 @@ public:
       passwordSpec.order = 100;
       passwordSpec.hint = "Single character mask (empty = none)";
       passwordSpec.defaultValue = juce::var(juce::String());
+      passwordSpec.maxLength = 1;
       passwordSpec.advanced = true;
       descriptor.propertySpecs.push_back(std::move(passwordSpec));
     }

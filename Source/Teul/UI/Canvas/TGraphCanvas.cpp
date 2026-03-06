@@ -1,10 +1,21 @@
 #include "TGraphCanvas.h"
 #include "../TeulPalette.h"
 
+#include "../../Registry/TNodeRegistry.h"
+#include "../Node/TNodeComponent.h"
+
 namespace Teul {
+
+// 전역 레지스트리를 임시로 들고오기 위한 헬퍼 (AppServices 구조 연동 전까지)
+static const TNodeRegistry *getSharedRegistry() {
+  static auto reg = makeDefaultNodeRegistry();
+  return reg.get();
+}
 
 TGraphCanvas::TGraphCanvas(TGraphDocument &doc) : document(doc) {
   setWantsKeyboardFocus(true);
+
+  nodeRegistry = getSharedRegistry();
 
   // 이전 상태 복구 (문서 메타에서 위치/줌)
   viewOriginWorld = {doc.meta.canvasOffsetX, doc.meta.canvasOffsetY};
@@ -13,6 +24,9 @@ TGraphCanvas::TGraphCanvas(TGraphDocument &doc) : document(doc) {
   // 최소치 방어
   if (zoomLevel < 0.1f)
     zoomLevel = 1.0f;
+
+  // 컴포넌트들 초기 빌드
+  rebuildNodeComponents();
 }
 
 TGraphCanvas::~TGraphCanvas() {
@@ -22,23 +36,50 @@ TGraphCanvas::~TGraphCanvas() {
   document.meta.canvasZoom = zoomLevel;
 }
 
+void TGraphCanvas::rebuildNodeComponents() {
+  nodeComponents.clear();
+
+  for (const auto &n : document.nodes) {
+    const TNodeDescriptor *desc = nullptr;
+    if (nodeRegistry) {
+      desc = nodeRegistry->descriptorFor(n.typeKey);
+    }
+
+    auto comp = std::make_unique<TNodeComponent>(*this, n.nodeId, desc);
+    addAndMakeVisible(comp.get());
+    nodeComponents.push_back(std::move(comp));
+  }
+}
+
+void TGraphCanvas::updateChildPositions() {
+  for (auto &compPtr : nodeComponents) {
+    auto *tnc = dynamic_cast<TNodeComponent *>(compPtr.get());
+    if (tnc) {
+      // 뷰포트 변경될 때마다 월드->뷰 투영 다시 해줌
+      const TNode *nodeData = document.findNode(tnc->getNodeId());
+      if (nodeData) {
+        tnc->setTopLeftPosition(
+            worldToView(juce::Point<float>(nodeData->x, nodeData->y))
+                .roundToInt());
+        // 줌 레벨에 따라 스케일도 적용할 경우 (차후 아핀 변환 추가)
+        tnc->setTransform(juce::AffineTransform::scale(zoomLevel));
+      }
+    }
+  }
+}
+
 void TGraphCanvas::paint(juce::Graphics &g) {
   g.fillAll(TeulPalette::CanvasBackground);
 
   drawInfiniteGrid(g);
 
-  // TODO [Phase 2]
-  // - Node 렌더링 호출
-  // - Connection 렌더링 호출
+  // TODO [Phase 3]
+  // - Connection 렌더링 호출 (nodeComponents 보다 아래에 그려져야 함)
 
   drawZoomIndicator(g);
 }
 
-void TGraphCanvas::resized() {
-  // 캔버스 변경에 따른 자식 노드 좌표 조정이 필요할 수 있으나,
-  // 노드들은 월드 좌표에 배치되고 View Transformation만 바뀌므로 단순히
-  // repaint.
-}
+void TGraphCanvas::resized() { updateChildPositions(); }
 
 // =============================================================================
 //  그리드 & HUD

@@ -17,10 +17,21 @@ public:
     descriptor.exportTargetType = "juce::ToggleButton";
     descriptor.defaultBounds = {0.0f, 0.0f, 120.0f, 28.0f};
     descriptor.minSize = {72.0f, 24.0f};
+    applyBuiltinDescriptorDefaults(descriptor, "switch", "widget.toggle.label");
+    descriptor.capabilities = {"emitsRuntimeEvents", "customCodegen"};
+    descriptor.supportsOffscreenCache = true;
+    descriptor.estimatedPaintCost = 0.11;
+    descriptor.memoryBudgetKb = 52;
+    descriptor.supportedActions = {"setRuntimeParam", "toggleRuntimeParam",
+                                   "setNodeProps", "setNodeBounds"};
+    descriptor.stateInputs = {"text", "state"};
+    descriptor.stateOutputs = {"state"};
     descriptor.runtimeEvents = {
         {"onClick", "Click", "Fires when the toggle is clicked", false},
         {"onToggleChanged", "Toggle Changed",
          "Fires when checked state changes", false}};
+    for (auto &eventSpec : descriptor.runtimeEvents)
+      eventSpec.payloadSchema = makePayloadSchema();
 
     descriptor.defaultProperties.set("text", juce::String("Toggle"));
     descriptor.defaultProperties.set("state", false);
@@ -35,6 +46,8 @@ public:
       textSpec.order = 10;
       textSpec.hint = "Toggle label text";
       textSpec.defaultValue = juce::var("Toggle");
+      textSpec.required = true;
+      textSpec.maxLength = 128;
       descriptor.propertySpecs.push_back(std::move(textSpec));
 
       WidgetPropertySpec stateSpec;
@@ -46,6 +59,7 @@ public:
       stateSpec.order = 20;
       stateSpec.hint = "Checked state";
       stateSpec.defaultValue = juce::var(false);
+      stateSpec.required = true;
       descriptor.propertySpecs.push_back(std::move(stateSpec));
     }
 

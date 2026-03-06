@@ -21,11 +21,24 @@ public:
     descriptor.exportTargetType = "juce::Slider::RotaryVerticalDrag";
     descriptor.defaultBounds = {0.0f, 0.0f, 56.0f, 56.0f};
     descriptor.minSize = {32.0f, 32.0f};
+    applyBuiltinDescriptorDefaults(descriptor, "slider", "widget.knob.label");
+    descriptor.capabilities = {"emitsRuntimeEvents", "acceptsAssetDrop",
+                               "customCodegen"};
+    descriptor.supportsOffscreenCache = true;
+    descriptor.estimatedPaintCost = 0.18;
+    descriptor.memoryBudgetKb = 88;
+    descriptor.supportedActions = {"setRuntimeParam", "adjustRuntimeParam",
+                                   "setNodeProps", "setNodeBounds"};
+    descriptor.stateInputs = {"knob.rangeMin", "knob.rangeMax", "value"};
+    descriptor.stateOutputs = {"value"};
     descriptor.runtimeEvents = {{"onValueChanged", "Value Changed",
                                  "Fires while value is changing", true},
                                 {"onValueCommit", "Value Commit",
                                  "Fires when value edit is committed", false}};
-
+    for (auto &eventSpec : descriptor.runtimeEvents)
+      eventSpec.payloadSchema = makePayloadSchema();
+    if (!descriptor.runtimeEvents.empty())
+      descriptor.runtimeEvents.front().throttleMs = 16;
     descriptor.defaultProperties.set("knob.style", "rotaryVerticalDrag");
     descriptor.defaultProperties.set("knob.rangeMin", 0.0);
     descriptor.defaultProperties.set("knob.rangeMax", 1.0);
@@ -42,6 +55,7 @@ public:
       styleSpec.order = 10;
       styleSpec.hint = "JUCE rotary style";
       styleSpec.defaultValue = juce::var("rotaryVerticalDrag");
+      styleSpec.required = true;
       styleSpec.enumOptions = {
           {"rotary", "Rotary"},
           {"rotaryHorizontalDrag", "Rotary Horizontal Drag"},
@@ -58,6 +72,8 @@ public:
       rangeMinSpec.order = 10;
       rangeMinSpec.hint = "Minimum range value";
       rangeMinSpec.defaultValue = juce::var(0.0);
+      rangeMinSpec.required = true;
+      rangeMinSpec.unit = "value";
       rangeMinSpec.decimals = 4;
       descriptor.propertySpecs.push_back(std::move(rangeMinSpec));
 
@@ -70,6 +86,8 @@ public:
       rangeMaxSpec.order = 20;
       rangeMaxSpec.hint = "Maximum range value";
       rangeMaxSpec.defaultValue = juce::var(1.0);
+      rangeMaxSpec.required = true;
+      rangeMaxSpec.unit = "value";
       rangeMaxSpec.decimals = 4;
       descriptor.propertySpecs.push_back(std::move(rangeMaxSpec));
 
@@ -82,6 +100,7 @@ public:
       stepSpec.order = 30;
       stepSpec.hint = "0 means continuous";
       stepSpec.defaultValue = juce::var(0.0);
+      stepSpec.unit = "value";
       stepSpec.minValue = 0.0;
       stepSpec.decimals = 6;
       descriptor.propertySpecs.push_back(std::move(stepSpec));
@@ -95,6 +114,8 @@ public:
       valueSpec.order = 10;
       valueSpec.hint = "Current knob value";
       valueSpec.defaultValue = juce::var(0.5);
+      valueSpec.required = true;
+      valueSpec.unit = "value";
       valueSpec.step = 0.01;
       valueSpec.decimals = 4;
       descriptor.propertySpecs.push_back(std::move(valueSpec));
@@ -108,6 +129,8 @@ public:
       capImageSpec.order = 100;
       capImageSpec.hint = "Optional image asset id for knob cap";
       capImageSpec.acceptedAssetKinds = {AssetKind::image};
+      capImageSpec.acceptedMimeTypes = {"image/png", "image/jpeg", "image/webp"};
+      capImageSpec.maxAssetBytes = 8 * 1024 * 1024;
       capImageSpec.advanced = true;
       descriptor.propertySpecs.push_back(std::move(capImageSpec));
     }

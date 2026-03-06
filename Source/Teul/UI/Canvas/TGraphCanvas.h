@@ -37,6 +37,15 @@ public:
   juce::Point<float> viewToWorld(juce::Point<float> viewPos) const;
   juce::Point<float> worldToView(juce::Point<float> worldPos) const;
 
+  TGraphDocument &getDocument() { return document; }
+  const TGraphDocument &getDocument() const { return document; }
+
+  // 데이터 모델 변경 시 노드 컴포넌트들을 다시 매핑
+  void rebuildNodeComponents();
+
+  // 패닝/줌 시 자식 노드 컴포넌트들의 위치를 동기화
+  void updateChildPositions();
+
 private:
   void drawInfiniteGrid(juce::Graphics &g);
   void drawZoomIndicator(juce::Graphics &g);
@@ -53,6 +62,12 @@ private:
     juce::Point<float> startMouseView;
     juce::Point<float> startViewOriginWorld;
   } panState;
+
+  std::vector<std::unique_ptr<juce::Component>>
+      nodeComponents; // TNodeComponent 타입
+
+  // (Phase 2) Registry 참고
+  const class TNodeRegistry *nodeRegistry = nullptr;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TGraphCanvas)
 };

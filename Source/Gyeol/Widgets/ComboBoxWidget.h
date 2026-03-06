@@ -18,8 +18,20 @@ public:
     descriptor.exportTargetType = "juce::ComboBox";
     descriptor.defaultBounds = {0.0f, 0.0f, 150.0f, 28.0f};
     descriptor.minSize = {90.0f, 24.0f};
+    applyBuiltinDescriptorDefaults(descriptor, "combobox", "widget.combobox.label");
+    descriptor.capabilities = {"emitsRuntimeEvents", "customCodegen"};
+    descriptor.supportsOffscreenCache = true;
+    descriptor.estimatedPaintCost = 0.14;
+    descriptor.memoryBudgetKb = 64;
+    descriptor.supportedActions = {"setRuntimeParam", "setNodeProps",
+                                   "setNodeBounds"};
+    descriptor.stateInputs = {"combo.items", "combo.selectedIndex",
+                              "combo.editable"};
+    descriptor.stateOutputs = {"combo.selectedIndex"};
     descriptor.runtimeEvents = {{"onSelectionChanged", "Selection Changed",
                                  "Fires when selected item changes", false}};
+    for (auto &eventSpec : descriptor.runtimeEvents)
+      eventSpec.payloadSchema = makePayloadSchema();
 
     descriptor.defaultProperties.set("combo.items",
                                      juce::String("Item 1\nItem 2\nItem 3"));
@@ -36,6 +48,8 @@ public:
       itemsSpec.order = 10;
       itemsSpec.hint = "One item per line";
       itemsSpec.defaultValue = juce::var("Item 1\nItem 2\nItem 3");
+      itemsSpec.required = true;
+      itemsSpec.maxLength = 2048;
       descriptor.propertySpecs.push_back(std::move(itemsSpec));
 
       WidgetPropertySpec selectedSpec;
@@ -47,6 +61,8 @@ public:
       selectedSpec.order = 20;
       selectedSpec.hint = "1-based item index (0 = none)";
       selectedSpec.defaultValue = juce::var(1);
+      selectedSpec.required = true;
+      selectedSpec.unit = "index";
       selectedSpec.minValue = 0.0;
       selectedSpec.step = 1.0;
       descriptor.propertySpecs.push_back(std::move(selectedSpec));
@@ -60,6 +76,7 @@ public:
       editableSpec.order = 30;
       editableSpec.hint = "Allow free text input";
       editableSpec.defaultValue = juce::var(false);
+      editableSpec.required = true;
       descriptor.propertySpecs.push_back(std::move(editableSpec));
     }
 
