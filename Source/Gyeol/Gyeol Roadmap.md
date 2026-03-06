@@ -1,5 +1,5 @@
-﻿# Gyeol 로드맵
-업데이트: 2026-03-05
+# Gyeol 로드맵
+업데이트: 2026-03-06
 
 ## Phase 개요
 - [x] Phase 0: 코어 모델/액션 안정화
@@ -11,7 +11,7 @@
 - [x] Phase 4: 런타임 Event/Action 실행 엔진
 - [x] Phase 5: 데이터 바인딩/상태 시스템
 - [~] Phase 6: Export 런타임 브리지
-- [ ] Phase 7: 확장 SDK(외부 위젯/패키지)
+- [~] Phase 7: 확장 SDK(외부 위젯/패키지)
 - [~] Phase 8: 안정화/성능/릴리스
 
 ---
@@ -396,9 +396,10 @@
 ### 구현 단계 (구체화된 Step-by-Step)
 
 #### 단계 0: 위젯 속성 스키마 확장 (Schema Expansion)
-- [~] **속성 확장 스펙 고정**: 외부 위젯 메타데이터/프로퍼티/이벤트 payload 스키마를 `WidgetSDK.h`와 `GyeolWidgetPluginABI.h`에 동기화한다.
-- [~] **레지스트리 검증 규칙 확장**: 신규 속성의 필수/권장/선택/자동 필드를 구분해 `WidgetRegistry::registerWidget` 검증 규칙에 반영한다.
+- [x] **속성 확장 스펙 고정**: 외부 위젯 메타데이터/프로퍼티/이벤트 payload 스키마를 `WidgetSDK.h`와 `GyeolWidgetPluginABI.h`에 동기화한다.
+- [x] **레지스트리 검증 규칙 확장**: 신규 속성의 필수/권장/선택/자동 필드를 구분해 `WidgetRegistry::registerWidget` 검증 규칙에 반영한다.
 - [~] **매니페스트/Export 연계**: 새 속성이 `WidgetLibraryManifest`, `ExportManifest`, 코드 생성 경로에 누락 없이 전달되는지 검증한다.
+- [x] **기존 내장 위젯 v2 확장 반영**: `Button/Label/Slider/Knob/Meter/Toggle/ComboBox/TextInput` 디스크립터에 `supportedActions/stateInputs/stateOutputs`, `runtimeEvents.payloadSchema`, `acceptedMimeTypes/maxAssetBytes`, 접근성/성능 기본 메타를 적용한다.
 
 ##### 확장된 위젯 속성 리스트 (v2, 확정안)
 - **스키마/버전 계약**: `schemaVersion`, `manifestVersion`, `widgetTypeVersion`, `migrationRules`
