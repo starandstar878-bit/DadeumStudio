@@ -194,10 +194,48 @@
 - **현재 한계 2**: 노드 내부 DSP 로직이 스스로 값을 바꾸는 경우, 해당 노드가 `TProcessContext::paramValueReporter`를 호출해야 Ieum 리스너까지 변경이 전달됨. 현재는 브리지 경로만 준비된 상태
 - **현재 한계 3**: `AudioProcessorValueTreeState` 자동 등록/바인딩 생성은 아직 없음. 이는 `Phase 5`의 `APVTS 바인딩 코드 생성`에서 이어서 구현
 
+## Phase 4.5: 확장 파라미터 메타데이터 (Property Schema)
+
+### 목표
+- UI Phase 5의 Property Panel, Ieum 바인딩 표시, Export/APVTS 생성이 공통으로 참조할 수 있는 풍부한 파라미터 스키마를 정의한다.
+
+### 구현 단계
+
+- [ ] **`TParamSpec` 확장**: 기존 `key`, `label`, `defaultValue` 외에 `valueType`, `minValue`, `maxValue`, `step`, `unitLabel`, `displayPrecision`, `group`, `description` 필드 추가
+- [ ] **Enum/Choice 옵션 정의**: `enumOptions[]` 또는 별도 `TParamOptionSpec` 구조를 추가해 `id`, `label`, `value` 기반 선택지를 명시
+- [ ] **UI 위젯 힌트 정의**: `preferredWidget`(`slider`, `combo`, `toggle`, `text`), `showInNodeBody`, `showInPropertyPanel`, `isReadOnly` 메타데이터 추가
+- [ ] **자동화/변조 가능 여부 정의**: `isAutomatable`, `isModulatable`, `isDiscrete` 플래그를 추가해 APVTS/모듈레이션/UI 제약을 공통화
+- [ ] **표시/변환 규칙 정의**: 실제 저장값과 UI 표시값이 다른 파라미터를 위해 정규화 규칙 또는 `valueToText`/`textToValue` 전략을 명시
+- [ ] **Ieum/Export 힌트 추가**: `exposeToIeum`, `preferredBindingKey`, `exportSymbol`, `categoryPath` 등 외부 브리지 및 코드 생성용 보조 메타데이터 정의
+
+### 확장된 속성 리스트 (초안)
+- `key`: 문서/런타임 내부에서 사용하는 고정 파라미터 키
+- `label`: UI에 표시할 이름
+- `valueType`: `float`, `int`, `bool`, `enum`, `string`
+- `defaultValue`: 기본값
+- `minValue`, `maxValue`: 수치형 파라미터 범위
+- `step`: 슬라이더/증감 단위
+- `unitLabel`: `Hz`, `dB`, `%`, `ms` 같은 단위 문자열
+- `displayPrecision`: 소수점 표시 자릿수
+- `group`: Property Panel 섹션 그룹명
+- `description`: 툴팁/도움말에 쓸 설명
+- `enumOptions[]`: Enum 파라미터 선택지 목록
+- `preferredWidget`: UI 기본 위젯 타입
+- `showInNodeBody`: 노드 바디에 간략 노출할지 여부
+- `showInPropertyPanel`: 우측 패널에 표시할지 여부
+- `isReadOnly`: 읽기 전용 여부
+- `isAutomatable`: APVTS/호스트 자동화 대상 여부
+- `isModulatable`: CV 또는 내부 모듈레이션 대상 여부
+- `isDiscrete`: 이산값 파라미터 여부
+- `exposeToIeum`: Ieum 파라미터 표면에 노출할지 여부
+- `preferredBindingKey`: Gyeol/Ieum 바인딩 시 기본 제안 키
+- `exportSymbol`: C++ Export 시 사용할 안전한 식별자 이름
+- `categoryPath`: `Oscillator/Pitch`, `Filter/Cutoff` 같은 계층 분류
+
 ---
 
-> **→ UI 로드맵 전환**: `Phase 4` 완료 후 **[UI Phase 5: 파라미터 편집 패널](Teul%20UI%20Roadmap.md)** 로 전환하세요.
-> `ITeulParamProvider` 인터페이스가 완성되었으므로, Property Panel의 Ieum 연동 표시(🔗)와 실시간 값 피드백을 실제 데이터로 구동할 수 있습니다.
+> **→ UI 로드맵 전환**: `Phase 4.5` 완료 후 **[UI Phase 5: 파라미터 편집 패널](Teul%20UI%20Roadmap.md)** 로 전환하세요.
+> 확장된 파라미터 메타데이터가 확정되어야 Property Panel의 위젯 자동 생성, Ieum 바인딩 표시, 실시간 값 피드백을 일관된 규칙으로 구현할 수 있습니다.
 
 ---
 
