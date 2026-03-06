@@ -25,21 +25,23 @@ public:
     class Implementation : public TNodeInstance {
     public:
       void processSamples(const TProcessContext &ctx) override {
-        if (!ctx.midiMessages || !ctx.globalPortBuffer)
+        if (!ctx.midiMessages || !ctx.globalPortBuffer || !ctx.portToChannel ||
+            !ctx.nodeData)
           return;
 
-        juce::String gateK("Gate");
-        juce::String pctK("V/Oct");
-        juce::String velK("Velocity");
+        auto findChannelByPortName = [&](juce::StringRef portName) -> int {
+          for (const auto &port : ctx.nodeData->ports) {
+            if (port.name == portName) {
+              auto it = ctx.portToChannel->find(port.portId);
+              return (it != ctx.portToChannel->end()) ? it->second : -1;
+            }
+          }
+          return -1;
+        };
 
-        auto itGate = ctx.portToChannel->find(gateK);
-        int gateCh = (itGate != ctx.portToChannel->end()) ? itGate->second : -1;
-
-        auto itPct = ctx.portToChannel->find(pctK);
-        int pctCh = (itPct != ctx.portToChannel->end()) ? itPct->second : -1;
-
-        auto itVel = ctx.portToChannel->find(velK);
-        int velCh = (itVel != ctx.portToChannel->end()) ? itVel->second : -1;
+        const int gateCh = findChannelByPortName("Gate");
+        const int pctCh = findChannelByPortName("V/Oct");
+        const int velCh = findChannelByPortName("Velocity");
 
         int numSamples = ctx.globalPortBuffer->getNumSamples();
 
