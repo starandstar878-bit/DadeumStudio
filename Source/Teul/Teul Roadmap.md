@@ -250,23 +250,30 @@
 
 ---
 
-## Phase 5: Export (C++ 코드 생성)
+## Phase 5: Export (Graph Package + Runtime Module)
 
 ### 목표
-- 현재 그래프 상태를 독립적으로 컴파일 가능한 JUCE C++ 코드로 내보낸다.
+- Teul 그래프를 두 가지 형태로 내보낸다.
+- `EditableGraph Export`: 편집 가능한 원본 그래프를 `.teul` JSON 패키지로 내보내고 다시 불러온다.
+- `RuntimeModule Export`: 완성된 DSP 그래프를 외부에서 `prepare/reset/process/setParam/getParam` API로만 사용하는 블랙박스 C++ 클래스로 내보낸다.
 
 ### 구현 단계
 
-- [ ] **정적 그래프 코드 제너레이터**: 위상 정렬된 노드 순서대로 `processSamples()` 호출 체인을 인라인 C++ 코드로 생성
-- [ ] **파라미터 초기화 코드**: 각 노드의 기본 파라미터 값을 생성자에서 초기화하는 코드 자동 삽입
-- [ ] **APVTS 바인딩 코드 생성**: Ieum이 정의한 노출 파라미터를 `AudioProcessorValueTreeState`의 항목으로 자동 등록
-- [ ] **Jucer/CMake 업데이트**: 생성된 `.h/.cpp` 파일을 Jucer 프로젝트에 자동 추가하는 스니펫 주입
+- [ ] **Export 모드 분리**: `EditableGraph`와 `RuntimeModule` 두 export 모드를 분리하고, 공용 진입 API에서 목적에 따라 분기
+- [ ] **노드별 export 지원 속성 추가**: `TNodeDescriptor`에 `Unsupported / JsonOnly / RuntimeModuleOnly / Both` 수준의 지원 메타데이터를 추가하고, export 전 사전 validation 수행
+- [ ] **공통 Export IR 구축**: `TGraphDocument`를 export 전용 중간 모델로 정규화하여 JSON export와 C++ codegen이 동일한 그래프, 파라미터, 메타데이터를 공유하도록 구성
+- [ ] **EditableGraph JSON export/import 정리**: 버전, 노드 메타데이터, 연결, 파라미터, 필요한 자산 참조를 포함한 `.teul` 패키지 저장/복원 경로 정리
+- [ ] **RuntimeModule 클래스 코드 생성기**: 그래프를 하나의 블랙박스 DSP 클래스로 생성하고, 외부에 `prepare`, `reset`, `process`, `setParam`, `getParam` API 제공
+- [ ] **파라미터 표면/APVTS 생성**: `exposeToIeum`, `isAutomatable`, `enumOptions`, `range`, `step` 메타데이터를 이용해 `AudioProcessorValueTreeState` layout 및 파라미터 접근 코드 자동 생성
+- [ ] **`paramId` 정책 확정 및 내부 최적화**: 외부 공개 식별자는 기존 `paramId = teul.node.<nodeId>.<paramKey>`를 유지하고, 생성 코드 내부에서는 `paramId -> index/handle` 매핑으로 문자열 비교 비용 제거
+- [ ] **최적화된 DSP codegen**: 위상 정렬 고정, dead path 제거, 임시 버퍼 사전 할당, 상수 파라미터 상수화, 동적 dispatch 최소화 등 export 전용 최적화 패스 도입
+- [ ] **프로젝트 편입 자동화**: 생성된 `.h/.cpp`를 Jucer/CMake 또는 현재 앱 빌드 경로에 안정적으로 포함시키는 통합 경로 제공
 
 ---
 
 ## 완료 기준 (DoD)
-- [ ] `.teul` 파일 저장/불러오기 후 노드·연결 완벽 복구
+- [ ] `EditableGraph Export` 후 다시 import했을 때 노드, 연결, 파라미터, 메타데이터가 손실 없이 복구
 - [ ] 기본 내장 노드 10종 이상 동작 확인
 - [ ] 오디오 콜백 스레드에서 글리치(Glitch) 없이 128샘플 블록 처리
 - [ ] Undo/Redo 20회 연속 후 그래프 상태 이상 없음
-- [ ] Export 생성 코드 단독 컴파일 통과
+- [ ] `RuntimeModule Export` 생성 코드가 단독 컴파일 통과하고 `process` API로 오디오 버퍼 처리 가능
