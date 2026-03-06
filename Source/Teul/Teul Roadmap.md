@@ -201,12 +201,14 @@
 
 ### 구현 단계
 
-- [ ] **`TParamSpec` 확장**: 기존 `key`, `label`, `defaultValue` 외에 `valueType`, `minValue`, `maxValue`, `step`, `unitLabel`, `displayPrecision`, `group`, `description` 필드 추가
-- [ ] **Enum/Choice 옵션 정의**: `enumOptions[]` 또는 별도 `TParamOptionSpec` 구조를 추가해 `id`, `label`, `value` 기반 선택지를 명시
-- [ ] **UI 위젯 힌트 정의**: `preferredWidget`(`slider`, `combo`, `toggle`, `text`), `showInNodeBody`, `showInPropertyPanel`, `isReadOnly` 메타데이터 추가
-- [ ] **자동화/변조 가능 여부 정의**: `isAutomatable`, `isModulatable`, `isDiscrete` 플래그를 추가해 APVTS/모듈레이션/UI 제약을 공통화
-- [ ] **표시/변환 규칙 정의**: 실제 저장값과 UI 표시값이 다른 파라미터를 위해 정규화 규칙 또는 `valueToText`/`textToValue` 전략을 명시
-- [ ] **Ieum/Export 힌트 추가**: `exposeToIeum`, `preferredBindingKey`, `exportSymbol`, `categoryPath` 등 외부 브리지 및 코드 생성용 보조 메타데이터 정의
+- [x] **파라미터 스키마 골격 확장**: `TParamSpec`, `TParamOptionSpec`, `valueType`, `preferredWidget`, `enumOptions`, 수치 범위/단위/설명/카테고리 필드를 추가하고 기본 정규화 경로를 마련
+- [x] **레거시 노드 호환 정규화**: 기존 `key`, `label`, `defaultValue` 3필드만 가진 노드도 `TNodeRegistry` 등록 시 타입/위젯/기본 바인딩 키를 자동 추론하도록 정리
+- [x] **대표 노드 1종 시범 등록**: `Oscillator`에 `enum + float` 메타데이터를 적용해 확장 스키마가 실제 노드 등록에 쓰이도록 검증
+- [ ] **Property Panel 소비자 구현**: `preferredWidget`, `enumOptions`, `min/max/step`, `unitLabel`, `displayPrecision`을 이용해 우측 패널이 `Slider`, `ComboBox`, `Toggle`, `TextEditor`를 자동 생성하도록 연결
+- [ ] **Ieum 브리지 메타데이터 확장**: `ITeulParamProvider`/`TTeulExposedParam`이 위젯 힌트, 범위, 옵션 목록 등 UI 생성에 필요한 메타데이터를 함께 전달하도록 확장
+- [ ] **문서/런타임 동기화 정책 확정**: Property Panel, 런타임 파라미터 큐, Ieum 변경이 동시에 있을 때 어떤 값이 source of truth 인지 정의하고 적용
+- [ ] **실시간 값 피드백 연결**: Run 모드에서 런타임 `currentValue`를 안전한 UI 타이머 또는 리스너 경로로 반영하도록 연결
+- [ ] **대표 노드 확장 적용 및 검증**: `LFO`, `VCA`, `StereoPanner`, `LowPassFilter`, `ADSR` 등에 새 스키마를 적용해 Property Panel과 Ieum이 다양한 타입을 실제로 처리하는지 검증
 
 ### 확장된 속성 리스트 (초안)
 - `key`: 문서/런타임 내부에서 사용하는 고정 파라미터 키
