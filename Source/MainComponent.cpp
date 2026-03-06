@@ -1,6 +1,216 @@
 // BOM
 #include "MainComponent.h"
 
+#include <algorithm>
+
+namespace {
+
+juce::String gyeolWidgetTypeLabel(Gyeol::WidgetType type) {
+  switch (type) {
+  case Gyeol::WidgetType::button:
+    return "Button";
+  case Gyeol::WidgetType::slider:
+    return "Slider";
+  case Gyeol::WidgetType::knob:
+    return "Knob";
+  case Gyeol::WidgetType::label:
+    return "Label";
+  case Gyeol::WidgetType::meter:
+    return "Meter";
+  case Gyeol::WidgetType::toggle:
+    return "Toggle";
+  case Gyeol::WidgetType::comboBox:
+    return "Combo";
+  case Gyeol::WidgetType::textInput:
+    return "Text";
+  }
+
+  return "Widget";
+}
+
+juce::String trimmedWidgetProperty(const Gyeol::WidgetModel &widget,
+                                   const char *key) {
+  const juce::Identifier propertyKey(key);
+  if (!widget.properties.contains(propertyKey))
+    return {};
+  return widget.properties[propertyKey].toString().trim();
+}
+
+juce::String gyeolWidgetDisplayName(const Gyeol::WidgetModel &widget) {
+  for (const auto *key : {"name", "text", "title", "label"}) {
+    const auto value = trimmedWidgetProperty(widget, key);
+    if (value.isNotEmpty())
+      return value + " (#" + juce::String(widget.id) + ")";
+  }
+
+  return gyeolWidgetTypeLabel(widget.type) + " #" + juce::String(widget.id);
+}
+
+bool isBindingIdentifierStart(juce::juce_wchar ch) noexcept {
+  return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_';
+}
+
+bool isBindingIdentifierBody(juce::juce_wchar ch) noexcept {
+  return isBindingIdentifierStart(ch) || (ch >= '0' && ch <= '9') || ch == '.';
+}
+
+bool matchesBindingKey(const juce::String &text, const juce::StringArray &keys,
+                       juce::String *matchedKey = nullptr) {
+  const auto trimmed = text.trim();
+  if (trimmed.isEmpty())
+    return false;
+
+  for (const auto &key : keys) {
+    if (!trimmed.equalsIgnoreCase(key))
+      continue;
+    if (matchedKey != nullptr)
+      *matchedKey = key;
+    return true;
+  }
+
+  return false;
+}
+
+bool expressionMentionsBindingKey(const juce::String &expression,
+                                  const juce::StringArray &keys,
+                                  juce::String *matchedKey = nullptr) {
+  for (int index = 0; index < expression.length();) {
+    const auto ch = expression[index];
+    if (!isBindingIdentifierStart(ch)) {
+      ++index;
+      continue;
+    }
+
+    const int start = index++;
+    while (index < expression.length() &&
+           isBindingIdentifierBody(expression[index]))
+      ++index;
+
+    if (matchesBindingKey(expression.substring(start, index), keys, matchedKey))
+      return true;
+  }
+
+  return false;
+}
+
+juce::String gyeolEventSummary(const juce::String &eventKey) {
+  const auto normalized = eventKey.trim();
+  if (normalized == "onClick")
+    return "click";
+  if (normalized == "onValueChanged")
+    return "value";
+  if (normalized == "onValueCommit")
+    return "commit";
+  if (normalized == "onToggleChanged")
+    return "toggle";
+  if (normalized == "onTextCommit")
+    return "text";
+  if (normalized == "onSelectionChanged")
+    return "select";
+  return normalized.isNotEmpty() ? normalized : juce::String("event");
+}
+
+juce::String buildTeulBindingSummary(const Gyeol::DocumentHandle &document,
+                                     const juce::String &paramId,
+                                     const juce::String &preferredBindingKey) {
+  juce::StringArray candidateKeys;
+  auto addKey = [&candidateKeys](const juce::String &key) {
+    const auto trimmed = key.trim();
+    if (trimmed.isNotEmpty() && !candidateKeys.contains(trimmed, true))
+      candidateKeys.add(trimmed);
+  };
+
+  addKey(paramId);
+  addKey(preferredBindingKey);
+  if (candidateKeys.isEmpty())
+    return {};
+
+  const auto &snapshot = document.snapshot();
+  const juce::String primaryKey = candidateKeys.isEmpty() ? juce::String() : candidateKeys[0];
+
+  auto findWidget = [&snapshot](Gyeol::WidgetId id) -> const Gyeol::WidgetModel * {
+    const auto it =
+        std::find_if(snapshot.widgets.begin(), snapshot.widgets.end(),
+                     [id](const Gyeol::WidgetModel &widget) { return widget.id == id; });
+    return it != snapshot.widgets.end() ? &(*it) : nullptr;
+  };
+
+  juce::StringArray items;
+  auto addItem = [&items](const juce::String &text) {
+    if (text.isNotEmpty() && !items.contains(text, true))
+      items.add(text);
+  };
+
+  for (const auto &binding : snapshot.propertyBindings) {
+    juce::String matchedKey;
+    if (!expressionMentionsBindingKey(binding.expression, candidateKeys, &matchedKey))
+      continue;
+
+    const auto *widget = findWidget(binding.targetWidgetId);
+    auto item = (widget != nullptr ? gyeolWidgetDisplayName(*widget)
+                                   : ("Widget #" + juce::String(binding.targetWidgetId))) +
+                " [read " + binding.targetProperty.trim() + "]";
+    if (!binding.enabled)
+      item << " off";
+    if (primaryKey.isNotEmpty() && matchedKey.isNotEmpty() &&
+        !matchedKey.equalsIgnoreCase(primaryKey))
+      item << " via " << matchedKey;
+    addItem(item);
+  }
+
+  for (const auto &binding : snapshot.runtimeBindings) {
+    juce::String matchedKey;
+    bool touchesParam = false;
+    for (const auto &action : binding.actions) {
+      switch (action.kind) {
+      case Gyeol::RuntimeActionKind::setRuntimeParam:
+      case Gyeol::RuntimeActionKind::adjustRuntimeParam:
+      case Gyeol::RuntimeActionKind::toggleRuntimeParam:
+        touchesParam = matchesBindingKey(action.paramKey, candidateKeys, &matchedKey);
+        break;
+      default:
+        break;
+      }
+
+      if (touchesParam)
+        break;
+    }
+
+    if (!touchesParam)
+      continue;
+
+    const auto *widget = findWidget(binding.sourceWidgetId);
+    auto item = (widget != nullptr ? gyeolWidgetDisplayName(*widget)
+                                   : ("Widget #" + juce::String(binding.sourceWidgetId))) +
+                " [write " + gyeolEventSummary(binding.eventKey) + "]";
+    if (!binding.enabled)
+      item << " off";
+    if (primaryKey.isNotEmpty() && matchedKey.isNotEmpty() &&
+        !matchedKey.equalsIgnoreCase(primaryKey))
+      item << " via " << matchedKey;
+    addItem(item);
+  }
+
+  if (items.isEmpty())
+    return {};
+
+  constexpr int kPreviewCount = 3;
+  juce::String summary;
+  const auto previewCount = juce::jmin(kPreviewCount, items.size());
+  for (int i = 0; i < previewCount; ++i) {
+    if (i > 0)
+      summary << ", ";
+    summary << items[i];
+  }
+
+  if (items.size() > previewCount)
+    summary << " +" << juce::String(items.size() - previewCount) << " more";
+
+  return summary;
+}
+
+} // namespace
+
 // =============================================================================
 //  MainComponent
 // =============================================================================
@@ -9,7 +219,15 @@ MainComponent::MainComponent(AppServices &services) : appServices(services) {
   //  ??륁뵠筌왖 ??밴쉐 (addChildComponent ??筌ｌ꼷?????ｊ볼????됱벉)
   // ------------------------------------------------------------------
   gyeolPage = Gyeol::createEditor();
-  teulPage = Teul::createEditor(&appServices.audioDeviceManager);
+  teulPage = Teul::createEditor(
+      &appServices.audioDeviceManager,
+      [this](const juce::String &paramId,
+             const juce::String &preferredBindingKey) -> juce::String {
+        if (gyeolPage == nullptr)
+          return {};
+        return buildTeulBindingSummary(gyeolPage->document(), paramId,
+                                       preferredBindingKey);
+      });
 
   addChildComponent(*gyeolPage);
   addChildComponent(*teulPage);

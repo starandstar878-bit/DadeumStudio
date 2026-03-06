@@ -352,8 +352,10 @@ class NodePropertiesPanel : public juce::Component,
 public:
   NodePropertiesPanel(TGraphDocument &docIn, TGraphCanvas &canvasIn,
                       const TNodeRegistry &registryIn,
-                      ITeulParamProvider *providerIn)
-      : document(docIn), canvas(canvasIn), registry(registryIn) {
+                      ITeulParamProvider *providerIn,
+                      ParamBindingSummaryResolver bindingSummaryResolverIn)
+      : document(docIn), canvas(canvasIn), registry(registryIn),
+        bindingSummaryResolver(std::move(bindingSummaryResolverIn)) {
     addAndMakeVisible(headerLabel);
     addAndMakeVisible(typeLabel);
     addAndMakeVisible(nameEditor);
@@ -531,6 +533,7 @@ private:
     std::unique_ptr<juce::Label> descriptionLabel;
     std::unique_ptr<juce::Label> runtimeValueLabel;
     std::unique_ptr<juce::Label> bindingInfoLabel;
+    std::unique_ptr<juce::Label> gyeolBindingLabel;
     std::unique_ptr<juce::Component> editor;
   };
 
@@ -877,6 +880,13 @@ private:
       entry->bindingInfoLabel->setFont(juce::FontOptions(10.0f));
       paramsContent->addAndMakeVisible(entry->bindingInfoLabel.get());
 
+      entry->gyeolBindingLabel = std::make_unique<juce::Label>();
+      entry->gyeolBindingLabel->setJustificationType(juce::Justification::topLeft);
+      entry->gyeolBindingLabel->setColour(juce::Label::textColourId,
+                                          juce::Colours::white.withAlpha(0.32f));
+      entry->gyeolBindingLabel->setFont(juce::FontOptions(10.0f));
+      paramsContent->addAndMakeVisible(entry->gyeolBindingLabel.get());
+
       paramsContent->addAndMakeVisible(entry->editor.get());
       paramEditors.push_back(std::move(entry));
     };
@@ -934,7 +944,9 @@ private:
       entry->runtimeValueLabel->setBounds(0, y, width, 14);
       y += 16;
       entry->bindingInfoLabel->setBounds(0, y, width, 14);
-      y += 22;
+      y += 16;
+      entry->gyeolBindingLabel->setBounds(0, y, width, 28);
+      y += 32;
     }
 
     paramsContent->setSize(width, juce::jmax(y, paramViewport.getHeight()));
@@ -989,6 +1001,32 @@ private:
       if (entry->spec.isReadOnly)
         bindingText << " / read-only";
       entry->bindingInfoLabel->setText(bindingText, juce::dontSendNotification);
+
+      juce::String gyeolBindingText;
+      if (!entry->spec.exposeToIeum) {
+        gyeolBindingText = "Gyeol: hidden";
+      } else if (bindingSummaryResolver == nullptr) {
+        gyeolBindingText = "Gyeol: source unavailable";
+      } else {
+        const auto summary = bindingSummaryResolver(entry->paramId,
+                                                    entry->spec.preferredBindingKey);
+        if (summary.isNotEmpty())
+          gyeolBindingText =
+              juce::String(juce::CharPointer_UTF8("ð ")) + summary;
+        else
+          gyeolBindingText = "Gyeol: unbound";
+      }
+
+      const auto bindingColour = gyeolBindingText.startsWith("Gyeol: hidden")
+                                     ? juce::Colours::white.withAlpha(0.28f)
+                                     : (gyeolBindingText.startsWith("Gyeol: unbound") ||
+                                                gyeolBindingText.startsWith("Gyeol: source")
+                                            ? juce::Colours::white.withAlpha(0.36f)
+                                            : juce::Colour(0xffd9c27c));
+      entry->gyeolBindingLabel->setColour(juce::Label::textColourId,
+                                          bindingColour);
+      entry->gyeolBindingLabel->setText(gyeolBindingText,
+                                        juce::dontSendNotification);
     }
 
     repaint();
@@ -1056,6 +1094,7 @@ private:
   TGraphDocument &document;
   TGraphCanvas &canvas;
   const TNodeRegistry &registry;
+  ParamBindingSummaryResolver bindingSummaryResolver;
   ITeulParamProvider *paramProvider = nullptr;
   std::function<void()> onLayoutChanged;
 
@@ -1078,7 +1117,8 @@ private:
 
 struct EditorHandle::Impl : private juce::Timer {
   explicit Impl(EditorHandle &ownerIn,
-                juce::AudioDeviceManager *audioDeviceManagerIn)
+                juce::AudioDeviceManager *audioDeviceManagerIn,
+                ParamBindingSummaryResolver bindingSummaryResolverIn)
       : owner(ownerIn), registry(makeDefaultNodeRegistry()),
         runtime(registry.get()),
         audioDeviceManager(audioDeviceManagerIn) {
@@ -1094,8 +1134,8 @@ struct EditorHandle::Impl : private juce::Timer {
         });
     owner.addAndMakeVisible(*libraryPanel);
 
-    propertiesPanel = std::make_unique<NodePropertiesPanel>(doc, *canvas, *registry,
-                                                            &runtime);
+    propertiesPanel = std::make_unique<NodePropertiesPanel>(
+        doc, *canvas, *registry, &runtime, std::move(bindingSummaryResolverIn));
     propertiesPanel->setLayoutChangedCallback([this] { owner.resized(); });
     owner.addAndMakeVisible(*propertiesPanel);
 
@@ -1216,8 +1256,10 @@ struct EditorHandle::Impl : private juce::Timer {
   std::uint64_t lastRuntimeRevision = 0;
 };
 
-EditorHandle::EditorHandle(juce::AudioDeviceManager *audioDeviceManager)
-    : impl(std::make_unique<Impl>(*this, audioDeviceManager)) {}
+EditorHandle::EditorHandle(juce::AudioDeviceManager *audioDeviceManager,
+                           ParamBindingSummaryResolver bindingSummaryResolver)
+    : impl(std::make_unique<Impl>(*this, audioDeviceManager,
+                                  std::move(bindingSummaryResolver))) {}
 EditorHandle::~EditorHandle() = default;
 
 TGraphDocument &EditorHandle::document() noexcept { return impl->doc; }
@@ -1261,8 +1303,10 @@ void EditorHandle::resized() {
 }
 
 std::unique_ptr<EditorHandle> createEditor(
-    juce::AudioDeviceManager *audioDeviceManager) {
-  return std::make_unique<EditorHandle>(audioDeviceManager);
+    juce::AudioDeviceManager *audioDeviceManager,
+    ParamBindingSummaryResolver bindingSummaryResolver) {
+  return std::make_unique<EditorHandle>(audioDeviceManager,
+                                        std::move(bindingSummaryResolver));
 }
 
 } // namespace Teul

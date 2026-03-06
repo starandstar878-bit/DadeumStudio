@@ -1,102 +1,89 @@
 
   Main.cpp
   MainComponent.cpp
-  TSerializer.cpp
   Teul.cpp
-C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.cpp(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/MainComponent.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\AppServices.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/MainComponent.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Main.cpp(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-C:\Users\stara\Desktop\DadeumStudio\Source\AppServices.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Main.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TConnection.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Serialization/TSerializer.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Serialization/TSerializer.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Serialization/TSerializer.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Serialization/TSerializer.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TConnection.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeSDK.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\CoreNodes.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\FXNodes.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Main.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(32,34): warning C4100: 'maximumExpectedSamplesPerBlock': ÂüÁ¶µÇÁö ¾ÊÀº ¸Å°³ º¯¼ö [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(31,37): warning C4100: 'sampleRate': ÂüÁ¶µÇÁö ¾ÊÀº ¸Å°³ º¯¼ö [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,54): warning C4100: 'context': ÂüÁ¶µÇÁö ¾ÊÀº ¸Å°³ º¯¼ö [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,70): warning C4100: 'newValue': ÂüÁ¶µÇÁö ¾ÊÀº ¸Å°³ º¯¼ö [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,54): warning C4100: 'paramKey': ÂüÁ¶µÇÁö ¾ÊÀº ¸Å°³ º¯¼ö [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(113,50): warning C4100: 'ctx': ÂüÁ¶µÇÁö ¾ÊÀº ¸Å°³ º¯¼ö [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(138,50): warning C4100: 'ctx': ÂüÁ¶µÇÁö ¾ÊÀº ¸Å°³ º¯¼ö [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(131,34): warning C4244: 'ÀÎ¼ö': 'const int'¿¡¼­ 'float'(À¸)·Î º¯È¯ÇÏ¸é¼­ µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÉ ¼ö ÀÖ½À´Ï´Ù. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(140,42): warning C4244: 'ÀÎ¼ö': 'const int'¿¡¼­ 'float'(À¸)·Î º¯È¯ÇÏ¸é¼­ µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÉ ¼ö ÀÖ½À´Ï´Ù. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(142,42): warning C4244: 'ÀÎ¼ö': 'const int'¿¡¼­ 'float'(À¸)·Î º¯È¯ÇÏ¸é¼­ µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÉ ¼ö ÀÖ½À´Ï´Ù. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(186,36): warning C4244: 'ÀÎ¼ö': 'const int'¿¡¼­ 'float'(À¸)·Î º¯È¯ÇÏ¸é¼­ µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÉ ¼ö ÀÖ½À´Ï´Ù. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(189,36): warning C4244: 'ÀÎ¼ö': 'const int'¿¡¼­ 'float'(À¸)·Î º¯È¯ÇÏ¸é¼­ µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÉ ¼ö ÀÖ½À´Ï´Ù. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Teul/Teul.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.h(1,1): warning C4819: ÇöÀç ÄÚµå ÆäÀÌÁö(949)¿¡¼­ Ç¥½ÃÇÒ ¼ö ¾ø´Â ¹®ÀÚ°¡ ÆÄÀÏ¿¡ µé¾î ÀÖ½À´Ï´Ù. µ¥ÀÌÅÍ°¡ ¼Õ½ÇµÇÁö ¾Ê°Ô ÇÏ·Á¸é ÇØ´ç ÆÄÀÏÀ» À¯´ÏÄÚµå Çü½ÄÀ¸·Î ÀúÀåÇÏ½Ê½Ã¿À. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (¼Ò½º ÆÄÀÏ '../../Source/Main.cpp'À»(¸¦) ÄÄÆÄÀÏÇÏ´Â Áß)
-  
+C:\Users\stara\Desktop\DadeumStudio\Source\Main.cpp(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.cpp(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\AppServices.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Main.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/MainComponent.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\AppServices.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/MainComponent.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TConnection.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Main.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeSDK.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\CoreNodes.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\FXNodes.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(32,34): warning C4100: 'maximumExpectedSamplesPerBlock':   Å°  [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(31,37): warning C4100: 'sampleRate':   Å°  [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,54): warning C4100: 'context':   Å°  [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,70): warning C4100: 'newValue':   Å°  [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,54): warning C4100: 'paramKey':   Å°  [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(113,50): warning C4100: 'ctx':   Å°  [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(138,50): warning C4100: 'ctx':   Å°  [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(131,34): warning C4244: 'Î¼': 'const int' 'float'() È¯Ï¸é¼­ Í° Õ½Çµ  Ö½Ï´. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(140,42): warning C4244: 'Î¼': 'const int' 'float'() È¯Ï¸é¼­ Í° Õ½Çµ  Ö½Ï´. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(142,42): warning C4244: 'Î¼': 'const int' 'float'() È¯Ï¸é¼­ Í° Õ½Çµ  Ö½Ï´. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(186,36): warning C4244: 'Î¼': 'const int' 'float'() È¯Ï¸é¼­ Í° Õ½Çµ  Ö½Ï´. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\UI\Node\TNodeComponent.cpp(189,36): warning C4244: 'Î¼': 'const int' 'float'() È¯Ï¸é¼­ Í° Õ½Çµ  Ö½Ï´. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Teul/Teul.cpp'() Ï´ )
+
+C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.h(1,1): warning C4819:  Úµ (949) Ç¥   Ú° Ï¿  Ö½Ï´. Í° Õ½Çµ Ê° Ï· Ø´  Úµ  Ï½Ê½Ã¿. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (Ò½  '../../Source/Main.cpp'() Ï´ )
+
   DadeumStudio_App.vcxproj -> C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\x64\Debug\App\DadeumStudio.exe
-EXIT_CODE=0 
+EXIT_CODE=0
