@@ -127,7 +127,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
 void TNodeComponent::mouseDown(const juce::MouseEvent &e) {
   dragger.startDraggingComponent(this, e);
   isSelected = true; // [Phase 2] 일단 클릭하면 단일 선택됨으로 렌더용 플래그 On
-  ownerCanvas.bringChildToFront(this);
+  toFront(false);    // 컴포넌트 자신을 부모 내 최상단으로 올림
   repaint();
 }
 
