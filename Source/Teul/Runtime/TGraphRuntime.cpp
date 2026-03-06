@@ -96,10 +96,10 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
   auto newState = new RenderState();
   newState->sortedNodes = std::move(newSortedNodes);
   newState->globalPortBuffer.setSize(
-      totalAllocatedChannels > 0 ? totalAllocatedChannels : 1, currentBlockSize,
+      portChannelCounter > 0 ? portChannelCounter : 1, currentBlockSize,
       false, false, true);
   newState->globalPortBuffer.clear();
-  newState->totalAllocatedChannels = totalAllocatedChannels;
+  newState->totalAllocatedChannels = portChannelCounter;
 
   // 락프리 방식으로 현재 렌더 상태 교환
   activeState.set(newState);
@@ -207,15 +207,15 @@ void TGraphRuntime::audioDeviceAboutToStart(juce::AudioIODevice *device) {
 
 void TGraphRuntime::audioDeviceStopped() { releaseResources(); }
 
-void TGraphRuntime::audioDeviceIOCallback(const float **inputChannelData,
-                                          int numInputChannels,
-                                          float **outputChannelData,
-                                          int numOutputChannels,
-                                          int numSamples) {
+void TGraphRuntime::audioDeviceIOCallbackWithContext(
+    const float *const *inputChannelData, int numInputChannels,
+    float *const *outputChannelData, int numOutputChannels, int numSamples,
+    const juce::AudioIODeviceCallbackContext &context) {
 
   // AudioIODevice 의 채널 데이터를 랩퍼로 감싸 호환시킴
-  juce::AudioBuffer<float> buffer(const_cast<float **>(outputChannelData),
+  juce::AudioBuffer<float> buffer(outputChannelData,
                                   numOutputChannels, numSamples);
+  juce::ignoreUnused(inputChannelData, numInputChannels, context);
 
   // TODO [Phase 3 Phase 1.5]: Input Data 를 그래프에 넣는 경우 InputChannelData
   // 도 감싸야 함 현재는 출력에만 렌더링하도록 임시 구성
