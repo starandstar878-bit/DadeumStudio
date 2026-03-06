@@ -14,10 +14,34 @@ public:
     desc.capabilities.canMute = true;
     desc.capabilities.maxPolyphony = 8;
 
-    desc.paramSpecs = {
-        {"waveform", "Waveform", 0}, // 0:Sine, 1:Triangle, 2:Square, 3:Saw
-        {"frequency", "Frequency", 440.0f},
-        {"gain", "Gain", 0.707f}};
+    auto waveform = makeEnumParamSpec(
+        "waveform", "Waveform", 0,
+        {makeParamOption("sine", "Sine", 0),
+         makeParamOption("triangle", "Triangle", 1),
+         makeParamOption("square", "Square", 2),
+         makeParamOption("saw", "Saw", 3)},
+        "Tone", "Selects the base oscillator waveform.");
+    waveform.showInNodeBody = true;
+    waveform.preferredBindingKey = "waveform";
+    waveform.categoryPath = "Oscillator/Tone";
+
+    auto frequency = makeFloatParamSpec(
+        "frequency", "Frequency", 440.0f, 20.0f, 20000.0f, 0.01f, "Hz", 2,
+        "Pitch", "Base oscillator frequency before modulation.");
+    frequency.showInNodeBody = true;
+    frequency.preferredBindingKey = "pitch";
+    frequency.exportSymbol = "oscFrequency";
+    frequency.categoryPath = "Oscillator/Pitch";
+
+    auto gain = makeFloatParamSpec(
+        "gain", "Gain", 0.707f, 0.0f, 1.0f, 0.001f, {}, 3, "Output",
+        "Linear output gain.");
+    gain.showInNodeBody = true;
+    gain.preferredBindingKey = "gain";
+    gain.exportSymbol = "oscGain";
+    gain.categoryPath = "Oscillator/Output";
+
+    desc.paramSpecs = {waveform, frequency, gain};
 
     desc.portSpecs = {{TPortDirection::Input, TPortDataType::CV, "V/Oct"},
                       {TPortDirection::Input, TPortDataType::CV, "Sync"},
@@ -27,8 +51,6 @@ public:
 };
 
 TEUL_NODE_AUTOREGISTER(OscillatorNode);
-
-// -----------------------------------------------------------------------------
 
 class LFONode final : public TNodeClass {
 public:
@@ -44,8 +66,6 @@ public:
 };
 
 TEUL_NODE_AUTOREGISTER(LFONode);
-
-// -----------------------------------------------------------------------------
 
 class ConstantNode final : public TNodeClass {
 public:

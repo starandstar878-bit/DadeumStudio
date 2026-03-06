@@ -8,11 +8,110 @@
 
 namespace Teul {
 
+enum class TParamValueType {
+  Auto,
+  Float,
+  Int,
+  Bool,
+  Enum,
+  String,
+};
+
+enum class TParamWidgetHint {
+  Auto,
+  Slider,
+  Combo,
+  Toggle,
+  Text,
+};
+
+struct TParamOptionSpec {
+  juce::String id;
+  juce::String label;
+  juce::var value;
+};
+
 struct TParamSpec {
   juce::String key;
   juce::String label;
   juce::var defaultValue;
+
+  TParamValueType valueType = TParamValueType::Auto;
+  juce::var minValue;
+  juce::var maxValue;
+  juce::var step;
+  juce::String unitLabel;
+  int displayPrecision = 2;
+  juce::String group;
+  juce::String description;
+  std::vector<TParamOptionSpec> enumOptions;
+  TParamWidgetHint preferredWidget = TParamWidgetHint::Auto;
+  bool showInNodeBody = false;
+  bool showInPropertyPanel = true;
+  bool isReadOnly = false;
+  bool isAutomatable = true;
+  bool isModulatable = true;
+  bool isDiscrete = false;
+  bool exposeToIeum = true;
+  juce::String preferredBindingKey;
+  juce::String exportSymbol;
+  juce::String categoryPath;
 };
+
+inline TParamOptionSpec makeParamOption(const juce::String &id,
+                                        const juce::String &label,
+                                        const juce::var &value) {
+  TParamOptionSpec option;
+  option.id = id;
+  option.label = label;
+  option.value = value;
+  return option;
+}
+
+inline TParamSpec makeFloatParamSpec(const juce::String &key,
+                                     const juce::String &label,
+                                     float defaultValue,
+                                     float minValue,
+                                     float maxValue,
+                                     float step = 0.0f,
+                                     const juce::String &unitLabel = {},
+                                     int displayPrecision = 2,
+                                     const juce::String &group = {},
+                                     const juce::String &description = {}) {
+  TParamSpec spec;
+  spec.key = key;
+  spec.label = label;
+  spec.defaultValue = defaultValue;
+  spec.valueType = TParamValueType::Float;
+  spec.minValue = minValue;
+  spec.maxValue = maxValue;
+  spec.step = step;
+  spec.unitLabel = unitLabel;
+  spec.displayPrecision = displayPrecision;
+  spec.group = group;
+  spec.description = description;
+  spec.preferredWidget = TParamWidgetHint::Slider;
+  return spec;
+}
+
+inline TParamSpec makeEnumParamSpec(const juce::String &key,
+                                    const juce::String &label,
+                                    int defaultValue,
+                                    std::vector<TParamOptionSpec> enumOptions,
+                                    const juce::String &group = {},
+                                    const juce::String &description = {}) {
+  TParamSpec spec;
+  spec.key = key;
+  spec.label = label;
+  spec.defaultValue = defaultValue;
+  spec.valueType = TParamValueType::Enum;
+  spec.group = group;
+  spec.description = description;
+  spec.enumOptions = std::move(enumOptions);
+  spec.preferredWidget = TParamWidgetHint::Combo;
+  spec.isDiscrete = true;
+  return spec;
+}
 
 struct TPortSpec {
   TPortDirection direction;
