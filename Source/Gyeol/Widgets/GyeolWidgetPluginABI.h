@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <stdint.h>
 
@@ -319,6 +319,13 @@ typedef struct GyeolWidgetDescriptor
 } GyeolWidgetDescriptor;
 
 typedef GyeolWidgetResultCode (*GyeolWidgetRegisterPluginFn)(const GyeolWidgetHostApi* host_api);
+typedef GyeolWidgetResultCode (*GyeolCreateWidgetInstanceFn)(const GyeolWidgetHostApi* host_api);
+typedef GyeolWidgetUtf8View (*GyeolGetPluginManifestFn)();
+typedef const char* (*GyeolGetPluginManifestJsonFn)();
+
+#define GYEOL_WIDGET_PLUGIN_SYMBOL_CREATE_INSTANCE "GyeolCreateWidgetInstance"
+#define GYEOL_WIDGET_PLUGIN_SYMBOL_GET_MANIFEST "GyeolGetPluginManifest"
+#define GYEOL_WIDGET_PLUGIN_SYMBOL_GET_MANIFEST_JSON "GyeolGetPluginManifestJson"
 
 /*
     Drop options contract:
@@ -351,5 +358,11 @@ static inline int32_t gyeol_widget_host_api_is_compatible(const GyeolWidgetHostA
 
 #define GYEOL_WIDGET_DLL_ENTRY(symbol_name) \
     extern "C" GYEOL_WIDGET_PLUGIN_EXPORT GyeolWidgetResultCode symbol_name(const GyeolWidgetHostApi* host_api)
+#define GYEOL_WIDGET_DLL_ENTRY_CREATE_INSTANCE() \
+    extern "C" GYEOL_WIDGET_PLUGIN_EXPORT GyeolWidgetResultCode GyeolCreateWidgetInstance(const GyeolWidgetHostApi* host_api)
 
+#define GYEOL_WIDGET_DLL_ENTRY_GET_MANIFEST() \
+    extern "C" GYEOL_WIDGET_PLUGIN_EXPORT GyeolWidgetUtf8View GyeolGetPluginManifest()
 
+#define GYEOL_WIDGET_DLL_ENTRY_GET_MANIFEST_JSON() \
+    extern "C" GYEOL_WIDGET_PLUGIN_EXPORT const char* GyeolGetPluginManifestJson()

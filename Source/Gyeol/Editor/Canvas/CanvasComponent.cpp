@@ -1,5 +1,6 @@
 #include "Gyeol/Editor/Canvas/CanvasComponent.h"
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
+#include "Gyeol/Widgets/PluginCallGuard.h"
 
 #include <algorithm>
 #include <chrono>
@@ -1582,7 +1583,16 @@ juce::Point<float> CanvasComponent::currentViewOriginWorld() const noexcept
         assetRef.displayName = payload.displayName;
         assetRef.mime = payload.mime;
 
-        auto options = descriptor->dropOptions(*widget, assetRef);
+                std::vector<Widgets::DropOption> options;
+        const auto dropOptionsOk = Widgets::invokePluginBoundary(
+            "CanvasComponent::resolveAssetDropOptions.dropOptions",
+            [&]()
+            {
+                options = descriptor->dropOptions(*widget, assetRef);
+            });
+        if (!dropOptionsOk)
+            return std::nullopt;
+
         options.erase(std::remove_if(options.begin(),
                                      options.end(),
                                      [](const Widgets::DropOption& option)
@@ -1613,8 +1623,14 @@ juce::Point<float> CanvasComponent::currentViewOriginWorld() const noexcept
         PropertyBag patch;
         if (static_cast<bool>(descriptor->applyDrop))
         {
-            const auto result = descriptor->applyDrop(patch, *widget, assetRef, option);
-            if (result.failed())
+                        juce::Result result = juce::Result::ok();
+            const auto applyDropOk = Widgets::invokePluginBoundary(
+                "CanvasComponent::applyAssetDropToWidget.applyDrop",
+                [&]()
+                {
+                    result = descriptor->applyDrop(patch, *widget, assetRef, option);
+                });
+            if (!applyDropOk || result.failed())
                 return false;
         }
         else

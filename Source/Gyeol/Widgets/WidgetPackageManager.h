@@ -436,18 +436,41 @@ private:
     };
   }
 
+  static bool hasCanonicalCreateEntrypoint(juce::DynamicLibrary &library) {
+    return library.getFunction(GYEOL_WIDGET_PLUGIN_SYMBOL_CREATE_INSTANCE) !=
+           nullptr;
+  }
+
   static std::optional<juce::String>
   readManifestTextFromDynamicLibrary(juce::DynamicLibrary &library) {
-    using ManifestCStringFn = const char *(*)();
+    using ManifestCStringFn = GyeolGetPluginManifestJsonFn;
+    using ManifestUtf8ViewFn = GyeolGetPluginManifestFn;
 
-    static constexpr const char *manifestSymbols[] = {
-        "GyeolGetPluginManifestJson",
+    static constexpr const char *manifestUtf8ViewSymbols[] = {
+        GYEOL_WIDGET_PLUGIN_SYMBOL_GET_MANIFEST,
+        "gyeolGetPluginManifest",
+        "gyeol_widget_get_plugin_manifest"};
+
+    for (const auto *symbol : manifestUtf8ViewSymbols) {
+      if (symbol == nullptr)
+        continue;
+
+      if (void *rawFn = library.getFunction(symbol); rawFn != nullptr) {
+        const auto fn = reinterpret_cast<ManifestUtf8ViewFn>(rawFn);
+        const auto view = fn != nullptr ? fn() : GyeolWidgetUtf8View{nullptr, 0};
+        if (view.data != nullptr && view.size > 0)
+          return juce::String::fromUTF8(view.data, static_cast<int>(view.size));
+      }
+    }
+
+    static constexpr const char *manifestCStringSymbols[] = {
+        GYEOL_WIDGET_PLUGIN_SYMBOL_GET_MANIFEST_JSON,
         "gyeolGetPluginManifestJson",
         "GyeolWidget_GetManifestJson",
         "gyeol_widget_get_manifest_json",
         "gyeol_widget_get_plugin_manifest_json"};
 
-    for (const auto *symbol : manifestSymbols) {
+    for (const auto *symbol : manifestCStringSymbols) {
       if (symbol == nullptr)
         continue;
 
@@ -502,6 +525,15 @@ private:
                binaryFile.getFullPathName(),
                {});
       return;
+    }
+
+    if (!hasCanonicalCreateEntrypoint(*library)) {
+      addIssue(IssueSeverity::warning,
+               "plugin.abi.entrypoint.missing",
+               "Canonical C ABI entrypoint missing",
+               "GyeolCreateWidgetInstance() symbol is missing. Loader will continue in metadata-only mode.",
+               binaryFile.getFullPathName(),
+               {});
     }
 
     auto manifestText = readManifestTextFromDynamicLibrary(*library);

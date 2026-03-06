@@ -26,6 +26,7 @@
 #include "Gyeol/Serialization/DocumentJson.h"
 #include "Gyeol/Widgets/WidgetRegistry.h"
 #include "Gyeol/Widgets/WidgetPackageManager.h"
+#include "Gyeol/Widgets/PluginCallGuard.h"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -231,10 +232,16 @@ public:
     if (useTransparencyLayer)
       g.beginTransparencyLayer(clampedOpacity);
 
+        bool paintedByDescriptor = false;
     if (const auto *descriptor = widgetFactory.descriptorFor(widget.type);
         descriptor != nullptr && static_cast<bool>(descriptor->painter)) {
-      descriptor->painter(g, widget, body);
-    } else {
+      paintedByDescriptor = Widgets::invokePluginBoundary(
+          "EditorHandle::paintWidget.painter", [&]() {
+            descriptor->painter(g, widget, body);
+          });
+    }
+
+    if (!paintedByDescriptor) {
       warnUnsupportedWidgetOnce(widget.type, "CanvasRenderer::paintWidget");
       g.setColour(juce::Colour::fromRGB(44, 49, 60));
       g.fillRoundedRectangle(body, 4.0f);
@@ -2346,7 +2353,14 @@ private:
     assetRef.displayName = payload.displayName;
     assetRef.mime = payload.mime;
 
-    auto options = descriptor->dropOptions(*widget, assetRef);
+        std::vector<Widgets::DropOption> options;
+    const auto dropOptionsOk = Widgets::invokePluginBoundary(
+        "EditorHandle::resolveAssetDropOptions.dropOptions", [&]() {
+          options = descriptor->dropOptions(*widget, assetRef);
+        });
+    if (!dropOptionsOk)
+      return std::nullopt;
+
     options.erase(
         std::remove_if(options.begin(), options.end(),
                        [](const Widgets::DropOption &option) {
@@ -2374,9 +2388,12 @@ private:
 
     PropertyBag patch;
     if (static_cast<bool>(descriptor->applyDrop)) {
-      const auto result =
-          descriptor->applyDrop(patch, *widget, assetRef, option);
-      if (result.failed())
+            juce::Result result = juce::Result::ok();
+      const auto applyDropOk = Widgets::invokePluginBoundary(
+          "EditorHandle::applyAssetDropToWidget.applyDrop", [&]() {
+            result = descriptor->applyDrop(patch, *widget, assetRef, option);
+          });
+      if (!applyDropOk || result.failed())
         return false;
     } else {
       if (option.propKey.toString().trim().isEmpty())

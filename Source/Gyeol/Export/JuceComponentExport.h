@@ -28,6 +28,8 @@ namespace Gyeol::Export
         juce::File manifestFile;
         juce::File runtimeDataFile;
         juce::File reportFile;
+        juce::File cmakeHintsFile;
+        juce::File jucerHintsFile;
 
         int exportedWidgetCount = 0;
         int copiedResourceCount = 0;

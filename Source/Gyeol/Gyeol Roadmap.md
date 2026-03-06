@@ -11,7 +11,7 @@
 - [x] Phase 4: 런타임 Event/Action 실행 엔진
 - [x] Phase 5: 데이터 바인딩/상태 시스템
 - [~] Phase 6: Export 런타임 브리지
-- [~] Phase 7: 확장 SDK(외부 위젯/패키지)
+- [x] Phase 7: 확장 SDK(외부 위젯/패키지)
 - [~] Phase 8: 안정화/성능/릴리스
 
 ---
@@ -464,7 +464,7 @@
 - 동일 입력 문서 기준 Export 산출물의 메타데이터(`codegenApiVersion`, 의존성 목록, 빌드 요구사항)가 재현 가능해야 한다.
 #### 단계 1: SDK ABI 및 플러그인 인터페이스 확립 (Foundation)
 - [x] **SDK 헤더 분리**: `WidgetSDK.h`를 외부 개발자가 단독으로 Include할 수 있는 순수 가상 클래스(Interface) 레벨로 고도화 (예: `IGyeolCustomWidget`, `IPropertyProvider`)
-- [~] **ABI 안정성 보장**: C++ Name Mangling과 메모리 할당자 이슈를 피하기 위해, 플러그인 진입점은 순수 C ABI(`extern "C"`) 함수인 `GyeolCreateWidgetInstance()`, `GyeolGetPluginManifest()` 형태로 규격화
+- [x] **ABI 안정성 보장**: C++ Name Mangling과 메모리 할당자 이슈를 피하기 위해, 플러그인 진입점은 순수 C ABI(`extern "C"`) 함수인 `GyeolCreateWidgetInstance()`, `GyeolGetPluginManifest()` 형태로 규격화
 - [x] **Manifest 구조체 정의**: 외부 DLL 내부에서 반환할 `PluginManifest` 정보(위젯명, 버전, 작성자, 사용하는 프로퍼티 스펙 리스트 등)를 JSON 기반 데이터 모델로 확정
 
 #### 단계 2: 에디터 내 동적 라이브러리 로더 구현 (Loader & Registry)
@@ -473,14 +473,14 @@
 - [x] **버전 호환성 및 충돌 검사**: 새로 로드되는 DLL의 SDK 버전이 에디터의 버전과 다를 경우 로드를 차단하거나, 기존 동일 UUID를 가진 위젯과 충돌할 때 경고를 발생시키는 로직 포함
 
 #### 단계 3: 안전한 렌더링 및 플레이스홀더 샌드박싱 (Error Handling)
-- [~] **예외 포착 (Exception Boundary)**: 외부 DLL 위젯의 `paint()`나 속성 변경 함수 호출 중 발생할 수 있는 크래시(Access Violation 등)를 최소화시키기 위한 SEH/Try-Catch 보호 래퍼(Wrapper) 적용
+- [x] **예외 포착 (Exception Boundary)**: 외부 DLL 위젯의 `paint()`나 속성 변경 함수 호출 중 발생할 수 있는 크래시(Access Violation 등)를 최소화시키기 위한 SEH/Try-Catch 보호 래퍼(Wrapper) 적용
 - [x] **플레이스홀더 전환 (Graceful Fallback)**: DLL 파일을 찾을 수 없거나 로드에 실패한(버전 불일치, 오류 발생 등) 커스텀 위젯은 캔버스에서 투명해지는 대신, 붉은 테두리의 "Missing Plugin: [위젯명]" 형태의 **Placeholder 위젯으로 즉시 변환**
 - [x] **Validation 패널 연동**: 로드 실패나 속성 불일치가 발생할 경우 Phase 3.5에서 만든 `Validation Panel`에 딥 링크가 연결된 치명 에러(Error)로 즉각 리포팅
 
 #### 단계 4: 완전한 Export 파이프라인 통합 (Export Bridge)
 - [x] **Export Manifest 확장**: Document를 Export 할 때, 현재 씬에서 사용된 외부 플러그인의 리스트(버전 및 소스 DLL 포함)를 `ExportManifest.json`의 `dependencies` 항목에 자동 기록
 - [x] **에셋 파일 패키징**: 구워진 Export 폴더 내부의 `Plugins/` 폴더로 사용된 원본 DLL/정적 라이브러리 파일들을 함께 자동 복사(Packaging)
-- [ ] **JuceProject (Jucer/CMake) 자동 갱신**: 외부 C++ 코드를 사용하는 패키지인 경우, 런타임 결과물(Jucer 프로젝트)에서 외부 소스나 Include 경로를 자동으로 주입해 주는 CMake/Jucer 스니펫(Snippet) 생성 로직 추가
+- [x] **JuceProject (Jucer/CMake) 자동 갱신**: 외부 C++ 코드를 사용하는 패키지인 경우, 런타임 결과물(Jucer 프로젝트)에서 외부 소스나 Include 경로를 자동으로 주입해 주는 CMake/Jucer 스니펫(Snippet) 생성 로직 추가
 
 ### 수정/추가 레퍼런스
 - 수정 대상: `Source/Gyeol/Widgets/WidgetSDK.h`, `Source/Gyeol/Widgets/GyeolWidgetPluginABI.h`

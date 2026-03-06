@@ -1,6 +1,7 @@
 #include "Gyeol/Export/JuceComponentExport.h"
 
 #include "Gyeol/Core/SceneValidator.h"
+#include "Gyeol/Widgets/PluginCallGuard.h"
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -33,6 +34,24 @@ namespace
         juce::String destinationRelativePath;
         bool copied = false;
         bool reused = false;
+    };
+
+    struct ExportBuildHints
+    {
+        juce::StringArray pluginEntries;
+        juce::StringArray typeKeys;
+        juce::StringArray packagedPluginPaths;
+        juce::StringArray requiredJuceModules;
+        juce::StringArray requiredHeaders;
+        juce::StringArray includeSearchPaths;
+        juce::StringArray requiredLibraries;
+        juce::StringArray requiredCompileDefinitions;
+        juce::StringArray requiredLinkOptions;
+
+        bool hasExternalDependencies() const noexcept
+        {
+            return pluginEntries.size() > 0 || typeKeys.size() > 0;
+        }
     };
 
     juce::String severityToString(Gyeol::Export::IssueSeverity severity)
@@ -129,6 +148,208 @@ namespace
         return juce::JSON::toString(juce::var(text), false);
     }
 
+
+    void normalizeStringArray(juce::StringArray& values)
+    {
+        for (int i = values.size() - 1; i >= 0; --i)
+        {
+            const auto normalized = values[i].trim();
+            if (normalized.isEmpty())
+            {
+                values.remove(i);
+                continue;
+            }
+
+            values.set(i, normalized);
+        }
+
+        values.removeDuplicates(false);
+        values.sortNatural();
+    }
+
+    void appendStringArrayUnique(juce::StringArray& destination,
+                                 const juce::StringArray& source)
+    {
+        for (const auto& value : source)
+        {
+            const auto normalized = value.trim();
+            if (normalized.isNotEmpty())
+                destination.addIfNotAlreadyThere(normalized);
+        }
+    }
+
+    juce::String makeHeaderIncludeDirective(const juce::String& token)
+    {
+        const auto normalized = token.trim();
+        if (normalized.isEmpty())
+            return {};
+
+        if (normalized.startsWithIgnoreCase("#include"))
+            return normalized;
+
+        if (normalized.startsWithChar('<') || normalized.startsWithChar('"'))
+            return "#include " + normalized;
+
+        return "#include \"" + normalized + "\"";
+    }
+
+    juce::String inferIncludeSearchPath(const juce::String& token)
+    {
+        auto normalized = token.trim();
+        if (normalized.startsWithIgnoreCase("#include"))
+            normalized = normalized.fromFirstOccurrenceOf("#include", false, true).trim();
+
+        if (normalized.startsWithChar('<') && normalized.endsWithChar('>'))
+            normalized = normalized.substring(1, normalized.length() - 1).trim();
+        if (normalized.startsWithChar('"') && normalized.endsWithChar('"'))
+            normalized = normalized.substring(1, normalized.length() - 1).trim();
+
+        if (normalized.isEmpty())
+            return {};
+
+        if (!normalized.contains("/") && !normalized.contains("\\"))
+            return {};
+
+        juce::File asPath(normalized);
+        if (asPath.isDirectory())
+            return asPath.getFullPathName();
+
+        return asPath.getParentDirectory().getFullPathName();
+    }
+
+    ExportBuildHints collectExportBuildHints(const std::vector<ExportWidgetEntry>& widgets)
+    {
+        ExportBuildHints hints;
+
+        for (const auto& widget : widgets)
+        {
+            if (widget.descriptor == nullptr)
+                continue;
+
+            const auto& descriptor = *widget.descriptor;
+            const auto isExternal = descriptor.isExternalPlugin
+                                    || descriptor.pluginBinaryPath.trim().isNotEmpty();
+            if (!isExternal)
+                continue;
+
+            hints.typeKeys.addIfNotAlreadyThere(widget.typeKey);
+            hints.pluginEntries.addIfNotAlreadyThere(
+                descriptor.pluginId + "@" + descriptor.pluginVersion);
+
+            if (descriptor.pluginBinaryPath.trim().isNotEmpty())
+            {
+                const juce::File binaryFile(descriptor.pluginBinaryPath);
+                hints.packagedPluginPaths.addIfNotAlreadyThere(
+                    "Plugins/" + binaryFile.getFileName());
+            }
+
+            appendStringArrayUnique(hints.requiredJuceModules,
+                                    descriptor.requiredJuceModules);
+            appendStringArrayUnique(hints.requiredHeaders,
+                                    descriptor.requiredHeaders);
+            appendStringArrayUnique(hints.requiredLibraries,
+                                    descriptor.requiredLibraries);
+            appendStringArrayUnique(hints.requiredCompileDefinitions,
+                                    descriptor.requiredCompileDefinitions);
+            appendStringArrayUnique(hints.requiredLinkOptions,
+                                    descriptor.requiredLinkOptions);
+        }
+
+        for (const auto& header : hints.requiredHeaders)
+        {
+            const auto includePath = inferIncludeSearchPath(header);
+            if (includePath.isNotEmpty())
+                hints.includeSearchPaths.addIfNotAlreadyThere(includePath);
+        }
+
+        normalizeStringArray(hints.pluginEntries);
+        normalizeStringArray(hints.typeKeys);
+        normalizeStringArray(hints.packagedPluginPaths);
+        normalizeStringArray(hints.requiredJuceModules);
+        normalizeStringArray(hints.requiredHeaders);
+        normalizeStringArray(hints.includeSearchPaths);
+        normalizeStringArray(hints.requiredLibraries);
+        normalizeStringArray(hints.requiredCompileDefinitions);
+        normalizeStringArray(hints.requiredLinkOptions);
+        return hints;
+    }
+
+    void appendCMakeList(juce::StringArray& lines,
+                         const juce::String& variableName,
+                         const juce::StringArray& values)
+    {
+        lines.add("set(" + variableName);
+        for (const auto& value : values)
+            lines.add("    " + juce::JSON::toString(juce::var(value), false));
+        lines.add(")");
+        lines.add("");
+    }
+
+    juce::String generateCMakeHintsSnippet(const ExportBuildHints& hints,
+                                           const juce::String& className)
+    {
+        juce::StringArray lines;
+        lines.add("# Auto-generated by Gyeol export.");
+        lines.add("# Target component: " + className);
+        lines.add("");
+        lines.add("# Include this file from your CMakeLists.txt and apply to your target.");
+        lines.add("");
+
+        appendCMakeList(lines, "GYEOL_EXTERNAL_PLUGIN_ENTRIES", hints.pluginEntries);
+        appendCMakeList(lines, "GYEOL_EXTERNAL_WIDGET_TYPE_KEYS", hints.typeKeys);
+        appendCMakeList(lines, "GYEOL_EXTERNAL_PACKAGED_PLUGIN_PATHS", hints.packagedPluginPaths);
+        appendCMakeList(lines, "GYEOL_EXTERNAL_REQUIRED_JUCE_MODULES", hints.requiredJuceModules);
+        appendCMakeList(lines, "GYEOL_EXTERNAL_REQUIRED_HEADERS", hints.requiredHeaders);
+        appendCMakeList(lines, "GYEOL_EXTERNAL_INCLUDE_SEARCH_PATHS", hints.includeSearchPaths);
+        appendCMakeList(lines, "GYEOL_EXTERNAL_REQUIRED_LIBRARIES", hints.requiredLibraries);
+        appendCMakeList(lines, "GYEOL_EXTERNAL_REQUIRED_COMPILE_DEFINITIONS", hints.requiredCompileDefinitions);
+        appendCMakeList(lines, "GYEOL_EXTERNAL_REQUIRED_LINK_OPTIONS", hints.requiredLinkOptions);
+
+        lines.add("# Example:");
+        lines.add("# set(GYEOL_EXPORT_TARGET <your-target-name>)");
+        lines.add("if (DEFINED GYEOL_EXPORT_TARGET AND TARGET ${GYEOL_EXPORT_TARGET})");
+        lines.add("    target_include_directories(${GYEOL_EXPORT_TARGET} PRIVATE ${GYEOL_EXTERNAL_INCLUDE_SEARCH_PATHS})");
+        lines.add("    target_compile_definitions(${GYEOL_EXPORT_TARGET} PRIVATE ${GYEOL_EXTERNAL_REQUIRED_COMPILE_DEFINITIONS})");
+        lines.add("    target_link_libraries(${GYEOL_EXPORT_TARGET} PRIVATE ${GYEOL_EXTERNAL_REQUIRED_LIBRARIES})");
+        lines.add("    target_link_options(${GYEOL_EXPORT_TARGET} PRIVATE ${GYEOL_EXTERNAL_REQUIRED_LINK_OPTIONS})");
+        lines.add("endif()");
+        lines.add("");
+        return lines.joinIntoString("\n");
+    }
+
+    juce::String generateJucerHintsSnippet(const ExportBuildHints& hints,
+                                           const juce::String& className)
+    {
+        const auto joinOrNone = [](const juce::StringArray& values)
+        {
+            return values.isEmpty() ? juce::String("(none)") : values.joinIntoString("; ");
+        };
+
+        juce::StringArray lines;
+        lines.add("# Auto-generated by Gyeol export.");
+        lines.add("# Projucer/Jucer integration hints for: " + className);
+        lines.add("");
+        lines.add("External Plugin Entries: " + joinOrNone(hints.pluginEntries));
+        lines.add("Widget Type Keys: " + joinOrNone(hints.typeKeys));
+        lines.add("Packaged Plugin Paths: " + joinOrNone(hints.packagedPluginPaths));
+        lines.add("");
+        lines.add("JUCE Modules: " + joinOrNone(hints.requiredJuceModules));
+        lines.add("Header Includes: " + joinOrNone(hints.requiredHeaders));
+        lines.add("Header Search Paths: " + joinOrNone(hints.includeSearchPaths));
+        lines.add("Extra Preprocessor Definitions: " + joinOrNone(hints.requiredCompileDefinitions));
+        lines.add("External Libraries to Link: " + joinOrNone(hints.requiredLibraries));
+        lines.add("Extra Linker Flags: " + joinOrNone(hints.requiredLinkOptions));
+        lines.add("");
+        lines.add("Recommended mapping:");
+        lines.add("- JUCE Modules -> Global Paths / Module settings");
+        lines.add("- Header Search Paths -> Header Search Paths");
+        lines.add("- Extra Preprocessor Definitions -> Preprocessor Definitions");
+        lines.add("- External Libraries to Link -> External Libraries to Link");
+        lines.add("- Extra Linker Flags -> Extra Linker Flags");
+        lines.add("");
+        return lines.joinIntoString("\n");
+    }
+
     juce::Result ensureDirectory(const juce::File& directory)
     {
         if (directory.getFullPathName().isEmpty())
@@ -159,12 +380,19 @@ namespace
     }
 
     juce::String generateHeaderCode(const juce::String& className,
-                                    const std::vector<ExportWidgetEntry>& widgets)
+                                    const std::vector<ExportWidgetEntry>& widgets,
+                                    const juce::StringArray& extraHeaders)
     {
         juce::StringArray lines;
         lines.add("#pragma once");
         lines.add("");
         lines.add("#include <JuceHeader.h>");
+        for (const auto& header : extraHeaders)
+        {
+            const auto includeLine = makeHeaderIncludeDirective(header);
+            if (includeLine.isNotEmpty())
+                lines.add(includeLine);
+        }
         lines.add("#include <map>");
         lines.add("");
         lines.add("class " + className + " : public juce::Component");
@@ -322,7 +550,7 @@ namespace
         widget.constructorLines.add("    addAndMakeVisible(" + widget.memberName + ");");
     }
 
-    juce::Result applyCustomCodegen(const Gyeol::Widgets::WidgetDescriptor& descriptor, ExportWidgetEntry& widget)
+        juce::Result applyCustomCodegen(const Gyeol::Widgets::WidgetDescriptor& descriptor, ExportWidgetEntry& widget)
     {
         if (!descriptor.exportCodegen)
             return juce::Result::fail("custom codegen callback is empty");
@@ -333,7 +561,15 @@ namespace
                                                        widget.exportTargetType };
         Gyeol::Widgets::ExportCodegenOutput output;
 
-        const auto result = descriptor.exportCodegen(context, output);
+        juce::Result result = juce::Result::ok();
+        const auto callbackOk = Gyeol::Widgets::invokePluginBoundary(
+            "JuceComponentExport::applyCustomCodegen.exportCodegen",
+            [&]()
+            {
+                result = descriptor.exportCodegen(context, output);
+            });
+        if (!callbackOk)
+            return juce::Result::fail("custom codegen callback raised exception");
         if (result.failed())
             return result;
 
@@ -1746,8 +1982,13 @@ bool __CLASS__::setWidgetPropertyById(juce::int64 widgetId,
         root->setProperty("exportedAssets", juce::var(assetArray));
 
 
-        std::map<juce::String, int> dependencyIndexByKey;
+                std::map<juce::String, int> dependencyIndexByKey;
         std::vector<juce::StringArray> dependencyTypeKeys;
+        std::vector<juce::StringArray> dependencyRequiredJuceModules;
+        std::vector<juce::StringArray> dependencyRequiredHeaders;
+        std::vector<juce::StringArray> dependencyRequiredLibraries;
+        std::vector<juce::StringArray> dependencyRequiredCompileDefinitions;
+        std::vector<juce::StringArray> dependencyRequiredLinkOptions;
         juce::Array<juce::var> dependenciesArray;
 
         const auto dependencyKeyFor = [](const Gyeol::Widgets::WidgetDescriptor& descriptor) -> juce::String
@@ -1786,6 +2027,11 @@ bool __CLASS__::setWidgetPropertyById(juce::int64 widgetId,
                 dependencyIndex = dependenciesArray.size();
                 dependencyIndexByKey.emplace(dependencyKey, dependencyIndex);
                 dependencyTypeKeys.emplace_back();
+                dependencyRequiredJuceModules.emplace_back();
+                dependencyRequiredHeaders.emplace_back();
+                dependencyRequiredLibraries.emplace_back();
+                dependencyRequiredCompileDefinitions.emplace_back();
+                dependencyRequiredLinkOptions.emplace_back();
                 dependenciesArray.add(juce::var(dependency.release()));
             }
             else
@@ -1796,12 +2042,20 @@ bool __CLASS__::setWidgetPropertyById(juce::int64 widgetId,
             if (dependencyIndex >= 0
                 && dependencyIndex < static_cast<int>(dependencyTypeKeys.size()))
             {
-                if (!dependencyTypeKeys[static_cast<size_t>(dependencyIndex)]
-                         .contains(widget->typeKey))
-                {
-                    dependencyTypeKeys[static_cast<size_t>(dependencyIndex)]
-                        .add(widget->typeKey);
-                }
+                auto index = static_cast<size_t>(dependencyIndex);
+                if (!dependencyTypeKeys[index].contains(widget->typeKey))
+                    dependencyTypeKeys[index].add(widget->typeKey);
+
+                appendStringArrayUnique(dependencyRequiredJuceModules[index],
+                                        descriptor.requiredJuceModules);
+                appendStringArrayUnique(dependencyRequiredHeaders[index],
+                                        descriptor.requiredHeaders);
+                appendStringArrayUnique(dependencyRequiredLibraries[index],
+                                        descriptor.requiredLibraries);
+                appendStringArrayUnique(dependencyRequiredCompileDefinitions[index],
+                                        descriptor.requiredCompileDefinitions);
+                appendStringArrayUnique(dependencyRequiredLinkOptions[index],
+                                        descriptor.requiredLinkOptions);
             }
         }
 
@@ -1812,10 +2066,37 @@ bool __CLASS__::setWidgetPropertyById(juce::int64 widgetId,
                 continue;
 
             if (i < static_cast<int>(dependencyTypeKeys.size()))
+            {
+                auto index = static_cast<size_t>(i);
+                normalizeStringArray(dependencyTypeKeys[index]);
+                normalizeStringArray(dependencyRequiredJuceModules[index]);
+                normalizeStringArray(dependencyRequiredHeaders[index]);
+                normalizeStringArray(dependencyRequiredLibraries[index]);
+                normalizeStringArray(dependencyRequiredCompileDefinitions[index]);
+                normalizeStringArray(dependencyRequiredLinkOptions[index]);
+
                 dependencyObject->setProperty("typeKeys",
-                                              Gyeol::Widgets::stringArrayToVar(dependencyTypeKeys[static_cast<size_t>(i)]));
+                                              Gyeol::Widgets::stringArrayToVar(dependencyTypeKeys[index]));
+                dependencyObject->setProperty("requiredJuceModules",
+                                              Gyeol::Widgets::stringArrayToVar(dependencyRequiredJuceModules[index]));
+                dependencyObject->setProperty("requiredHeaders",
+                                              Gyeol::Widgets::stringArrayToVar(dependencyRequiredHeaders[index]));
+                dependencyObject->setProperty("requiredLibraries",
+                                              Gyeol::Widgets::stringArrayToVar(dependencyRequiredLibraries[index]));
+                dependencyObject->setProperty("requiredCompileDefinitions",
+                                              Gyeol::Widgets::stringArrayToVar(dependencyRequiredCompileDefinitions[index]));
+                dependencyObject->setProperty("requiredLinkOptions",
+                                              Gyeol::Widgets::stringArrayToVar(dependencyRequiredLinkOptions[index]));
+            }
             else
+            {
                 dependencyObject->setProperty("typeKeys", Gyeol::Widgets::stringArrayToVar(juce::StringArray()));
+                dependencyObject->setProperty("requiredJuceModules", Gyeol::Widgets::stringArrayToVar(juce::StringArray()));
+                dependencyObject->setProperty("requiredHeaders", Gyeol::Widgets::stringArrayToVar(juce::StringArray()));
+                dependencyObject->setProperty("requiredLibraries", Gyeol::Widgets::stringArrayToVar(juce::StringArray()));
+                dependencyObject->setProperty("requiredCompileDefinitions", Gyeol::Widgets::stringArrayToVar(juce::StringArray()));
+                dependencyObject->setProperty("requiredLinkOptions", Gyeol::Widgets::stringArrayToVar(juce::StringArray()));
+            }
         }
 
         root->setProperty("dependencies", juce::var(dependenciesArray));
@@ -2015,6 +2296,8 @@ namespace Gyeol::Export
         lines.add("Generated Source: " + generatedSourceFile.getFullPathName());
         lines.add("Manifest File: " + manifestFile.getFullPathName());
         lines.add("Runtime Data File: " + runtimeDataFile.getFullPathName());
+        lines.add("CMake Hints File: " + cmakeHintsFile.getFullPathName());
+        lines.add("Jucer Hints File: " + jucerHintsFile.getFullPathName());
         lines.add("Widgets Exported: " + juce::String(exportedWidgetCount));
         lines.add("Assets Copied: " + juce::String(copiedResourceCount));
         lines.add("Assets Total: " + juce::String(totalAssetCount));
@@ -2095,6 +2378,8 @@ namespace Gyeol::Export
         reportOut.manifestFile = options.outputDirectory.getChildFile("export-manifest.json");
         reportOut.runtimeDataFile = options.outputDirectory.getChildFile("export-runtime.json");
         reportOut.reportFile = options.outputDirectory.getChildFile("ExportReport.txt");
+        reportOut.cmakeHintsFile = options.outputDirectory.getChildFile("GyeolExternalPluginHints.cmake");
+        reportOut.jucerHintsFile = options.outputDirectory.getChildFile("GyeolExternalPluginHints.jucer.txt");
 
         std::vector<ExportWidgetEntry> exportWidgets;
         exportWidgets.reserve(document.widgets.size());
@@ -2335,8 +2620,12 @@ namespace Gyeol::Export
 
         std::vector<juce::String> preloadImagePaths(preloadImagePathsSet.begin(), preloadImagePathsSet.end());
 
+                const auto exportBuildHints = collectExportBuildHints(exportWidgets);
+
         const auto runtimeData = buildRuntimeDataJson(document);
-        const auto headerCode = generateHeaderCode(reportOut.componentClassName, exportWidgets);
+        const auto headerCode = generateHeaderCode(reportOut.componentClassName,
+                                                   exportWidgets,
+                                                   exportBuildHints.requiredHeaders);
         const auto sourceCode = generateSourceCode(reportOut.componentClassName,
                                                    exportWidgets,
                                                    preloadImagePaths,
@@ -2349,6 +2638,28 @@ namespace Gyeol::Export
         const auto sourceWrite = writeTextFile(reportOut.generatedSourceFile, sourceCode, options.overwriteExistingFiles);
         if (sourceWrite.failed())
             return fail(sourceWrite.getErrorMessage());
+
+        const auto cmakeHints = generateCMakeHintsSnippet(exportBuildHints,
+                                                          reportOut.componentClassName);
+        const auto cmakeHintsWrite = writeTextFile(reportOut.cmakeHintsFile,
+                                                   cmakeHints,
+                                                   options.overwriteExistingFiles);
+        if (cmakeHintsWrite.failed())
+            return fail(cmakeHintsWrite.getErrorMessage());
+
+        const auto jucerHints = generateJucerHintsSnippet(exportBuildHints,
+                                                          reportOut.componentClassName);
+        const auto jucerHintsWrite = writeTextFile(reportOut.jucerHintsFile,
+                                                   jucerHints,
+                                                   options.overwriteExistingFiles);
+        if (jucerHintsWrite.failed())
+            return fail(jucerHintsWrite.getErrorMessage());
+
+        if (exportBuildHints.hasExternalDependencies())
+        {
+            reportOut.addIssue(IssueSeverity::info,
+                               "Generated CMake/Jucer hint snippets for external widgets.");
+        }
 
         if (options.writeRuntimeDataJson)
         {

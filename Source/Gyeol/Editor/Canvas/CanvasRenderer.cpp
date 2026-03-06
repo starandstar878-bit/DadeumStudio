@@ -1,9 +1,9 @@
 #include "Gyeol/Editor/Canvas/CanvasRenderer.h"
 #include "Gyeol/Editor/Theme/GyeolCustomLookAndFeel.h"
+#include "Gyeol/Widgets/PluginCallGuard.h"
 
 #include <algorithm>
 #include <cmath>
-#include <exception>
 #include <vector>
 
 namespace Gyeol::Ui::Canvas
@@ -295,23 +295,15 @@ namespace Gyeol::Ui::Canvas
             const auto* descriptor = widgetFactory.descriptorFor(widget);
             const auto widgetTypeKey = Widgets::widgetTypeKeyForWidget(widget);
 
-            bool paintedByDescriptor = false;
+                                    bool paintedByDescriptor = false;
             if (descriptor != nullptr && static_cast<bool>(descriptor->painter))
             {
-                try
-                {
-                    descriptor->painter(g, widget, body);
-                    paintedByDescriptor = true;
-                }
-                catch (const std::exception& exception)
-                {
-                    DBG("[Gyeol][Canvas] External painter threw std::exception: "
-                        + juce::String(exception.what()));
-                }
-                catch (...)
-                {
-                    DBG("[Gyeol][Canvas] External painter threw unknown exception.");
-                }
+                paintedByDescriptor = Widgets::invokePluginBoundary(
+                    "CanvasRenderer::paintWidget.painter",
+                    [&]()
+                    {
+                        descriptor->painter(g, widget, body);
+                    });
             }
 
             if (paintedByDescriptor)
