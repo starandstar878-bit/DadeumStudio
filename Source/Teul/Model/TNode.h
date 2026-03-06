@@ -39,6 +39,7 @@ struct TNode {
   bool collapsed = false; // 노드 최소화 상태
   bool bypassed = false;  // 바이패스 (DSP 우회)
   juce::String label;     // 사용자 지정 이름 (비어있으면 typeKey 사용)
+  juce::String colorTag;  // node color tag for organization
 
   // 상태 메타데이터 (UI 에러 배지 표시용)
   bool hasError = false;

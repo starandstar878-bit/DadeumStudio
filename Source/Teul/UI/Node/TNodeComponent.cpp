@@ -5,6 +5,15 @@
 
 namespace Teul {
 
+static juce::Colour colorFromTag(const juce::String &tagRaw) {
+  const juce::String tag = tagRaw.trim().toLowerCase();
+  if (tag == "red") return juce::Colour(0xffef4444);
+  if (tag == "orange") return juce::Colour(0xfff59e0b);
+  if (tag == "green") return juce::Colour(0xff22c55e);
+  if (tag == "blue") return juce::Colour(0xff3b82f6);
+  return juce::Colours::transparentBlack;
+}
+
 TNodeComponent::TNodeComponent(TGraphCanvas &canvas, NodeId id,
                                const TNodeDescriptor *desc)
     : ownerCanvas(canvas), nodeId(id), descriptor(desc) {
@@ -122,7 +131,10 @@ void TNodeComponent::paint(juce::Graphics &g) {
   g.fillRoundedRectangle(bounds, cornerRadius);
 
   juce::Rectangle<float> headerBounds = bounds.withHeight((float)headerHeight);
-  g.setColour(TeulPalette::NodeHeader);
+  juce::Colour headerColor = TeulPalette::NodeHeader;
+  if (nodePtr != nullptr && nodePtr->colorTag.isNotEmpty())
+    headerColor = colorFromTag(nodePtr->colorTag).withAlpha(0.75f);
+  g.setColour(headerColor);
 
   if (collapsed) {
     g.fillRoundedRectangle(headerBounds, cornerRadius);
@@ -197,7 +209,9 @@ void TNodeComponent::mouseMove(const juce::MouseEvent &e) {
 }
 
 void TNodeComponent::mouseDown(const juce::MouseEvent &e) {
-  if (getCollapseButtonBounds().contains(e.getPosition())) {
+  ownerCanvas.grabKeyboardFocus();
+
+  if (getCollapseButtonBounds().contains(e.getPosition()) && e.mods.isLeftButtonDown()) {
     if (TNode *nodePtr = ownerCanvas.getDocument().findNode(nodeId)) {
       nodePtr->collapsed = !nodePtr->collapsed;
       recalculateHeight();
@@ -208,29 +222,28 @@ void TNodeComponent::mouseDown(const juce::MouseEvent &e) {
     return;
   }
 
+  if (e.mods.isRightButtonDown()) {
+    const auto viewPos = e.getEventRelativeTo(&ownerCanvas).position;
+    const auto screenPos = ownerCanvas.localPointToGlobal(viewPos.roundToInt()).toFloat();
+    ownerCanvas.requestNodeContextMenu(nodeId, viewPos, screenPos);
+    return;
+  }
+
   if (!e.mods.isLeftButtonDown())
     return;
 
-  dragger.startDraggingComponent(this, e);
-  isSelected = true;
   toFront(false);
-  repaint();
+  ownerCanvas.requestNodeMouseDown(nodeId, e);
 }
 
 void TNodeComponent::mouseDrag(const juce::MouseEvent &e) {
-  dragger.dragComponent(this, e, nullptr);
+  if (!e.mods.isLeftButtonDown())
+    return;
 
-  if (TNode *nodePtr = ownerCanvas.getDocument().findNode(nodeId)) {
-    const auto newWorldPos = ownerCanvas.viewToWorld(getPosition().toFloat());
-    nodePtr->x = newWorldPos.x;
-    nodePtr->y = newWorldPos.y;
-  }
-
-  ownerCanvas.repaint();
+  ownerCanvas.requestNodeMouseDrag(nodeId, e);
 }
 
 void TNodeComponent::mouseUp(const juce::MouseEvent &e) {
-  juce::ignoreUnused(e);
+  ownerCanvas.requestNodeMouseUp(nodeId, e);
 }
-
 } // namespace Teul

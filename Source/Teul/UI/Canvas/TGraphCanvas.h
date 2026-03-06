@@ -3,13 +3,14 @@
 #include "../../Model/TGraphDocument.h"
 #include <JuceHeader.h>
 #include <functional>
-#include <memory>
+#include <unordered_map>
 #include <vector>
 
 namespace Teul {
 
 class TNodeComponent;
 class TPortComponent;
+struct TNodeDescriptor;
 class TNodeRegistry;
 
 class TGraphCanvas : public juce::Component, private juce::Timer {
@@ -23,6 +24,7 @@ public:
   void mouseDown(const juce::MouseEvent &event) override;
   void mouseDrag(const juce::MouseEvent &event) override;
   void mouseUp(const juce::MouseEvent &event) override;
+  void mouseDoubleClick(const juce::MouseEvent &event) override;
   void mouseWheelMove(const juce::MouseEvent &event,
                       const juce::MouseWheelDetails &wheel) override;
 
@@ -33,6 +35,7 @@ public:
 
   juce::Point<float> viewToWorld(juce::Point<float> viewPos) const;
   juce::Point<float> worldToView(juce::Point<float> worldPos) const;
+  juce::Point<float> getViewCenter() const;
 
   TGraphDocument &getDocument() { return document; }
   const TGraphDocument &getDocument() const { return document; }
@@ -46,15 +49,38 @@ public:
   void endConnectionDrag(juce::Point<float> mousePosView);
   void cancelConnectionDrag();
 
+  bool addNodeByTypeAtView(const juce::String &typeKey,
+                           juce::Point<float> viewPos,
+                           bool tryInsertOnWire = true);
+  std::vector<const TNodeDescriptor *> getAllNodeDescriptors() const;
+
+  void focusNode(NodeId nodeId);
+  bool focusNodeByQuery(const juce::String &query);
+
   using ConnectionLevelProvider = std::function<float(const TConnection &)>;
   void setConnectionLevelProvider(ConnectionLevelProvider provider);
+
+  void openQuickAddAt(juce::Point<float> pointView);
+
+  void requestNodeMouseDown(NodeId nodeId, const juce::MouseEvent &event);
+  void requestNodeMouseDrag(NodeId nodeId, const juce::MouseEvent &event);
+  void requestNodeMouseUp(NodeId nodeId, const juce::MouseEvent &event);
+  void requestNodeContextMenu(NodeId nodeId, juce::Point<float> pointView,
+                              juce::Point<float> pointScreen);
+
+  bool isNodeSelected(NodeId nodeId) const;
+  bool isNodeMoveLocked(NodeId nodeId) const;
 
 private:
   void timerCallback() override;
 
   void drawInfiniteGrid(juce::Graphics &g);
+  void drawFrames(juce::Graphics &g);
   void drawZoomIndicator(juce::Graphics &g);
   void drawConnections(juce::Graphics &g);
+  void drawMiniMap(juce::Graphics &g);
+  void drawSelectionOverlay(juce::Graphics &g);
+  void drawStatusHint(juce::Graphics &g);
 
   juce::Path makeWirePath(juce::Point<float> from,
                           juce::Point<float> to) const;
@@ -88,6 +114,56 @@ private:
                                 juce::Point<float> impulseView,
                                 TPortDataType type);
 
+  void showCanvasContextMenu(juce::Point<float> pointView,
+                             juce::Point<float> pointScreen);
+  void showNodeContextMenu(NodeId nodeId, juce::Point<float> pointView,
+                           juce::Point<float> pointScreen);
+  void showFrameContextMenu(int frameId, juce::Point<float> pointView,
+                            juce::Point<float> pointScreen);
+  void showQuickAddPrompt(juce::Point<float> pointView);
+  void rememberRecentNode(const juce::String &typeKey);
+  int scoreDescriptorMatch(const TNodeDescriptor &desc,
+                           const juce::String &query) const;
+
+  bool insertNodeOnConnection(ConnectionId connectionId,
+                              NodeId insertedNodeId);
+  bool replaceNode(NodeId nodeId, const juce::String &replacementTypeKey);
+  bool isReplacementCompatible(const TNode &oldNode,
+                               const TNodeDescriptor &replacement) const;
+
+  void clearNodeSelection();
+  void setNodeSelection(NodeId nodeId, bool selected);
+  void selectOnlyNode(NodeId nodeId);
+  void syncNodeSelectionToComponents();
+  void updateMarqueeSelection();
+
+  void duplicateSelection();
+  void deleteSelectionWithPrompt();
+  void disconnectSelectionWithPrompt();
+  void toggleBypassSelection();
+  void alignSelectionLeft();
+  void alignSelectionTop();
+  void distributeSelectionHorizontally();
+  void distributeSelectionVertically();
+
+  void startNodeDrag(NodeId nodeId, juce::Point<float> mouseView);
+  void updateNodeDrag(juce::Point<float> mouseView);
+  void endNodeDrag();
+
+  void startFrameDrag(int frameId, juce::Point<float> mouseView);
+  void updateFrameDrag(juce::Point<float> mouseView);
+  void endFrameDrag();
+
+  int hitTestFrame(juce::Point<float> pointView) const;
+  bool isPointInFrameTitle(int frameId, juce::Point<float> pointView) const;
+  bool isNodeInsideFrame(const TNode &node, const TFrameRegion &frame) const;
+  bool isNodeHiddenByCollapsedFrame(const TNode &node) const;
+
+  void recalcMiniMapCache();
+  juce::Point<float> miniMapToWorld(juce::Point<float> miniPoint) const;
+
+  void pushStatusHint(const juce::String &text);
+
   TGraphDocument &document;
 
   float zoomLevel = 1.0f;
@@ -100,6 +176,37 @@ private:
   } panState;
 
   std::vector<std::unique_ptr<TNodeComponent>> nodeComponents;
+  std::vector<NodeId> selectedNodeIds;
+
+  struct MarqueeState {
+    bool active = false;
+    bool additive = false;
+    juce::Point<float> startView;
+    juce::Rectangle<float> rectView;
+    std::vector<NodeId> baseSelection;
+  } marqueeState;
+
+  struct NodeDragState {
+    bool active = false;
+    NodeId anchorNodeId = kInvalidNodeId;
+    juce::Point<float> startMouseView;
+    std::unordered_map<NodeId, juce::Point<float>> startWorldByNode;
+  } nodeDragState;
+
+  struct FrameDragState {
+    bool active = false;
+    int frameId = 0;
+    juce::Point<float> startMouseView;
+    juce::Point<float> startFramePosWorld;
+    std::unordered_map<NodeId, juce::Point<float>> containedNodeStartWorld;
+  } frameDragState;
+
+  struct SnapGuideState {
+    bool xActive = false;
+    bool yActive = false;
+    float worldX = 0.0f;
+    float worldY = 0.0f;
+  } snapGuideState;
 
   struct WireDragState {
     bool active = false;
@@ -133,6 +240,21 @@ private:
 
   float flowPhase = 0.0f;
   ConnectionLevelProvider connectionLevelProvider;
+
+  std::vector<juce::String> recentNodeTypes;
+
+  juce::Rectangle<float> miniMapRectView;
+  juce::Rectangle<float> miniMapViewportRectView;
+  juce::Rectangle<float> miniMapWorldBounds;
+  bool miniMapCacheValid = false;
+
+  struct MiniMapDragState {
+    bool active = false;
+    juce::Point<float> worldOffset;
+  } miniMapDragState;
+
+  juce::String statusHintText;
+  float statusHintAlpha = 0.0f;
 
   const TNodeRegistry *nodeRegistry = nullptr;
 

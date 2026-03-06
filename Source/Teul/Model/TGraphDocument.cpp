@@ -1,10 +1,10 @@
 #include "TGraphDocument.h"
 #include "../History/TCommand.h"
 
-namespace Teul {
+#include <queue>
+#include <unordered_set>
 
-// TGraphDocument 생성자/소멸자 등에서 std::unique_ptr<THistoryStack> 처리를
-// 위해 필요 만약 구조체 초기화를 명시적으로 하기 위해선 생성자 정의 필요
+namespace Teul {
 
 TGraphDocument::TGraphDocument()
     : historyStack(std::make_unique<THistoryStack>()) {}
@@ -16,9 +16,13 @@ TGraphDocument::TGraphDocument(const TGraphDocument &other) {
   meta = other.meta;
   nodes = other.nodes;
   connections = other.connections;
+  frames = other.frames;
+  bookmarks = other.bookmarks;
   nextNodeId = other.nextNodeId;
   nextPortId = other.nextPortId;
   nextConnectionId = other.nextConnectionId;
+  nextFrameId = other.nextFrameId;
+  nextBookmarkId = other.nextBookmarkId;
   historyStack = std::make_unique<THistoryStack>();
 }
 
@@ -28,9 +32,13 @@ TGraphDocument &TGraphDocument::operator=(const TGraphDocument &other) {
     meta = other.meta;
     nodes = other.nodes;
     connections = other.connections;
+    frames = other.frames;
+    bookmarks = other.bookmarks;
     nextNodeId = other.nextNodeId;
     nextPortId = other.nextPortId;
     nextConnectionId = other.nextConnectionId;
+    nextFrameId = other.nextFrameId;
+    nextBookmarkId = other.nextBookmarkId;
     historyStack = std::make_unique<THistoryStack>();
   }
   return *this;
@@ -64,10 +72,31 @@ void TGraphDocument::clearHistory() {
 
 bool TGraphDocument::wouldCreateCycle(NodeId fromNodeId,
                                       NodeId toNodeId) const noexcept {
-  // TODO: Phase 3 (그래프 평가기) 에서 상세 구현 필요
-  // 지금은 단순히 직접 연결된 루프만 방지
   if (fromNodeId == toNodeId)
     return true;
+
+  std::unordered_set<NodeId> visited;
+  std::queue<NodeId> queue;
+  queue.push(toNodeId);
+
+  while (!queue.empty()) {
+    const NodeId current = queue.front();
+    queue.pop();
+
+    if (current == fromNodeId)
+      return true;
+
+    if (!visited.insert(current).second)
+      continue;
+
+    for (const auto &connection : connections) {
+      if (connection.from.nodeId == current &&
+          visited.find(connection.to.nodeId) == visited.end()) {
+        queue.push(connection.to.nodeId);
+      }
+    }
+  }
+
   return false;
 }
 

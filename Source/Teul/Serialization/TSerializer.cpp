@@ -2,10 +2,6 @@
 
 namespace Teul {
 
-// =============================================================================
-//  직렬화 (Document -> JSON)
-// =============================================================================
-
 juce::var TSerializer::toJson(const TGraphDocument &doc) {
   auto *obj = new juce::DynamicObject();
 
@@ -13,8 +9,9 @@ juce::var TSerializer::toJson(const TGraphDocument &doc) {
   obj->setProperty("next_node_id", (int64_t)doc.getNextNodeId());
   obj->setProperty("next_port_id", (int64_t)doc.getNextPortId());
   obj->setProperty("next_conn_id", (int64_t)doc.getNextConnectionId());
+  obj->setProperty("next_frame_id", doc.getNextFrameId());
+  obj->setProperty("next_bookmark_id", doc.getNextBookmarkId());
 
-  // Meta
   auto *metaObj = new juce::DynamicObject();
   metaObj->setProperty("name", doc.meta.name);
   metaObj->setProperty("canvas_offset_x", doc.meta.canvasOffsetX);
@@ -24,17 +21,25 @@ juce::var TSerializer::toJson(const TGraphDocument &doc) {
   metaObj->setProperty("block_size", doc.meta.blockSize);
   obj->setProperty("meta", metaObj);
 
-  // Nodes
   juce::Array<juce::var> nodesArr;
-  for (const auto &n : doc.nodes)
-    nodesArr.add(nodeToJson(n));
+  for (const auto &node : doc.nodes)
+    nodesArr.add(nodeToJson(node));
   obj->setProperty("nodes", nodesArr);
 
-  // Connections
   juce::Array<juce::var> connsArr;
-  for (const auto &c : doc.connections)
-    connsArr.add(connectionToJson(c));
+  for (const auto &connection : doc.connections)
+    connsArr.add(connectionToJson(connection));
   obj->setProperty("connections", connsArr);
+
+  juce::Array<juce::var> framesArr;
+  for (const auto &frame : doc.frames)
+    framesArr.add(frameToJson(frame));
+  obj->setProperty("frames", framesArr);
+
+  juce::Array<juce::var> bookmarksArr;
+  for (const auto &bookmark : doc.bookmarks)
+    bookmarksArr.add(bookmarkToJson(bookmark));
+  obj->setProperty("bookmarks", bookmarksArr);
 
   return juce::var(obj);
 }
@@ -48,17 +53,16 @@ juce::var TSerializer::nodeToJson(const TNode &node) {
   obj->setProperty("collapsed", node.collapsed);
   obj->setProperty("bypassed", node.bypassed);
   obj->setProperty("label", node.label);
+  obj->setProperty("color_tag", node.colorTag);
 
-  // Params
   auto *paramsObj = new juce::DynamicObject();
-  for (auto const &[key, val] : node.params)
-    paramsObj->setProperty(key, val);
+  for (const auto &[key, value] : node.params)
+    paramsObj->setProperty(key, value);
   obj->setProperty("params", paramsObj);
 
-  // Ports
   juce::Array<juce::var> portsArr;
-  for (const auto &p : node.ports)
-    portsArr.add(portToJson(p));
+  for (const auto &port : node.ports)
+    portsArr.add(portToJson(port));
   obj->setProperty("ports", portsArr);
 
   return juce::var(obj);
@@ -91,9 +95,30 @@ juce::var TSerializer::connectionToJson(const TConnection &conn) {
   return juce::var(obj);
 }
 
-// =============================================================================
-//  역직렬화 (JSON -> Document)
-// =============================================================================
+juce::var TSerializer::frameToJson(const TFrameRegion &frame) {
+  auto *obj = new juce::DynamicObject();
+  obj->setProperty("id", frame.frameId);
+  obj->setProperty("title", frame.title);
+  obj->setProperty("x", frame.x);
+  obj->setProperty("y", frame.y);
+  obj->setProperty("width", frame.width);
+  obj->setProperty("height", frame.height);
+  obj->setProperty("color_argb", (int64_t)frame.colorArgb);
+  obj->setProperty("collapsed", frame.collapsed);
+  obj->setProperty("locked", frame.locked);
+  return juce::var(obj);
+}
+
+juce::var TSerializer::bookmarkToJson(const TBookmark &bookmark) {
+  auto *obj = new juce::DynamicObject();
+  obj->setProperty("id", bookmark.bookmarkId);
+  obj->setProperty("name", bookmark.name);
+  obj->setProperty("focus_x", bookmark.focusX);
+  obj->setProperty("focus_y", bookmark.focusY);
+  obj->setProperty("zoom", bookmark.zoom);
+  obj->setProperty("color_tag", bookmark.colorTag);
+  return juce::var(obj);
+}
 
 bool TSerializer::fromJson(TGraphDocument &doc, const juce::var &json) {
   if (!json.isObject())
@@ -101,14 +126,17 @@ bool TSerializer::fromJson(TGraphDocument &doc, const juce::var &json) {
 
   doc.nodes.clear();
   doc.connections.clear();
+  doc.frames.clear();
+  doc.bookmarks.clear();
 
   doc.schemaVersion = json.getProperty("schema_version", 1);
   doc.setNextNodeId((NodeId)(int64_t)json.getProperty("next_node_id", 1));
   doc.setNextPortId((PortId)(int64_t)json.getProperty("next_port_id", 1));
   doc.setNextConnectionId(
       (ConnectionId)(int64_t)json.getProperty("next_conn_id", 1));
+  doc.setNextFrameId((int)json.getProperty("next_frame_id", 1));
+  doc.setNextBookmarkId((int)json.getProperty("next_bookmark_id", 1));
 
-  // Meta
   if (auto *metaObj =
           json.getProperty("meta", juce::var()).getDynamicObject()) {
     doc.meta.name = metaObj->getProperty("name").toString();
@@ -119,23 +147,52 @@ bool TSerializer::fromJson(TGraphDocument &doc, const juce::var &json) {
     doc.meta.blockSize = (int)metaObj->getProperty("block_size");
   }
 
-  // Nodes
   if (auto *nodesArr = json.getProperty("nodes", juce::var()).getArray()) {
-    for (auto &nVar : *nodesArr) {
+    for (auto &nodeVar : *nodesArr) {
       TNode node;
-      if (jsonToNode(node, nVar))
+      if (jsonToNode(node, nodeVar))
         doc.nodes.push_back(std::move(node));
     }
   }
 
-  // Connections
   if (auto *connsArr =
           json.getProperty("connections", juce::var()).getArray()) {
-    for (auto &cVar : *connsArr) {
-      TConnection conn;
-      if (jsonToConnection(conn, cVar))
-        doc.connections.push_back(std::move(conn));
+    for (auto &connVar : *connsArr) {
+      TConnection connection;
+      if (jsonToConnection(connection, connVar))
+        doc.connections.push_back(std::move(connection));
     }
+  }
+
+  if (auto *framesArr = json.getProperty("frames", juce::var()).getArray()) {
+    for (auto &frameVar : *framesArr) {
+      TFrameRegion frame;
+      if (jsonToFrame(frame, frameVar))
+        doc.frames.push_back(std::move(frame));
+    }
+  }
+
+  if (auto *bookmarksArr =
+          json.getProperty("bookmarks", juce::var()).getArray()) {
+    for (auto &bookmarkVar : *bookmarksArr) {
+      TBookmark bookmark;
+      if (jsonToBookmark(bookmark, bookmarkVar))
+        doc.bookmarks.push_back(std::move(bookmark));
+    }
+  }
+
+  if (doc.getNextFrameId() <= 0) {
+    int maxFrameId = 0;
+    for (const auto &frame : doc.frames)
+      maxFrameId = juce::jmax(maxFrameId, frame.frameId);
+    doc.setNextFrameId(maxFrameId + 1);
+  }
+
+  if (doc.getNextBookmarkId() <= 0) {
+    int maxBookmarkId = 0;
+    for (const auto &bookmark : doc.bookmarks)
+      maxBookmarkId = juce::jmax(maxBookmarkId, bookmark.bookmarkId);
+    doc.setNextBookmarkId(maxBookmarkId + 1);
   }
 
   return true;
@@ -152,19 +209,18 @@ bool TSerializer::jsonToNode(TNode &node, const juce::var &json) {
   node.collapsed = json.getProperty("collapsed", false);
   node.bypassed = json.getProperty("bypassed", false);
   node.label = json.getProperty("label", "").toString();
+  node.colorTag = json.getProperty("color_tag", "").toString();
 
-  // Params
   if (auto *paramsObj =
           json.getProperty("params", juce::var()).getDynamicObject()) {
-    for (auto const &[key, val] : paramsObj->getProperties())
-      node.params[key.toString()] = val;
+    for (const auto &[key, value] : paramsObj->getProperties())
+      node.params[key.toString()] = value;
   }
 
-  // Ports
   if (auto *portsArr = json.getProperty("ports", juce::var()).getArray()) {
-    for (auto &pVar : *portsArr) {
+    for (auto &portVar : *portsArr) {
       TPort port;
-      if (jsonToPort(port, pVar)) {
+      if (jsonToPort(port, portVar)) {
         port.ownerNodeId = node.nodeId;
         node.ports.push_back(std::move(port));
       }
@@ -205,6 +261,35 @@ bool TSerializer::jsonToConnection(TConnection &conn, const juce::var &json) {
   }
 
   return conn.isValid();
+}
+
+bool TSerializer::jsonToFrame(TFrameRegion &frame, const juce::var &json) {
+  if (!json.isObject())
+    return false;
+
+  frame.frameId = (int)json.getProperty("id", 0);
+  frame.title = json.getProperty("title", "Frame").toString();
+  frame.x = (float)json.getProperty("x", 0.0f);
+  frame.y = (float)json.getProperty("y", 0.0f);
+  frame.width = (float)json.getProperty("width", 360.0f);
+  frame.height = (float)json.getProperty("height", 220.0f);
+  frame.colorArgb = (juce::uint32)(int64_t)json.getProperty("color_argb", 0x334d8bf7);
+  frame.collapsed = json.getProperty("collapsed", false);
+  frame.locked = json.getProperty("locked", false);
+  return frame.frameId > 0;
+}
+
+bool TSerializer::jsonToBookmark(TBookmark &bookmark, const juce::var &json) {
+  if (!json.isObject())
+    return false;
+
+  bookmark.bookmarkId = (int)json.getProperty("id", 0);
+  bookmark.name = json.getProperty("name", "Bookmark").toString();
+  bookmark.focusX = (float)json.getProperty("focus_x", 0.0f);
+  bookmark.focusY = (float)json.getProperty("focus_y", 0.0f);
+  bookmark.zoom = (float)json.getProperty("zoom", 1.0f);
+  bookmark.colorTag = json.getProperty("color_tag", "").toString();
+  return bookmark.bookmarkId > 0;
 }
 
 } // namespace Teul
