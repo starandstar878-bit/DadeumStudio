@@ -7,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-
 namespace Teul {
 
 class TGraphCanvas;
@@ -31,6 +30,7 @@ public:
   void resized() override;
 
   // 드래그 및 선택(Selection) 용도
+  void mouseMove(const juce::MouseEvent &e) override;
   void mouseDown(const juce::MouseEvent &e) override;
   void mouseDrag(const juce::MouseEvent &e) override;
   void mouseUp(const juce::MouseEvent &e) override;
@@ -40,6 +40,8 @@ public:
   // TGraphDocument에서 현재 자신의 데이터를 가져와서 UI(포트 갯수, 에러 배지
   // 등)를 동기화
   void updateFromModel();
+
+  juce::Rectangle<int> getCollapseButtonBounds() const;
 
   bool isSelected = false; // Phase 4 선택기능 연동 타겟
 
@@ -58,6 +60,8 @@ private:
   const int portRowHeight = 22;
   const int minNodeWidth = 140;
   const int cornerRadius = 8;
+
+  bool isHoveringCollapse = false;
 
   // 바디 영역 높이를 자동 측정하는 유틸
   void recalculateHeight();
