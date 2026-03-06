@@ -155,14 +155,14 @@
 - [x] **`TGraphRuntime::process(AudioBuffer, MidiBuffer, sampleRate)`**: 정렬된 순서로 노드들의 `processSamples()` 순차 호출
 
 #### 단계 2: 오디오 스레드 안전성
-- [ ] **락-프리 파라미터 교환**: UI 스레드에서 파라미터 값 변경 시, `std::atomic` 또는 FIFO 큐로 오디오 스레드에 락 없이 전달
-- [ ] **그래프 구조 변경 시 재평가**: 노드/연결 추가·삭제 시 오디오 스레드가 다음 블록 이전에 안전하게 새 그래프를 참조하도록 Double-Buffer 스왑
-- [ ] **JUCE `AudioProcessor` 래퍼**: `TGraphRuntime`을 `juce::AudioProcessor` 서브클래스로 래핑하여 DAW 플러그인(VST/AU) 또는 독립 실행형 앱으로 모두 실행 가능하게 구성
+- [x] **락-프리 파라미터 교환**: UI 스레드에서 파라미터 값 변경 시, `std::atomic` 또는 FIFO 큐로 오디오 스레드에 락 없이 전달
+- [x] **그래프 구조 변경 시 재평가**: 노드/연결 추가·삭제 시 오디오 스레드가 다음 블록 이전에 안전하게 새 그래프를 참조하도록 Double-Buffer 스왑
+- [x] **JUCE `AudioProcessor` 래퍼**: `TGraphRuntime`을 감싸는 `TGraphProcessor`를 구현하여 플러그인 호환 및 오디오 앱 연동을 지원
 
 #### 단계 3: MIDI 처리 경로
-- [ ] **MIDI 입력 노드**: `MidiInput` → 노트/CC 데이터를 포트로 방출
-- [ ] **MIDI-to-CV 변환 노드**: 노트 번호 → 주파수(Hz), Velocity → 진폭 변환
-- [ ] **MIDI Output 노드**: 그래프 결과를 외부 MIDI 로 출력
+- [x] **MIDI 입력 노드**: `MidiInput` → 노트/CC 데이터를 포트로 방출
+- [x] **MIDI-to-CV 변환 노드**: 노트 번호 → 주파수(Hz), Velocity → 진폭 변환
+- [x] **MIDI Output 노드**: 그래프 결과를 외부 MIDI 로 출력
 
 ---
 
