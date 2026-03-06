@@ -1,13 +1,12 @@
 #include "TNodeRegistry.h"
-#include "Nodes/Core/FXNodes.h"
-#include "Nodes/Core/FilterNodes.h"
-#include "Nodes/Core/MathLogicNodes.h"
-#include "Nodes/Core/MidiNodes.h"
-#include "Nodes/Core/MixerNodes.h"
-#include "Nodes/Core/ModulationNodes.h"
-#include "Nodes/Core/SourceNodes.h"
 #include "TNodeSDK.h"
 
+// =============================================================================
+//  ⚠️ 주의: 매크로(TEUL_NODE_AUTOREGISTER)가 런타임에 실행되려면,
+//  반드시 최소 하나의 .cpp 파일에서 해당 헤더들을 #include 해주어야 합니다.
+//  CoreNodes.h 를 통해 모든 기본 제공 노드들을 일괄 포함시킵니다.
+// =============================================================================
+#include "Nodes/CoreNodes.h"
 
 namespace Teul {
 
