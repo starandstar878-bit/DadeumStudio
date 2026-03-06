@@ -24,6 +24,319 @@ static juce::String toLowerCase(const juce::String &text) {
   return text.toLowerCase();
 }
 
+static juce::String nodeLabelForUi(const TNode &node,
+                                   const TNodeRegistry *registry) {
+  if (node.label.isNotEmpty())
+    return node.label;
+
+  if (registry != nullptr) {
+    if (const auto *desc = registry->descriptorFor(node.typeKey)) {
+      if (desc->displayName.isNotEmpty())
+        return desc->displayName;
+    }
+  }
+
+  return node.typeKey;
+}
+
+static juce::String categoryLabelForTypeKey(const juce::String &typeKey) {
+  const auto tail = typeKey.fromFirstOccurrenceOf("Teul.", false, false);
+  const int dot = tail.indexOfChar('.');
+  return dot > 0 ? tail.substring(0, dot) : "Node";
+}
+
+static int fuzzySubsequenceScore(const juce::String &textLower,
+                                 const juce::String &queryLower) {
+  if (queryLower.isEmpty())
+    return 0;
+
+  int scan = 0;
+  int score = 0;
+  int contiguous = 0;
+
+  for (int qi = 0; qi < queryLower.length(); ++qi) {
+    const auto qc = queryLower[qi];
+    bool found = false;
+
+    for (int ti = scan; ti < textLower.length(); ++ti) {
+      if (textLower[ti] != qc)
+        continue;
+
+      const int gap = ti - scan;
+      score += juce::jmax(2, 18 - gap * 2);
+      contiguous = (ti == scan ? contiguous + 1 : 0);
+      score += contiguous * 5;
+      scan = ti + 1;
+      found = true;
+      break;
+    }
+
+    if (!found)
+      return std::numeric_limits<int>::min();
+  }
+
+  score -= juce::jmax(0, textLower.length() - queryLower.length());
+  return score;
+}
+
+static int scoreTextMatch(const juce::String &textRaw,
+                          const juce::String &queryRaw) {
+  const juce::String text = toLowerCase(textRaw.trim());
+  const juce::String query = toLowerCase(queryRaw.trim());
+  if (query.isEmpty())
+    return 1;
+  if (text.isEmpty())
+    return std::numeric_limits<int>::min();
+  if (text == query)
+    return 420;
+  if (text.startsWith(query))
+    return 340 - juce::jmin(80, text.length() - query.length());
+
+  const int index = text.indexOf(query);
+  if (index >= 0)
+    return 260 - index * 3;
+
+  const int fuzzy = fuzzySubsequenceScore(text, query);
+  if (fuzzy != std::numeric_limits<int>::min())
+    return 140 + fuzzy;
+
+  return std::numeric_limits<int>::min();
+}
+
+static const char *kLibraryDragPrefix = "teul.node:";
+
+static juce::String extractLibraryDragTypeKey(const juce::var &description) {
+  const juce::String text = description.toString();
+  if (!text.startsWith(kLibraryDragPrefix))
+    return {};
+
+  return text.fromFirstOccurrenceOf(kLibraryDragPrefix, false, false);
+}
+
+struct SearchEntry {
+  juce::String title;
+  juce::String subtitle;
+  std::function<void()> onSelect;
+};
+
+class TGraphCanvas::SearchOverlay final : public juce::Component,
+                                          private juce::ListBoxModel,
+                                          private juce::TextEditor::Listener,
+                                          private juce::KeyListener {
+public:
+  using Provider = std::function<std::vector<SearchEntry>(const juce::String &)>;
+
+  explicit SearchOverlay(TGraphCanvas &ownerIn) : owner(ownerIn) {
+    addAndMakeVisible(searchEditor);
+    addAndMakeVisible(listBox);
+
+    searchEditor.setTextToShowWhenEmpty("Search...", juce::Colours::grey);
+    searchEditor.setColour(juce::TextEditor::backgroundColourId,
+                           juce::Colour(0xff141414));
+    searchEditor.setColour(juce::TextEditor::textColourId,
+                           juce::Colours::white);
+    searchEditor.setColour(juce::TextEditor::outlineColourId,
+                           juce::Colour(0xff2d2d2d));
+    searchEditor.setEscapeAndReturnKeysConsumed(false);
+    searchEditor.addListener(this);
+    searchEditor.addKeyListener(this);
+    searchEditor.setSelectAllWhenFocused(true);
+
+    listBox.setModel(this);
+    listBox.setRowHeight(38);
+    listBox.setColour(juce::ListBox::backgroundColourId,
+                      juce::Colour(0x00000000));
+    listBox.addKeyListener(this);
+
+    setVisible(false);
+  }
+
+  void present(const juce::String &titleIn, const juce::String &placeholderIn,
+               Provider providerIn, bool anchoredIn,
+               juce::Point<float> anchorIn) {
+    title = titleIn;
+    provider = std::move(providerIn);
+    anchored = anchoredIn;
+    anchorPoint = anchorIn;
+    searchEditor.setTextToShowWhenEmpty(placeholderIn, juce::Colours::grey);
+    searchEditor.setText({}, juce::dontSendNotification);
+    setVisible(true);
+    toFront(false);
+    refreshItems();
+    searchEditor.grabKeyboardFocus();
+  }
+
+  bool isOpen() const noexcept { return isVisible(); }
+
+  void dismiss() {
+    if (!isVisible())
+      return;
+
+    setVisible(false);
+    items.clear();
+    listBox.updateContent();
+    owner.grabKeyboardFocus();
+  }
+
+  void resized() override {
+    const int width = 420;
+    const int rows = juce::jlimit(5, 9, juce::jmax(5, (int)items.size()));
+    const int desiredHeight = 112 + rows * listBox.getRowHeight();
+    const int height = juce::jmin(desiredHeight, getHeight() - 32);
+
+    if (anchored) {
+      int x = juce::roundToInt(anchorPoint.x - width * 0.35f);
+      int y = juce::roundToInt(anchorPoint.y + 12.0f);
+      x = juce::jlimit(16, juce::jmax(16, getWidth() - width - 16), x);
+      y = juce::jlimit(16, juce::jmax(16, getHeight() - height - 16), y);
+      panelBounds = {x, y, width, height};
+    } else {
+      panelBounds = {(getWidth() - width) / 2,
+                     juce::jmax(18, getHeight() / 7), width, height};
+    }
+
+    auto area = panelBounds.reduced(14);
+    area.removeFromTop(22);
+    searchEditor.setBounds(area.removeFromTop(28));
+    area.removeFromTop(10);
+    listBox.setBounds(area);
+  }
+
+  void paint(juce::Graphics &g) override {
+    if (!isVisible())
+      return;
+
+    g.fillAll(juce::Colour(0x66000000));
+    g.setColour(juce::Colour(0xff111111));
+    g.fillRoundedRectangle(panelBounds.toFloat(), 12.0f);
+    g.setColour(juce::Colour(0xff2f2f2f));
+    g.drawRoundedRectangle(panelBounds.toFloat(), 12.0f, 1.0f);
+
+    auto titleBounds = panelBounds.withHeight(34).reduced(14, 8);
+    g.setColour(juce::Colours::white.withAlpha(0.92f));
+    g.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    g.drawText(title, titleBounds, juce::Justification::centredLeft, false);
+
+    if (items.empty()) {
+      g.setColour(juce::Colours::white.withAlpha(0.45f));
+      g.setFont(13.0f);
+      g.drawText("No matches", listBox.getBounds(),
+                 juce::Justification::centred, false);
+    }
+  }
+
+  void mouseDown(const juce::MouseEvent &event) override {
+    if (!panelBounds.contains(event.getPosition()))
+      dismiss();
+  }
+
+private:
+  int getNumRows() override { return (int)items.size(); }
+
+  void paintListBoxItem(int row, juce::Graphics &g, int width, int height,
+                        bool rowIsSelected) override {
+    if (row < 0 || row >= (int)items.size())
+      return;
+
+    const auto &item = items[(size_t)row];
+    auto bounds = juce::Rectangle<int>(0, 0, width, height).reduced(2, 1);
+
+    if (rowIsSelected) {
+      g.setColour(juce::Colour(0xff234a7e));
+      g.fillRoundedRectangle(bounds.toFloat(), 7.0f);
+    }
+
+    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.setFont(13.0f);
+    g.drawText(item.title, bounds.removeFromTop(18).reduced(10, 0),
+               juce::Justification::centredLeft, false);
+
+    g.setColour(juce::Colours::white.withAlpha(0.52f));
+    g.setFont(11.0f);
+    g.drawText(item.subtitle, bounds.reduced(10, 0),
+               juce::Justification::centredLeft, false);
+  }
+
+  void listBoxItemDoubleClicked(int row, const juce::MouseEvent &) override {
+    activateRow(row);
+  }
+
+  void returnKeyPressed(int row) override { activateRow(row); }
+
+  void textEditorTextChanged(juce::TextEditor &) override { refreshItems(); }
+
+  bool keyPressed(const juce::KeyPress &key, juce::Component *) override {
+    if (key == juce::KeyPress::escapeKey) {
+      dismiss();
+      return true;
+    }
+
+    if (key == juce::KeyPress::returnKey) {
+      activateRow(listBox.getSelectedRow());
+      return true;
+    }
+
+    if (key == juce::KeyPress::downKey || key == juce::KeyPress::tabKey) {
+      moveSelection(1);
+      return true;
+    }
+
+    if (key == juce::KeyPress::upKey) {
+      moveSelection(-1);
+      return true;
+    }
+
+    return false;
+  }
+
+  void refreshItems() {
+    items = provider ? provider(searchEditor.getText()) : std::vector<SearchEntry>{};
+    listBox.updateContent();
+
+    if (items.empty()) {
+      listBox.selectRow(-1);
+    } else {
+      const int current = juce::jlimit(0, (int)items.size() - 1,
+                                       juce::jmax(0, listBox.getSelectedRow()));
+      listBox.selectRow(current);
+      listBox.scrollToEnsureRowIsOnscreen(current);
+    }
+
+    resized();
+    repaint();
+  }
+
+  void moveSelection(int delta) {
+    if (items.empty())
+      return;
+
+    const int row = juce::jlimit(0, (int)items.size() - 1,
+                                 juce::jmax(0, listBox.getSelectedRow()) + delta);
+    listBox.selectRow(row);
+    listBox.scrollToEnsureRowIsOnscreen(row);
+  }
+
+  void activateRow(int row) {
+    if (row < 0 || row >= (int)items.size())
+      return;
+
+    auto action = items[(size_t)row].onSelect;
+    dismiss();
+    if (action)
+      action();
+  }
+
+  TGraphCanvas &owner;
+  juce::TextEditor searchEditor;
+  juce::ListBox listBox;
+  juce::Rectangle<int> panelBounds;
+  juce::String title;
+  Provider provider;
+  std::vector<SearchEntry> items;
+  bool anchored = false;
+  juce::Point<float> anchorPoint;
+};
+
 TGraphCanvas::TGraphCanvas(TGraphDocument &doc) : document(doc) {
   setWantsKeyboardFocus(true);
 
@@ -36,6 +349,12 @@ TGraphCanvas::TGraphCanvas(TGraphDocument &doc) : document(doc) {
     zoomLevel = 1.0f;
 
   rebuildNodeComponents();
+
+  searchOverlay = std::make_unique<SearchOverlay>(*this);
+  addAndMakeVisible(searchOverlay.get());
+  searchOverlay->setBounds(getLocalBounds());
+  searchOverlay->setVisible(false);
+
   startTimerHz(30);
 }
 
@@ -50,6 +369,10 @@ void TGraphCanvas::setConnectionLevelProvider(ConnectionLevelProvider provider) 
   connectionLevelProvider = std::move(provider);
 }
 
+void TGraphCanvas::setNodePropertiesRequestHandler(
+    NodePropertiesRequestHandler handler) {
+  nodePropertiesRequestHandler = std::move(handler);
+}
 
 juce::Point<float> TGraphCanvas::getViewCenter() const {
   return {getWidth() * 0.5f, getHeight() * 0.5f};
@@ -78,26 +401,25 @@ std::vector<const TNodeDescriptor *> TGraphCanvas::getAllNodeDescriptors() const
 int TGraphCanvas::scoreDescriptorMatch(const TNodeDescriptor &desc,
                                        const juce::String &query) const {
   const juce::String q = toLowerCase(query.trim());
+
+  int best = scoreTextMatch(desc.displayName, q);
+  best = juce::jmax(best, scoreTextMatch(desc.typeKey, q));
+  best = juce::jmax(best, scoreTextMatch(desc.category, q));
+
+  if (best == std::numeric_limits<int>::min())
+    return best;
+
+  auto recentIt = std::find(recentNodeTypes.begin(), recentNodeTypes.end(),
+                            desc.typeKey);
+  if (recentIt != recentNodeTypes.end()) {
+    const int recentIndex = (int)std::distance(recentNodeTypes.begin(), recentIt);
+    best += juce::jmax(18, 96 - recentIndex * 8);
+  }
+
   if (q.isEmpty())
-    return 1;
+    best += 10;
 
-  const juce::String display = toLowerCase(desc.displayName);
-  const juce::String typeKey = toLowerCase(desc.typeKey);
-  const juce::String category = toLowerCase(desc.category);
-
-  const int displayIndex = display.indexOf(q);
-  if (displayIndex >= 0)
-    return 240 - displayIndex * 2;
-
-  const int typeIndex = typeKey.indexOf(q);
-  if (typeIndex >= 0)
-    return 200 - typeIndex * 2;
-
-  const int categoryIndex = category.indexOf(q);
-  if (categoryIndex >= 0)
-    return 120 - categoryIndex * 2;
-
-  return std::numeric_limits<int>::min();
+  return best;
 }
 
 bool TGraphCanvas::insertNodeOnConnection(ConnectionId connectionId,
@@ -184,6 +506,7 @@ bool TGraphCanvas::addNodeByTypeAtView(const juce::String &typeKey,
   }
 
   document.executeCommand(std::make_unique<AddNodeCommand>(node));
+  rememberRecentNode(desc->typeKey);
 
   if (tryInsertOnWire) {
     const ConnectionId hit = hitTestConnection(viewPos, 10.0f);
@@ -192,6 +515,7 @@ bool TGraphCanvas::addNodeByTypeAtView(const juce::String &typeKey,
   }
 
   rebuildNodeComponents();
+  pushStatusHint("Added " + desc->displayName + ".");
   return true;
 }
 
@@ -211,18 +535,29 @@ bool TGraphCanvas::focusNodeByQuery(const juce::String &query) {
   if (q.isEmpty())
     return false;
 
+  NodeId bestNodeId = kInvalidNodeId;
+  int bestScore = std::numeric_limits<int>::min();
+
   for (const auto &node : document.nodes) {
     const TNodeDescriptor *desc =
         nodeRegistry ? nodeRegistry->descriptorFor(node.typeKey) : nullptr;
 
-    if (toLowerCase(node.typeKey).contains(q) || toLowerCase(node.label).contains(q) ||
-        (desc != nullptr && toLowerCase(desc->displayName).contains(q))) {
-      focusNode(node.nodeId);
-      return true;
+    int score = scoreTextMatch(node.label, q);
+    score = juce::jmax(score, scoreTextMatch(node.typeKey, q));
+    if (desc != nullptr)
+      score = juce::jmax(score, scoreTextMatch(desc->displayName, q));
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestNodeId = node.nodeId;
     }
   }
 
-  return false;
+  if (bestNodeId == kInvalidNodeId || bestScore == std::numeric_limits<int>::min())
+    return false;
+
+  focusNode(bestNodeId);
+  return true;
 }
 
 void TGraphCanvas::rebuildNodeComponents() {
@@ -237,6 +572,9 @@ void TGraphCanvas::rebuildNodeComponents() {
     addAndMakeVisible(comp.get());
     nodeComponents.push_back(std::move(comp));
   }
+
+  if (searchOverlay != nullptr)
+    searchOverlay->toFront(false);
 
   updateChildPositions();
   repaint();
@@ -268,11 +606,16 @@ void TGraphCanvas::paint(juce::Graphics &g) {
   drawConnections(g);
   drawSelectionOverlay(g);
   drawMiniMap(g);
+  drawLibraryDropPreview(g);
   drawZoomIndicator(g);
   drawStatusHint(g);
 }
 
-void TGraphCanvas::resized() { updateChildPositions(); }
+void TGraphCanvas::resized() {
+  updateChildPositions();
+  if (searchOverlay != nullptr)
+    searchOverlay->setBounds(getLocalBounds());
+}
 
 void TGraphCanvas::drawInfiniteGrid(juce::Graphics &g) {
   g.saveState();
@@ -763,6 +1106,55 @@ void TGraphCanvas::deleteConnectionWithAnimation(ConnectionId connectionId,
   repaint();
 }
 
+bool TGraphCanvas::isInterestedInDragSource(
+    const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) {
+  return extractLibraryDragTypeKey(dragSourceDetails.description).isNotEmpty();
+}
+
+void TGraphCanvas::itemDragEnter(
+    const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) {
+  itemDragMove(dragSourceDetails);
+}
+
+void TGraphCanvas::itemDragMove(
+    const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) {
+  const juce::String typeKey =
+      extractLibraryDragTypeKey(dragSourceDetails.description);
+  const auto point = dragSourceDetails.localPosition.toFloat();
+
+  if (typeKey.isEmpty() || !getLocalBounds().contains(point.roundToInt())) {
+    itemDragExit(dragSourceDetails);
+    return;
+  }
+
+  libraryDropPreview.active = true;
+  libraryDropPreview.pointView = point;
+  libraryDropPreview.typeKey = typeKey;
+  repaint();
+}
+
+void TGraphCanvas::itemDragExit(
+    const juce::DragAndDropTarget::SourceDetails &) {
+  if (!libraryDropPreview.active)
+    return;
+
+  libraryDropPreview = LibraryDropPreviewState{};
+  repaint();
+}
+
+void TGraphCanvas::itemDropped(
+    const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) {
+  const juce::String typeKey =
+      extractLibraryDragTypeKey(dragSourceDetails.description);
+  const auto point = dragSourceDetails.localPosition.toFloat();
+  itemDragExit(dragSourceDetails);
+
+  if (typeKey.isEmpty() || !getLocalBounds().contains(point.roundToInt()))
+    return;
+
+  addNodeByTypeAtView(typeKey, point, true);
+}
+
 void TGraphCanvas::mouseDown(const juce::MouseEvent &event) {
   grabKeyboardFocus();
 
@@ -954,6 +1346,16 @@ bool TGraphCanvas::keyPressed(const juce::KeyPress &key) {
   const auto ch =
       juce::CharacterFunctions::toLowerCase(key.getTextCharacter());
 
+  if (ctrlOrCmd && ch == 'p') {
+    showCommandPaletteOverlay();
+    return true;
+  }
+
+  if (ctrlOrCmd && ch == 'f') {
+    showNodeSearchOverlay();
+    return true;
+  }
+
   if (key == juce::KeyPress::tabKey) {
     showQuickAddPrompt(getViewCenter());
     return true;
@@ -1069,34 +1471,205 @@ juce::Point<float> TGraphCanvas::worldToView(juce::Point<float> worldPos) const 
 
 
 void TGraphCanvas::showQuickAddPrompt(juce::Point<float> pointView) {
-  juce::PopupMenu menu;
-  std::vector<juce::String> keys;
+  quickAddAnchorView = pointView;
+  if (searchOverlay == nullptr)
+    return;
 
-  int id = 1;
-  for (const auto *desc : getAllNodeDescriptors()) {
-    if (desc == nullptr)
-      continue;
+  searchOverlay->present(
+      "Quick Add", "Type to filter nodes...",
+      [this, pointView](const juce::String &query) {
+        struct Candidate {
+          const TNodeDescriptor *desc = nullptr;
+          int score = std::numeric_limits<int>::min();
+        };
 
-    menu.addItem(id, desc->displayName + " (" + desc->category + ")");
-    keys.push_back(desc->typeKey);
-    ++id;
+        std::vector<Candidate> candidates;
+        for (const auto *desc : getAllNodeDescriptors()) {
+          if (desc == nullptr)
+            continue;
 
-    if (id > 36)
-      break;
-  }
+          const int score = scoreDescriptorMatch(*desc, query);
+          if (score == std::numeric_limits<int>::min())
+            continue;
 
-  auto safeThis = juce::Component::SafePointer<TGraphCanvas>(this);
-  const auto target = localPointToGlobal(pointView.roundToInt());
+          candidates.push_back({desc, score});
+        }
 
-  menu.showMenuAsync(
-      juce::PopupMenu::Options().withTargetScreenArea(
-          juce::Rectangle<int>(target.x, target.y, 1, 1)),
-      [safeThis, pointView, keys](int result) {
-        if (safeThis == nullptr || result <= 0 || result > (int)keys.size())
-          return;
+        std::stable_sort(candidates.begin(), candidates.end(),
+                         [](const Candidate &a, const Candidate &b) {
+                           if (a.score != b.score)
+                             return a.score > b.score;
+                           if (a.desc->category != b.desc->category)
+                             return a.desc->category < b.desc->category;
+                           return a.desc->displayName < b.desc->displayName;
+                         });
 
-        safeThis->addNodeByTypeAtView(keys[(size_t)(result - 1)], pointView, true);
-      });
+        if (candidates.size() > 40)
+          candidates.resize(40);
+
+        std::vector<SearchEntry> entries;
+        entries.reserve(candidates.size());
+        for (const auto &candidate : candidates) {
+          SearchEntry entry;
+          entry.title = candidate.desc->displayName;
+          entry.subtitle = candidate.desc->category + " / " + candidate.desc->typeKey;
+          if (std::find(recentNodeTypes.begin(), recentNodeTypes.end(),
+                        candidate.desc->typeKey) != recentNodeTypes.end()) {
+            entry.subtitle = "Recent / " + entry.subtitle;
+          }
+
+          const juce::String typeKey = candidate.desc->typeKey;
+          entry.onSelect = [this, typeKey, pointView] {
+            addNodeByTypeAtView(typeKey, pointView, true);
+          };
+          entries.push_back(std::move(entry));
+        }
+
+        return entries;
+      },
+      true, pointView);
+}
+
+void TGraphCanvas::showNodeSearchOverlay() {
+  if (searchOverlay == nullptr)
+    return;
+
+  searchOverlay->present(
+      "Jump To Node", "Search node names...",
+      [this](const juce::String &query) {
+        struct Candidate {
+          NodeId nodeId = kInvalidNodeId;
+          juce::String title;
+          juce::String subtitle;
+          int score = std::numeric_limits<int>::min();
+        };
+
+        std::vector<Candidate> candidates;
+        for (const auto &node : document.nodes) {
+          const auto *desc =
+              nodeRegistry ? nodeRegistry->descriptorFor(node.typeKey) : nullptr;
+          Candidate candidate;
+          candidate.nodeId = node.nodeId;
+          candidate.title = nodeLabelForUi(node, nodeRegistry);
+          const juce::String category =
+              desc != nullptr ? desc->category : categoryLabelForTypeKey(node.typeKey);
+          candidate.subtitle = category + " / " + node.typeKey;
+          candidate.score = scoreTextMatch(candidate.title, query);
+          candidate.score = juce::jmax(candidate.score,
+                                       scoreTextMatch(candidate.subtitle, query));
+          if (candidate.score == std::numeric_limits<int>::min())
+            continue;
+          candidates.push_back(std::move(candidate));
+        }
+
+        std::stable_sort(candidates.begin(), candidates.end(),
+                         [](const Candidate &a, const Candidate &b) {
+                           if (a.score != b.score)
+                             return a.score > b.score;
+                           return a.title < b.title;
+                         });
+
+        if (candidates.size() > 48)
+          candidates.resize(48);
+
+        std::vector<SearchEntry> entries;
+        entries.reserve(candidates.size());
+        for (const auto &candidate : candidates) {
+          SearchEntry entry;
+          entry.title = candidate.title;
+          entry.subtitle = candidate.subtitle;
+          const NodeId nodeId = candidate.nodeId;
+          const juce::String nodeTitle = candidate.title;
+          entry.onSelect = [this, nodeId, nodeTitle] {
+            focusNode(nodeId);
+            pushStatusHint("Focused " + nodeTitle + ".");
+          };
+          entries.push_back(std::move(entry));
+        }
+
+        return entries;
+      },
+      false, getViewCenter());
+}
+
+void TGraphCanvas::showCommandPaletteOverlay() {
+  if (searchOverlay == nullptr)
+    return;
+
+  searchOverlay->present(
+      "Command Palette", "Search commands...",
+      [this](const juce::String &query) {
+        struct Candidate {
+          SearchEntry entry;
+          int score = std::numeric_limits<int>::min();
+        };
+
+        std::vector<Candidate> candidates;
+        auto addCommand = [&](const juce::String &title,
+                              const juce::String &subtitle,
+                              std::function<void()> action) {
+          int score = scoreTextMatch(title, query);
+          score = juce::jmax(score, scoreTextMatch(subtitle, query));
+          score = juce::jmax(score, scoreTextMatch(title + " " + subtitle, query));
+          if (score == std::numeric_limits<int>::min())
+            return;
+
+          Candidate candidate;
+          candidate.entry.title = title;
+          candidate.entry.subtitle = subtitle;
+          candidate.entry.onSelect = std::move(action);
+          candidate.score = score;
+          candidates.push_back(std::move(candidate));
+        };
+
+        addCommand("Quick Add", "Insert a node at the current view center",
+                   [this] { showQuickAddPrompt(getViewCenter()); });
+        addCommand("Jump To Node", "Search nodes and focus the camera",
+                   [this] { showNodeSearchOverlay(); });
+        addCommand("Add Bookmark", "Store the current viewport as a bookmark",
+                   [this] {
+                     TBookmark bookmark;
+                     bookmark.bookmarkId = document.allocBookmarkId();
+                     bookmark.name = "Bookmark " + juce::String(bookmark.bookmarkId);
+                     bookmark.focusX = viewOriginWorld.x;
+                     bookmark.focusY = viewOriginWorld.y;
+                     bookmark.zoom = zoomLevel;
+                     document.bookmarks.push_back(bookmark);
+                     pushStatusHint("Added bookmark.");
+                   });
+        addCommand("Duplicate Selection", "Ctrl+D",
+                   [this] { duplicateSelection(); });
+        addCommand("Delete Selection", "Delete or Backspace",
+                   [this] { deleteSelectionWithPrompt(); });
+        addCommand("Disconnect Selection", "Disconnect all selected wires",
+                   [this] { disconnectSelectionWithPrompt(); });
+        addCommand("Toggle Bypass", "Toggle bypass on selected nodes",
+                   [this] { toggleBypassSelection(); });
+        addCommand("Align Left", "Align selected nodes to the left edge",
+                   [this] { alignSelectionLeft(); });
+        addCommand("Align Top", "Align selected nodes to the top edge",
+                   [this] { alignSelectionTop(); });
+        addCommand("Distribute Horizontally",
+                   "Evenly distribute selected nodes horizontally",
+                   [this] { distributeSelectionHorizontally(); });
+        addCommand("Distribute Vertically",
+                   "Evenly distribute selected nodes vertically",
+                   [this] { distributeSelectionVertically(); });
+
+        std::stable_sort(candidates.begin(), candidates.end(),
+                         [](const Candidate &a, const Candidate &b) {
+                           if (a.score != b.score)
+                             return a.score > b.score;
+                           return a.entry.title < b.entry.title;
+                         });
+
+        std::vector<SearchEntry> entries;
+        entries.reserve(candidates.size());
+        for (auto &candidate : candidates)
+          entries.push_back(std::move(candidate.entry));
+        return entries;
+      },
+      false, getViewCenter());
 }
 
 void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
@@ -1218,6 +1791,10 @@ void TGraphCanvas::timerCallback() {
 void TGraphCanvas::openQuickAddAt(juce::Point<float> pointView) {
   showQuickAddPrompt(pointView);
 }
+
+void TGraphCanvas::openNodeSearchPrompt() { showNodeSearchOverlay(); }
+
+void TGraphCanvas::openCommandPalette() { showCommandPaletteOverlay(); }
 
 bool TGraphCanvas::isNodeSelected(NodeId nodeId) const {
   return std::find(selectedNodeIds.begin(), selectedNodeIds.end(), nodeId) !=
@@ -1347,6 +1924,49 @@ void TGraphCanvas::drawFrames(juce::Graphics &g) {
     g.drawText(title, titleRect.toNearestInt().reduced(8, 0),
                juce::Justification::centredLeft, false);
   }
+}
+
+void TGraphCanvas::drawLibraryDropPreview(juce::Graphics &g) {
+  if (!libraryDropPreview.active)
+    return;
+
+  const auto *desc =
+      nodeRegistry ? nodeRegistry->descriptorFor(libraryDropPreview.typeKey) : nullptr;
+  const juce::String title =
+      desc != nullptr ? desc->displayName : libraryDropPreview.typeKey;
+  const juce::String subtitle =
+      desc != nullptr ? desc->category + " / " + desc->typeKey
+                      : libraryDropPreview.typeKey;
+
+  auto bubble = juce::Rectangle<float>(libraryDropPreview.pointView.x + 14.0f,
+                                       libraryDropPreview.pointView.y - 10.0f,
+                                       240.0f, 44.0f);
+  const auto bounds = getLocalBounds().toFloat().reduced(8.0f);
+  bubble.setPosition(
+      juce::jlimit(bounds.getX(), bounds.getRight() - bubble.getWidth(),
+                   bubble.getX()),
+      juce::jlimit(bounds.getY(), bounds.getBottom() - bubble.getHeight(),
+                   bubble.getY()));
+
+  g.setColour(juce::Colour(0xdd0f172a));
+  g.fillRoundedRectangle(bubble, 10.0f);
+  g.setColour(juce::Colour(0xff60a5fa));
+  g.drawRoundedRectangle(bubble, 10.0f, 1.2f);
+
+  g.setColour(juce::Colour(0xff93c5fd));
+  g.drawEllipse(libraryDropPreview.pointView.x - 6.0f,
+                libraryDropPreview.pointView.y - 6.0f, 12.0f, 12.0f, 1.5f);
+  g.fillEllipse(libraryDropPreview.pointView.x - 2.5f,
+                libraryDropPreview.pointView.y - 2.5f, 5.0f, 5.0f);
+
+  auto textArea = bubble.toNearestInt().reduced(12, 7);
+  g.setColour(juce::Colours::white.withAlpha(0.95f));
+  g.setFont(13.0f);
+  g.drawText(title, textArea.removeFromTop(16), juce::Justification::centredLeft,
+             false);
+  g.setColour(juce::Colours::white.withAlpha(0.55f));
+  g.setFont(11.0f);
+  g.drawText(subtitle, textArea, juce::Justification::centredLeft, false);
 }
 
 void TGraphCanvas::drawSelectionOverlay(juce::Graphics &g) {
@@ -2094,12 +2714,12 @@ void TGraphCanvas::showNodeContextMenu(NodeId nodeId,
           return;
         }
         if (result == 5) {
-          if (const TNode *node = self.document.findNode(nodeId)) {
+          if (self.nodePropertiesRequestHandler != nullptr)
+            self.nodePropertiesRequestHandler(nodeId);
+          else if (const TNode *node = self.document.findNode(nodeId)) {
             juce::String msg = "Type: " + node->typeKey + "\n";
             msg += "Ports: " + juce::String((int)node->ports.size()) + "\n";
-            msg += "Params: " + juce::String((int)node->params.size()) + "\n";
-            msg += "Property panel is planned for UI Phase 5.";
-
+            msg += "Params: " + juce::String((int)node->params.size());
             juce::AlertWindow::showMessageBoxAsync(
                 juce::MessageBoxIconType::InfoIcon, "Node Properties", msg);
           }

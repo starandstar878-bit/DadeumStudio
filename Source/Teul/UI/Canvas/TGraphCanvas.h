@@ -3,6 +3,7 @@
 #include "../../Model/TGraphDocument.h"
 #include <JuceHeader.h>
 #include <functional>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -13,7 +14,9 @@ class TPortComponent;
 struct TNodeDescriptor;
 class TNodeRegistry;
 
-class TGraphCanvas : public juce::Component, private juce::Timer {
+class TGraphCanvas : public juce::Component,
+                     public juce::DragAndDropTarget,
+                     private juce::Timer {
 public:
   explicit TGraphCanvas(TGraphDocument &doc);
   ~TGraphCanvas() override;
@@ -27,6 +30,17 @@ public:
   void mouseDoubleClick(const juce::MouseEvent &event) override;
   void mouseWheelMove(const juce::MouseEvent &event,
                       const juce::MouseWheelDetails &wheel) override;
+
+  bool isInterestedInDragSource(
+      const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) override;
+  void itemDragEnter(
+      const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) override;
+  void itemDragMove(
+      const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) override;
+  void itemDragExit(
+      const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) override;
+  void itemDropped(
+      const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) override;
 
   bool keyPressed(const juce::KeyPress &key) override;
   bool keyStateChanged(bool isKeyDown) override;
@@ -60,7 +74,16 @@ public:
   using ConnectionLevelProvider = std::function<float(const TConnection &)>;
   void setConnectionLevelProvider(ConnectionLevelProvider provider);
 
+  using NodePropertiesRequestHandler = std::function<void(NodeId)>;
+  void setNodePropertiesRequestHandler(NodePropertiesRequestHandler handler);
+
   void openQuickAddAt(juce::Point<float> pointView);
+  void openNodeSearchPrompt();
+  void openCommandPalette();
+
+  const std::vector<juce::String> &getRecentNodeTypes() const noexcept {
+    return recentNodeTypes;
+  }
 
   void requestNodeMouseDown(NodeId nodeId, const juce::MouseEvent &event);
   void requestNodeMouseDrag(NodeId nodeId, const juce::MouseEvent &event);
@@ -79,6 +102,7 @@ private:
   void drawZoomIndicator(juce::Graphics &g);
   void drawConnections(juce::Graphics &g);
   void drawMiniMap(juce::Graphics &g);
+  void drawLibraryDropPreview(juce::Graphics &g);
   void drawSelectionOverlay(juce::Graphics &g);
   void drawStatusHint(juce::Graphics &g);
 
@@ -121,6 +145,8 @@ private:
   void showFrameContextMenu(int frameId, juce::Point<float> pointView,
                             juce::Point<float> pointScreen);
   void showQuickAddPrompt(juce::Point<float> pointView);
+  void showNodeSearchOverlay();
+  void showCommandPaletteOverlay();
   void rememberRecentNode(const juce::String &typeKey);
   int scoreDescriptorMatch(const TNodeDescriptor &desc,
                            const juce::String &query) const;
@@ -257,6 +283,17 @@ private:
   float statusHintAlpha = 0.0f;
 
   const TNodeRegistry *nodeRegistry = nullptr;
+  NodePropertiesRequestHandler nodePropertiesRequestHandler;
+
+  class SearchOverlay;
+  std::unique_ptr<SearchOverlay> searchOverlay;
+  juce::Point<float> quickAddAnchorView;
+
+  struct LibraryDropPreviewState {
+    bool active = false;
+    juce::Point<float> pointView;
+    juce::String typeKey;
+  } libraryDropPreview;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TGraphCanvas)
 };
