@@ -27,11 +27,11 @@
 - [x] **JSON 스키마 확정**: `nodes[]`, `connections[]`, `graph_meta{}` 최상위 키 구조로 문서 규약 정의
 - [x] **직렬화 함수 구현**: `TGraphDocument → juce::var` 변환 (`toJson()`)
 - [x] **역직렬화 함수 구현**: `juce::var → TGraphDocument` 복구, 버전 불일치 시 Migration fallback 처리
-- [ ] **파일 저장/불러오기**: `.teul` 확장자 기반 로컬 파일 입출력 연동
+- [x] **파일 저장/불러오기**: `.teul` 확장자 기반 로컬 파일 입출력 연동
 
 #### 단계 3: Undo/Redo 히스토리
-- [ ] **Command 패턴 기반 히스토리 스택**: `AddNode`, `DeleteNode`, `AddConnection`, `DeleteConnection`, `MoveNode`, `SetParam` Command 객체 정의
-- [ ] **`TGraphDocument::undo() / redo()`** 인터페이스 구현
+- [x] **Command 패턴 기반 히스토리 스택**: `AddNode`, `DeleteNode`, `AddConnection`, `DeleteConnection`, `MoveNode`, `SetParam` Command 객체 정의
+- [x] **`TGraphDocument::undo() / redo()`** 인터페이스 구현
 
 ---
 

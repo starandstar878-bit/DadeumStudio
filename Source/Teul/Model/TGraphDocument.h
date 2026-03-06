@@ -3,9 +3,13 @@
 #include "TConnection.h"
 #include "TNode.h"
 
+#include <memory>
 #include <vector>
 
 namespace Teul {
+
+class TCommand;
+class THistoryStack;
 
 // =============================================================================
 //  TGraphMeta — 그래프 문서 메타데이터
@@ -38,6 +42,15 @@ struct TGraphMeta {
 //    포트는 각 TNode 내부의 ports 벡터가 소유한다.
 // =============================================================================
 struct TGraphDocument {
+  TGraphDocument();
+  ~TGraphDocument();
+
+  TGraphDocument(const TGraphDocument &other);
+  TGraphDocument &operator=(const TGraphDocument &other);
+
+  TGraphDocument(TGraphDocument &&other) noexcept;
+  TGraphDocument &operator=(TGraphDocument &&other) noexcept;
+
   int schemaVersion = 1;
   TGraphMeta meta;
 
@@ -116,10 +129,27 @@ struct TGraphDocument {
   void setNextPortId(PortId id) noexcept { nextPortId = id; }
   void setNextConnectionId(ConnectionId id) noexcept { nextConnectionId = id; }
 
+  // -------------------------------------------------------------------------
+  //  History 관리 (Undo/Redo)
+  // -------------------------------------------------------------------------
+  /** 명령어를 수행하고 문서 상태를 변경한 뒤 히스토리에 기록합니다. */
+  void executeCommand(std::unique_ptr<TCommand> command);
+
+  /** 이전 상태로 되돌립니다. */
+  bool undo();
+
+  /** 되돌린 상태를 다시 실행합니다. */
+  bool redo();
+
+  /** 현재 기록된 히스토리 스택을 지웁니다. */
+  void clearHistory();
+
 private:
   NodeId nextNodeId = 1;
   PortId nextPortId = 1;
   ConnectionId nextConnectionId = 1;
+
+  std::unique_ptr<THistoryStack> historyStack;
 };
 
 } // namespace Teul
