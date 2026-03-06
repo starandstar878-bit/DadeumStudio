@@ -182,6 +182,18 @@
 - [x] **`TNodeRegistry` → `ITeulParamProvider` 구현체 등록**: 각 노드가 자신의 파라미터를 APVTS와 유사한 형태로 Ieum에 노출
 - [x] **변경 알림(Listener) 브로드캐스트**: 런타임에 파라미터 값이 오디오 스레드에서 변경되면, Ieum의 리스너로 비동기 전파
 
+### 현재 인프라 메모 (Ieum 구현 참고)
+- **구현 위치**: `ITeulParamProvider`는 `Source/Teul/Bridge/ITeulParamProvider.h`, 실제 구현체는 `TGraphRuntime`, 파라미터 표면 생성은 `TNodeRegistry`에 있음
+- **파라미터 식별자 규칙**: `paramId = teul.node.<nodeId>.<paramKey>` 형태를 사용. Ieum 쪽 바인딩 키는 `node label`이 아니라 반드시 `paramId` 기준으로 잡을 것
+- **노출 메타데이터**: `listExposedParams()`는 `nodeId`, `nodeTypeKey`, `nodeDisplayName`, `paramKey`, `paramLabel`, `defaultValue`, `currentValue`를 반환
+- **표면 재구성 시점**: `TGraphRuntime::buildGraph()`가 성공하면 현재 그래프 문서 기준으로 파라미터 표면을 다시 만들고 `teulParamSurfaceChanged()`를 보냄
+- **값 변경 흐름**: `setParam()` 호출 시 런타임 표면 값을 갱신한 뒤 오디오 스레드 파라미터 큐에 넣고, 적용 완료 후 `teulParamValueChanged()`가 비동기로 전달됨
+- **Ieum 쪽 권장 사용 방식**: 패널/위젯은 최초 진입 시 `listExposedParams()`로 전체 목록을 받고, 이후 `Listener` 알림으로 갱신. 그래프 재빌드 후에는 기존 캐시를 버리고 다시 조회할 것
+- **프로세서 접근 경로**: 플러그인/앱 쪽에서는 `TGraphProcessor::paramProvider()`로 브리지에 접근 가능
+- **현재 한계 1**: 이 표면은 런타임 스냅샷 기준이며, Ieum이 값을 바꿨을 때 편집 중인 원본 문서까지 자동 역반영하지는 않음
+- **현재 한계 2**: 노드 내부 DSP 로직이 스스로 값을 바꾸는 경우, 해당 노드가 `TProcessContext::paramValueReporter`를 호출해야 Ieum 리스너까지 변경이 전달됨. 현재는 브리지 경로만 준비된 상태
+- **현재 한계 3**: `AudioProcessorValueTreeState` 자동 등록/바인딩 생성은 아직 없음. 이는 `Phase 5`의 `APVTS 바인딩 코드 생성`에서 이어서 구현
+
 ---
 
 > **→ UI 로드맵 전환**: `Phase 4` 완료 후 **[UI Phase 5: 파라미터 편집 패널](Teul%20UI%20Roadmap.md)** 로 전환하세요.
