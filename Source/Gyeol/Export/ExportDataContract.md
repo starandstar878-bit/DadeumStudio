@@ -1,4 +1,4 @@
-# Gyeol Export Data Contract (Phase 6)
+﻿# Gyeol Export Data Contract (Phase 6)
 
 ## Purpose
 This contract defines files emitted by `Gyeol::Export::exportToJuceComponent(...)` and the schema of `export-manifest.json`.
@@ -21,6 +21,7 @@ Phase 6 extends export payloads so runtime behavior from editor Phase 4/5 can be
 - `componentClassName` (`string`): generated C++ class name.
 - `generatedAtUtc` (`string`): ISO-8601 UTC timestamp.
 - `groupCount` (`int`): number of groups in source scene.
+- `codegenApiVersion` (`string`): widget codegen metadata schema version (Phase 7 v2 bridge).
 - `groupsFlattened` (`bool`): currently `true`.
 - `runtimeDataFile` (`string`, optional): filename of runtime payload (`export-runtime.json`).
 - `widgets` (`array<object>`): exported widget descriptors.
@@ -41,6 +42,7 @@ Phase 6 extends export payloads so runtime behavior from editor Phase 4/5 can be
 - `supported` (`bool`)
 - `bounds` (`object`): `{ x, y, w, h }` float
 - `properties` (`object`): serialized widget `PropertyBag`
+- `schemaV2` (`object`, optional): widget descriptor v2 metadata snapshot used for SDK/ABI/export traceability
 
 ### `assets[]`
 - `assetId` (`string`)
@@ -123,3 +125,5 @@ Phase 6 extends export payloads so runtime behavior from editor Phase 4/5 can be
   - `codegen_kind`
   - `constructor_lines_json`
   - `resized_lines_json`
+
+

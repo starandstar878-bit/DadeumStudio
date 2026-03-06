@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <stdint.h>
 
@@ -20,7 +20,7 @@
 #endif
 
 #define GYEOL_WIDGET_PLUGIN_ABI_VERSION_MAJOR 1u
-#define GYEOL_WIDGET_PLUGIN_ABI_VERSION_MINOR 1u
+#define GYEOL_WIDGET_PLUGIN_ABI_VERSION_MINOR 2u
 
 #ifdef __cplusplus
 extern "C" {
@@ -279,6 +279,33 @@ typedef struct GyeolWidgetDescriptor
     GyeolWidgetPointF32 min_size;
     GyeolWidgetUtf8View default_properties_json;
 
+    /* Phase 7 step-0 schema v2 metadata. */
+    GyeolWidgetUtf8View schema_version;
+    GyeolWidgetUtf8View manifest_version;
+    GyeolWidgetUtf8View widget_type_version;
+    GyeolWidgetUtf8View migration_rules_json;
+
+    GyeolWidgetUtf8View plugin_id;
+    GyeolWidgetUtf8View plugin_version;
+    GyeolWidgetUtf8View vendor;
+    GyeolWidgetUtf8View release_channel;
+
+    GyeolWidgetUtf8View sdk_min_version;
+    GyeolWidgetUtf8View sdk_max_version;
+    GyeolWidgetUtf8View abi_version;
+    GyeolWidgetUtf8View abi_hash;
+
+    GyeolWidgetUtf8View permissions_json; /* JSON array<string> */
+    GyeolWidgetUtf8View widget_meta_json; /* full v2 descriptor metadata JSON object */
+    GyeolWidgetUtf8View property_specs_json; /* JSON array<object> */
+    GyeolWidgetUtf8View runtime_events_json; /* JSON array<object> */
+
+    GyeolWidgetUtf8View required_juce_modules_json; /* JSON array<string> */
+    GyeolWidgetUtf8View required_headers_json; /* JSON array<string> */
+    GyeolWidgetUtf8View required_libraries_json; /* JSON array<string> */
+    GyeolWidgetUtf8View required_compile_definitions_json; /* JSON array<string> */
+    GyeolWidgetUtf8View required_link_options_json; /* JSON array<string> */
+
     void* plugin_user_data;
     GyeolWidgetPaintFn paint;
     GyeolWidgetHitTestFn hit_test;
@@ -298,7 +325,7 @@ typedef GyeolWidgetResultCode (*GyeolWidgetRegisterPluginFn)(const GyeolWidgetHo
     - If out_options == NULL, plugin writes required option count to in_out_option_count.
     - If out_options != NULL, plugin writes up to *in_out_option_count options and updates it with written count.
 
-    Export codegen contract (ABI v1.1):
+    Export codegen and descriptor metadata contract (ABI v1.2):
     - `export_codegen` is optional.
     - Host copies `GyeolWidgetExportCodegenResult` string payloads synchronously before callback return.
     - `constructor_lines_json` / `resized_lines_json` must be JSON array<string> when non-empty.
@@ -324,3 +351,5 @@ static inline int32_t gyeol_widget_host_api_is_compatible(const GyeolWidgetHostA
 
 #define GYEOL_WIDGET_DLL_ENTRY(symbol_name) \
     extern "C" GYEOL_WIDGET_PLUGIN_EXPORT GyeolWidgetResultCode symbol_name(const GyeolWidgetHostApi* host_api)
+
+

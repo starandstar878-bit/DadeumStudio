@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Gyeol/Public/DocumentHandle.h"
 #include "Gyeol/Widgets/ButtonWidget.h"
@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <utility>
 #include <vector>
@@ -39,7 +40,275 @@ namespace Gyeol::Widgets
     public:
         bool registerWidget(WidgetDescriptor descriptor)
         {
+            const auto normalizeStringArray = [](juce::StringArray& values)
+            {
+                for (int i = values.size() - 1; i >= 0; --i)
+                {
+                    const auto trimmed = values[i].trim();
+                    if (trimmed.isEmpty())
+                    {
+                        values.remove(i);
+                        continue;
+                    }
+
+                    values.set(i, trimmed);
+                }
+                values.removeDuplicates(false);
+            };
+
+            const auto defaultValueForPropertyKind = [](const WidgetPropertySpec& spec) -> juce::var
+            {
+                switch (spec.kind)
+                {
+                    case WidgetPropertyKind::text:
+                        return juce::var(juce::String());
+                    case WidgetPropertyKind::integer:
+                        return juce::var(0);
+                    case WidgetPropertyKind::number:
+                        return juce::var(0.0);
+                    case WidgetPropertyKind::boolean:
+                        return juce::var(false);
+                    case WidgetPropertyKind::enumChoice:
+                        if (!spec.enumOptions.empty())
+                            return juce::var(spec.enumOptions.front().value);
+                        return juce::var(juce::String());
+                    case WidgetPropertyKind::color:
+                        return juce::var(juce::String("#FFFFFFFF"));
+                    case WidgetPropertyKind::vec2:
+                    {
+                        auto object = std::make_unique<juce::DynamicObject>();
+                        object->setProperty("x", 0.0);
+                        object->setProperty("y", 0.0);
+                        return juce::var(object.release());
+                    }
+                    case WidgetPropertyKind::rect:
+                    {
+                        auto object = std::make_unique<juce::DynamicObject>();
+                        object->setProperty("x", 0.0);
+                        object->setProperty("y", 0.0);
+                        object->setProperty("w", 0.0);
+                        object->setProperty("h", 0.0);
+                        return juce::var(object.release());
+                    }
+                    case WidgetPropertyKind::assetRef:
+                        return juce::var(juce::String());
+                }
+
+                return juce::var(juce::String());
+            };
+
+            const auto ensurePayloadSchemaRequiredArray = [](juce::var& payloadSchema)
+            {
+                if (payloadSchema.isVoid())
+                {
+                    payloadSchema = emptyRequiredPayloadSchema();
+                    return;
+                }
+
+                auto* object = payloadSchema.getDynamicObject();
+                if (object == nullptr)
+                {
+                    payloadSchema = emptyRequiredPayloadSchema();
+                    return;
+                }
+
+                auto& props = object->getProperties();
+                if (!props.contains("required") || !props["required"].isArray())
+                {
+                    juce::Array<juce::var> required;
+                    object->setProperty("required", juce::var(required));
+                }
+            };
+
+            const auto inferSdkMajor = [](const juce::String& sdkVersion) -> juce::String
+            {
+                const auto major = sdkVersion.trim().upToFirstOccurrenceOf(".", false, false);
+                if (major.containsOnly("0123456789") && major.isNotEmpty())
+                    return major;
+                return "1";
+            };
+
+            const auto makeAbiHash = [](const WidgetDescriptor& descriptor) -> juce::String
+            {
+                juce::String seed;
+                seed << descriptor.typeKey << "|";
+                seed << descriptor.pluginId << "|";
+                seed << descriptor.pluginVersion << "|";
+                seed << descriptor.abiVersion << "|";
+                seed << descriptor.schemaVersion << "|";
+                seed << descriptor.manifestVersion << "|";
+
+                for (const auto& spec : descriptor.propertySpecs)
+                {
+                    seed << spec.key.toString() << ":";
+                    seed << widgetPropertyKindToKey(spec.kind) << ";";
+                }
+
+                for (const auto& eventSpec : descriptor.runtimeEvents)
+                    seed << eventSpec.key << ";";
+
+                constexpr std::uint64_t kOffset = 14695981039346656037ull;
+                constexpr std::uint64_t kPrime = 1099511628211ull;
+                std::uint64_t hash = kOffset;
+
+                const auto utf8 = seed.toRawUTF8();
+                for (size_t i = 0; utf8[i] != 0; ++i)
+                {
+                    hash ^= static_cast<std::uint8_t>(utf8[i]);
+                    hash *= kPrime;
+                }
+
+                juce::String hex;
+                hex.preallocateBytes(16);
+                for (int shift = 60; shift >= 0; shift -= 4)
+                {
+                    const auto nibble = static_cast<int>((hash >> shift) & 0x0full);
+                    hex << juce::String::charToString(static_cast<juce_wchar>(nibble < 10
+                                                                                 ? ('0' + nibble)
+                                                                                 : ('a' + (nibble - 10))));
+                }
+
+                return hex;
+            };
+
+            const auto warnRecommendedMissing = [](const WidgetDescriptor& descriptor)
+            {
+#if JUCE_DEBUG
+                if (descriptor.capabilities.isEmpty())
+                {
+                    DBG("[Gyeol][WidgetRegistry] Recommended field missing: capabilities (" + descriptor.typeKey + ")");
+                }
+
+                if (descriptor.a11yRole.isEmpty() || descriptor.a11yLabelKey.isEmpty())
+                {
+                    DBG("[Gyeol][WidgetRegistry] Recommended accessibility fields missing: a11yRole/a11yLabelKey (" + descriptor.typeKey + ")");
+                }
+
+                if (descriptor.tags.isEmpty() || descriptor.iconKey.isEmpty())
+                {
+                    DBG("[Gyeol][WidgetRegistry] Recommended discoverability fields missing: tags/iconKey (" + descriptor.typeKey + ")");
+                }
+#endif
+            };
+
+            descriptor.typeKey = descriptor.typeKey.trim();
+            descriptor.displayName = descriptor.displayName.trim();
+            descriptor.category = descriptor.category.trim().isNotEmpty() ? descriptor.category.trim() : juce::String("Other");
+
+            descriptor.schemaVersion = descriptor.schemaVersion.trim().isNotEmpty() ? descriptor.schemaVersion.trim() : juce::String("2.0.0");
+            descriptor.manifestVersion = descriptor.manifestVersion.trim().isNotEmpty() ? descriptor.manifestVersion.trim() : juce::String("1.0.0");
+            descriptor.pluginVersion = descriptor.pluginVersion.trim().isNotEmpty() ? descriptor.pluginVersion.trim() : juce::String("1.0.0");
+            descriptor.abiVersion = descriptor.abiVersion.trim().isNotEmpty() ? descriptor.abiVersion.trim() : juce::String("1");
+            descriptor.sdkMinVersion = descriptor.sdkMinVersion.trim().isNotEmpty() ? descriptor.sdkMinVersion.trim() : juce::String("1.0.0");
+            descriptor.releaseChannel = descriptor.releaseChannel.trim().isNotEmpty() ? descriptor.releaseChannel.trim() : juce::String("stable");
+            descriptor.repaintPolicy = descriptor.repaintPolicy.trim().isNotEmpty() ? descriptor.repaintPolicy.trim() : juce::String("onDemand");
+            descriptor.threadingModel = descriptor.threadingModel.trim().isNotEmpty() ? descriptor.threadingModel.trim() : juce::String("main-thread");
+            descriptor.sandboxLevel = descriptor.sandboxLevel.trim().isNotEmpty() ? descriptor.sandboxLevel.trim() : juce::String("strict");
+
+            if (descriptor.widgetTypeVersion <= 0)
+                descriptor.widgetTypeVersion = 1;
+
+            if (descriptor.pluginId.trim().isEmpty() && descriptor.typeKey.isNotEmpty())
+                descriptor.pluginId = "com.dadeum.gyeol.builtin." + descriptor.typeKey;
+            else
+                descriptor.pluginId = descriptor.pluginId.trim();
+
+            if (descriptor.vendor.trim().isEmpty())
+                descriptor.vendor = "Dadeum";
+            else
+                descriptor.vendor = descriptor.vendor.trim();
+
+            normalizeStringArray(descriptor.tags);
+            normalizeStringArray(descriptor.supportedHostVersions);
+            normalizeStringArray(descriptor.platformTargets);
+            normalizeStringArray(descriptor.architectureTargets);
+            normalizeStringArray(descriptor.capabilities);
+            normalizeStringArray(descriptor.supportedActions);
+            normalizeStringArray(descriptor.propertyBindings);
+            normalizeStringArray(descriptor.stateInputs);
+            normalizeStringArray(descriptor.stateOutputs);
+            normalizeStringArray(descriptor.telemetryTags);
+            normalizeStringArray(descriptor.persistedKeys);
+            normalizeStringArray(descriptor.permissions);
+            normalizeStringArray(descriptor.fileAccess);
+            normalizeStringArray(descriptor.networkAccess);
+            normalizeStringArray(descriptor.midiAccess);
+            normalizeStringArray(descriptor.scriptAccess);
+            normalizeStringArray(descriptor.requiredJuceModules);
+            normalizeStringArray(descriptor.requiredHeaders);
+            normalizeStringArray(descriptor.requiredLibraries);
+            normalizeStringArray(descriptor.requiredCompileDefinitions);
+            normalizeStringArray(descriptor.requiredLinkOptions);
+
+            if (descriptor.capabilities.isEmpty())
+            {
+                if (descriptor.dropOptions || descriptor.applyDrop)
+                    descriptor.capabilities.add("acceptsAssetDrop");
+                if (!descriptor.runtimeEvents.empty())
+                    descriptor.capabilities.add("emitsRuntimeEvents");
+                if (descriptor.exportCodegen)
+                    descriptor.capabilities.add("customCodegen");
+                normalizeStringArray(descriptor.capabilities);
+            }
+
+            if (descriptor.sdkMaxVersion.trim().isEmpty())
+                descriptor.sdkMaxVersion = inferSdkMajor(descriptor.sdkMinVersion) + ".x";
+            else
+                descriptor.sdkMaxVersion = descriptor.sdkMaxVersion.trim();
+
+            if (descriptor.supportedHostVersions.isEmpty())
+                descriptor.supportedHostVersions.add(descriptor.sdkMinVersion);
+
+            if (descriptor.platformTargets.isEmpty())
+            {
+#if JUCE_WINDOWS
+                descriptor.platformTargets.add("windows");
+#elif JUCE_MAC
+                descriptor.platformTargets.add("macos");
+#elif JUCE_LINUX
+                descriptor.platformTargets.add("linux");
+#else
+                descriptor.platformTargets.add("unknown");
+#endif
+            }
+
+            if (descriptor.architectureTargets.isEmpty())
+            {
+#if defined(_M_ARM64) || defined(__aarch64__)
+                descriptor.architectureTargets.add("arm64");
+#elif defined(_M_X64) || defined(__x86_64__)
+                descriptor.architectureTargets.add("x64");
+#elif defined(_M_IX86) || defined(__i386__)
+                descriptor.architectureTargets.add("x86");
+#else
+                descriptor.architectureTargets.add("unknown");
+#endif
+            }
+
+            if (descriptor.requiredJuceModules.isEmpty())
+                descriptor.requiredJuceModules.add("juce_gui_basics");
+
+            descriptor.codegenApiVersion = descriptor.codegenApiVersion.trim().isNotEmpty()
+                                               ? descriptor.codegenApiVersion.trim()
+                                               : juce::String("2.1");
+
+            if (descriptor.abiHash.trim().isEmpty())
+                descriptor.abiHash = makeAbiHash(descriptor);
+            else
+                descriptor.abiHash = descriptor.abiHash.trim();
+
+            if (descriptor.testId.trim().isEmpty())
+                descriptor.testId = descriptor.pluginId + "." + descriptor.typeKey;
+            else
+                descriptor.testId = descriptor.testId.trim();
+
             if (descriptor.typeKey.isEmpty() || descriptor.displayName.isEmpty())
+                return false;
+            if (descriptor.schemaVersion.isEmpty() || descriptor.manifestVersion.isEmpty())
+                return false;
+            if (descriptor.pluginId.isEmpty() || descriptor.pluginVersion.isEmpty())
+                return false;
+            if (descriptor.sdkMinVersion.isEmpty() || descriptor.abiVersion.isEmpty() || descriptor.abiHash.isEmpty())
                 return false;
             if (descriptor.defaultBounds.getWidth() <= 0.0f || descriptor.defaultBounds.getHeight() <= 0.0f)
                 return false;
@@ -50,14 +319,7 @@ namespace Gyeol::Widgets
             if (validatePropertyBag(descriptor.defaultProperties).failed())
                 return false;
 
-            descriptor.category = descriptor.category.trim().isNotEmpty() ? descriptor.category.trim() : juce::String("Other");
-            for (int i = descriptor.tags.size() - 1; i >= 0; --i)
-            {
-                descriptor.tags.set(i, descriptor.tags[i].trim());
-                if (descriptor.tags[i].isEmpty())
-                    descriptor.tags.remove(i);
-            }
-            descriptor.tags.removeDuplicates(false);
+            warnRecommendedMissing(descriptor);
 
             std::vector<juce::String> runtimeEventKeys;
             runtimeEventKeys.reserve(descriptor.runtimeEvents.size());
@@ -66,8 +328,19 @@ namespace Gyeol::Widgets
                 eventSpec.key = eventSpec.key.trim();
                 eventSpec.displayLabel = eventSpec.displayLabel.trim();
                 eventSpec.description = eventSpec.description.trim();
+                eventSpec.reliability = eventSpec.reliability.trim().isNotEmpty()
+                                            ? eventSpec.reliability.trim()
+                                            : juce::String("bestEffort");
+                eventSpec.channel = eventSpec.channel.trim().isNotEmpty()
+                                        ? eventSpec.channel.trim()
+                                        : juce::String("ui");
+                ensurePayloadSchemaRequiredArray(eventSpec.payloadSchema);
 
                 if (eventSpec.key.isEmpty())
+                    return false;
+                if (eventSpec.throttleMs.has_value() && *eventSpec.throttleMs < 0)
+                    return false;
+                if (eventSpec.debounceMs.has_value() && *eventSpec.debounceMs < 0)
                     return false;
                 if (std::find(runtimeEventKeys.begin(), runtimeEventKeys.end(), eventSpec.key) != runtimeEventKeys.end())
                     return false;
@@ -237,6 +510,17 @@ namespace Gyeol::Widgets
             seenSpecKeys.reserve(descriptor.propertySpecs.size());
             for (auto& spec : descriptor.propertySpecs)
             {
+                spec.label = spec.label.trim();
+                spec.group = spec.group.trim().isNotEmpty() ? spec.group.trim() : juce::String("Widget");
+                spec.hint = spec.hint.trim();
+                spec.unit = spec.unit.trim();
+                spec.displayFormat = spec.displayFormat.trim();
+                spec.valueCurve = spec.valueCurve.trim();
+                spec.regex = spec.regex.trim();
+                spec.localeKey = spec.localeKey.trim();
+                normalizeStringArray(spec.acceptedMimeTypes);
+                normalizeStringArray(spec.preloadAssets);
+
                 if (spec.key.toString().isEmpty() || spec.label.isEmpty())
                     return false;
                 if (std::find(seenSpecKeys.begin(), seenSpecKeys.end(), spec.key) != seenSpecKeys.end())
@@ -247,6 +531,14 @@ namespace Gyeol::Widgets
                 if (spec.decimals < 0)
                     return false;
                 if (spec.dependsOnKey.has_value() && spec.dependsOnKey->toString().isEmpty())
+                    return false;
+                if (spec.minLength.has_value() && *spec.minLength < 0)
+                    return false;
+                if (spec.maxLength.has_value() && *spec.maxLength < 0)
+                    return false;
+                if (spec.minLength.has_value() && spec.maxLength.has_value() && *spec.minLength > *spec.maxLength)
+                    return false;
+                if (spec.maxAssetBytes.has_value() && *spec.maxAssetBytes <= 0)
                     return false;
 
                 if (spec.kind == WidgetPropertyKind::integer || spec.kind == WidgetPropertyKind::number)
@@ -291,8 +583,11 @@ namespace Gyeol::Widgets
 
                     std::vector<juce::String> optionValues;
                     optionValues.reserve(spec.enumOptions.size());
-                    for (const auto& option : spec.enumOptions)
+                    for (auto& option : spec.enumOptions)
                     {
+                        option.value = option.value.trim();
+                        option.label = option.label.trim().isNotEmpty() ? option.label.trim() : option.value;
+
                         if (option.value.isEmpty())
                             return false;
                         if (std::find(optionValues.begin(), optionValues.end(), option.value) != optionValues.end())
@@ -301,20 +596,28 @@ namespace Gyeol::Widgets
                     }
                 }
 
-                if (!spec.defaultValue.isVoid())
-                {
-                    if (!descriptor.defaultProperties.contains(spec.key))
-                        descriptor.defaultProperties.set(spec.key, spec.defaultValue);
-                }
+                if (spec.defaultValue.isVoid())
+                    spec.defaultValue = defaultValueForPropertyKind(spec);
 
                 if (!descriptor.defaultProperties.contains(spec.key))
+                    descriptor.defaultProperties.set(spec.key, spec.defaultValue);
+
+                if (!descriptor.defaultProperties.contains(spec.key))
+                {
+                    if (spec.required)
+                        return false;
                     continue;
+                }
 
                 const auto& value = descriptor.defaultProperties[spec.key];
                 switch (spec.kind)
                 {
                     case WidgetPropertyKind::text:
                         if (!value.isString())
+                            return false;
+                        if (spec.minLength.has_value() && value.toString().length() < *spec.minLength)
+                            return false;
+                        if (spec.maxLength.has_value() && value.toString().length() > *spec.maxLength)
                             return false;
                         break;
                     case WidgetPropertyKind::integer:
@@ -628,3 +931,8 @@ namespace Gyeol::Widgets
         return registry;
     }
 }
+
+
+
+
+

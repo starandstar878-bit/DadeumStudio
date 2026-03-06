@@ -1,4 +1,4 @@
-#include "Gyeol/Export/JuceComponentExport.h"
+﻿#include "Gyeol/Export/JuceComponentExport.h"
 
 #include "Gyeol/Core/SceneValidator.h"
 #include <algorithm>
@@ -1666,6 +1666,7 @@ bool __CLASS__::setWidgetPropertyById(juce::int64 widgetId,
         root->setProperty("generatedAtUtc", juce::Time::getCurrentTime().toISO8601(true));
         root->setProperty("groupCount", static_cast<int>(document.groups.size()));
         root->setProperty("groupsFlattened", true);
+        root->setProperty("codegenApiVersion", "2.1");
         if (runtimeDataFileName.isNotEmpty())
             root->setProperty("runtimeDataFile", runtimeDataFileName);
 
@@ -1702,6 +1703,8 @@ bool __CLASS__::setWidgetPropertyById(juce::int64 widgetId,
             item->setProperty("usesCustomCodegen", widget->usesCustomCodegen);
             item->setProperty("bounds", serializeBoundsForManifest(widget->model->bounds));
             item->setProperty("properties", serializePropertiesForManifest(widget->model->properties));
+            if (widget->descriptor != nullptr)
+                item->setProperty("schemaV2", serializeWidgetDescriptorSchemaV2(*widget->descriptor, "2.1"));
             widgetArray.add(juce::var(item.release()));
         }
         root->setProperty("widgets", juce::var(widgetArray));
@@ -2249,3 +2252,5 @@ namespace Gyeol::Export
         return juce::Result::ok();
     }
 }
+
+

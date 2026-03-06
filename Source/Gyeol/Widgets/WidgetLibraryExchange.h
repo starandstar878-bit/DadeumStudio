@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Gyeol/Widgets/WidgetRegistry.h"
 #include <JuceHeader.h>
@@ -8,7 +8,7 @@ namespace Gyeol::Widgets
 {
     struct WidgetLibraryManifestVersion
     {
-        int major = 1;
+        int major = 2;
         int minor = 0;
         int patch = 0;
     };
@@ -21,6 +21,7 @@ namespace Gyeol::Widgets
         juce::StringArray tags;
         juce::String iconKey;
         juce::String defaultsSummary;
+        juce::var schemaV2;
     };
 
     struct WidgetLibraryManifestAsset
@@ -40,4 +41,3 @@ namespace Gyeol::Widgets
     juce::Result serializeLibraryManifest(const WidgetRegistry& registry, const juce::File& outputDirectory);
     juce::Result loadLibraryManifest(const juce::File& manifestFile, WidgetLibraryManifestModel& outModel);
 }
-

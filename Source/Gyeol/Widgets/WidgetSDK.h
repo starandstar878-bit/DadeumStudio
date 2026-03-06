@@ -1,7 +1,8 @@
-#pragma once
+﻿#pragma once
 
 #include "Gyeol/Public/Types.h"
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -67,16 +68,29 @@ struct WidgetPropertySpec {
   juce::String label;
   WidgetPropertyKind kind = WidgetPropertyKind::text;
   WidgetPropertyUiHint uiHint = WidgetPropertyUiHint::autoHint;
+  bool required = false;
   juce::String group = "Widget";
   int order = 0;
   juce::String hint;
+  juce::String unit;
+  juce::String displayFormat;
+  juce::String valueCurve;
   juce::var defaultValue;
   std::optional<double> minValue;
   std::optional<double> maxValue;
   std::optional<double> step;
+  std::optional<int> minLength;
+  std::optional<int> maxLength;
+  juce::String regex;
+  juce::String localeKey;
   int decimals = 3;
   std::vector<WidgetEnumOption> enumOptions;
   std::vector<AssetKind> acceptedAssetKinds;
+  juce::StringArray acceptedMimeTypes;
+  std::optional<std::int64_t> maxAssetBytes;
+  juce::String fallbackAssetId;
+  juce::StringArray preloadAssets;
+  bool supportsStreaming = false;
   ColorStorage colorStorage = ColorStorage::hexString;
   bool colorAllowAlpha = true;
   bool colorAllowHdr = false;
@@ -91,6 +105,11 @@ struct RuntimeEventSpec {
   juce::String displayLabel;
   juce::String description;
   bool continuous = false;
+  juce::var payloadSchema;
+  std::optional<int> throttleMs;
+  std::optional<int> debounceMs;
+  juce::String reliability = "bestEffort";
+  juce::String channel = "ui";
 };
 
 using DropOptionsProvider = std::function<std::vector<DropOption>(
@@ -140,6 +159,37 @@ using ExportCodegen = std::function<juce::Result(const ExportCodegenContext &,
 
 struct WidgetDescriptor {
   WidgetType type = WidgetType::button;
+  juce::String schemaVersion = "2.0.0";
+  juce::String manifestVersion = "1.0.0";
+  int widgetTypeVersion = 1;
+  juce::var migrationRules;
+
+  juce::String abiVersion = "1";
+  juce::String abiHash;
+  juce::String sdkMinVersion = "1.0.0";
+  juce::String sdkMaxVersion;
+  juce::StringArray supportedHostVersions;
+  juce::StringArray platformTargets;
+  juce::StringArray architectureTargets;
+
+  juce::String pluginId;
+  juce::String pluginVersion = "1.0.0";
+  juce::String vendor;
+  juce::String releaseChannel = "stable";
+  juce::String publisherFingerprint;
+  juce::String signature;
+
+  juce::StringArray capabilities;
+  juce::String repaintPolicy = "onDemand";
+  std::optional<double> tickRateHintHz;
+  bool supportsOffscreenCache = false;
+  std::optional<double> estimatedPaintCost;
+  std::optional<int> memoryBudgetKb;
+
+  juce::String threadingModel = "main-thread";
+  bool realtimeSafe = false;
+  bool renderThreadOnly = false;
+
   juce::String typeKey;
   juce::String displayName;
   juce::String category;
@@ -151,6 +201,37 @@ struct WidgetDescriptor {
   PropertyBag defaultProperties;
   std::vector<WidgetPropertySpec> propertySpecs;
   std::vector<RuntimeEventSpec> runtimeEvents;
+
+  juce::StringArray supportedActions;
+  juce::StringArray propertyBindings;
+  juce::StringArray stateInputs;
+  juce::StringArray stateOutputs;
+
+  juce::String a11yRole;
+  juce::String a11yLabelKey;
+  juce::String testId;
+  juce::var diagnosticsContract;
+  juce::StringArray telemetryTags;
+
+  juce::String statePolicy;
+  juce::StringArray persistedKeys;
+  juce::String resetPolicy;
+  juce::String migrationPolicy;
+
+  juce::StringArray permissions;
+  juce::String sandboxLevel = "strict";
+  juce::StringArray fileAccess;
+  juce::StringArray networkAccess;
+  juce::StringArray midiAccess;
+  juce::StringArray scriptAccess;
+
+  juce::StringArray requiredJuceModules;
+  juce::StringArray requiredHeaders;
+  juce::StringArray requiredLibraries;
+  juce::StringArray requiredCompileDefinitions;
+  juce::StringArray requiredLinkOptions;
+  juce::String codegenApiVersion;
+
   WidgetPainter painter;
   std::function<void(juce::Graphics &, const juce::Rectangle<float> &)>
       iconPainter;
@@ -186,6 +267,309 @@ inline bool isAssetKindAccepted(const WidgetPropertySpec &spec,
   return std::find(spec.acceptedAssetKinds.begin(),
                    spec.acceptedAssetKinds.end(),
                    kind) != spec.acceptedAssetKinds.end();
+}
+
+inline juce::var emptyRequiredPayloadSchema() {
+  auto payload = std::make_unique<juce::DynamicObject>();
+  juce::Array<juce::var> required;
+  payload->setProperty("required", juce::var(required));
+  return juce::var(payload.release());
+}
+
+inline juce::String widgetPropertyKindToKey(WidgetPropertyKind kind) {
+  switch (kind) {
+  case WidgetPropertyKind::text:
+    return "text";
+  case WidgetPropertyKind::integer:
+    return "integer";
+  case WidgetPropertyKind::number:
+    return "number";
+  case WidgetPropertyKind::boolean:
+    return "boolean";
+  case WidgetPropertyKind::enumChoice:
+    return "enumChoice";
+  case WidgetPropertyKind::color:
+    return "color";
+  case WidgetPropertyKind::vec2:
+    return "vec2";
+  case WidgetPropertyKind::rect:
+    return "rect";
+  case WidgetPropertyKind::assetRef:
+    return "assetRef";
+  }
+
+  return "text";
+}
+
+inline juce::String widgetPropertyUiHintToKey(WidgetPropertyUiHint hint) {
+  switch (hint) {
+  case WidgetPropertyUiHint::autoHint:
+    return "auto";
+  case WidgetPropertyUiHint::lineEdit:
+    return "lineEdit";
+  case WidgetPropertyUiHint::multiLine:
+    return "multiLine";
+  case WidgetPropertyUiHint::spinBox:
+    return "spinBox";
+  case WidgetPropertyUiHint::slider:
+    return "slider";
+  case WidgetPropertyUiHint::toggle:
+    return "toggle";
+  case WidgetPropertyUiHint::dropdown:
+    return "dropdown";
+  case WidgetPropertyUiHint::segmented:
+    return "segmented";
+  case WidgetPropertyUiHint::colorPicker:
+    return "colorPicker";
+  case WidgetPropertyUiHint::vec2Editor:
+    return "vec2Editor";
+  case WidgetPropertyUiHint::rectEditor:
+    return "rectEditor";
+  case WidgetPropertyUiHint::assetPicker:
+    return "assetPicker";
+  }
+
+  return "auto";
+}
+
+inline juce::String colorStorageToKey(ColorStorage storage) {
+  switch (storage) {
+  case ColorStorage::hexString:
+    return "hexString";
+  case ColorStorage::rgbaObject255:
+    return "rgbaObject255";
+  case ColorStorage::rgbaObject01:
+    return "rgbaObject01";
+  case ColorStorage::hslaObject:
+    return "hslaObject";
+  case ColorStorage::argbInt:
+    return "argbInt";
+  case ColorStorage::token:
+    return "token";
+  }
+
+  return "hexString";
+}
+
+inline juce::var stringArrayToVar(const juce::StringArray &values) {
+  juce::Array<juce::var> array;
+  array.ensureStorageAllocated(values.size());
+  for (const auto &value : values) {
+    const auto normalized = value.trim();
+    if (normalized.isNotEmpty())
+      array.add(normalized);
+  }
+  return juce::var(array);
+}
+
+inline juce::var assetKindsToVar(const std::vector<AssetKind> &values) {
+  juce::Array<juce::var> array;
+  array.ensureStorageAllocated(static_cast<int>(values.size()));
+  for (const auto kind : values)
+    array.add(assetKindToKey(kind));
+  return juce::var(array);
+}
+
+inline juce::var serializeWidgetPropertySpecV2(const WidgetPropertySpec &spec) {
+  auto object = std::make_unique<juce::DynamicObject>();
+  object->setProperty("key", spec.key.toString());
+  object->setProperty("label", spec.label);
+  object->setProperty("kind", widgetPropertyKindToKey(spec.kind));
+  object->setProperty("uiHint", widgetPropertyUiHintToKey(spec.uiHint));
+  object->setProperty("required", spec.required);
+  object->setProperty("group", spec.group);
+  object->setProperty("order", spec.order);
+  object->setProperty("hint", spec.hint);
+  object->setProperty("unit", spec.unit);
+  object->setProperty("displayFormat", spec.displayFormat);
+  object->setProperty("valueCurve", spec.valueCurve);
+  object->setProperty("defaultValue", spec.defaultValue);
+  if (spec.minValue.has_value())
+    object->setProperty("min", *spec.minValue);
+  if (spec.maxValue.has_value())
+    object->setProperty("max", *spec.maxValue);
+  if (spec.step.has_value())
+    object->setProperty("step", *spec.step);
+  if (spec.minLength.has_value())
+    object->setProperty("minLength", *spec.minLength);
+  if (spec.maxLength.has_value())
+    object->setProperty("maxLength", *spec.maxLength);
+  object->setProperty("regex", spec.regex);
+  object->setProperty("localeKey", spec.localeKey);
+  object->setProperty("decimals", spec.decimals);
+  object->setProperty("acceptedAssetKinds", assetKindsToVar(spec.acceptedAssetKinds));
+  object->setProperty("acceptedMimeTypes", stringArrayToVar(spec.acceptedMimeTypes));
+  if (spec.maxAssetBytes.has_value())
+    object->setProperty("maxAssetBytes", static_cast<double>(*spec.maxAssetBytes));
+  object->setProperty("fallbackAssetId", spec.fallbackAssetId);
+  object->setProperty("preloadAssets", stringArrayToVar(spec.preloadAssets));
+  object->setProperty("supportsStreaming", spec.supportsStreaming);
+  object->setProperty("colorStorage", colorStorageToKey(spec.colorStorage));
+  object->setProperty("colorAllowAlpha", spec.colorAllowAlpha);
+  object->setProperty("colorAllowHdr", spec.colorAllowHdr);
+  if (spec.dependsOnKey.has_value())
+    object->setProperty("dependsOnKey", spec.dependsOnKey->toString());
+  if (spec.dependsOnValue.has_value())
+    object->setProperty("dependsOnValue", *spec.dependsOnValue);
+  object->setProperty("advanced", spec.advanced);
+  object->setProperty("readOnly", spec.readOnly);
+
+  juce::Array<juce::var> enumOptions;
+  enumOptions.ensureStorageAllocated(static_cast<int>(spec.enumOptions.size()));
+  for (const auto &option : spec.enumOptions) {
+    auto optionObject = std::make_unique<juce::DynamicObject>();
+    optionObject->setProperty("value", option.value);
+    optionObject->setProperty("label", option.label);
+    enumOptions.add(juce::var(optionObject.release()));
+  }
+  object->setProperty("enumOptions", juce::var(enumOptions));
+
+  return juce::var(object.release());
+}
+
+inline juce::var serializeRuntimeEventSpecV2(const RuntimeEventSpec &spec) {
+  auto object = std::make_unique<juce::DynamicObject>();
+  object->setProperty("key", spec.key);
+  object->setProperty("displayLabel", spec.displayLabel);
+  object->setProperty("description", spec.description);
+  object->setProperty("continuous", spec.continuous);
+  object->setProperty("payloadSchema",
+                      spec.payloadSchema.isVoid() ? emptyRequiredPayloadSchema()
+                                                  : spec.payloadSchema);
+  if (spec.throttleMs.has_value())
+    object->setProperty("throttleMs", *spec.throttleMs);
+  if (spec.debounceMs.has_value())
+    object->setProperty("debounceMs", *spec.debounceMs);
+  object->setProperty("reliability", spec.reliability);
+  object->setProperty("channel", spec.channel);
+  return juce::var(object.release());
+}
+
+inline juce::var serializeWidgetDescriptorSchemaV2(
+    const WidgetDescriptor &descriptor,
+    const juce::String &codegenApiVersionOverride = {}) {
+  auto object = std::make_unique<juce::DynamicObject>();
+
+  object->setProperty("schemaVersion", descriptor.schemaVersion);
+  object->setProperty("manifestVersion", descriptor.manifestVersion);
+  object->setProperty("widgetTypeVersion", descriptor.widgetTypeVersion);
+  if (!descriptor.migrationRules.isVoid())
+    object->setProperty("migrationRules", descriptor.migrationRules);
+
+  object->setProperty("abiVersion", descriptor.abiVersion);
+  object->setProperty("abiHash", descriptor.abiHash);
+  object->setProperty("sdkMinVersion", descriptor.sdkMinVersion);
+  object->setProperty("sdkMaxVersion", descriptor.sdkMaxVersion);
+  object->setProperty("supportedHostVersions",
+                      stringArrayToVar(descriptor.supportedHostVersions));
+  object->setProperty("platformTargets",
+                      stringArrayToVar(descriptor.platformTargets));
+  object->setProperty("architectureTargets",
+                      stringArrayToVar(descriptor.architectureTargets));
+
+  object->setProperty("pluginId", descriptor.pluginId);
+  object->setProperty("pluginVersion", descriptor.pluginVersion);
+  object->setProperty("vendor", descriptor.vendor);
+  object->setProperty("releaseChannel", descriptor.releaseChannel);
+  object->setProperty("publisherFingerprint", descriptor.publisherFingerprint);
+  object->setProperty("signature", descriptor.signature);
+
+  object->setProperty("typeKey", descriptor.typeKey);
+  object->setProperty("displayName", descriptor.displayName);
+  object->setProperty("category", descriptor.category);
+  object->setProperty("tags", stringArrayToVar(descriptor.tags));
+  object->setProperty("iconKey", descriptor.iconKey);
+
+  auto defaultBounds = std::make_unique<juce::DynamicObject>();
+  defaultBounds->setProperty("x", descriptor.defaultBounds.getX());
+  defaultBounds->setProperty("y", descriptor.defaultBounds.getY());
+  defaultBounds->setProperty("w", descriptor.defaultBounds.getWidth());
+  defaultBounds->setProperty("h", descriptor.defaultBounds.getHeight());
+  object->setProperty("defaultBounds", juce::var(defaultBounds.release()));
+
+  auto minSize = std::make_unique<juce::DynamicObject>();
+  minSize->setProperty("w", descriptor.minSize.x);
+  minSize->setProperty("h", descriptor.minSize.y);
+  object->setProperty("minSize", juce::var(minSize.release()));
+
+  auto defaultProperties = std::make_unique<juce::DynamicObject>();
+  for (int i = 0; i < descriptor.defaultProperties.size(); ++i)
+    defaultProperties->setProperty(descriptor.defaultProperties.getName(i),
+                                   descriptor.defaultProperties.getValueAt(i));
+  object->setProperty("defaultProperties", juce::var(defaultProperties.release()));
+
+  juce::Array<juce::var> propertySpecsArray;
+  propertySpecsArray.ensureStorageAllocated(
+      static_cast<int>(descriptor.propertySpecs.size()));
+  for (const auto &propertySpec : descriptor.propertySpecs)
+    propertySpecsArray.add(serializeWidgetPropertySpecV2(propertySpec));
+  object->setProperty("propertySpecs", juce::var(propertySpecsArray));
+
+  juce::Array<juce::var> runtimeEventsArray;
+  runtimeEventsArray.ensureStorageAllocated(
+      static_cast<int>(descriptor.runtimeEvents.size()));
+  for (const auto &runtimeEvent : descriptor.runtimeEvents)
+    runtimeEventsArray.add(serializeRuntimeEventSpecV2(runtimeEvent));
+  object->setProperty("runtimeEvents", juce::var(runtimeEventsArray));
+
+  object->setProperty("capabilities", stringArrayToVar(descriptor.capabilities));
+  object->setProperty("repaintPolicy", descriptor.repaintPolicy);
+  if (descriptor.tickRateHintHz.has_value())
+    object->setProperty("tickRateHintHz", *descriptor.tickRateHintHz);
+  object->setProperty("supportsOffscreenCache",
+                      descriptor.supportsOffscreenCache);
+  if (descriptor.estimatedPaintCost.has_value())
+    object->setProperty("estimatedPaintCost", *descriptor.estimatedPaintCost);
+  if (descriptor.memoryBudgetKb.has_value())
+    object->setProperty("memoryBudgetKb", *descriptor.memoryBudgetKb);
+
+  object->setProperty("threadingModel", descriptor.threadingModel);
+  object->setProperty("realtimeSafe", descriptor.realtimeSafe);
+  object->setProperty("renderThreadOnly", descriptor.renderThreadOnly);
+
+  object->setProperty("supportedActions",
+                      stringArrayToVar(descriptor.supportedActions));
+  object->setProperty("propertyBindings",
+                      stringArrayToVar(descriptor.propertyBindings));
+  object->setProperty("stateInputs", stringArrayToVar(descriptor.stateInputs));
+  object->setProperty("stateOutputs", stringArrayToVar(descriptor.stateOutputs));
+
+  object->setProperty("a11yRole", descriptor.a11yRole);
+  object->setProperty("a11yLabelKey", descriptor.a11yLabelKey);
+  object->setProperty("testId", descriptor.testId);
+  if (!descriptor.diagnosticsContract.isVoid())
+    object->setProperty("diagnosticsContract", descriptor.diagnosticsContract);
+  object->setProperty("telemetryTags", stringArrayToVar(descriptor.telemetryTags));
+
+  object->setProperty("statePolicy", descriptor.statePolicy);
+  object->setProperty("persistedKeys", stringArrayToVar(descriptor.persistedKeys));
+  object->setProperty("resetPolicy", descriptor.resetPolicy);
+  object->setProperty("migrationPolicy", descriptor.migrationPolicy);
+
+  object->setProperty("permissions", stringArrayToVar(descriptor.permissions));
+  object->setProperty("sandboxLevel", descriptor.sandboxLevel);
+  object->setProperty("fileAccess", stringArrayToVar(descriptor.fileAccess));
+  object->setProperty("networkAccess", stringArrayToVar(descriptor.networkAccess));
+  object->setProperty("midiAccess", stringArrayToVar(descriptor.midiAccess));
+  object->setProperty("scriptAccess", stringArrayToVar(descriptor.scriptAccess));
+
+  object->setProperty("requiredJuceModules",
+                      stringArrayToVar(descriptor.requiredJuceModules));
+  object->setProperty("requiredHeaders",
+                      stringArrayToVar(descriptor.requiredHeaders));
+  object->setProperty("requiredLibraries",
+                      stringArrayToVar(descriptor.requiredLibraries));
+  object->setProperty("requiredCompileDefinitions",
+                      stringArrayToVar(descriptor.requiredCompileDefinitions));
+  object->setProperty("requiredLinkOptions",
+                      stringArrayToVar(descriptor.requiredLinkOptions));
+  object->setProperty("codegenApiVersion",
+                      codegenApiVersionOverride.isNotEmpty()
+                          ? codegenApiVersionOverride
+                          : descriptor.codegenApiVersion);
+  object->setProperty("exportTargetType", descriptor.exportTargetType);
+
+  return juce::var(object.release());
 }
 
 class WidgetClass {

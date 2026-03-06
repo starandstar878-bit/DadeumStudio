@@ -48,27 +48,27 @@
 ### 구현 단계
 
 #### 단계 1: 노드 디스크립터 시스템
-- [ ] **`TNodeDescriptor` 구조체**: 타입 키, 표시 이름, 카테고리, 기본 파라미터 스펙, 포트 레이아웃 정의
-- [ ] **`TNodeRegistry` 클래스**: 디스크립터 맵을 보유하고 `registerNode()`, `descriptorFor()` 인터페이스 제공
-- [ ] **`makeDefaultNodeRegistry()`**: 기본 내장 노드들을 등록하는 전역 팩토리 함수
+- [x] **`TNodeDescriptor` 구조체**: 타입 키, 표시 이름, 카테고리, 기본 파라미터 스펙, 포트 레이아웃 정의
+- [x] **`TNodeRegistry` 클래스**: 디스크립터 맵을 보유하고 `registerNode()`, `descriptorFor()` 인터페이스 제공
+- [x] **`makeDefaultNodeRegistry()`**: 기본 내장 노드들을 등록하는 전역 팩토리 함수
 
 #### 단계 2: 내장 DSP 노드 타입 구현
 
 > 🥇 **Core** — 첫 구현 대상 / 🥈 **Advanced** — 기능이 안정된 후 / 🥉 **Optional** — 여유 있을 때
 
 ##### 🔊 Source — 신호 생성
-- [ ] 🥇 **`Oscillator` (VCO)**: 사인/삼각/사각/톱니/펄스 파형, 주파수·진폭·위상 파라미터. UI 파형 미리보기 연동
-- [ ] 🥇 **`LFO`**: 저주파 오실레이터(0.001Hz~20Hz), CV 포트로 다른 노드 파라미터 변조용
-- [ ] 🥇 **`NoiseGenerator`**: White / Pink / Brown 노이즈 출력
+- [x] 🥇 **`Oscillator` (VCO)**: 사인/삼각/사각/톱니/펄스 파형, 주파수·진폭·위상 파라미터. UI 파형 미리보기 연동
+- [x] 🥇 **`LFO`**: 저주파 오실레이터(0.001Hz~20Hz), CV 포트로 다른 노드 파라미터 변조용
+- [x] 🥇 **`NoiseGenerator`**: White / Pink / Brown 노이즈 출력
 - [ ] 🥈 **`SamplePlayer`**: `.wav/.aiff` 파일 재생, Loop/One-shot 모드
-- [ ] 🥇 **`MidiInput`**: 노트/CC/Pitch Bend 데이터를 CV·Gate 포트로 방출
+- [x] 🥇 **`MidiInput`**: 노트/CC/Pitch Bend 데이터를 CV·Gate 포트로 방출
 - [ ] 🥈 **`Clock`**: BPM 기반 게이트 펄스 생성, 박자 분할 설정 (1/4, 1/8, 1/16 등)
-- [ ] 🥇 **`Constant`**: 고정 float 값을 CV 포트로 출력 (바이어스/오프셋용)
+- [x] 🥇 **`Constant`**: 고정 float 값을 CV 포트로 출력 (바이어스/오프셋용)
 
 ##### 🔬 Filter / EQ — 필터링
-- [ ] 🥇 **`LowPassFilter`**: Biquad / Ladder / SVF 알고리즘 선택, 컷오프·Q·CV 변조 입력
-- [ ] 🥇 **`HighPassFilter`**: 동상
-- [ ] 🥇 **`BandPassFilter`**: 동상
+- [x] 🥇 **`LowPassFilter`**: Biquad / Ladder / SVF 알고리즘 선택, 컷오프·Q·CV 변조 입력
+- [x] 🥇 **`HighPassFilter`**: 동상
+- [x] 🥇 **`BandPassFilter`**: 동상
 - [ ] 🥈 **`NotchFilter`**: 특정 주파수 제거
 - [ ] 🥈 **`PeakEQ`**: 중간 주파수 부스트/컷
 - [ ] 🥈 **`ShelfEQ`**: Low/High Shelf 필터
@@ -82,19 +82,19 @@
 - [ ] 🥈 **`EnvelopeFollower`**: 입력 신호 진폭 변화를 CV로 추출해 다른 파라미터 변조
 
 ##### 🌊 Modulation — 변조
-- [ ] 🥇 **`ADSR`**: Attack/Decay/Sustain/Release. UI 커브 미리보기 연동
+- [x] 🥇 **`ADSR`**: Attack/Decay/Sustain/Release. UI 커브 미리보기 연동
 - [ ] 🥈 **`AR`**: 단순 Attack/Release 엔벨로프
 - [ ] 🥈 **`SampleAndHold`**: 트리거 수신 시 현재 값 래치 → 스텝형 CV 생성
 - [ ] 🥈 **`Lag`** (Slew Limiter): CV 변화 속도를 제한해 글라이드 표현
 - [ ] 🥈 **`RingModulator`**: 두 신호를 곱해 사이드밴드 생성
 
 ##### 🏛️ Delay / Reverb — 공간·시간
-- [ ] 🥇 **`DelayLine`**: 딜레이 시간(ms/박자), Feedback, Dry/Wet Mix
+- [x] 🥇 **`DelayLine`**: 딜레이 시간(ms/박자), Feedback, Dry/Wet Mix
 - [ ] 🥈 **`PingPongDelay`**: 좌우 스테레오 교차 딜레이
 - [ ] 🥈 **`Chorus`**: 피치 미세 변조 + 딜레이 혼합
 - [ ] 🥈 **`Flanger`**: CombFilter + LFO 기반 짧은 딜레이
 - [ ] 🥈 **`Phaser`**: All-pass 필터 체인 기반 위상 변조
-- [ ] 🥇 **`Reverb`**: Freeverb 알고리즘, Room Size/Damping/Width/Dry-Wet
+- [x] 🥇 **`Reverb`**: Freeverb 알고리즘, Room Size/Damping/Width/Dry-Wet
 
 ##### 🔥 Distortion / Waveshaping — 왜곡
 - [ ] 🥈 **`Waveshaper`**: Tanh / Soft Clip / Hard Clip / 커스텀 커브 선택
@@ -102,29 +102,29 @@
 - [ ] 🥉 **`FrequencyShifter`**: 피치 유지, 주파수 스펙트럼 이동 (Hilbert transform 기반)
 
 ##### 🎚️ Mixer / Routing — 믹싱·라우팅
-- [ ] 🥇 **`VCA`** (Gain): 볼륨 조절, CV 변조입력 지원
-- [ ] 🥇 **`StereoPanner`**: 좌/우 패닝, CV 변조 가능
-- [ ] 🥇 **`Mixer2`** / **`Mixer4`** / **`Mixer8`**: 다채널 오디오 믹서
+- [x] 🥇 **`VCA`** (Gain): 볼륨 조절, CV 변조입력 지원
+- [x] 🥇 **`StereoPanner`**: 좌/우 패닝, CV 변조 가능
+- [x] 🥇 **`Mixer2`** / **`Mixer4`** / **`Mixer8`**: 다채널 오디오 믹서
 - [ ] 🥈 **`Crossfader`**: A/B 두 신호를 비율 블렌딩
 - [ ] 🥈 **`StereoSplitter`** / **`StereoMerger`**: Stereo↔L/R 모노 분리·병합
 - [ ] 🥈 **`Send`** / **`Return`**: 그래프 내 글로벌 버스 라우팅
-- [ ] 🥇 **`AudioOutput`**: 최종 오디오 신호 버스 연결 (필수 출력 노드)
+- [x] 🥇 **`AudioOutput`**: 최종 오디오 신호 버스 연결 (필수 출력 노드)
 
 ##### 🔢 Math / Logic — 수학·논리
-- [ ] 🥇 **`Add`** / **`Subtract`** / **`Multiply`** / **`Divide`**: CV 신호 기초 사칙연산
-- [ ] 🥇 **`Clamp`**: 신호를 Min~Max 범위로 제한
-- [ ] 🥇 **`ValueMap`**: 입력 범위 → 출력 범위 선형 변환
+- [x] 🥇 **`Add`** / **`Subtract`** / **`Multiply`** / **`Divide`**: CV 신호 기초 사칙연산
+- [x] 🥇 **`Clamp`**: 신호를 Min~Max 범위로 제한
+- [x] 🥇 **`ValueMap`**: 입력 범위 → 출력 범위 선형 변환
 - [ ] 🥈 **`Quantizer`**: CV 신호를 음계·코드에 맞는 값으로 스냅
 - [ ] 🥈 **`Comparator`**: 두 신호 비교 → Gate 신호 출력
 - [ ] 🥈 **`Abs`** / **`Min`** / **`Max`**: 절댓값, 최소·최대값 선택
 
 ##### 🎹 MIDI Processing — MIDI 처리
-- [ ] 🥇 **`MidiToCV`**: 노트 번호→Hz 주파수, Velocity→진폭 CV 변환
+- [x] 🥇 **`MidiToCV`**: 노트 번호→Hz 주파수, Velocity→진폭 CV 변환
 - [ ] 🥈 **`MidiCCToValue`**: CC 번호를 float CV 신호로 변환
 - [ ] 🥉 **`Arpeggiator`**: 코드를 받아 아르페지오 순서로 노트 출력
 - [ ] 🥉 **`Chord`**: 단일 노트 입력 → 코드 보이싱 확장
 - [ ] 🥉 **`MidiFilter`**: 채널/노트 범위 필터링
-- [ ] 🥇 **`MidiOutput`**: 그래프 결과를 외부 MIDI 포트로 출력
+- [x] 🥇 **`MidiOutput`**: 그래프 결과를 외부 MIDI 포트로 출력
 
 ##### 📊 Analysis / Visualization — 분석 시각화
 - [ ] 🥈 **`Oscilloscope`**: 오디오 신호 파형을 노드 바디 내 실시간 렌더링

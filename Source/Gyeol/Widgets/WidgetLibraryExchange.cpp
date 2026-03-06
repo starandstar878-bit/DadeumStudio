@@ -1,4 +1,4 @@
-#include "Gyeol/Widgets/WidgetLibraryExchange.h"
+﻿#include "Gyeol/Widgets/WidgetLibraryExchange.h"
 
 #include <algorithm>
 
@@ -53,6 +53,8 @@ namespace Gyeol::Widgets
                 object->setProperty("category", widget.category);
                 object->setProperty("iconKey", widget.iconKey);
                 object->setProperty("defaultsSummary", widget.defaultsSummary);
+                if (!widget.schemaV2.isVoid())
+                    object->setProperty("schemaV2", widget.schemaV2);
 
                 juce::Array<juce::var> tagsArray;
                 tagsArray.ensureStorageAllocated(widget.tags.size());
@@ -113,6 +115,7 @@ namespace Gyeol::Widgets
             widget.tags = descriptor->tags;
             widget.iconKey = descriptor->iconKey;
             widget.defaultsSummary = buildDefaultsSummary(*descriptor);
+            widget.schemaV2 = serializeWidgetDescriptorSchemaV2(*descriptor);
             manifest.widgets.push_back(std::move(widget));
         }
 
@@ -189,6 +192,8 @@ namespace Gyeol::Widgets
                 widget.defaultsSummary = widgetProps.contains("defaultsSummary")
                                            ? widgetProps["defaultsSummary"].toString()
                                            : juce::String();
+                if (widgetProps.contains("schemaV2"))
+                    widget.schemaV2 = widgetProps["schemaV2"];
 
                 if (widgetProps.contains("tags") && widgetProps["tags"].isArray())
                 {
@@ -234,4 +239,3 @@ namespace Gyeol::Widgets
         return juce::Result::ok();
     }
 }
-

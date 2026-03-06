@@ -1,4 +1,4 @@
-# Gyeol 로드맵
+﻿# Gyeol 로드맵
 업데이트: 2026-03-05
 
 ## Phase 개요
@@ -396,9 +396,9 @@
 ### 구현 단계 (구체화된 Step-by-Step)
 
 #### 단계 0: 위젯 속성 스키마 확장 (Schema Expansion)
-- [ ] **속성 확장 스펙 고정**: 외부 위젯 메타데이터/프로퍼티/이벤트 payload 스키마를 `WidgetSDK.h`와 `GyeolWidgetPluginABI.h`에 동기화한다.
-- [ ] **레지스트리 검증 규칙 확장**: 신규 속성의 필수/권장/선택/자동 필드를 구분해 `WidgetRegistry::registerWidget` 검증 규칙에 반영한다.
-- [ ] **매니페스트/Export 연계**: 새 속성이 `WidgetLibraryManifest`, `ExportManifest`, 코드 생성 경로에 누락 없이 전달되는지 검증한다.
+- [~] **속성 확장 스펙 고정**: 외부 위젯 메타데이터/프로퍼티/이벤트 payload 스키마를 `WidgetSDK.h`와 `GyeolWidgetPluginABI.h`에 동기화한다.
+- [~] **레지스트리 검증 규칙 확장**: 신규 속성의 필수/권장/선택/자동 필드를 구분해 `WidgetRegistry::registerWidget` 검증 규칙에 반영한다.
+- [~] **매니페스트/Export 연계**: 새 속성이 `WidgetLibraryManifest`, `ExportManifest`, 코드 생성 경로에 누락 없이 전달되는지 검증한다.
 
 ##### 확장된 위젯 속성 리스트 (v2, 확정안)
 - **스키마/버전 계약**: `schemaVersion`, `manifestVersion`, `widgetTypeVersion`, `migrationRules`
@@ -650,3 +650,4 @@
 - [ ] Undo/Redo 불일치 0건
 - [ ] Export 생성물 컴파일 통과
 - [ ] CRLF 라인 엔딩 유지
+
