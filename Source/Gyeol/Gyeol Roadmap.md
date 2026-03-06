@@ -473,7 +473,7 @@
 - [x] **버전 호환성 및 충돌 검사**: 새로 로드되는 DLL의 SDK 버전이 에디터의 버전과 다를 경우 로드를 차단하거나, 기존 동일 UUID를 가진 위젯과 충돌할 때 경고를 발생시키는 로직 포함
 
 #### 단계 3: 안전한 렌더링 및 플레이스홀더 샌드박싱 (Error Handling)
-- [x] **예외 포착 (Exception Boundary)**: 외부 DLL 위젯의 `paint()`나 속성 변경 함수 호출 중 발생할 수 있는 크래시(Access Violation 등)를 최소화시키기 위한 SEH/Try-Catch 보호 래퍼(Wrapper) 적용
+- [~] **예외 포착 (Exception Boundary)**: 외부 DLL 위젯의 `paint()`나 속성 변경 함수 호출 중 발생할 수 있는 크래시(Access Violation 등)를 최소화시키기 위한 SEH/Try-Catch 보호 래퍼(Wrapper) 적용
 - [x] **플레이스홀더 전환 (Graceful Fallback)**: DLL 파일을 찾을 수 없거나 로드에 실패한(버전 불일치, 오류 발생 등) 커스텀 위젯은 캔버스에서 투명해지는 대신, 붉은 테두리의 "Missing Plugin: [위젯명]" 형태의 **Placeholder 위젯으로 즉시 변환**
 - [x] **Validation 패널 연동**: 로드 실패나 속성 불일치가 발생할 경우 Phase 3.5에서 만든 `Validation Panel`에 딥 링크가 연결된 치명 에러(Error)로 즉각 리포팅
 
@@ -485,7 +485,7 @@
 ### 수정/추가 레퍼런스
 - 수정 대상: `Source/Gyeol/Widgets/WidgetSDK.h`, `Source/Gyeol/Widgets/GyeolWidgetPluginABI.h`
 - 내부 개편: `Source/Gyeol/Widgets/WidgetRegistry.*` (동적 주입 허용)
-- 신규 작성: `Source/Gyeol/Widgets/WidgetPackageManager.h / .cpp` (DynamicLibrary 로딩 관리)
+- 신규 작성: `Source/Gyeol/Widgets/WidgetPackageManager.h` (header-only, DynamicLibrary 로딩 관리)
 - 신규 작성: `Source/Gyeol/Widgets/PlaceholderWidget.h / .cpp` (Fallback 처리반)
 - 융합 로직: `Source/Gyeol/Core/SceneValidator.h` (DLL 누락/에러 리포팅 검수)
 - 융합 로직: `Source/Gyeol/Export/JuceComponentExport.*` (DLL 파일 에셋 복사 및 CMake/Jucer 링커 주입)
