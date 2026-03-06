@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <exception>
 #include <vector>
 
 namespace Gyeol::Ui::Canvas
@@ -28,6 +29,21 @@ namespace Gyeol::Ui::Canvas
                 + " (type=" + juce::String(ordinal) + ")");
         }
 
+        void warnMissingPluginWidgetOnce(const juce::String& typeKey,
+                                         const char* context)
+        {
+            static juce::StringArray warnedTypeKeys;
+            const auto normalized = typeKey.trim();
+            if (normalized.isEmpty())
+                return;
+
+            if (warnedTypeKeys.contains(normalized))
+                return;
+
+            warnedTypeKeys.add(normalized);
+            DBG("[Gyeol][Canvas] Missing external widget descriptor in "
+                + juce::String(context) + " (typeKey=" + normalized + ")");
+        }
         bool isNearMajorGrid(float value, float majorStep, float minorStep) noexcept
         {
             if (majorStep <= 0.0f)
@@ -274,26 +290,58 @@ namespace Gyeol::Ui::Canvas
             g.setColour(juce::Colour::fromRGBA(230, 68, 57, 150));
             g.drawRoundedRectangle(body, 5.0f, 1.0f);
         }
-        else if (const auto* descriptor = widgetFactory.descriptorFor(widget.type);
-                 descriptor != nullptr && static_cast<bool>(descriptor->painter))
-        {
-            descriptor->painter(g, widget, body);
-            g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
-            g.drawRoundedRectangle(body, 5.0f, 1.0f);
-        }
         else
         {
-            warnUnsupportedWidgetOnce(widget.type, "CanvasRenderer::paintWidget");
-            g.setColour(palette(Gyeol::GyeolPalette::ControlBase));
-            g.fillRoundedRectangle(body, 4.0f);
-            g.setColour(palette(Gyeol::GyeolPalette::ValidError));
-            g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-            g.drawFittedText("Unsupported",
-                             body.reduced(4.0f).toNearestInt(),
-                             juce::Justification::centred,
-                             1);
-            g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
-            g.drawRoundedRectangle(body, 5.0f, 1.0f);
+            const auto* descriptor = widgetFactory.descriptorFor(widget);
+            const auto widgetTypeKey = Widgets::widgetTypeKeyForWidget(widget);
+
+            bool paintedByDescriptor = false;
+            if (descriptor != nullptr && static_cast<bool>(descriptor->painter))
+            {
+                try
+                {
+                    descriptor->painter(g, widget, body);
+                    paintedByDescriptor = true;
+                }
+                catch (const std::exception& exception)
+                {
+                    DBG("[Gyeol][Canvas] External painter threw std::exception: "
+                        + juce::String(exception.what()));
+                }
+                catch (...)
+                {
+                    DBG("[Gyeol][Canvas] External painter threw unknown exception.");
+                }
+            }
+
+            if (paintedByDescriptor)
+            {
+                g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
+                g.drawRoundedRectangle(body, 5.0f, 1.0f);
+            }
+            else
+            {
+                const bool missingExternalWidget = widgetTypeKey.isNotEmpty();
+                if (missingExternalWidget)
+                    warnMissingPluginWidgetOnce(widgetTypeKey, "CanvasRenderer::paintWidget");
+                else
+                    warnUnsupportedWidgetOnce(widget.type, "CanvasRenderer::paintWidget");
+
+                g.setColour(palette(Gyeol::GyeolPalette::ControlBase));
+                g.fillRoundedRectangle(body, 4.0f);
+                g.setColour(palette(Gyeol::GyeolPalette::ValidError));
+                g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+
+                const auto fallbackText = missingExternalWidget
+                                              ? ("Missing Plugin: " + widgetTypeKey)
+                                              : juce::String("Unsupported");
+                g.drawFittedText(fallbackText,
+                                 body.reduced(4.0f).toNearestInt(),
+                                 juce::Justification::centred,
+                                 2);
+                g.setColour(palette(Gyeol::GyeolPalette::BorderDefault));
+                g.drawRoundedRectangle(body, 5.0f, 1.0f);
+            }
         }
 
         if (!heatmapModeEnabled && clampedOpacity < 0.999f)

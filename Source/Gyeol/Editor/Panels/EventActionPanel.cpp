@@ -204,7 +204,7 @@ juce::String widgetDisplayName(const WidgetModel &widget,
 
   // ?�꿸???�? ??????�?���?+ ID
   juce::String typeLabel = "Widget";
-  if (const auto *descriptor = registry.find(widget.type);
+  if (const auto *descriptor = registry.findForWidget(widget);
       descriptor != nullptr) {
     if (descriptor->displayName.isNotEmpty())
       typeLabel = descriptor->displayName;
@@ -1684,7 +1684,7 @@ void EventActionPanel::rebuildWidgetOptions() {
   for (const auto &widget : snapshot.widgets) {
     WidgetOption option;
     option.id = widget.id;
-    if (const auto *descriptor = registry.find(widget.type);
+    if (const auto *descriptor = registry.findForWidget(widget);
         descriptor != nullptr) {
       option.events = descriptor->runtimeEvents;
     }
@@ -2853,7 +2853,7 @@ void EventActionPanel::rebuildAssetPatchEditors(
   if (widgetIt == snapshot.widgets.end())
     return;
 
-  const auto *descriptor = registry.find(widgetIt->type);
+  const auto *descriptor = registry.findForWidget(*widgetIt);
   if (descriptor == nullptr)
     return;
 

@@ -1573,7 +1573,7 @@ juce::Point<float> CanvasComponent::currentViewOriginWorld() const noexcept
         if (widget == nullptr)
             return std::nullopt;
 
-        const auto* descriptor = widgetFactory.descriptorFor(widget->type);
+        const auto* descriptor = widgetFactory.descriptorFor(*widget);
         if (descriptor == nullptr || !static_cast<bool>(descriptor->dropOptions))
             return std::nullopt;
 
@@ -1601,7 +1601,7 @@ juce::Point<float> CanvasComponent::currentViewOriginWorld() const noexcept
         if (widget == nullptr)
             return false;
 
-        const auto* descriptor = widgetFactory.descriptorFor(widget->type);
+        const auto* descriptor = widgetFactory.descriptorFor(*widget);
         if (descriptor == nullptr)
             return false;
 

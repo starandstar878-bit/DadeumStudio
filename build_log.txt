@@ -1,4 +1,18 @@
 
-  PerformancePanel.cpp
+  CanvasComponent.cpp
+  CanvasRenderer.cpp
+  EditorHandle.cpp
+  AssetsPanel.cpp
+  EventActionPanel.cpp
+  LayerTreePanel.cpp
+  PropertyEditorFactory.cpp
+  PropertyPanel.cpp
+  ValidationPanel.cpp
+  WidgetLibraryPanel.cpp
+  JuceComponentExport.cpp
+  WidgetLibraryExchange.cpp
+  Main.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\AssetsPanel.cpp(266,35): warning C4996: 'juce::Font::Font': Use the constructor that takes a FontOptions argument [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\AssetsPanel.cpp(922,14): warning C4189: 'previousSelectedId': 지역 변수가 초기화되었으나 참조되지 않았습니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   DadeumStudio_App.vcxproj -> C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\x64\Debug\App\DadeumStudio.exe
 EXIT_CODE=0 

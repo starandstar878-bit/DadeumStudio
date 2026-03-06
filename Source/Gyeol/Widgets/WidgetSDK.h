@@ -140,6 +140,50 @@ struct InteractionHandlers {
 using WidgetPainter = std::function<void(juce::Graphics &, const WidgetModel &,
                                          const juce::Rectangle<float> &)>;
 
+class IPropertyProvider {
+public:
+  virtual ~IPropertyProvider() = default;
+  virtual const std::vector<WidgetPropertySpec> &propertySpecs() const = 0;
+  virtual const PropertyBag &defaultProperties() const = 0;
+};
+
+class IGyeolCustomWidget : public IPropertyProvider {
+public:
+  ~IGyeolCustomWidget() override = default;
+
+  virtual juce::String typeKey() const = 0;
+  virtual juce::String displayName() const = 0;
+  virtual juce::Rectangle<float> defaultBounds() const = 0;
+  virtual juce::Point<float> minSize() const = 0;
+
+  virtual void paint(juce::Graphics &g, const WidgetModel &widget,
+                     const juce::Rectangle<float> &bounds) = 0;
+
+  virtual bool hitTest(const WidgetModel &, juce::Point<float>) const {
+    return true;
+  }
+
+  virtual juce::MouseCursor cursorFor(const WidgetModel &,
+                                      juce::Point<float>) const {
+    return juce::MouseCursor::NormalCursor;
+  }
+
+  virtual ConsumeEvent onMouseDown(const WidgetModel &, const juce::MouseEvent &,
+                                   PropertyBag &) {
+    return ConsumeEvent::no;
+  }
+
+  virtual ConsumeEvent onMouseDrag(const WidgetModel &, const juce::MouseEvent &,
+                                   PropertyBag &) {
+    return ConsumeEvent::no;
+  }
+
+  virtual ConsumeEvent onMouseUp(const WidgetModel &, const juce::MouseEvent &,
+                                 PropertyBag &) {
+    return ConsumeEvent::no;
+  }
+};
+
 struct ExportCodegenContext {
   const WidgetModel &widget;
   juce::String memberName;
@@ -176,6 +220,8 @@ struct WidgetDescriptor {
   juce::String pluginVersion = "1.0.0";
   juce::String vendor;
   juce::String releaseChannel = "stable";
+  bool isExternalPlugin = false;
+  juce::String pluginBinaryPath;
   juce::String publisherFingerprint;
   juce::String signature;
 
@@ -243,6 +289,42 @@ struct WidgetDescriptor {
   DropOptionsProvider dropOptions;
   ApplyDrop applyDrop;
 };
+
+inline constexpr const char *kWidgetTypeKeyPropertyName =
+    "__gyeol.widgetTypeKey";
+
+inline const juce::Identifier &widgetTypeKeyPropertyId() {
+  static const juce::Identifier propertyId(kWidgetTypeKeyPropertyName);
+  return propertyId;
+}
+
+inline juce::String widgetTypeKeyFromProperties(const PropertyBag &properties) {
+  const auto &propertyId = widgetTypeKeyPropertyId();
+  if (!properties.contains(propertyId))
+    return {};
+
+  return properties[propertyId].toString().trim();
+}
+
+inline juce::String widgetTypeKeyForWidget(const WidgetModel &widget) {
+  return widgetTypeKeyFromProperties(widget.properties);
+}
+
+inline bool isExternalWidgetModel(const WidgetModel &widget) {
+  return widgetTypeKeyForWidget(widget).isNotEmpty();
+}
+
+inline void setWidgetTypeKey(PropertyBag &properties,
+                             const juce::String &typeKey) {
+  const auto normalizedTypeKey = typeKey.trim();
+  const auto &propertyId = widgetTypeKeyPropertyId();
+  if (normalizedTypeKey.isEmpty()) {
+    properties.remove(propertyId);
+    return;
+  }
+
+  properties.set(propertyId, normalizedTypeKey);
+}
 
 inline const WidgetPropertySpec *
 findPropertySpec(const std::vector<WidgetPropertySpec> &specs,
@@ -394,6 +476,8 @@ inline void applyBuiltinDescriptorDefaults(WidgetDescriptor &descriptor,
   descriptor.pluginVersion = "1.0.0";
   descriptor.vendor = "Dadeum";
   descriptor.releaseChannel = "stable";
+  descriptor.isExternalPlugin = false;
+  descriptor.pluginBinaryPath.clear();
   descriptor.sdkMinVersion = "1.0.0";
   descriptor.abiVersion = "1";
   descriptor.supportedHostVersions = {"1.0.0"};
@@ -512,6 +596,8 @@ inline juce::var serializeWidgetDescriptorSchemaV2(
   object->setProperty("pluginVersion", descriptor.pluginVersion);
   object->setProperty("vendor", descriptor.vendor);
   object->setProperty("releaseChannel", descriptor.releaseChannel);
+  object->setProperty("isExternalPlugin", descriptor.isExternalPlugin);
+  object->setProperty("pluginBinaryPath", descriptor.pluginBinaryPath);
   object->setProperty("publisherFingerprint", descriptor.publisherFingerprint);
   object->setProperty("signature", descriptor.signature);
 

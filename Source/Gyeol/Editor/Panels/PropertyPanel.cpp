@@ -1763,4 +1763,3 @@ void PropertyPanel::rebuildContent() {
   repaint();
 }
 } // namespace Gyeol::Ui::Panels
-

@@ -1,4 +1,4 @@
-﻿#include "Gyeol/Export/JuceComponentExport.h"
+#include "Gyeol/Export/JuceComponentExport.h"
 
 #include "Gyeol/Core/SceneValidator.h"
 #include <algorithm>
@@ -1745,6 +1745,80 @@ bool __CLASS__::setWidgetPropertyById(juce::int64 widgetId,
         root->setProperty("assets", juce::var(assetArray));
         root->setProperty("exportedAssets", juce::var(assetArray));
 
+
+        std::map<juce::String, int> dependencyIndexByKey;
+        std::vector<juce::StringArray> dependencyTypeKeys;
+        juce::Array<juce::var> dependenciesArray;
+
+        const auto dependencyKeyFor = [](const Gyeol::Widgets::WidgetDescriptor& descriptor) -> juce::String
+        {
+            return descriptor.pluginId + "|" + descriptor.pluginVersion + "|" + descriptor.pluginBinaryPath;
+        };
+
+        for (const auto* widget : sortedWidgets)
+        {
+            if (widget == nullptr || widget->descriptor == nullptr)
+                continue;
+
+            const auto& descriptor = *widget->descriptor;
+            if (!descriptor.isExternalPlugin && descriptor.pluginBinaryPath.trim().isEmpty())
+                continue;
+
+            const auto dependencyKey = dependencyKeyFor(descriptor);
+            auto found = dependencyIndexByKey.find(dependencyKey);
+            int dependencyIndex = -1;
+
+            if (found == dependencyIndexByKey.end())
+            {
+                auto dependency = std::make_unique<juce::DynamicObject>();
+                dependency->setProperty("pluginId", descriptor.pluginId);
+                dependency->setProperty("pluginVersion", descriptor.pluginVersion);
+                dependency->setProperty("binaryPath", descriptor.pluginBinaryPath);
+
+                juce::String packagedPath;
+                if (descriptor.pluginBinaryPath.trim().isNotEmpty())
+                {
+                    const juce::File binaryFile(descriptor.pluginBinaryPath);
+                    packagedPath = "Plugins/" + binaryFile.getFileName();
+                }
+                dependency->setProperty("packagedPath", packagedPath);
+
+                dependencyIndex = dependenciesArray.size();
+                dependencyIndexByKey.emplace(dependencyKey, dependencyIndex);
+                dependencyTypeKeys.emplace_back();
+                dependenciesArray.add(juce::var(dependency.release()));
+            }
+            else
+            {
+                dependencyIndex = found->second;
+            }
+
+            if (dependencyIndex >= 0
+                && dependencyIndex < static_cast<int>(dependencyTypeKeys.size()))
+            {
+                if (!dependencyTypeKeys[static_cast<size_t>(dependencyIndex)]
+                         .contains(widget->typeKey))
+                {
+                    dependencyTypeKeys[static_cast<size_t>(dependencyIndex)]
+                        .add(widget->typeKey);
+                }
+            }
+        }
+
+        for (int i = 0; i < dependenciesArray.size(); ++i)
+        {
+            auto* dependencyObject = dependenciesArray.getReference(i).getDynamicObject();
+            if (dependencyObject == nullptr)
+                continue;
+
+            if (i < static_cast<int>(dependencyTypeKeys.size()))
+                dependencyObject->setProperty("typeKeys",
+                                              Gyeol::Widgets::stringArrayToVar(dependencyTypeKeys[static_cast<size_t>(i)]));
+            else
+                dependencyObject->setProperty("typeKeys", Gyeol::Widgets::stringArrayToVar(juce::StringArray()));
+        }
+
+        root->setProperty("dependencies", juce::var(dependenciesArray));
         // Legacy key retained for one release for tooling compatibility.
         root->setProperty("copiedResources", juce::var(assetArray));
 
@@ -2030,7 +2104,7 @@ namespace Gyeol::Export
         {
             ExportWidgetEntry entry;
             entry.model = &widget;
-            entry.descriptor = registry.find(widget.type);
+            entry.descriptor = registry.findForWidget(widget);
 
             if (entry.descriptor != nullptr)
             {
@@ -2196,6 +2270,67 @@ namespace Gyeol::Export
 
             if (asset.kind == AssetKind::image && copied.destinationRelativePath.isNotEmpty())
                 preloadImagePathsSet.insert(copied.destinationRelativePath);
+        }
+
+
+        std::map<juce::String, juce::String> copiedPluginBySourcePath;
+        const auto pluginsDirectory = options.outputDirectory.getChildFile("Plugins");
+        bool pluginsDirectoryPrepared = false;
+
+        for (const auto& widgetEntry : exportWidgets)
+        {
+            if (widgetEntry.descriptor == nullptr)
+                continue;
+
+            const auto& descriptor = *widgetEntry.descriptor;
+            if (!descriptor.isExternalPlugin && descriptor.pluginBinaryPath.trim().isEmpty())
+                continue;
+
+            const auto pluginPath = descriptor.pluginBinaryPath.trim();
+            if (pluginPath.isEmpty())
+            {
+                reportOut.addIssue(IssueSeverity::warning,
+                                   "External widget dependency path is empty: typeKey=" + descriptor.typeKey);
+                continue;
+            }
+
+            const juce::File sourcePlugin(pluginPath);
+            if (!sourcePlugin.existsAsFile())
+            {
+                reportOut.addIssue(IssueSeverity::warning,
+                                   "External widget dependency file not found: " + pluginPath);
+                continue;
+            }
+
+            if (!pluginsDirectoryPrepared)
+            {
+                const auto ensurePlugins = ensureDirectory(pluginsDirectory);
+                if (ensurePlugins.failed())
+                    return fail(ensurePlugins.getErrorMessage());
+                pluginsDirectoryPrepared = true;
+            }
+
+            const auto sourceKey = sourcePlugin.getFullPathName().replaceCharacter('\\', '/');
+            if (copiedPluginBySourcePath.find(sourceKey) != copiedPluginBySourcePath.end())
+                continue;
+
+            const auto destination = pluginsDirectory.getChildFile(sourcePlugin.getFileName());
+            if (destination.existsAsFile() && !destination.deleteFile())
+            {
+                reportOut.addIssue(IssueSeverity::warning,
+                                   "Failed to overwrite plugin dependency: " + destination.getFullPathName());
+                continue;
+            }
+
+            if (!sourcePlugin.copyFileTo(destination))
+            {
+                reportOut.addIssue(IssueSeverity::warning,
+                                   "Failed to package plugin dependency: " + sourcePlugin.getFullPathName());
+                continue;
+            }
+
+            copiedPluginBySourcePath.emplace(sourceKey,
+                                             relativePathOrAbsolute(destination, options.outputDirectory));
         }
 
         std::vector<juce::String> preloadImagePaths(preloadImagePathsSet.begin(), preloadImagePathsSet.end());

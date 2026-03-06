@@ -1025,7 +1025,7 @@ void AssetsPanel::rebuildUsageIndex() {
   const auto widgetLabelFor =
       [this](const WidgetModel &widget) -> juce::String {
     juce::String typeLabel = "Widget";
-    if (const auto *descriptor = widgetFactory.descriptorFor(widget.type);
+    if (const auto *descriptor = widgetFactory.descriptorFor(widget);
         descriptor != nullptr) {
       if (descriptor->displayName.isNotEmpty())
         typeLabel = descriptor->displayName;
@@ -1052,7 +1052,7 @@ void AssetsPanel::rebuildUsageIndex() {
       };
 
   for (const auto &widget : snapshot.widgets) {
-    const auto *specs = widgetFactory.propertySpecsFor(widget.type);
+    const auto *specs = widgetFactory.propertySpecsFor(widget);
     if (specs == nullptr)
       continue;
 
@@ -1104,7 +1104,7 @@ void AssetsPanel::rebuildUsageIndex() {
       for (int patchIndex = 0; patchIndex < action.patch.size(); ++patchIndex) {
         const auto propertyKey = action.patch.getName(patchIndex);
         const auto *spec =
-            widgetFactory.propertySpecFor(targetWidget.type, propertyKey);
+            widgetFactory.propertySpecFor(targetWidget, propertyKey);
         if (spec == nullptr ||
             spec->kind != Widgets::WidgetPropertyKind::assetRef)
           continue;
@@ -1631,7 +1631,7 @@ void AssetsPanel::mergeDuplicateAssets() {
     const auto &snapshot = document.snapshot();
     bool remapFailed = false;
     for (const auto &widget : snapshot.widgets) {
-      const auto *specs = widgetFactory.propertySpecsFor(widget.type);
+      const auto *specs = widgetFactory.propertySpecsFor(widget);
       if (specs == nullptr)
         continue;
 
@@ -1708,7 +1708,7 @@ void AssetsPanel::mergeDuplicateAssets() {
         for (int i = 0; i < action.patch.size(); ++i) {
           const auto propertyKey = action.patch.getName(i);
           const auto *spec =
-              widgetFactory.propertySpecFor(targetWidget->type, propertyKey);
+              widgetFactory.propertySpecFor(*targetWidget, propertyKey);
           if (spec == nullptr ||
               spec->kind != Widgets::WidgetPropertyKind::assetRef)
             continue;

@@ -25,6 +25,7 @@
 #include "Gyeol/Runtime/RuntimeParamBridge.h"
 #include "Gyeol/Serialization/DocumentJson.h"
 #include "Gyeol/Widgets/WidgetRegistry.h"
+#include "Gyeol/Widgets/WidgetPackageManager.h"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -2336,7 +2337,7 @@ private:
     if (widget == nullptr)
       return std::nullopt;
 
-    const auto *descriptor = widgetFactory.descriptorFor(widget->type);
+    const auto *descriptor = widgetFactory.descriptorFor(*widget);
     if (descriptor == nullptr || !static_cast<bool>(descriptor->dropOptions))
       return std::nullopt;
 
@@ -2362,7 +2363,7 @@ private:
     if (widget == nullptr)
       return false;
 
-    const auto *descriptor = widgetFactory.descriptorFor(widget->type);
+    const auto *descriptor = widgetFactory.descriptorFor(*widget);
     if (descriptor == nullptr)
       return false;
 
@@ -4803,6 +4804,7 @@ public:
       propertyPanel.setCommitCallbacks(std::move(callbacks));
     }
 
+    loadExternalWidgetPackages();
     buildCreateButtons();
 
     owner.addAndMakeVisible(deleteSelected);
@@ -5703,7 +5705,7 @@ void refreshNavigatorSceneFromDocument() {
                                          return widget.id == id;
                                        });
           it != documentSnapshot.widgets.end()) {
-        if (const auto *descriptor = widgetRegistry.find(it->type); descriptor != nullptr)
+        if (const auto *descriptor = widgetRegistry.findForWidget(*it); descriptor != nullptr)
           label = (descriptor->displayName.isNotEmpty() ? descriptor->displayName
                                                          : descriptor->typeKey) +
                   " #" + juce::String(it->id);
@@ -6296,24 +6298,34 @@ void syncInspectorTargetFromState() {
   }
 
   struct CreateButtonEntry {
-    WidgetType type = WidgetType::button;
+    juce::String typeKey;
     std::unique_ptr<juce::TextButton> button;
   };
 
   WidgetId createWidgetAtWorldPosition(WidgetType type,
                                        juce::Point<float> origin,
-                                       bool applySnap) {
+                                       bool applySnap,
+                                       const juce::String &explicitTypeKey = {}) {
     if (applySnap)
       origin = canvas.snapCreateOrigin(type, origin);
 
-    const auto createdId = widgetFactory.createWidget(docHandle, type, origin,
-                                                      resolveActiveLayerId());
+    const auto normalizedTypeKey = explicitTypeKey.trim();
+    const auto createdId = normalizedTypeKey.isNotEmpty()
+                               ? widgetFactory.createWidgetByTypeKey(
+                                     docHandle, normalizedTypeKey, origin,
+                                     resolveActiveLayerId())
+                               : widgetFactory.createWidget(
+                                     docHandle, type, origin,
+                                     resolveActiveLayerId());
     if (createdId <= kRootId)
       return 0;
 
-    if (const auto *descriptor = widgetRegistry.find(type);
-        descriptor != nullptr)
+    if (normalizedTypeKey.isNotEmpty()) {
+      widgetLibraryPanel.noteWidgetCreated(normalizedTypeKey);
+    } else if (const auto *descriptor = widgetRegistry.find(type);
+               descriptor != nullptr) {
       widgetLibraryPanel.noteWidgetCreated(descriptor->typeKey);
+    }
 
     docHandle.selectSingle(createdId);
     refreshCanvasAndRequestPanels(true, true, true);
@@ -6322,7 +6334,8 @@ void syncInspectorTargetFromState() {
     return createdId;
   }
 
-  WidgetId createWidgetAtViewportCenter(WidgetType type) {
+  WidgetId createWidgetAtViewportCenter(WidgetType type,
+                                        const juce::String &explicitTypeKey = {}) {
     juce::Point<float> origin;
     const auto viewport = canvas.viewportBounds();
     if (!viewport.isEmpty()) {
@@ -6334,31 +6347,48 @@ void syncInspectorTargetFromState() {
       origin.y = 24.0f + static_cast<float>(((index / 10) % 6) * 20);
     }
 
-    return createWidgetAtWorldPosition(type, origin, false);
+    return createWidgetAtWorldPosition(type, origin, false, explicitTypeKey);
   }
 
   WidgetId createWidgetFromLibrary(
       const juce::String &typeKey,
       std::optional<juce::Point<float>> worldPosition = std::nullopt) {
-    if (const auto *descriptor = widgetRegistry.findByKey(typeKey);
+    const auto normalizedTypeKey = typeKey.trim();
+    if (normalizedTypeKey.isEmpty()) {
+      DBG("[Gyeol][WidgetLibrary] Empty typeKey create request");
+      return 0;
+    }
+
+    if (const auto *descriptor = widgetRegistry.findByKey(normalizedTypeKey);
         descriptor != nullptr) {
       if (worldPosition.has_value())
         return createWidgetAtWorldPosition(descriptor->type, *worldPosition,
-                                           true);
-      return createWidgetAtViewportCenter(descriptor->type);
+                                           true, descriptor->typeKey);
+      return createWidgetAtViewportCenter(descriptor->type,
+                                          descriptor->typeKey);
     }
 
-    DBG("[Gyeol][WidgetLibrary] Unknown typeKey create request: " + typeKey);
+    DBG("[Gyeol][WidgetLibrary] Unknown typeKey create request: " +
+        normalizedTypeKey);
     return 0;
   }
 
   void buildCreateButtons() {
+    for (auto &entry : createButtons) {
+      if (entry.button != nullptr)
+        owner.removeChildComponent(entry.button.get());
+    }
+
     createButtons.clear();
     createButtons.reserve(widgetRegistry.all().size());
 
     for (const auto &descriptor : widgetRegistry.all()) {
+      const auto normalizedTypeKey = descriptor.typeKey.trim();
+      if (normalizedTypeKey.isEmpty())
+        continue;
+
       CreateButtonEntry entry;
-      entry.type = descriptor.type;
+      entry.typeKey = normalizedTypeKey;
 
       juce::String iconText;
       if (descriptor.typeKey == "button")
@@ -6379,14 +6409,60 @@ void syncInspectorTargetFromState() {
       entry.button->setTooltip("Add " + name);
 
       owner.addAndMakeVisible(*entry.button);
-      entry.button->onClick = [this, type = entry.type] {
-        createWidgetAtViewportCenter(type);
+      const auto buttonTypeKey = entry.typeKey;
+      entry.button->onClick = [this, buttonTypeKey] {
+        createWidgetFromLibrary(buttonTypeKey);
       };
 
       createButtons.push_back(std::move(entry));
     }
   }
 
+  static Ui::Panels::ValidationPanel::IssueSeverity
+  toValidationIssueSeverity(Widgets::WidgetPackageManager::IssueSeverity severity) {
+    switch (severity) {
+    case Widgets::WidgetPackageManager::IssueSeverity::error:
+      return Ui::Panels::ValidationPanel::IssueSeverity::error;
+    case Widgets::WidgetPackageManager::IssueSeverity::warning:
+      return Ui::Panels::ValidationPanel::IssueSeverity::warning;
+    case Widgets::WidgetPackageManager::IssueSeverity::info:
+    default:
+      return Ui::Panels::ValidationPanel::IssueSeverity::info;
+    }
+  }
+
+  void loadExternalWidgetPackages() {
+    const auto pluginDirectory =
+        resolveProjectRootDirectory().getChildFile("Plugins");
+    widgetPackageManager.scanDirectory(pluginDirectory, widgetRegistry);
+    widgetLibraryPanel.refreshFromRegistry();
+
+    std::vector<Ui::Panels::ValidationPanel::ExternalIssue>
+        externalValidationIssues;
+    for (const auto &issue : widgetPackageManager.issues()) {
+      if (issue.severity == Widgets::WidgetPackageManager::IssueSeverity::info)
+        continue;
+
+      Ui::Panels::ValidationPanel::ExternalIssue externalIssue;
+      externalIssue.severity = toValidationIssueSeverity(issue.severity);
+      externalIssue.category = issue.code.trim().isNotEmpty()
+                                   ? ("external-plugin/" + issue.code.trim())
+                                   : juce::String("external-plugin");
+      externalIssue.title = issue.title.trim().isNotEmpty()
+                                ? issue.title
+                                : juce::String("External plugin issue");
+      externalIssue.message = issue.message;
+      if (issue.pluginPath.trim().isNotEmpty()) {
+        externalIssue.message +=
+            " [path=" + issue.pluginPath.trim() + "]";
+      }
+
+      externalValidationIssues.push_back(std::move(externalIssue));
+    }
+
+    validationPanel.setExternalIssues(std::move(externalValidationIssues));
+    validationPanel.markDirty();
+  }
   juce::File resolveProjectRootDirectory() const {
     auto searchDirectory = juce::File::getCurrentWorkingDirectory();
 
@@ -7536,7 +7612,7 @@ void setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode mode) {
 
               juce::String typeName = "Widget";
               juce::String typeKey;
-              if (const auto *descriptor = widgetRegistry.find(widget.type);
+              if (const auto *descriptor = widgetRegistry.findForWidget(widget);
                   descriptor != nullptr) {
                 typeName = descriptor->displayName.isNotEmpty()
                                ? descriptor->displayName
@@ -8112,6 +8188,7 @@ void setEditorMode(Ui::Canvas::CanvasComponent::InteractionMode mode) {
   EditorHandleImpl::State editorShellState;
   Widgets::WidgetRegistry widgetRegistry;
   Widgets::WidgetFactory widgetFactory;
+  Widgets::WidgetPackageManager widgetPackageManager;
   Ui::Canvas::CanvasComponent canvas;
   Ui::Interaction::AlignDistributeEngine alignDistributeEngine;
   Ui::Interaction::LayerOrderEngine layerOrderEngine;

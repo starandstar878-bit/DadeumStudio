@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Gyeol/Public/DocumentHandle.h"
 #include "Gyeol/Widgets/ButtonWidget.h"
@@ -163,9 +163,10 @@ namespace Gyeol::Widgets
                 for (int shift = 60; shift >= 0; shift -= 4)
                 {
                     const auto nibble = static_cast<int>((hash >> shift) & 0x0full);
-                    hex << juce::String::charToString(static_cast<juce_wchar>(nibble < 10
-                                                                                 ? ('0' + nibble)
-                                                                                 : ('a' + (nibble - 10))));
+                    const auto digit = static_cast<char>(nibble < 10
+                                                             ? ('0' + nibble)
+                                                             : ('a' + (nibble - 10)));
+                    hex << juce::String::fromUTF8(&digit, 1);
                 }
 
                 return hex;
@@ -217,6 +218,8 @@ namespace Gyeol::Widgets
                 descriptor.vendor = "Dadeum";
             else
                 descriptor.vendor = descriptor.vendor.trim();
+
+            descriptor.pluginBinaryPath = descriptor.pluginBinaryPath.trim();
 
             normalizeStringArray(descriptor.tags);
             normalizeStringArray(descriptor.supportedHostVersions);
@@ -676,7 +679,7 @@ namespace Gyeol::Widgets
                 }
             }
 
-            if (find(descriptor.type) != nullptr || findByKey(descriptor.typeKey) != nullptr)
+            if (findByKey(descriptor.typeKey) != nullptr)
                 return false;
 
             descriptors.push_back(std::move(descriptor));
@@ -710,6 +713,18 @@ namespace Gyeol::Widgets
             return it == descriptors.end() ? nullptr : &(*it);
         }
 
+        const WidgetDescriptor* findForWidget(const WidgetModel& widget) const noexcept
+        {
+            const auto typeKey = widgetTypeKeyForWidget(widget);
+            if (typeKey.isNotEmpty())
+            {
+                if (const auto* descriptor = findByKey(typeKey))
+                    return descriptor;
+                return nullptr;
+            }
+
+            return find(widget.type);
+        }
         const std::vector<WidgetDescriptor>& all() const noexcept
         {
             return descriptors;
@@ -796,6 +811,20 @@ namespace Gyeol::Widgets
             return nullptr;
         }
 
+        const std::vector<WidgetPropertySpec>* propertySpecs(const WidgetModel& widget) const noexcept
+        {
+            if (const auto* descriptor = findForWidget(widget))
+                return &descriptor->propertySpecs;
+            return nullptr;
+        }
+
+        const WidgetPropertySpec* propertySpec(const WidgetModel& widget,
+                                               const juce::Identifier& key) const noexcept
+        {
+            if (const auto* descriptor = findForWidget(widget))
+                return findPropertySpec(*descriptor, key);
+            return nullptr;
+        }
         std::vector<ExportWidgetMapping> exportMappings() const
         {
             std::vector<ExportWidgetMapping> mappings;
@@ -834,6 +863,14 @@ namespace Gyeol::Widgets
             return descriptor;
         }
 
+        const WidgetDescriptor* descriptorFor(const WidgetModel& widget) const noexcept
+        {
+            const auto* descriptor = registry.findForWidget(widget);
+            if (descriptor == nullptr)
+                warnOnce(widget.type, "descriptorFor(widget)");
+            return descriptor;
+        }
+
         WidgetId createWidget(DocumentHandle& document,
                               WidgetType type,
                               juce::Point<float> origin,
@@ -846,9 +883,27 @@ namespace Gyeol::Widgets
                 return 0;
             }
 
-            const auto bounds = descriptor->defaultBounds.withPosition(origin);
-            auto props = descriptor->defaultProperties;
-            return document.addWidget(type, bounds, props, layerId);
+            return createWidgetFromDescriptor(document, *descriptor, origin, layerId, {});
+        }
+
+        WidgetId createWidgetByTypeKey(DocumentHandle& document,
+                                       const juce::String& typeKey,
+                                       juce::Point<float> origin,
+                                       std::optional<WidgetId> layerId = std::nullopt) const
+        {
+            const auto normalizedTypeKey = typeKey.trim();
+            if (normalizedTypeKey.isEmpty())
+                return 0;
+
+            const auto* descriptor = registry.findByKey(normalizedTypeKey);
+            if (descriptor == nullptr)
+                return 0;
+
+            return createWidgetFromDescriptor(document,
+                                              *descriptor,
+                                              origin,
+                                              layerId,
+                                              normalizedTypeKey);
         }
 
         juce::Point<float> minSizeFor(WidgetType type) const noexcept
@@ -860,12 +915,30 @@ namespace Gyeol::Widgets
             return { 18.0f, 18.0f };
         }
 
+        juce::Point<float> minSizeFor(const WidgetModel& widget) const noexcept
+        {
+            if (const auto* descriptor = registry.findForWidget(widget))
+                return { std::max(1.0f, descriptor->minSize.x), std::max(1.0f, descriptor->minSize.y) };
+
+            warnOnce(widget.type, "minSizeFor(widget)");
+            return { 18.0f, 18.0f };
+        }
+
         juce::String exportTargetTypeFor(WidgetType type) const
         {
             if (const auto* descriptor = registry.find(type))
                 return descriptor->exportTargetType.isNotEmpty() ? descriptor->exportTargetType : descriptor->typeKey;
 
             warnOnce(type, "exportTargetTypeFor");
+            return {};
+        }
+
+        juce::String exportTargetTypeFor(const WidgetModel& widget) const
+        {
+            if (const auto* descriptor = registry.findForWidget(widget))
+                return descriptor->exportTargetType.isNotEmpty() ? descriptor->exportTargetType : descriptor->typeKey;
+
+            warnOnce(widget.type, "exportTargetTypeFor(widget)");
             return {};
         }
 
@@ -879,12 +952,41 @@ namespace Gyeol::Widgets
             return registry.propertySpecs(type);
         }
 
+        const std::vector<WidgetPropertySpec>* propertySpecsFor(const WidgetModel& widget) const noexcept
+        {
+            return registry.propertySpecs(widget);
+        }
+
         const WidgetPropertySpec* propertySpecFor(WidgetType type, const juce::Identifier& key) const noexcept
         {
             return registry.propertySpec(type, key);
         }
 
+        const WidgetPropertySpec* propertySpecFor(const WidgetModel& widget,
+                                                  const juce::Identifier& key) const noexcept
+        {
+            return registry.propertySpec(widget, key);
+        }
+
     private:
+        WidgetId createWidgetFromDescriptor(DocumentHandle& document,
+                                            const WidgetDescriptor& descriptor,
+                                            juce::Point<float> origin,
+                                            std::optional<WidgetId> layerId,
+                                            const juce::String& explicitTypeKey) const
+        {
+            const auto bounds = descriptor.defaultBounds.withPosition(origin);
+            auto props = descriptor.defaultProperties;
+
+            const auto normalizedTypeKey = explicitTypeKey.isNotEmpty()
+                                               ? explicitTypeKey.trim()
+                                               : descriptor.typeKey.trim();
+            if (descriptor.isExternalPlugin || normalizedTypeKey.isNotEmpty())
+                setWidgetTypeKey(props, normalizedTypeKey);
+
+            return document.addWidget(descriptor.type, bounds, props, layerId);
+        }
+
         static int typeOrdinal(WidgetType type) noexcept
         {
             return static_cast<int>(type);

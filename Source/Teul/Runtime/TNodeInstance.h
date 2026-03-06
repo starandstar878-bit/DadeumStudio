@@ -5,7 +5,6 @@
 #include <JuceHeader.h>
 #include <map>
 
-
 namespace Teul {
 
 // =============================================================================
@@ -40,6 +39,10 @@ public:
 
   // 런타임 연산을 구체화하는 함수
   virtual void processSamples(const TProcessContext &context) {}
+
+  // 락프리로 전달된 파라미터 값(실시간 슬라이더 조정 등)을 갱신
+  virtual void setParameterValue(const juce::String &paramKey, float newValue) {
+  }
 
   // 노드 재설정 (예: LFO 위상 0으로 강제 리셋 등)
   virtual void reset() {}

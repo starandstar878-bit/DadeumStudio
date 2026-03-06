@@ -37,6 +37,14 @@ public:
     DependencyGraph dependency;
   };
 
+  struct ExternalIssue {
+    IssueSeverity severity = IssueSeverity::warning;
+    juce::String category;
+    juce::String title;
+    juce::String message;
+    WidgetId relatedWidgetId = kRootId;
+  };
+
   ValidationPanel(DocumentHandle &documentIn,
                   const Widgets::WidgetRegistry &registryIn);
   ~ValidationPanel() override;
@@ -45,6 +53,7 @@ public:
   void refreshValidation();
   bool autoRefreshEnabled() const noexcept;
   void setAutoRefreshEnabled(bool enabled);
+  void setExternalIssues(std::vector<ExternalIssue> issues);
 
   void setSelectWidgetCallback(std::function<void(WidgetId)> callback);
   void setHoverWidgetCallback(std::function<void(WidgetId)> callback);
@@ -83,7 +92,8 @@ private:
   buildIssues(const DocumentModel &snapshot,
               const EditorStateModel &editorState,
               const Widgets::WidgetRegistry &registry,
-              const juce::File &projectRoot);
+              const juce::File &projectRoot,
+              const std::vector<ExternalIssue> &externalIssues);
 
   static juce::Colour colorForSeverity(IssueSeverity severity);
   static juce::String labelForSeverity(IssueSeverity severity);
@@ -104,6 +114,8 @@ private:
   bool showErrors = true;
   bool showWarnings = true;
   bool showInfo = true;
+
+  std::vector<ExternalIssue> externalIssues;
 
   std::atomic<int> validationSerialCounter{1};
   int lastAppliedValidationSerial = 0;

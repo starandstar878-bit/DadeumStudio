@@ -267,6 +267,11 @@ void ValidationPanel::setAutoRefreshEnabled(bool enabled) {
     queueValidation(true);
 }
 
+void ValidationPanel::setExternalIssues(std::vector<ExternalIssue> issues) {
+  externalIssues = std::move(issues);
+  markDirty();
+}
+
 void ValidationPanel::paint(juce::Graphics &g) {
   g.fillAll(palette(GyeolPalette::PanelBackground));
   g.setColour(palette(GyeolPalette::BorderDefault));
@@ -456,15 +461,17 @@ void ValidationPanel::launchValidationJob() {
   const auto snapshot = document.snapshot();
   const auto editorState = document.editorState();
   const auto projectRoot = resolveProjectRootDirectory();
+  const auto externalIssueSnapshot = externalIssues;
 
   dirty = false;
   summaryLabel.setText("Scanning...", juce::dontSendNotification);
 
   juce::Component::SafePointer<ValidationPanel> safeThis(this);
   std::thread worker([safeThis, requestSerial, snapshot, editorState,
-                      projectRoot, &registry = this->registry]() mutable {
+                      projectRoot, externalIssueSnapshot,
+                      &registry = this->registry]() mutable {
     auto issues = ValidationPanel::buildIssues(snapshot, editorState, registry,
-                                               projectRoot);
+                                               projectRoot, externalIssueSnapshot);
 
     juce::MessageManager::callAsync(
         [safeThis, requestSerial, issues = std::move(issues)]() mutable {
@@ -665,7 +672,8 @@ std::vector<ValidationPanel::Issue>
 ValidationPanel::buildIssues(const DocumentModel &snapshot,
                              const EditorStateModel &editorState,
                              const Widgets::WidgetRegistry &registry,
-                             const juce::File &projectRoot) {
+                             const juce::File &projectRoot,
+                             const std::vector<ExternalIssue> &externalIssues) {
   std::vector<Issue> issues;
 
   std::unordered_map<WidgetId, const WidgetModel *> widgetById;
@@ -845,7 +853,7 @@ ValidationPanel::buildIssues(const DocumentModel &snapshot,
   }
 
   for (const auto &widget : snapshot.widgets) {
-    if (registry.find(widget.type) == nullptr) {
+    if (registry.findForWidget(widget) == nullptr) {
       pushIssue(IssueSeverity::warning,
                 "unknown-widget",
                 "Unknown widget descriptor",
@@ -872,7 +880,7 @@ ValidationPanel::buildIssues(const DocumentModel &snapshot,
     if (widgetIt == widgetById.end())
       continue;
 
-    const auto *descriptor = registry.find(widgetIt->second->type);
+    const auto *descriptor = registry.findForWidget(*widgetIt->second);
     if (descriptor == nullptr)
       continue;
 
@@ -973,6 +981,23 @@ ValidationPanel::buildIssues(const DocumentModel &snapshot,
                 displayLabel + " MIME is '" + asset.mimeType +
                     "', expected '" + expectedMime + "'.");
     }
+  }
+
+  for (const auto &externalIssue : externalIssues) {
+    const auto category = externalIssue.category.trim().isNotEmpty()
+                              ? externalIssue.category.trim()
+                              : juce::String("external-plugin");
+    const auto title = externalIssue.title.trim().isNotEmpty()
+                           ? externalIssue.title.trim()
+                           : juce::String("External plugin issue");
+    const auto message = externalIssue.message.trim().isNotEmpty()
+                             ? externalIssue.message.trim()
+                             : juce::String("Plugin load failure detected.");
+    pushIssue(externalIssue.severity,
+              category,
+              title,
+              message,
+              externalIssue.relatedWidgetId);
   }
 
   return issues;

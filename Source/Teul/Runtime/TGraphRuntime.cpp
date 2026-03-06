@@ -2,7 +2,6 @@
 #include <map>
 #include <queue>
 
-
 namespace Teul {
 
 TGraphRuntime::TGraphRuntime(const TNodeRegistry *registry)
@@ -93,36 +92,17 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
     newSortedNodes.push_back(std::move(entry));
   }
 
-  totalAllocatedChannels = portChannelCounter;
-  globalPortBuffer.setSize(totalAllocatedChannels > 0 ? totalAllocatedChannels
-                                                      : 1,
-                           currentBlockSize, false, false, true);
-  globalPortBuffer.clear();
+  // UI 스레드 빌드 오퍼레이션이 다 끝나고 난 뒤, 새 RenderState 구성
+  auto newState = new RenderState();
+  newState->sortedNodes = std::move(newSortedNodes);
+  newState->globalPortBuffer.setSize(
+      totalAllocatedChannels > 0 ? totalAllocatedChannels : 1, currentBlockSize,
+      false, false, true);
+  newState->globalPortBuffer.clear();
+  newState->totalAllocatedChannels = totalAllocatedChannels;
 
-  // =========================================================================
-  // 3. 다중 입력 믹싱(Summing) 로직 수집
-  // =========================================================================
-  // 다수의 출력이 하나의 대상 포트로 쏟아질 수 있다 (N:1 연결)
-  // 대상 노드가 process 틱을 굴리기 전에, src 채널 값을 dst 채널로 합산하는
-  // 믹스 옵코드 저장
-  for (const auto &conn : doc.connections) {
-    NodeId dstNodeId = conn.to.nodeId;
-    int srcChannel = globalPortIndexMap[conn.from.portId];
-    int dstChannel = globalPortIndexMap[conn.to.portId];
-
-    for (auto &entry : newSortedNodes) {
-      if (entry.nodeId == dstNodeId) {
-        entry.preProcessMixes.push_back({srcChannel, dstChannel});
-        break;
-      }
-    }
-  }
-
-  // UI 스레드 빌드 오퍼레이션이 다 끝나고 난 뒤, 실제 오디오 런타임 배열을 일괄
-  // 교체
-  // TODO [Phase 3 단계 2]: 이 교체(swap) 구간에 mutex/SpinLock/Double Buffer
-  // 등을 도입하여 락-프리 보강
-  sortedNodes = std::move(newSortedNodes);
+  // 락프리 방식으로 현재 렌더 상태 교환
+  activeState.set(newState);
   return true;
 }
 
@@ -131,44 +111,79 @@ void TGraphRuntime::prepareToPlay(double sampleRate,
   currentSampleRate = sampleRate;
   currentBlockSize = maximumExpectedSamplesPerBlock;
 
-  if (totalAllocatedChannels > 0) {
-    globalPortBuffer.setSize(totalAllocatedChannels, currentBlockSize, false,
-                             false, true);
-  }
-
-  for (auto &entry : sortedNodes) {
-    if (entry.instance) {
-      entry.instance->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+  auto state = activeState.get();
+  if (state) {
+    for (auto &entry : state->sortedNodes) {
+      if (entry.instance) {
+        entry.instance->prepareToPlay(sampleRate,
+                                      maximumExpectedSamplesPerBlock);
+      }
     }
   }
 }
 
 void TGraphRuntime::releaseResources() {
-  for (auto &entry : sortedNodes) {
-    if (entry.instance) {
-      entry.instance->releaseResources();
+  auto state = activeState.get();
+  if (state) {
+    for (auto &entry : state->sortedNodes) {
+      if (entry.instance) {
+        entry.instance->releaseResources();
+      }
     }
   }
 }
 
 void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
                                  juce::MidiBuffer &midiMessages) {
+  auto state = activeState.get();
+  if (!state) {
+    deviceBuffer.clear();
+    return;
+  }
+
   // 이전 오디오 틱에서 사용한 포트 잔류값 일괄 청소
-  globalPortBuffer.clear();
+  state->globalPortBuffer.clear();
 
   int numSamples = deviceBuffer.getNumSamples();
 
-  for (auto &entry : sortedNodes) {
-    // 1. 해당 노드로 연결되어 들어온 다운스트림들을 합산 (Sum)
+  // 1. 파라미터 변경 사항(FIFO 큐) 처리 (Lock-free pop)
+  int start1 = 0, size1 = 0, start2 = 0, size2 = 0;
+  paramQueueFifo.prepareToRead(paramQueueFifo.getNumReady(), start1, size1,
+                               start2, size2);
+
+  auto applyParamChange = [&](int index) {
+    const auto &change = paramQueueData[index];
+    juce::String key = juce::String::fromUTF8(change.paramKey);
+    for (auto &entry : state->sortedNodes) {
+      if (entry.nodeId == change.nodeId && entry.instance) {
+        entry.instance->setParameterValue(key, change.value);
+        break;
+      }
+    }
+  };
+
+  if (size1 > 0) {
+    for (int i = 0; i < size1; ++i)
+      applyParamChange(start1 + i);
+  }
+  if (size2 > 0) {
+    for (int i = 0; i < size2; ++i)
+      applyParamChange(start2 + i);
+  }
+  paramQueueFifo.finishedRead(size1 + size2);
+
+  for (auto &entry : state->sortedNodes) {
+    // 2. 해당 노드로 연결되어 들어온 다운스트림들을 합산 (Sum)
     for (const auto &mix : entry.preProcessMixes) {
-      globalPortBuffer.addFrom(mix.dstChannelIndex, 0, globalPortBuffer,
-                               mix.srcChannelIndex, 0, numSamples);
+      state->globalPortBuffer.addFrom(mix.dstChannelIndex, 0,
+                                      state->globalPortBuffer,
+                                      mix.srcChannelIndex, 0, numSamples);
     }
 
     // 2. 바이패스 상태가 아니면 실제 DSP 틱 연산
     if (entry.instance && !entry.nodeData->bypassed) {
       TProcessContext ctx;
-      ctx.globalPortBuffer = &globalPortBuffer;
+      ctx.globalPortBuffer = &state->globalPortBuffer;
       ctx.deviceAudioBuffer =
           &deviceBuffer; // 최종 AudioOutput 노드가 쓸 하드웨어 버퍼
       ctx.midiMessages = &midiMessages;
@@ -178,6 +193,56 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
       entry.instance->processSamples(ctx);
     }
   }
+}
+
+// ===========================================================================
+// juce::AudioIODeviceCallback 필수 오버라이드 구현
+// ===========================================================================
+void TGraphRuntime::audioDeviceAboutToStart(juce::AudioIODevice *device) {
+  if (device) {
+    prepareToPlay(device->getCurrentSampleRate(),
+                  device->getCurrentBufferSizeSamples());
+  }
+}
+
+void TGraphRuntime::audioDeviceStopped() { releaseResources(); }
+
+void TGraphRuntime::audioDeviceIOCallback(const float **inputChannelData,
+                                          int numInputChannels,
+                                          float **outputChannelData,
+                                          int numOutputChannels,
+                                          int numSamples) {
+
+  // AudioIODevice 의 채널 데이터를 랩퍼로 감싸 호환시킴
+  juce::AudioBuffer<float> buffer(const_cast<float **>(outputChannelData),
+                                  numOutputChannels, numSamples);
+
+  // TODO [Phase 3 Phase 1.5]: Input Data 를 그래프에 넣는 경우 InputChannelData
+  // 도 감싸야 함 현재는 출력에만 렌더링하도록 임시 구성
+  buffer.clear();
+
+  juce::MidiBuffer midi; // 독립 실행 환경에선 일단 비어있는 MIDI 버퍼 전달
+                         // (추후 미디 인풋 장치와 연동)
+  processBlock(buffer, midi);
+}
+
+// ===========================================================================
+// Phase 3 단계 2: 파라미터 변경 Lock-free 큐잉
+// ===========================================================================
+void TGraphRuntime::queueParameterChange(NodeId nodeId,
+                                         const juce::String &paramKey,
+                                         float value) {
+  int start1 = 0, size1 = 0, start2 = 0, size2 = 0;
+  paramQueueFifo.prepareToWrite(1, start1, size1, start2, size2);
+
+  if (size1 > 0) {
+    paramQueueData[start1].nodeId = nodeId;
+    paramQueueData[start1].value = value;
+    paramKey.copyToUTF8(paramQueueData[start1].paramKey,
+                        sizeof(ParamChange::paramKey) - 1);
+  }
+
+  paramQueueFifo.finishedWrite(size1 + size2);
 }
 
 } // namespace Teul
