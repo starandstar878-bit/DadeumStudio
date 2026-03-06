@@ -271,9 +271,133 @@
 
 ---
 
+## Phase 5.5: Export Validation & Diagnostics
+
+### 목표
+- Export 전에 실패 사유를 명확히 보여주고, 생성 불가능한 그래프를 사전 차단한다.
+
+### 구현 단계
+
+- [ ] **Export preflight validator**: 지원 불가 노드, 비호환 연결, 포트 타입 불일치, 채널 구성 문제, 순환 의존성을 export 전에 검사
+- [ ] **노드/연결 단위 diagnostics**: 어떤 노드와 연결이 문제인지 파일 내 위치 수준으로 식별 가능한 진단 메시지 제공
+- [ ] **자산/의존성 preflight**: impulse, wavetable, 외부 파일 참조가 export 패키지에 포함 가능한지 검증
+- [ ] **dry-run export report**: 노출 파라미터 수, 예상 버퍼 수, 생성 파일 목록, 제한 사항을 요약 보고서로 출력
+
+---
+
+## Phase 6: Runtime Hardening & Real-time Safety
+
+### 목표
+- 런타임 그래프와 generated module이 긴 세션과 다양한 입력 조건에서도 오디오 스레드 안전성을 유지하게 한다.
+
+### 구현 단계
+
+- [ ] **audio thread 무할당/무락 보장**: process 경로에서 동적 할당, lock, string lookup, file IO 제거
+- [ ] **파라미터 smoothing / bypass / denormal 처리**: zipper noise, bypass pop, denormal slowdown을 막는 공통 규약 정리
+- [ ] **sampleRate / blockSize / channel layout 적응성**: mono/stereo/multi-channel, 작은 블록/큰 블록, sample rate 변화에 대한 prepare 정책 확정
+- [ ] **runtime rebuild / state handoff 안전화**: UI 편집 중 그래프 재빌드와 런타임 상태 전환 충돌 방지
+- [ ] **성능 budget 계측기**: CPU, 메모리, 임시 버퍼, rebuild cost를 측정하는 내부 디버그 카운터 추가
+
+---
+
+## Phase 7: Verification & Benchmark Infrastructure
+
+### 목표
+- 런타임 그래프와 export된 module의 결과 일치성과 성능 회귀를 자동으로 검출한다.
+
+### 구현 단계
+
+- [ ] **golden audio test**: 대표 그래프의 입력/출력 오디오 스냅샷을 저장하고 회귀 테스트 수행
+- [ ] **runtime vs export parity test**: 같은 문서에서 런타임 처리 결과와 `RuntimeModule Export` 결과를 tolerance 기반으로 비교
+- [ ] **export compile CI**: generated `.h/.cpp`가 headless CI에서 자동 컴파일되는 파이프라인 추가
+- [ ] **stress / fuzz / soak test**: 랜덤 그래프, 긴 세션, 빠른 자동화, 반복 export/import를 장시간 검증
+- [ ] **benchmark regression gate**: 대표 그래프 CPU 사용량, rebuild 시간, export 시간 상한선을 두고 회귀를 차단
+
+---
+
+## Phase 8: Preset, State & Compatibility
+
+### 목표
+- 버전이 달라져도 프로젝트, 프리셋, export 결과가 가능한 한 안정적으로 유지되게 한다.
+
+### 구현 단계
+
+- [ ] **preset/state 포맷 정의**: `paramId`, 그래프 메타데이터, 노드별 상태를 안정적으로 저장하는 preset/schema 설계
+- [ ] **schema migration 체계**: 구버전 `.teul`과 preset을 최신 구조로 올리는 migration 경로 추가
+- [ ] **호환성 alias 정책**: 노드 타입 이름 변경, 파라미터 키 변경, deprecated 노드 제거 시 대체 경로 제공
+- [ ] **autosave / crash recovery**: 비정상 종료 후 최근 작업을 복구하는 자동 저장/복원 경로 도입
+- [ ] **compatibility test matrix**: 예전 문서, 프리셋, 생성 코드를 새 버전에서 다시 여는 회귀 테스트 구축
+
+---
+
+## Phase 9: Asset & Dependency Packaging
+
+### 목표
+- 외부 자산과 의존성이 있는 그래프도 export/import/package 과정에서 손실 없이 이동되게 한다.
+
+### 구현 단계
+
+- [ ] **asset manifest**: 샘플, impulse response, wavetable, 외부 파일 참조를 한 곳에 수집하는 manifest 생성
+- [ ] **bundle / relative path 정책**: 상대 경로, 복사 포함, 외부 참조 유지 중 어떤 방식을 쓸지 모드별 정책 확정
+- [ ] **missing asset relink flow**: 파일 누락 시 재연결 경로를 안내하고 복구 가능한 UI/로그 제공
+- [ ] **RuntimeModule package layout**: generated code, asset folder, README, build snippet을 함께 내보내는 패키지 구조 정의
+- [ ] **deterministic packaging**: 같은 입력 그래프에서 같은 산출물이 나오도록 패키지 정렬/해시 규칙 정리
+
+---
+
+## Phase 10: Product Integration & Host Templates
+
+### 목표
+- export 결과를 실제 JUCE 제품, 플러그인, 앱 프로젝트에 바로 가져다 쓸 수 있는 수준으로 만든다.
+
+### 구현 단계
+
+- [ ] **host template 제공**: `AudioProcessor`, standalone app, 테스트 호스트 등 통합 예제 템플릿 제공
+- [ ] **APVTS attachment 예제**: 슬라이더/버튼과 generated param surface를 연결하는 샘플 코드 제공
+- [ ] **plugin wrapper 가이드**: VST3/AU/Standalone별 포함 경로, prepare/process 연결 방식 문서화
+- [ ] **latency / tail / bus metadata export**: 호스트가 요구하는 메타데이터를 generated module과 함께 제공
+- [ ] **integration smoke project**: 최소 샘플 프로젝트를 실제로 빌드해 가져다 쓰는 검증 경로 확보
+
+---
+
+## Phase 11: Tooling, CLI & Team Workflow
+
+### 목표
+- 팀 단위 개발과 CI 환경에서도 Teul export가 안정적으로 운영되게 한다.
+
+### 구현 단계
+
+- [ ] **headless CLI**: `validate`, `export-json`, `export-module`, `benchmark` 명령을 제공하는 CLI 추가
+- [ ] **deterministic codegen**: 같은 그래프에서 diff-friendly한 동일 코드가 생성되도록 정렬/이름 규칙 고정
+- [ ] **machine-readable report**: CI가 읽을 수 있는 JSON validation/export 결과 포맷 제공
+- [ ] **debug trace / inspector**: 그래프 실행 순서, 파라미터 변경, export 경고를 추적할 디버그 도구 마련
+- [ ] **sample project / cookbook**: 팀원이 바로 참고할 수 있는 예제 그래프와 통합 레시피 정리
+
+---
+
+## Phase 12: Commercial Release Readiness
+
+### 목표
+- 상용 릴리스 이후의 배포, 지원, 유지보수까지 감당 가능한 제품 수준으로 마무리한다.
+
+### 구현 단계
+
+- [ ] **release QA matrix**: 지원 플랫폼, sample rate, block size, channel layout, 플러그인 포맷별 검증 표준 수립
+- [ ] **support bundle / crash log**: 문서, export 로그, 버전 정보, 크래시 정보를 묶어 수집하는 경로 제공
+- [ ] **licensing / edition 정책**: 상용 제품화 시 기능 제한, 라이선스, 업그레이드 경로를 반영할 제품 정책 정리
+- [ ] **문서 / 튜토리얼 / 온보딩**: 첫 그래프 제작부터 export 통합까지 이어지는 사용자 문서와 샘플 콘텐츠 준비
+- [ ] **release checklist / LTS 정책**: 릴리스 전 체크리스트, 핫픽스 기준, 장기 지원 브랜치 운영 기준 정리
+
+---
+
 ## 완료 기준 (DoD)
 - [ ] `EditableGraph Export` 후 다시 import했을 때 노드, 연결, 파라미터, 메타데이터가 손실 없이 복구
 - [ ] 기본 내장 노드 10종 이상 동작 확인
 - [ ] 오디오 콜백 스레드에서 글리치(Glitch) 없이 128샘플 블록 처리
 - [ ] Undo/Redo 20회 연속 후 그래프 상태 이상 없음
 - [ ] `RuntimeModule Export` 생성 코드가 단독 컴파일 통과하고 `process` API로 오디오 버퍼 처리 가능
+- [ ] export preflight가 지원 불가 노드, 자산, 채널 문제를 명확한 진단 메시지로 반환
+- [ ] 런타임 그래프와 export module의 대표 그래프 출력이 회귀 테스트 기준 내에서 일치
+- [ ] 오디오 스레드에서 동적 할당/락 없이 장시간 스트레스 테스트 통과
+- [ ] preset, `.teul`, generated module 호환성 회귀 테스트 통과
+- [ ] 샘플 host project와 CLI export/validate 경로가 CI에서 자동 검증됨
