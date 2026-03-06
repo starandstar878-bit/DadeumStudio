@@ -59,6 +59,9 @@ public:
     juce::ignoreUnused(data, sizeInBytes);
   }
 
+  ITeulParamProvider &paramProvider() noexcept { return runtime; }
+  const ITeulParamProvider &paramProvider() const noexcept { return runtime; }
+
 private:
   TGraphRuntime &runtime;
 
@@ -83,6 +86,9 @@ public:
                     juce::MidiBuffer &midiMessages) {
     runtime.processBlock(buffer, midiMessages);
   }
+
+  ITeulParamProvider &paramProvider() noexcept { return runtime; }
+  const ITeulParamProvider &paramProvider() const noexcept { return runtime; }
 
 private:
   TGraphRuntime &runtime;

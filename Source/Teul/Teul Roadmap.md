@@ -178,9 +178,9 @@
 
 ### 구현 단계
 
-- [ ] **`ITeulParamProvider` 인터페이스 정의**: `listExposedParams()`, `getParam(id)`, `setParam(id, value)` 순수 가상 인터페이스
-- [ ] **`TNodeRegistry` → `ITeulParamProvider` 구현체 등록**: 각 노드가 자신의 파라미터를 APVTS와 유사한 형태로 Ieum에 노출
-- [ ] **변경 알림(Listener) 브로드캐스트**: 런타임에 파라미터 값이 오디오 스레드에서 변경되면, Ieum의 리스너로 비동기 전파
+- [x] **`ITeulParamProvider` 인터페이스 정의**: `listExposedParams()`, `getParam(id)`, `setParam(id, value)` 순수 가상 인터페이스
+- [x] **`TNodeRegistry` → `ITeulParamProvider` 구현체 등록**: 각 노드가 자신의 파라미터를 APVTS와 유사한 형태로 Ieum에 노출
+- [x] **변경 알림(Listener) 브로드캐스트**: 런타임에 파라미터 값이 오디오 스레드에서 변경되면, Ieum의 리스너로 비동기 전파
 
 ---
 

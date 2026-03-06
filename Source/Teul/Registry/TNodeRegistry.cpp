@@ -1,24 +1,83 @@
 #include "TNodeRegistry.h"
 #include "TNodeSDK.h"
 
-// =============================================================================
-//  ⚠️ 주의: 매크로(TEUL_NODE_AUTOREGISTER)가 런타임에 실행되려면,
-//  반드시 최소 하나의 .cpp 파일에서 해당 헤더들을 #include 해주어야 합니다.
-//  CoreNodes.h 를 통해 모든 기본 제공 노드들을 일괄 포함시킵니다.
-// =============================================================================
+#include <set>
+
 #include "Nodes/CoreNodes.h"
 
 namespace Teul {
+namespace {
+
+std::vector<TTeulExposedParam> buildFallbackExposedParams(
+    const TNode &node,
+    const juce::String &displayName,
+    const juce::String &typeKey,
+    const std::vector<TParamSpec> &paramSpecs) {
+  std::vector<TTeulExposedParam> result;
+  std::set<juce::String> seenKeys;
+
+  const juce::String nodeName = node.label.isNotEmpty() ? node.label : displayName;
+
+  result.reserve(paramSpecs.size() + node.params.size());
+  for (const auto &spec : paramSpecs) {
+    TTeulExposedParam param;
+    param.paramId = makeTeulParamId(node.nodeId, spec.key);
+    param.nodeId = node.nodeId;
+    param.nodeTypeKey = typeKey;
+    param.nodeDisplayName = nodeName;
+    param.paramKey = spec.key;
+    param.paramLabel = spec.label.isNotEmpty() ? spec.label : spec.key;
+    param.defaultValue = spec.defaultValue;
+
+    if (const auto it = node.params.find(spec.key); it != node.params.end())
+      param.currentValue = it->second;
+    else
+      param.currentValue = spec.defaultValue;
+
+    result.push_back(std::move(param));
+    seenKeys.insert(spec.key);
+  }
+
+  for (const auto &[key, value] : node.params) {
+    if (seenKeys.find(key) != seenKeys.end())
+      continue;
+
+    TTeulExposedParam param;
+    param.paramId = makeTeulParamId(node.nodeId, key);
+    param.nodeId = node.nodeId;
+    param.nodeTypeKey = typeKey;
+    param.nodeDisplayName = nodeName;
+    param.paramKey = key;
+    param.paramLabel = key;
+    param.defaultValue = value;
+    param.currentValue = value;
+    result.push_back(std::move(param));
+  }
+
+  return result;
+}
+
+} // namespace
 
 void TNodeRegistry::registerNode(const TNodeDescriptor &desc) {
-  // 이미 존재하는 타입 키면 무시하거나 덮어쓰기 로직 필요
+  TNodeDescriptor next = desc;
+  if (!next.exposedParamFactory) {
+    const auto displayName = next.displayName;
+    const auto typeKey = next.typeKey;
+    const auto specs = next.paramSpecs;
+    next.exposedParamFactory =
+        [displayName, typeKey, specs](const TNode &node) {
+          return buildFallbackExposedParams(node, displayName, typeKey, specs);
+        };
+  }
+
   for (auto &existing : descriptors) {
-    if (existing.typeKey == desc.typeKey) {
-      existing = desc;
+    if (existing.typeKey == next.typeKey) {
+      existing = std::move(next);
       return;
     }
   }
-  descriptors.push_back(desc);
+  descriptors.push_back(std::move(next));
 }
 
 const TNodeDescriptor *
@@ -32,6 +91,19 @@ TNodeRegistry::descriptorFor(const juce::String &typeKey) const {
 
 const std::vector<TNodeDescriptor> &TNodeRegistry::getAllDescriptors() const {
   return descriptors;
+}
+
+std::vector<TTeulExposedParam> TNodeRegistry::listExposedParamsForNode(
+    const TNode &node) const {
+  if (const auto *desc = descriptorFor(node.typeKey)) {
+    if (desc->exposedParamFactory)
+      return desc->exposedParamFactory(node);
+
+    return buildFallbackExposedParams(node, desc->displayName, desc->typeKey,
+                                      desc->paramSpecs);
+  }
+
+  return buildFallbackExposedParams(node, node.typeKey, node.typeKey, {});
 }
 
 std::unique_ptr<TNodeRegistry> makeDefaultNodeRegistry() {

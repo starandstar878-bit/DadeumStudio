@@ -13,6 +13,7 @@
 // only Teul.cpp and TSerializer.cpp for the Teul module.
 #include "Model/TGraphDocument.cpp"
 #include "Registry/TNodeRegistry.cpp"
+#include "Runtime/TGraphRuntime.cpp"
 #include "UI/Port/TPortComponent.cpp"
 #include "UI/Node/TNodeComponent.cpp"
 #include "UI/Canvas/TGraphCanvas.cpp"

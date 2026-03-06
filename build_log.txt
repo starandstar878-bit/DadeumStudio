@@ -18,12 +18,6 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C481
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
-  
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
@@ -36,22 +30,19 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\FXNodes.h(1,
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(32,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(31,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(41,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(44,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(44,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(113,50): warning C4100: 'ctx': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
