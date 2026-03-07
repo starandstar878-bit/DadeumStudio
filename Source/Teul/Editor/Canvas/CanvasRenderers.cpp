@@ -261,19 +261,23 @@ void TGraphCanvas::drawMiniMap(juce::Graphics &g) {
                      miniW, miniH};
   recalcMiniMapCache();
 
-  const float sx = miniW / miniMapWorldBounds.getWidth();
-  const float sy = miniH / miniMapWorldBounds.getHeight();
+  const auto miniMapInnerRect = miniMapRectView.reduced(1.0f);
+  const float sx = miniMapInnerRect.getWidth() / miniMapWorldBounds.getWidth();
+  const float sy = miniMapInnerRect.getHeight() / miniMapWorldBounds.getHeight();
 
   auto worldToMini = [&](juce::Point<float> p) {
     return juce::Point<float>(
-        miniMapRectView.getX() + (p.x - miniMapWorldBounds.getX()) * sx,
-        miniMapRectView.getY() + (p.y - miniMapWorldBounds.getY()) * sy);
+        miniMapInnerRect.getX() + (p.x - miniMapWorldBounds.getX()) * sx,
+        miniMapInnerRect.getY() + (p.y - miniMapWorldBounds.getY()) * sy);
   };
 
   g.setColour(juce::Colour(0xe0121212));
   g.fillRoundedRectangle(miniMapRectView, 6.0f);
   g.setColour(juce::Colour(0xff3b3b3b));
   g.drawRoundedRectangle(miniMapRectView, 6.0f, 1.0f);
+
+  g.saveState();
+  g.reduceClipRegion(miniMapInnerRect.toNearestInt());
 
   for (const auto &frame : document.frames) {
     auto topLeft = worldToMini({frame.x, frame.y});
@@ -294,16 +298,22 @@ void TGraphCanvas::drawMiniMap(juce::Graphics &g) {
     g.fillRect(topLeft.x, topLeft.y, 160.0f * sx, 90.0f * sy);
   }
 
+  const float safeZoom = juce::jmax(zoomLevel, 0.0001f);
   const juce::Rectangle<float> viewportWorld(viewOriginWorld.x, viewOriginWorld.y,
-                                             getWidth() / zoomLevel,
-                                             getHeight() / zoomLevel);
-  auto viewTopLeft = worldToMini(viewportWorld.getTopLeft());
-  miniMapViewportRectView = {viewTopLeft.x, viewTopLeft.y,
-                             viewportWorld.getWidth() * sx,
-                             viewportWorld.getHeight() * sy};
+                                             getWidth() / safeZoom,
+                                             getHeight() / safeZoom);
+  const auto viewTopLeft = worldToMini(viewportWorld.getTopLeft());
+  const auto viewBottomRight = worldToMini(viewportWorld.getBottomRight());
+  miniMapViewportRectView =
+      juce::Rectangle<float>(juce::jmin(viewTopLeft.x, viewBottomRight.x),
+                             juce::jmin(viewTopLeft.y, viewBottomRight.y),
+                             std::abs(viewBottomRight.x - viewTopLeft.x),
+                             std::abs(viewBottomRight.y - viewTopLeft.y))
+          .getIntersection(miniMapInnerRect);
 
   g.setColour(juce::Colours::white.withAlpha(0.9f));
   g.drawRect(miniMapViewportRectView, 1.2f);
+  g.restoreState();
 }
 
 void TGraphCanvas::pushStatusHint(const juce::String &text) {
@@ -464,10 +474,19 @@ void TGraphCanvas::drawStatusHint(juce::Graphics &g) {
 }
 
 void TGraphCanvas::recalcMiniMapCache() {
-  float minX = std::numeric_limits<float>::max();
-  float minY = std::numeric_limits<float>::max();
-  float maxX = -std::numeric_limits<float>::max();
-  float maxY = -std::numeric_limits<float>::max();
+  const float safeZoom = juce::jmax(zoomLevel, 0.0001f);
+  const float viewportWidthWorld =
+      getWidth() > 0 ? (float)getWidth() / safeZoom : 800.0f;
+  const float viewportHeightWorld =
+      getHeight() > 0 ? (float)getHeight() / safeZoom : 600.0f;
+  const juce::Rectangle<float> viewportWorld(viewOriginWorld.x, viewOriginWorld.y,
+                                             viewportWidthWorld,
+                                             viewportHeightWorld);
+
+  float minX = viewportWorld.getX();
+  float minY = viewportWorld.getY();
+  float maxX = viewportWorld.getRight();
+  float maxY = viewportWorld.getBottom();
 
   for (const auto &node : document.nodes) {
     minX = juce::jmin(minX, node.x);
@@ -483,15 +502,14 @@ void TGraphCanvas::recalcMiniMapCache() {
     maxY = juce::jmax(maxY, frame.y + frame.height);
   }
 
-  if (minX == std::numeric_limits<float>::max()) {
-    minX = viewOriginWorld.x - 400.0f;
-    minY = viewOriginWorld.y - 300.0f;
-    maxX = viewOriginWorld.x + 400.0f;
-    maxY = viewOriginWorld.y + 300.0f;
-  }
+  const float width = juce::jmax(1.0f, maxX - minX);
+  const float height = juce::jmax(1.0f, maxY - minY);
+  const float paddingX = juce::jmax(80.0f, width * 0.08f);
+  const float paddingY = juce::jmax(60.0f, height * 0.08f);
 
-  miniMapWorldBounds = juce::Rectangle<float>(
-      minX, minY, juce::jmax(1.0f, maxX - minX), juce::jmax(1.0f, maxY - minY));
+  miniMapWorldBounds = juce::Rectangle<float>(minX - paddingX, minY - paddingY,
+                                              width + paddingX * 2.0f,
+                                              height + paddingY * 2.0f);
   miniMapCacheValid = true;
 }
 
