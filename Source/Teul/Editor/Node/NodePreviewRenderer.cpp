@@ -100,6 +100,35 @@ static float clampUnit(float value) {
   return juce::jlimit(0.0f, 1.0f, value);
 }
 
+static juce::Colour meterColourForPortType(TPortDataType dataType) {
+  switch (dataType) {
+  case TPortDataType::Audio:
+    return TeulPalette::PortAudio;
+  case TPortDataType::CV:
+    return TeulPalette::PortCV;
+  case TPortDataType::Gate:
+    return TeulPalette::PortGate;
+  case TPortDataType::Control:
+    return TeulPalette::PortControl;
+  case TPortDataType::MIDI:
+  default:
+    return TeulPalette::PortMIDI;
+  }
+}
+
+static juce::String meterLabelForPort(const juce::String &name) {
+  const juce::String upper = name.trim().toUpperCase();
+  if (upper.startsWith("L ") || upper == "L" || upper.contains("LEFT"))
+    return "L";
+  if (upper.startsWith("R ") || upper == "R" || upper.contains("RIGHT"))
+    return "R";
+  if (upper.contains("OUT"))
+    return "OUT";
+  if (upper.length() <= 3)
+    return upper;
+  return upper.substring(0, 3);
+}
+
 static juce::Rectangle<float>
 makePreviewBoundsImpl(const juce::Rectangle<float> &bounds, InlinePreviewKind kind) {
   const auto height = (float)previewHeightForKindImpl(kind);
@@ -271,10 +300,27 @@ static void drawAdsrPreviewImpl(juce::Graphics &g, const juce::Rectangle<float> 
 }
 
 static std::vector<MeterBar> buildMeterBars(const TNodeDescriptor *descriptor,
-                                            const TNode &node) {
+                                            const TNode &node,
+                                            const PortLevelReader &portLevelReader) {
   std::vector<MeterBar> bars;
   if (descriptor == nullptr)
     return bars;
+
+  if (portLevelReader) {
+    for (const auto &port : node.ports) {
+      if (port.direction != TPortDirection::Output ||
+          port.dataType == TPortDataType::MIDI) {
+        continue;
+      }
+
+      bars.push_back({meterLabelForPort(port.name),
+                      clampUnit(portLevelReader(port.portId)),
+                      meterColourForPortType(port.dataType)});
+    }
+
+    if (!bars.empty())
+      return bars;
+  }
 
   if (descriptor->typeKey == "Teul.Mixer.VCA") {
     const float gain = juce::jlimit(0.0f, 1.0f,
@@ -323,11 +369,12 @@ static std::vector<MeterBar> buildMeterBars(const TNodeDescriptor *descriptor,
 
 static void drawMeterPreviewImpl(juce::Graphics &g, const juce::Rectangle<float> &bounds,
                              const TNodeDescriptor *descriptor,
-                             const TNode &node) {
+                             const TNode &node,
+                             const PortLevelReader &portLevelReader) {
   if (bounds.isEmpty())
     return;
 
-  const auto bars = buildMeterBars(descriptor, node);
+  const auto bars = buildMeterBars(descriptor, node, portLevelReader);
   if (bars.empty())
     return;
 
@@ -399,8 +446,9 @@ void drawAdsrPreview(juce::Graphics &g, const juce::Rectangle<float> &bounds,
 }
 
 void drawMeterPreview(juce::Graphics &g, const juce::Rectangle<float> &bounds,
-                      const TNodeDescriptor *descriptor, const TNode &node) {
-  drawMeterPreviewImpl(g, bounds, descriptor, node);
+                      const TNodeDescriptor *descriptor, const TNode &node,
+                      const PortLevelReader &portLevelReader) {
+  drawMeterPreviewImpl(g, bounds, descriptor, node, portLevelReader);
 }
 
 } // namespace Teul

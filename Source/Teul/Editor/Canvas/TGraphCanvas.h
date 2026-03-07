@@ -74,10 +74,15 @@ public:
   using ConnectionLevelProvider = std::function<float(const TConnection &)>;
   void setConnectionLevelProvider(ConnectionLevelProvider provider);
 
+  using PortLevelProvider = std::function<float(PortId)>;
+  void setPortLevelProvider(PortLevelProvider provider);
+  float getPortLevel(PortId portId) const;
+
   using NodePropertiesRequestHandler = std::function<void(NodeId)>;
   void setNodePropertiesRequestHandler(NodePropertiesRequestHandler handler);
 
-  using NodeSelectionChangedHandler = std::function<void(const std::vector<NodeId> &)>;
+  using NodeSelectionChangedHandler =
+      std::function<void(const std::vector<NodeId> &)>;
   void setNodeSelectionChangedHandler(NodeSelectionChangedHandler handler);
 
   void openQuickAddAt(juce::Point<float> pointView);
@@ -269,6 +274,7 @@ private:
 
   float flowPhase = 0.0f;
   ConnectionLevelProvider connectionLevelProvider;
+  PortLevelProvider portLevelProvider;
 
   std::vector<juce::String> recentNodeTypes;
 

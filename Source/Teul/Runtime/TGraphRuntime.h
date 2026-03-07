@@ -37,6 +37,7 @@ public:
 
   void queueParameterChange(NodeId nodeId, const juce::String &paramKey,
                             float value);
+  float getPortLevel(PortId portId) const noexcept;
 
   std::vector<TTeulExposedParam> listExposedParams() const override;
   juce::var getParam(const juce::String &paramId) const override;
@@ -51,29 +52,39 @@ private:
                               float value) override;
 
   struct MixOp {
-    int srcChannelIndex;
-    int dstChannelIndex;
+    int srcChannelIndex = -1;
+    int dstChannelIndex = -1;
   };
 
   struct NodeEntry {
-    NodeId nodeId;
+    NodeId nodeId = kInvalidNodeId;
     const TNode *nodeData = nullptr;
     std::unique_ptr<TNodeInstance> instance;
     std::vector<MixOp> preProcessMixes;
     std::map<PortId, int> portChannels;
   };
 
+  struct PortTelemetry {
+    PortId portId = kInvalidPortId;
+    NodeId nodeId = kInvalidNodeId;
+    int channelIndex = -1;
+    TPortDataType dataType = TPortDataType::Audio;
+  };
+
   struct RenderState : public juce::ReferenceCountedObject {
     using Ptr = juce::ReferenceCountedObjectPtr<RenderState>;
     std::vector<NodeEntry> sortedNodes;
     juce::AudioBuffer<float> globalPortBuffer;
+    std::vector<PortTelemetry> portTelemetry;
+    std::map<PortId, std::size_t> portTelemetryIndex;
+    std::unique_ptr<std::atomic<float>[]> portLevels;
     int totalAllocatedChannels = 0;
   };
 
   struct AtomicState {
     std::atomic<RenderState *> state{nullptr};
 
-    RenderState::Ptr get() {
+    RenderState::Ptr get() const {
       return state.load(std::memory_order_acquire);
     }
 
@@ -118,6 +129,9 @@ private:
   static float paramValueToFloat(const juce::var &value);
   static juce::var coerceValueLike(const juce::var &prototype,
                                    const juce::var &candidate);
+  static float measureSignalLevel(const float *samples, int numSamples) noexcept;
+  static float smoothMeterLevel(float previousLevel,
+                                float measuredLevel) noexcept;
 
   const TNodeRegistry *nodeRegistry = nullptr;
   double currentSampleRate = 48000.0;

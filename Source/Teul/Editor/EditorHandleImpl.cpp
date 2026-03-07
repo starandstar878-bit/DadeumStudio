@@ -15,6 +15,11 @@ EditorHandle::Impl::Impl(
       runtime(registryStore.get()), audioDeviceManager(audioDeviceManagerIn),
       bindingRevisionProvider(std::move(bindingRevisionProviderIn)) {
   canvas = std::make_unique<TGraphCanvas>(doc);
+  canvas->setConnectionLevelProvider([this](const TConnection &connection) {
+    return runtime.getPortLevel(connection.from.portId);
+  });
+  canvas->setPortLevelProvider(
+      [this](PortId portId) { return runtime.getPortLevel(portId); });
   canvas->setNodePropertiesRequestHandler(
       [this](NodeId nodeId) { openProperties(nodeId); });
   owner.addAndMakeVisible(*canvas);

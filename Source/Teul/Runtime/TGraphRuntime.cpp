@@ -1,7 +1,9 @@
 #include "TGraphRuntime.h"
+
+#include <cmath>
+#include <cstring>
 #include <map>
 #include <queue>
-#include <cstring>
 
 namespace Teul {
 namespace {
@@ -45,11 +47,11 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
 
   std::vector<NodeId> sortedIds;
   while (!q.empty()) {
-    NodeId curr = q.front();
+    const NodeId curr = q.front();
     q.pop();
     sortedIds.push_back(curr);
 
-    for (NodeId neighbor : adj[curr]) {
+    for (const NodeId neighbor : adj[curr]) {
       if (--inDegree[neighbor] == 0)
         q.push(neighbor);
     }
@@ -65,26 +67,30 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
   std::map<PortId, int> globalPortIndexMap;
 
   for (const auto &id : sortedIds) {
-    const TNode *n = doc.findNode(id);
-    if (!n)
+    const TNode *node = doc.findNode(id);
+    if (node == nullptr)
       continue;
 
     NodeEntry entry;
-    entry.nodeId = n->nodeId;
-    entry.nodeData = n;
+    entry.nodeId = node->nodeId;
+    entry.nodeData = node;
 
-    for (const auto &p : n->ports) {
-      entry.portChannels[p.portId] = portChannelCounter;
-      globalPortIndexMap[p.portId] = portChannelCounter;
+    for (const auto &port : node->ports) {
+      entry.portChannels[port.portId] = portChannelCounter;
+      globalPortIndexMap[port.portId] = portChannelCounter;
       ++portChannelCounter;
     }
 
-    if (nodeRegistry) {
-      if (auto desc = nodeRegistry->descriptorFor(n->typeKey)) {
+    if (nodeRegistry != nullptr) {
+      if (const auto *desc = nodeRegistry->descriptorFor(node->typeKey)) {
         if (desc->instanceFactory) {
           entry.instance = desc->instanceFactory();
-          if (entry.instance)
+          if (entry.instance) {
             entry.instance->prepareToPlay(currentSampleRate, currentBlockSize);
+            entry.instance->reset();
+            for (const auto &[key, value] : node->params)
+              entry.instance->setParameterValue(key, paramValueToFloat(value));
+          }
         }
       }
     }
@@ -92,13 +98,61 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
     newSortedNodes.push_back(std::move(entry));
   }
 
+  std::map<NodeId, std::size_t> entryIndexByNodeId;
+  for (std::size_t index = 0; index < newSortedNodes.size(); ++index)
+    entryIndexByNodeId[newSortedNodes[index].nodeId] = index;
+
+  for (const auto &conn : doc.connections) {
+    const auto srcChannelIt = globalPortIndexMap.find(conn.from.portId);
+    const auto dstEntryIt = entryIndexByNodeId.find(conn.to.nodeId);
+    if (srcChannelIt == globalPortIndexMap.end() ||
+        dstEntryIt == entryIndexByNodeId.end()) {
+      continue;
+    }
+
+    auto &dstEntry = newSortedNodes[dstEntryIt->second];
+    const auto dstChannelIt = dstEntry.portChannels.find(conn.to.portId);
+    if (dstChannelIt == dstEntry.portChannels.end())
+      continue;
+
+    dstEntry.preProcessMixes.push_back(
+        {srcChannelIt->second, dstChannelIt->second});
+  }
+
   auto newState = new RenderState();
   newState->sortedNodes = std::move(newSortedNodes);
   newState->globalPortBuffer.setSize(
-      portChannelCounter > 0 ? portChannelCounter : 1, currentBlockSize,
-      false, false, true);
+      portChannelCounter > 0 ? portChannelCounter : 1,
+      juce::jmax(1, currentBlockSize), false, false, true);
   newState->globalPortBuffer.clear();
   newState->totalAllocatedChannels = portChannelCounter;
+
+  for (const auto &entry : newState->sortedNodes) {
+    if (entry.nodeData == nullptr)
+      continue;
+
+    for (const auto &port : entry.nodeData->ports) {
+      if (port.direction != TPortDirection::Output ||
+          port.dataType == TPortDataType::MIDI) {
+        continue;
+      }
+
+      const auto channelIt = entry.portChannels.find(port.portId);
+      if (channelIt == entry.portChannels.end())
+        continue;
+
+      newState->portTelemetryIndex[port.portId] = newState->portTelemetry.size();
+      newState->portTelemetry.push_back(
+          {port.portId, entry.nodeId, channelIt->second, port.dataType});
+    }
+  }
+
+  if (!newState->portTelemetry.empty()) {
+    newState->portLevels =
+        std::make_unique<std::atomic<float>[]>(newState->portTelemetry.size());
+    for (std::size_t index = 0; index < newState->portTelemetry.size(); ++index)
+      newState->portLevels[index].store(0.0f, std::memory_order_relaxed);
+  }
 
   activeState.set(newState);
 
@@ -115,20 +169,27 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
 void TGraphRuntime::prepareToPlay(double sampleRate,
                                   int maximumExpectedSamplesPerBlock) {
   currentSampleRate = sampleRate;
-  currentBlockSize = maximumExpectedSamplesPerBlock;
+  currentBlockSize = juce::jmax(1, maximumExpectedSamplesPerBlock);
 
-  auto state = activeState.get();
+  const auto state = activeState.get();
   if (!state)
     return;
 
+  if (state->globalPortBuffer.getNumSamples() != currentBlockSize) {
+    state->globalPortBuffer.setSize(
+        juce::jmax(1, state->totalAllocatedChannels), currentBlockSize, false,
+        false, true);
+    state->globalPortBuffer.clear();
+  }
+
   for (auto &entry : state->sortedNodes) {
     if (entry.instance)
-      entry.instance->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+      entry.instance->prepareToPlay(sampleRate, currentBlockSize);
   }
 }
 
 void TGraphRuntime::releaseResources() {
-  auto state = activeState.get();
+  const auto state = activeState.get();
   if (!state)
     return;
 
@@ -140,14 +201,20 @@ void TGraphRuntime::releaseResources() {
 
 void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
                                  juce::MidiBuffer &midiMessages) {
-  auto state = activeState.get();
+  const auto state = activeState.get();
   if (!state) {
     deviceBuffer.clear();
     return;
   }
 
+  const int numSamples = juce::jmin(deviceBuffer.getNumSamples(),
+                                    state->globalPortBuffer.getNumSamples());
+  if (numSamples <= 0) {
+    deviceBuffer.clear();
+    return;
+  }
+
   state->globalPortBuffer.clear();
-  const int numSamples = deviceBuffer.getNumSamples();
 
   int start1 = 0, size1 = 0, start2 = 0, size2 = 0;
   paramQueueFifo.prepareToRead(paramQueueFifo.getNumReady(), start1, size1,
@@ -190,6 +257,36 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
       entry.instance->processSamples(ctx);
     }
   }
+
+  if (state->portLevels) {
+    for (std::size_t index = 0; index < state->portTelemetry.size(); ++index) {
+      const auto &telemetry = state->portTelemetry[index];
+      if (telemetry.channelIndex < 0 ||
+          telemetry.channelIndex >= state->globalPortBuffer.getNumChannels()) {
+        continue;
+      }
+
+      const float measured = measureSignalLevel(
+          state->globalPortBuffer.getReadPointer(telemetry.channelIndex),
+          numSamples);
+      const float previous =
+          state->portLevels[index].load(std::memory_order_relaxed);
+      state->portLevels[index].store(
+          smoothMeterLevel(previous, measured), std::memory_order_relaxed);
+    }
+  }
+}
+
+float TGraphRuntime::getPortLevel(PortId portId) const noexcept {
+  const auto state = activeState.get();
+  if (!state || !state->portLevels)
+    return 0.0f;
+
+  const auto it = state->portTelemetryIndex.find(portId);
+  if (it == state->portTelemetryIndex.end())
+    return 0.0f;
+
+  return state->portLevels[it->second].load(std::memory_order_relaxed);
 }
 
 void TGraphRuntime::audioDeviceAboutToStart(juce::AudioIODevice *device) {
@@ -247,7 +344,8 @@ juce::var TGraphRuntime::getParam(const juce::String &paramId) const {
   return exposedParams[it->second].currentValue;
 }
 
-bool TGraphRuntime::setParam(const juce::String &paramId, const juce::var &value) {
+bool TGraphRuntime::setParam(const juce::String &paramId,
+                             const juce::var &value) {
   TTeulExposedParam updated;
   NodeId nodeId = kInvalidNodeId;
   juce::String paramKey;
@@ -275,9 +373,7 @@ bool TGraphRuntime::setParam(const juce::String &paramId, const juce::var &value
   return true;
 }
 
-void TGraphRuntime::addListener(Listener *listener) {
-  listeners.add(listener);
-}
+void TGraphRuntime::addListener(Listener *listener) { listeners.add(listener); }
 
 void TGraphRuntime::removeListener(Listener *listener) {
   listeners.remove(listener);
@@ -329,9 +425,8 @@ void TGraphRuntime::handleAsyncUpdate() {
   }
 
   for (const auto &param : changed) {
-    listeners.call([&](Listener &listener) {
-      listener.teulParamValueChanged(param);
-    });
+    listeners.call(
+        [&](Listener &listener) { listener.teulParamValueChanged(param); });
   }
 }
 
@@ -372,10 +467,9 @@ void TGraphRuntime::rebuildParamSurfaceLocked(const TGraphDocument &doc) {
   }
 }
 
-bool TGraphRuntime::updateParamSurfaceValueLocked(NodeId nodeId,
-                                                  const juce::String &paramKey,
-                                                  const juce::var &value,
-                                                  TTeulExposedParam *updatedParam) {
+bool TGraphRuntime::updateParamSurfaceValueLocked(
+    NodeId nodeId, const juce::String &paramKey, const juce::var &value,
+    TTeulExposedParam *updatedParam) {
   TNode *node = surfaceDocument.findNode(nodeId);
   if (node == nullptr)
     return false;
@@ -444,6 +538,26 @@ juce::var TGraphRuntime::coerceValueLike(const juce::var &prototype,
   if (prototype.isString())
     return candidate.toString();
   return candidate;
+}
+
+float TGraphRuntime::measureSignalLevel(const float *samples,
+                                        int numSamples) noexcept {
+  if (samples == nullptr || numSamples <= 0)
+    return 0.0f;
+
+  float peak = 0.0f;
+  for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex)
+    peak = juce::jmax(peak, std::abs(samples[sampleIndex]));
+
+  return juce::jlimit(0.0f, 1.0f, peak);
+}
+
+float TGraphRuntime::smoothMeterLevel(float previousLevel,
+                                      float measuredLevel) noexcept {
+  if (measuredLevel >= previousLevel)
+    return measuredLevel;
+
+  return juce::jmax(measuredLevel, previousLevel * 0.84f);
 }
 
 } // namespace Teul

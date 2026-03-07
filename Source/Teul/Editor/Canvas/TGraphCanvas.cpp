@@ -47,6 +47,17 @@ void TGraphCanvas::setConnectionLevelProvider(ConnectionLevelProvider provider) 
   connectionLevelProvider = std::move(provider);
 }
 
+void TGraphCanvas::setPortLevelProvider(PortLevelProvider provider) {
+  portLevelProvider = std::move(provider);
+}
+
+float TGraphCanvas::getPortLevel(PortId portId) const {
+  if (!portLevelProvider)
+    return 0.0f;
+
+  return juce::jlimit(0.0f, 1.0f, portLevelProvider(portId));
+}
+
 void TGraphCanvas::setNodePropertiesRequestHandler(
     NodePropertiesRequestHandler handler) {
   nodePropertiesRequestHandler = std::move(handler);
@@ -75,12 +86,12 @@ void TGraphCanvas::focusNode(NodeId nodeId) {
 void TGraphCanvas::rebuildNodeComponents() {
   nodeComponents.clear();
 
-  for (const auto &n : document.nodes) {
+  for (const auto &node : document.nodes) {
     const TNodeDescriptor *desc = nullptr;
     if (nodeRegistry)
-      desc = nodeRegistry->descriptorFor(n.typeKey);
+      desc = nodeRegistry->descriptorFor(node.typeKey);
 
-    auto comp = std::make_unique<TNodeComponent>(*this, n.nodeId, desc);
+    auto comp = std::make_unique<TNodeComponent>(*this, node.nodeId, desc);
     addAndMakeVisible(comp.get());
     nodeComponents.push_back(std::move(comp));
   }
@@ -94,19 +105,19 @@ void TGraphCanvas::rebuildNodeComponents() {
 }
 
 void TGraphCanvas::updateChildPositions() {
-  for (auto &tnc : nodeComponents) {
-    const TNode *nodeData = document.findNode(tnc->getNodeId());
+  for (auto &nodeComponent : nodeComponents) {
+    const TNode *nodeData = document.findNode(nodeComponent->getNodeId());
     if (!nodeData)
       continue;
 
     const bool hidden = isNodeHiddenByCollapsedFrame(*nodeData);
-    tnc->setVisible(!hidden);
+    nodeComponent->setVisible(!hidden);
     if (hidden)
       continue;
 
-    tnc->setTopLeftPosition(
+    nodeComponent->setTopLeftPosition(
         worldToView(juce::Point<float>(nodeData->x, nodeData->y)).roundToInt());
-    tnc->setTransform(juce::AffineTransform::scale(zoomLevel));
+    nodeComponent->setTransform(juce::AffineTransform::scale(zoomLevel));
   }
 
   recalcMiniMapCache();
@@ -346,7 +357,8 @@ bool TGraphCanvas::keyPressed(const juce::KeyPress &key) {
     if (selectedConnectionId != kInvalidConnectionId) {
       const bool confirmed = juce::AlertWindow::showOkCancelBox(
           juce::MessageBoxIconType::WarningIcon, "Delete Connection",
-          "Delete selected connection? Ctrl+Z will undo.", "OK", "Cancel", nullptr, nullptr);
+          "Delete selected connection? Ctrl+Z will undo.", "OK", "Cancel", nullptr,
+          nullptr);
       if (confirmed)
         deleteConnectionWithAnimation(selectedConnectionId, getViewCenter(),
                                       {0.0f, 120.0f});
@@ -455,13 +467,21 @@ void TGraphCanvas::timerCallback() {
     disconnectAnimation.loosePosView +=
         disconnectAnimation.velocityViewPerSecond * dt;
 
-    disconnectAnimation.alpha = juce::jmax(0.0f, disconnectAnimation.alpha - 2.4f * dt);
+    disconnectAnimation.alpha =
+        juce::jmax(0.0f, disconnectAnimation.alpha - 2.4f * dt);
     if (disconnectAnimation.alpha <= 0.01f)
       disconnectAnimation.active = false;
   }
 
-  if (!document.connections.empty() || wireDragState.active ||
-      disconnectAnimation.active) {
+  if (portLevelProvider != nullptr) {
+    for (auto &nodeComponent : nodeComponents) {
+      if (nodeComponent != nullptr && nodeComponent->isVisible())
+        nodeComponent->repaint();
+    }
+  }
+
+  if (connectionLevelProvider != nullptr || !document.connections.empty() ||
+      wireDragState.active || disconnectAnimation.active) {
     repaint();
   }
 }

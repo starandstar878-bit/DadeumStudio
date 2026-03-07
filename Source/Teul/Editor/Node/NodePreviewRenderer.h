@@ -5,7 +5,11 @@
 
 #include <JuceHeader.h>
 
+#include <functional>
+
 namespace Teul {
+
+using PortLevelReader = std::function<float(PortId)>;
 
 enum class InlinePreviewKind {
   none,
@@ -25,6 +29,7 @@ void drawOscillatorPreview(juce::Graphics &g,
 void drawAdsrPreview(juce::Graphics &g, const juce::Rectangle<float> &bounds,
                      const TNode &node);
 void drawMeterPreview(juce::Graphics &g, const juce::Rectangle<float> &bounds,
-                      const TNodeDescriptor *descriptor, const TNode &node);
+                      const TNodeDescriptor *descriptor, const TNode &node,
+                      const PortLevelReader &portLevelReader = {});
 
 } // namespace Teul
