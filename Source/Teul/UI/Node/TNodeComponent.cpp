@@ -508,7 +508,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
     g.setOpacity(0.4f);
 
   g.setColour(TeulPalette::NodeBackground);
-  g.fillRoundedRectangle(bounds, cornerRadius);
+  g.fillRoundedRectangle(bounds, (float)cornerRadius);
 
   juce::Rectangle<float> headerBounds = bounds.withHeight((float)headerHeight);
   juce::Colour headerColor = TeulPalette::NodeHeader;
@@ -517,10 +517,10 @@ void TNodeComponent::paint(juce::Graphics &g) {
   g.setColour(headerColor);
 
   if (collapsed) {
-    g.fillRoundedRectangle(headerBounds, cornerRadius);
+    g.fillRoundedRectangle(headerBounds, (float)cornerRadius);
   } else {
-    g.fillRoundedRectangle(headerBounds, cornerRadius);
-    g.fillRect(headerBounds.withTop(headerBounds.getBottom() - cornerRadius));
+    g.fillRoundedRectangle(headerBounds, (float)cornerRadius);
+    g.fillRect(headerBounds.withTop(headerBounds.getBottom() - (float)cornerRadius));
   }
 
   juce::String title = descriptor ? descriptor->displayName : "Unknown";
@@ -581,15 +581,15 @@ void TNodeComponent::paint(juce::Graphics &g) {
 
   if (isSelected) {
     g.setColour(TeulPalette::NodeBorderSelected);
-    g.drawRoundedRectangle(bounds, cornerRadius, 1.5f);
+    g.drawRoundedRectangle(bounds, (float)cornerRadius, 1.5f);
   } else {
     g.setColour(TeulPalette::NodeBorder);
-    g.drawRoundedRectangle(bounds, cornerRadius, 1.0f);
+    g.drawRoundedRectangle(bounds, (float)cornerRadius, 1.0f);
   }
 
   if (hasError) {
     g.setColour(juce::Colour(0x60f87171));
-    g.drawRoundedRectangle(bounds.expanded(2.0f), cornerRadius + 2.0f, 2.0f);
+    g.drawRoundedRectangle(bounds.expanded(2.0f), (float)cornerRadius + 2.0f, 2.0f);
   }
 }
 
