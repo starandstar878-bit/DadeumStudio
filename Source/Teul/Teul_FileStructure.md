@@ -113,9 +113,9 @@ This section tracks the main file moves and edits expected when the target struc
 
 ### Files To Add
 
-- [TODO] `Source/Teul/Public/EditorHandle.h`
+- [DONE] `Source/Teul/Public/EditorHandle.h`
 - [TODO] `Source/Teul/Public/Export.h` (only if a stable public export include is needed)
-- [TODO] `Source/Teul/Editor/EditorHandle.cpp`
+- [DONE] `Source/Teul/Editor/EditorHandle.cpp`
 - [TODO] `Source/Teul/Editor/EditorHandleImpl.h`
 - [TODO] `Source/Teul/Editor/EditorHandleImpl.cpp`
 - [TODO] `Source/Teul/Editor/Panels/NodeLibraryPanel.h`
@@ -133,8 +133,8 @@ This section tracks the main file moves and edits expected when the target struc
 
 ### Files To Modify
 
-- [TODO] `Source/Teul/Teul.h` (reduce to umbrella include path forwarding)
-- [TODO] `Source/Teul/Teul.cpp` (reduce to single-TU aggregator only)
+- [DONE] `Source/Teul/Teul.h` (reduced to umbrella include path forwarding)
+- [DONE] `Source/Teul/Teul.cpp` (reduced to single-TU aggregator only)
 - [TODO] `Source/Teul/UI/TeulPalette.h` or move to `Source/Teul/Editor/Theme/TeulPalette.h`
 - [TODO] `Source/Teul/UI/Canvas/TGraphCanvas.h`
 - [TODO] `Source/Teul/UI/Canvas/TGraphCanvas.cpp`
