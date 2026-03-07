@@ -197,7 +197,7 @@ void TGraphCanvas::requestNodeMouseDown(NodeId nodeId,
   } else if (additive) {
     setNodeSelection(nodeId, true);
   } else {
-    if (!isNodeSelected(nodeId) || selectedNodeIds.size() != 1)
+    if (!isNodeSelected(nodeId))
       selectOnlyNode(nodeId);
   }
 
