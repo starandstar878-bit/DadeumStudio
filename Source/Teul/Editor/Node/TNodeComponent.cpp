@@ -52,8 +52,6 @@ void TNodeComponent::updateFromModel() {
 
   recalculateHeight();
 
-  setTopLeftPosition(
-      ownerCanvas.worldToView({nodePtr->x, nodePtr->y}).roundToInt());
 }
 
 void TNodeComponent::recalculateHeight() {

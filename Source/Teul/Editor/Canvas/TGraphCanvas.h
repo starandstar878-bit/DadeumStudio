@@ -211,6 +211,8 @@ private:
 
   void recalcMiniMapCache();
   juce::Point<float> miniMapToWorld(juce::Point<float> miniPoint) const;
+  juce::Point<float> worldToNodeLayout(juce::Point<float> worldPos) const;
+  juce::Rectangle<float> getNodeBoundsInView(const TNodeComponent &nodeComponent) const;
 
   void pushStatusHint(const juce::String &text);
 

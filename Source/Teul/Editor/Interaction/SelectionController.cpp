@@ -59,8 +59,7 @@ void TGraphCanvas::updateMarqueeSelection() {
     if (!comp->isVisible())
       continue;
 
-    const auto boundsView =
-        getLocalArea(comp.get(), comp->getLocalBounds()).toFloat();
+    const auto boundsView = getNodeBoundsInView(*comp);
     if (!marqueeState.rectView.intersects(boundsView))
       continue;
 
