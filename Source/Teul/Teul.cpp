@@ -4,6 +4,7 @@
 #include "Model/TGraphDocument.h"
 #include "Registry/TNodeRegistry.h"
 #include "UI/Canvas/TGraphCanvas.h"
+#include "Export/TExport.h"
 
 #include <algorithm>
 #include <limits>
@@ -13,6 +14,7 @@
 // Teul sources are included here because the generated project currently compiles
 // only Teul.cpp and TSerializer.cpp for the Teul module.
 #include "Model/TGraphDocument.cpp"
+#include "Export/TExport.cpp"
 #include "Registry/TNodeRegistry.cpp"
 #include "Runtime/TGraphRuntime.cpp"
 #include "UI/Port/TPortComponent.cpp"
@@ -1285,6 +1287,14 @@ const TGraphDocument &EditorHandle::document() const noexcept { return impl->doc
 
 void EditorHandle::refreshFromDocument() {
   impl->rebuildAll(true);
+}
+
+TExportResult EditorHandle::runExportDryRun(
+    const TExportOptions &options) const {
+  if (impl == nullptr || impl->registry == nullptr)
+    return {};
+
+  return TExporter::run(impl->doc, *impl->registry, options);
 }
 
 void EditorHandle::paint(juce::Graphics &g) {

@@ -258,11 +258,11 @@
 
 ### 구현 단계 (우선 구현 순위)
 
-- [ ] **1. Export 모드 분리 + 공용 API 정의**: `EditableGraph`와 `RuntimeModule` 두 export 모드를 하나의 진입 API 아래에서 분기하도록 정리
-- [ ] **2. 노드별 export 지원 속성 추가**: `TNodeDescriptor`에 `Unsupported / JsonOnly / RuntimeModuleOnly / Both` 메타데이터를 추가하고 기본 정책 확정
-- [ ] **3. Export preflight validator**: 지원 불가 노드, 비호환 연결, 포트 타입 불일치, 채널 구성 문제, 순환 의존성을 export 전에 차단
-- [ ] **4. 노드/연결 단위 diagnostics 모델**: 어떤 노드와 연결이 왜 문제인지 위치 수준으로 식별 가능한 진단 메시지 구조 마련
-- [ ] **5. 공통 Export IR 구축**: `TGraphDocument`를 export 전용 중간 모델로 정규화하여 JSON export와 C++ codegen이 같은 그래프/파라미터/메타데이터를 공유
+- [x] **1. Export 모드 분리 + 공용 API 정의**: `EditableGraph`와 `RuntimeModule` 두 export 모드를 하나의 진입 API 아래에서 분기하도록 정리
+- [x] **2. 노드별 export 지원 속성 추가**: `TNodeDescriptor`에 `Unsupported / JsonOnly / RuntimeModuleOnly / Both` 메타데이터를 추가하고 기본 정책 확정
+- [x] **3. Export preflight validator**: 지원 불가 노드, 비호환 연결, 포트 타입 불일치, 채널 구성 문제, 순환 의존성을 export 전에 차단
+- [x] **4. 노드/연결 단위 diagnostics 모델**: 어떤 노드와 연결이 왜 문제인지 위치 수준으로 식별 가능한 진단 메시지 구조 마련
+- [x] **5. 공통 Export IR 구축**: `TGraphDocument`를 export 전용 중간 모델로 정규화하여 JSON export와 C++ codegen이 같은 그래프/파라미터/메타데이터를 공유
 - [ ] **6. 자산/의존성 preflight**: impulse, wavetable, 외부 파일 참조가 export 패키지에 포함 가능한지 검사하고 manifest 입력으로 정리
 - [ ] **7. EditableGraph JSON export/import 정리**: 버전, 노드 메타데이터, 연결, 파라미터, 자산 참조를 포함한 `.teul` 패키지 round-trip 경로 정리
 - [ ] **8. RuntimeModule 클래스 스켈레톤 생성기**: 그래프를 블랙박스 DSP 클래스로 생성하고 `prepare`, `reset`, `process`, `setParam`, `getParam` API 뼈대 제공
@@ -270,7 +270,7 @@
 - [ ] **10. `paramId` 정책 확정 및 내부 인덱스 매핑**: 외부 공개 식별자는 기존 `paramId = teul.node.<nodeId>.<paramKey>`를 유지하고, 내부는 `paramId -> index/handle`로 최적화
 - [ ] **11. 그래프 스케줄/버퍼 플래너 생성**: 위상 정렬, 임시 버퍼 계획, 처리 순서를 export IR에서 고정해 RuntimeModule codegen의 기반으로 사용
 - [ ] **12. 최적화된 DSP codegen 패스**: dead path 제거, 상수 파라미터 상수화, 불필요한 dispatch 제거, 임시 버퍼 재사용 등 export 전용 최적화 도입
-- [ ] **13. dry-run export report**: 노출 파라미터 수, 예상 버퍼 수, 생성 파일 목록, 제한 사항을 요약 보고서로 출력
+- [x] **13. dry-run export report**: 노출 파라미터 수, 예상 버퍼 수, 생성 파일 목록, 제한 사항을 요약 보고서로 출력
 - [ ] **14. 프로젝트 편입 자동화**: 생성된 `.h/.cpp`를 Jucer/CMake 또는 현재 앱 빌드 경로에 안정적으로 포함시키는 통합 경로 제공
 
 ---

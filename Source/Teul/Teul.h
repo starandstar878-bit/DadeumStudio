@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Export/TExport.h"
+
 #include <JuceHeader.h>
 #include <cstdint>
 #include <functional>
@@ -27,6 +29,7 @@ public:
   const TGraphDocument &document() const noexcept;
 
   void refreshFromDocument();
+  TExportResult runExportDryRun(const TExportOptions &options = {}) const;
 
   void paint(juce::Graphics &g) override;
   void resized() override;

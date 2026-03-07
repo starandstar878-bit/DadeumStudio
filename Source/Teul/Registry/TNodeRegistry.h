@@ -109,6 +109,13 @@ struct TNodeCapabilities {
   int estimatedCpuCost = 1;
 };
 
+enum class TNodeExportSupport {
+  Unsupported,
+  JsonOnly,
+  RuntimeModuleOnly,
+  Both,
+};
+
 class TNodeInstance;
 
 struct TNodeDescriptor {
@@ -117,6 +124,7 @@ struct TNodeDescriptor {
   juce::String category;
 
   TNodeCapabilities capabilities;
+  TNodeExportSupport exportSupport = TNodeExportSupport::Both;
 
   std::vector<TParamSpec> paramSpecs;
   std::vector<TPortSpec> portSpecs;
