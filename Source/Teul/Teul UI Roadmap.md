@@ -158,7 +158,217 @@
 
 ---
 
-## 최종 UX 완성도 목표
+> **→ 기능 로드맵 복귀**: `UI Phase 5` 완료 후 **[기능 Phase 6: Runtime Hardening & Real-time Safety](Teul%20Roadmap.md)** 으로 복귀하세요.
+> Property Panel과 export 기반이 마련된 지금부터는 "보기 좋은 편집기"보다 "실전에서 안전하게 돌고, 문제를 빨리 찾고, 배포 가능한가"를 UI가 뒷받침해야 합니다.
+
+---
+
+## Phase 6: 런타임 상태/안전성 UX (Runtime Safety UX)
+
+### 목표
+- Run 모드에서 그래프 상태, 성능 여유, 재빌드 위험도를 즉시 파악하고, 안전하지 않은 편집은 예측 가능하게 제어한다.
+
+### 구현 단계
+
+#### 단계 1: 런타임 상태 HUD
+- [ ] **세션 상태 바**: sample rate, block size, channel layout, CPU load, rebuild pending, bypass 상태를 상단 HUD에 집계
+- [ ] **오디오 상태 배지**: xrun, clip, denormal, muted fallback 같은 런타임 이상 상태를 색상 배지와 짧은 원인 텍스트로 표시
+- [ ] **실행 모드 전환 피드백**: Stop/Preview/Run 전환 시 prepare/rebuild/reset이 언제 발생하는지 사용자에게 명확히 안내
+
+#### 단계 2: 안전한 편집 피드백
+- [ ] **deferred apply 배너**: 오디오 재구성이 필요한 변경은 즉시 적용 대신 안전 지점에서 반영된다는 배너/큐 UI 제공
+- [ ] **파라미터 smoothing 시각화**: smoothing, bypass fade, snap-to-step 같은 동작이 UI에서 예측 가능하게 보이도록 표시
+- [ ] **위험 동작 가드**: Run 중 asset 교체, channel layout 변경, 대규모 삭제 같은 고위험 동작에 경고와 복구 경로 제공
+
+#### 단계 3: 성능/핫스팟 가시화
+- [ ] **노드 비용 heatmap**: CPU 사용량이 큰 노드나 병목 경로를 canvas 위 heatmap/outline으로 표시
+- [ ] **버퍼/스케줄 오버레이**: export/runtime 스케줄과 임시 버퍼 사용량을 시각적으로 탐색하는 디버그 오버레이 제공
+- [ ] **라이브 프로브**: wire/노드 위에 레벨, CV 값, gate 상태를 가볍게 찍어볼 수 있는 probe 모드 제공
+
+---
+
+> **→ 기능 로드맵 복귀**: `UI Phase 6` 완료 후 **[기능 Phase 7: Verification & Benchmark Infrastructure](Teul%20Roadmap.md)** 로 복귀하세요.
+> 이제부터는 안전성 감각이 아니라 검증 가능성이 중요합니다. 오류와 성능 회귀를 UI에서 빠르게 파악할 수 있어야 합니다.
+
+---
+
+## Phase 7: 검증/진단 워크스페이스 (Verification Workspace)
+
+### 목표
+- validation, export report, parity test, benchmark 결과를 사람이 빠르게 읽고 원인까지 추적할 수 있는 전용 진단 화면을 만든다.
+
+### 구현 단계
+
+#### 단계 1: 진단 패널
+- [ ] **Diagnostics Drawer**: error/warning/info 목록, severity 필터, 클릭 시 해당 노드/연결로 카메라 점프
+- [ ] **문제 원인 카드**: 누락 자산, 지원 불가 노드, 타입 불일치, export 제한 사항을 해결 액션과 함께 카드 형태로 제시
+- [ ] **report diff 뷰**: 현재 문서와 직전 validation/export 결과의 차이를 비교 표시
+
+#### 단계 2: 검증 결과 비교
+- [ ] **runtime vs export 비교 화면**: parity pass/fail, tolerance, 샘플 차이, 스냅샷 링크를 한 화면에 집계
+- [ ] **benchmark 타임라인**: 대표 그래프별 CPU/rebuild/export 시간 추세를 저장하고 회귀를 시각화
+- [ ] **smoke/export artifact 뷰어**: 생성된 manifest/runtime JSON/codegen 산출물을 빠르게 훑는 요약 뷰 제공
+
+#### 단계 3: 테스트 조작 UX
+- [ ] **one-click validate/export/benchmark**: 에디터 내부에서 주요 검증 작업을 즉시 실행하는 액션 바 제공
+- [ ] **대표 그래프 세트 관리**: golden test/benchmark에 쓰는 문서를 태그와 함께 관리
+- [ ] **결과 공유 포맷**: 로그/JSON/report를 팀원에게 전달하기 쉬운 요약 복사 기능 제공
+
+---
+
+> **→ 기능 로드맵 복귀**: `UI Phase 7` 완료 후 **[기능 Phase 8: Preset, State & Compatibility](Teul%20Roadmap.md)** 로 복귀하세요.
+> 검증 환경이 생기면 이제 사용자의 작업물 자체를 안전하게 저장하고 복구하는 UX가 필요합니다.
+
+---
+
+## Phase 8: 프리셋/상태/복구 UX (Preset & Recovery UX)
+
+### 목표
+- 문서, 프리셋, 자동 저장 상태를 잃지 않고 다루며, 버전 차이와 충돌 상황도 사용자가 이해 가능한 흐름으로 안내한다.
+
+### 구현 단계
+
+#### 단계 1: 프리셋 브라우저
+- [ ] **Preset Browser**: 태그, 즐겨찾기, 최근 사용, 미리듣기 메타데이터를 포함한 프리셋 탐색 패널
+- [ ] **노드 상태 스냅샷**: 전체 그래프뿐 아니라 선택 노드/서브그래프 단위 preset 저장과 recall 지원
+- [ ] **변경 비교 보기**: 현재 상태와 저장된 프리셋 간 차이를 항목별로 보여주는 diff 뷰 제공
+
+#### 단계 2: 저장/복구 흐름
+- [ ] **dirty state 표시**: 문서 제목, 탭, 패널에 저장 여부와 마지막 autosave 시점을 일관되게 표시
+- [ ] **crash recovery 대화상자**: 비정상 종료 후 복구 가능한 autosave 후보와 차이 요약을 제시
+- [ ] **충돌 해결 흐름**: 외부 수정, import 병합, 버전 충돌 시 선택 가능한 복구 경로 제공
+
+#### 단계 3: 호환성 안내 UX
+- [ ] **migration 경고 배너**: 구버전 문서/프리셋을 열 때 변환 항목과 잠재적 손실을 미리 안내
+- [ ] **deprecated/alias 표시**: 대체 노드, renamed param, 호환성 shim 사용 여부를 명시적으로 노출
+- [ ] **복구 가능성 등급**: 완전 복구/부분 복구/수동 조치 필요를 문서 단위 배지로 표시
+
+---
+
+> **→ 기능 로드맵 복귀**: `UI Phase 8` 완료 후 **[기능 Phase 9: Asset & Dependency Packaging](Teul%20Roadmap.md)** 로 복귀하세요.
+> 이제부터는 문서 내부만이 아니라 외부 자산까지 포함한 프로젝트 이동성과 복구 경험을 설계해야 합니다.
+
+---
+
+## Phase 9: 자산/패키징 UX (Asset & Packaging UX)
+
+### 목표
+- 샘플, impulse, wavetable 같은 외부 자산이 있는 그래프도 사용자가 누락 없이 추적하고 패키징할 수 있게 한다.
+
+### 구현 단계
+
+#### 단계 1: 자산 브라우저
+- [ ] **Asset Browser**: 문서가 참조하는 모든 외부 파일을 타입, 경로, 크기, 사용 노드 기준으로 탐색
+- [ ] **의존성 맵**: 어떤 노드가 어떤 자산을 참조하는지 그래프/리스트 양쪽에서 표시
+- [ ] **unused/missing 표시**: 누락 자산, 중복 자산, 더 이상 쓰이지 않는 자산을 명확히 구분
+
+#### 단계 2: relink/복구 흐름
+- [ ] **Missing Asset Wizard**: 누락 파일을 폴더 스캔, 최근 경로, 수동 지정으로 재연결하는 단계형 UI 제공
+- [ ] **정책 선택 UI**: copy into package, relative path 유지, external reference 유지 정책을 자산별/문서별로 선택
+- [ ] **복구 로그**: 어떤 자산이 어디로 치환됐는지 추적 가능한 변경 이력 제공
+
+#### 단계 3: 패키지 미리보기
+- [ ] **Package Preview**: export 전에 포함 파일 목록, 예상 폴더 구조, 총 용량, 누락 리스크를 요약
+- [ ] **portable health check**: 다른 머신에서 깨질 가능성이 있는 절대 경로/외부 참조를 경고
+- [ ] **README/manifest 미리보기**: 함께 생성될 문서와 manifest 내용을 UI에서 검토 가능하게 제공
+
+---
+
+> **→ 기능 로드맵 복귀**: `UI Phase 9` 완료 후 **[기능 Phase 10: Product Integration & Host Templates](Teul%20Roadmap.md)** 로 복귀하세요.
+> 패키징이 정리되면 사용자가 generated 결과물을 실제 제품 프로젝트에 붙이는 마지막 경험을 다듬어야 합니다.
+
+---
+
+## Phase 10: Export 통합/호스트 셋업 UX (Integration UX)
+
+### 목표
+- export 결과를 앱/플러그인/호스트 프로젝트에 가져다 붙이는 과정을 마법사 수준으로 단순화한다.
+
+### 구현 단계
+
+#### 단계 1: Export Wizard
+- [ ] **모드별 export 마법사**: EditableGraph, RuntimeModule, dry-run을 선택하고 출력 경로/클래스명/템플릿을 한 번에 설정
+- [ ] **사전 검증 요약**: export 직전에 실패 가능성, 누락 자산, 생성 파일 수를 체크리스트로 요약
+- [ ] **산출물 요약 화면**: 생성된 `.h/.cpp`, manifest, asset folder, build snippet을 카드 형태로 정리
+
+#### 단계 2: 통합 안내 UX
+- [ ] **호스트 템플릿 런처**: standalone app, AudioProcessor, 테스트 호스트용 예제 템플릿을 바로 여는 진입점 제공
+- [ ] **Projucer/CMake 편입 가이드**: 현재 export 결과를 어떤 파일에 어떻게 포함해야 하는지 단계별 안내
+- [ ] **파라미터 매핑 미리보기**: APVTS/Ieum에 노출되는 파라미터 표면을 export 전에 검토 가능하게 표시
+
+#### 단계 3: 사후 검증/지원
+- [ ] **post-export smoke 버튼**: 생성 직후 smoke validate/compile을 실행하고 결과를 요약 표시
+- [ ] **integration checklist**: prepare/process, bus layout, latency, tail 등 빠뜨리기 쉬운 항목을 체크리스트화
+- [ ] **copy-ready snippet**: 문서/프로젝트에 붙일 include, registration, attachment 코드를 복사 가능한 형태로 제공
+
+---
+
+> **→ 기능 로드맵 복귀**: `UI Phase 10` 완료 후 **[기능 Phase 11: Tooling, CLI & Team Workflow](Teul%20Roadmap.md)** 로 복귀하세요.
+> 이제 단일 사용자 편집기를 넘어 팀과 CI가 같은 결과를 보게 만드는 운영 UX가 필요합니다.
+
+---
+
+## Phase 11: 팀 워크플로우/자동화 UX (Team Workflow UX)
+
+### 목표
+- 로컬 편집기, CLI, CI 결과가 서로 끊기지 않고 이어지며, 팀 단위 리뷰와 재현이 쉬운 운영 화면을 제공한다.
+
+### 구현 단계
+
+#### 단계 1: 작업 실행 허브
+- [ ] **작업 센터(Task Center)**: validate, export, benchmark, package 작업의 큐/진행률/최근 결과를 한 화면에 집계
+- [ ] **프로필 저장**: 자주 쓰는 export/benchmark 설정을 preset처럼 저장하고 재실행
+- [ ] **배치 액션**: 여러 문서를 연속 검증하거나 export하는 대량 작업 UI 제공
+
+#### 단계 2: 리포트/재현 UX
+- [ ] **JSON report 뷰어**: machine-readable report를 사람이 읽기 쉬운 표/트리로 시각화
+- [ ] **실행 이력 비교**: 같은 문서의 서로 다른 실행 결과를 diff 형태로 비교
+- [ ] **재현 패키지 생성**: 버그 보고용 문서, 로그, 설정, asset manifest를 묶는 repro bundle 생성 UI 제공
+
+#### 단계 3: 팀 온보딩/레퍼런스
+- [ ] **cookbook 브라우저**: 대표 그래프, 패턴, 권장 연결 예제를 카테고리로 탐색
+- [ ] **규약 체크 배지**: 팀이 정한 export naming, asset policy, validation 기준 위반 여부를 즉시 표시
+- [ ] **리뷰용 요약 패널**: 현재 문서의 노드 수, exposed param 수, 외부 자산 수, export 위험도를 한 번에 보여주는 리뷰 패널 제공
+
+---
+
+> **→ 기능 로드맵 복귀**: `UI Phase 11` 완료 후 **[기능 Phase 12: Commercial Release Readiness](Teul%20Roadmap.md)** 로 복귀하세요.
+> 이제 마지막 단계는 기능 추가가 아니라 상용 릴리스에서 문제를 줄이는 마감 품질입니다.
+
+---
+
+## Phase 12: 릴리스 폴리시/상용 완성도 UX (Commercial UX)
+
+### 목표
+- 첫 실행부터 오류 대응, 접근성, 지원 번들까지 포함해 실제 고객이 매일 써도 버틸 수 있는 제품 경험으로 마무리한다.
+
+### 구현 단계
+
+#### 단계 1: 접근성/기본 품질
+- [ ] **키보드 완전 탐색**: canvas 이동, 노드 선택, 포트 연결, panel 탐색까지 마우스 없이 가능한 경로 확보
+- [ ] **고대비/색각 보정 테마**: 포트 타입 색상과 상태 배지가 색각 다양성에서도 구분되도록 대체 테마 제공
+- [ ] **배율/해상도 적응성**: 100%~200% 이상 배율, 작은 노트북 화면, 고해상도 모니터에서 레이아웃 안정화
+
+#### 단계 2: 온보딩/문서 진입
+- [ ] **first-run onboarding**: 첫 그래프 생성, 노드 연결, 소리 출력, export까지 이어지는 단계형 튜토리얼 제공
+- [ ] **빈 상태/실패 상태 문구 정비**: 아무 것도 없는 상태, 누락 자산, export 실패, 복구 실패 화면을 제품 수준 문구로 정리
+- [ ] **문서/예제 직결 링크**: 현재 패널이나 오류 상태에서 관련 가이드/샘플로 바로 이동
+
+#### 단계 3: 지원/릴리스 운영 UX
+- [ ] **support bundle 생성기**: 문서, report, 버전, 로그, 환경 정보를 한 번에 수집해 지원 요청용으로 묶기
+- [ ] **릴리스 readiness 대시보드**: QA 체크, known issue, 차단 이슈, export smoke 상태를 집계한 내부용 점검 화면
+- [ ] **edition/license 진입점**: 향후 제품 에디션 차이, 잠금 기능, 업그레이드 안내를 수용할 UI 훅 설계
+
+---
+
+## 최종 상용 UX 완성도 목표
+- [ ] 노드 100개 규모 그래프에서도 편집/선택/패널 전환이 실사용 수준의 반응성을 유지
+- [ ] validation/export 실패 시 사용자가 3클릭 이내에 원인 위치와 해결 경로를 찾을 수 있음
+- [ ] 누락 자산, 충돌 문서, crash recovery 상황에서 데이터 손실 없이 복구 흐름 제공
+- [ ] export 결과를 2분 이내에 샘플 호스트 프로젝트에 편입할 수 있는 통합 UX 제공
+- [ ] 키보드 중심 사용, 고대비 테마, 고배율 환경까지 포함한 접근성 기준 충족
+- [ ] 지원 요청 시 repro bundle/support bundle을 에디터 내부에서 바로 생성 가능
+
 - [ ] 노드 그래프 전체가 1초 이내에 렌더 완료 (노드 50개 기준)
 - [ ] 연결 드로잉 → 배치 전 과정에서 60fps 유지
 - [ ] 신규 사용자가 10분 내에 노드를 연결하고 소리를 낼 수 있는 학습 곡선
