@@ -82,6 +82,8 @@ private:
   };
 
   struct AtomicState {
+    ~AtomicState() { set(nullptr); }
+
     std::atomic<RenderState *> state{nullptr};
 
     RenderState::Ptr get() const {

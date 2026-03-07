@@ -25,7 +25,11 @@ juce::var coerceNumericValue(const juce::var &prototype, float value) {
 TGraphRuntime::TGraphRuntime(const TNodeRegistry *registry)
     : nodeRegistry(registry) {}
 
-TGraphRuntime::~TGraphRuntime() { releaseResources(); }
+TGraphRuntime::~TGraphRuntime() {
+  cancelPendingUpdate();
+  releaseResources();
+  activeState.set(nullptr);
+}
 
 bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
   std::map<NodeId, int> inDegree;
