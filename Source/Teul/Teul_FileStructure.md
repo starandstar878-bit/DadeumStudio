@@ -164,12 +164,12 @@ It should be removed after:
 - [DONE] `Source/Teul/Editor/Panels/NodeLibraryPanel.cpp`
 - [DONE] `Source/Teul/Editor/Panels/NodePropertiesPanel.h`
 - [DONE] `Source/Teul/Editor/Panels/NodePropertiesPanel.cpp`
-- [TODO] `Source/Teul/Editor/Panels/Property/ParamEditorFactory.h`
-- [TODO] `Source/Teul/Editor/Panels/Property/ParamEditorFactory.cpp`
-- [TODO] `Source/Teul/Editor/Panels/Property/ParamValueFormatter.h`
-- [TODO] `Source/Teul/Editor/Panels/Property/ParamValueFormatter.cpp`
-- [TODO] `Source/Teul/Editor/Panels/Property/BindingSummaryPresenter.h`
-- [TODO] `Source/Teul/Editor/Panels/Property/BindingSummaryPresenter.cpp`
+- [DONE] `Source/Teul/Editor/Panels/Property/ParamEditorFactory.h`
+- [DONE] `Source/Teul/Editor/Panels/Property/ParamEditorFactory.cpp`
+- [DONE] `Source/Teul/Editor/Panels/Property/ParamValueFormatter.h`
+- [DONE] `Source/Teul/Editor/Panels/Property/ParamValueFormatter.cpp`
+- [DONE] `Source/Teul/Editor/Panels/Property/BindingSummaryPresenter.h`
+- [DONE] `Source/Teul/Editor/Panels/Property/BindingSummaryPresenter.cpp`
 
 ### Stage 4: Canvas and Interaction Split
 

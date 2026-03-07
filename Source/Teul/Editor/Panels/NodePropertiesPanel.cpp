@@ -1,5 +1,8 @@
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
 
+#include "Teul/Editor/Panels/Property/BindingSummaryPresenter.h"
+#include "Teul/Editor/Panels/Property/ParamEditorFactory.h"
+#include "Teul/Editor/Panels/Property/ParamValueFormatter.h"
 #include "Teul/History/TCommands.h"
 #include "Teul/Model/TGraphDocument.h"
 #include "Teul/UI/Canvas/TGraphCanvas.h"
@@ -21,32 +24,6 @@ static juce::String nodeLabelForInspector(const TNode &node,
   }
 
   return node.typeKey;
-}
-
-static bool varEquals(const juce::var &lhs, const juce::var &rhs) {
-  return lhs.toString() == rhs.toString() && lhs.isBool() == rhs.isBool() &&
-         lhs.isInt() == rhs.isInt() && lhs.isInt64() == rhs.isInt64() &&
-         lhs.isDouble() == rhs.isDouble();
-}
-
-static juce::var parseEditedValue(const juce::String &text,
-                                  const juce::var &prototype) {
-  if (prototype.isBool()) {
-    const juce::String lowered = text.trim().toLowerCase();
-    return lowered == "1" || lowered == "true" || lowered == "yes" ||
-           lowered == "on";
-  }
-
-  if (prototype.isInt())
-    return text.getIntValue();
-
-  if (prototype.isInt64())
-    return static_cast<juce::int64>(text.getLargeIntValue());
-
-  if (prototype.isDouble())
-    return text.getDoubleValue();
-
-  return text;
 }
 
 static juce::String colorTagFromId(int id) {
@@ -273,158 +250,6 @@ private:
     std::unique_ptr<juce::Component> editor;
   };
 
-  static TParamValueType inferValueType(const juce::var &value) {
-    if (value.isBool())
-      return TParamValueType::Bool;
-    if (value.isInt() || value.isInt64())
-      return TParamValueType::Int;
-    if (value.isString())
-      return TParamValueType::String;
-    return TParamValueType::Float;
-  }
-
-  static bool isNumericValue(const juce::var &value) {
-    return value.isBool() || value.isInt() || value.isInt64() || value.isDouble();
-  }
-
-  static double numericValue(const juce::var &value) {
-    if (value.isBool())
-      return (bool)value ? 1.0 : 0.0;
-    if (value.isInt())
-      return (double)(int)value;
-    if (value.isInt64())
-      return (double)(juce::int64)value;
-    if (value.isDouble())
-      return (double)value;
-    if (value.isString())
-      return value.toString().getDoubleValue();
-    return 0.0;
-  }
-
-  static bool hasNumericRange(const TParamSpec &spec) {
-    return isNumericValue(spec.minValue) && isNumericValue(spec.maxValue);
-  }
-
-  static double sliderIntervalFor(const TParamSpec &spec) {
-    if (isNumericValue(spec.step) && numericValue(spec.step) > 0.0)
-      return numericValue(spec.step);
-
-    if (spec.valueType == TParamValueType::Int || spec.valueType == TParamValueType::Bool ||
-        spec.valueType == TParamValueType::Enum || spec.isDiscrete) {
-      return 1.0;
-    }
-
-    return 0.0;
-  }
-
-  static TParamSpec makeFallbackParamSpec(const juce::String &key,
-                                          const juce::var &value) {
-    TParamSpec spec;
-    spec.key = key;
-    spec.label = key;
-    spec.defaultValue = value;
-    spec.valueType = inferValueType(value);
-    spec.preferredWidget = spec.valueType == TParamValueType::Bool
-                               ? TParamWidgetHint::Toggle
-                               : TParamWidgetHint::Text;
-    spec.showInPropertyPanel = true;
-    spec.preferredBindingKey = key;
-    spec.exportSymbol = key;
-    return spec;
-  }
-
-  static TParamSpec makeSpecFromExposedParam(const TTeulExposedParam &param) {
-    TParamSpec spec;
-    spec.key = param.paramKey;
-    spec.label = param.paramLabel;
-    spec.defaultValue = param.defaultValue;
-    spec.valueType = param.valueType;
-    spec.minValue = param.minValue;
-    spec.maxValue = param.maxValue;
-    spec.step = param.step;
-    spec.unitLabel = param.unitLabel;
-    spec.displayPrecision = param.displayPrecision;
-    spec.group = param.group;
-    spec.description = param.description;
-    spec.enumOptions = param.enumOptions;
-    spec.preferredWidget = param.preferredWidget;
-    spec.showInNodeBody = param.showInNodeBody;
-    spec.showInPropertyPanel = param.showInPropertyPanel;
-    spec.isReadOnly = param.isReadOnly;
-    spec.isAutomatable = param.isAutomatable;
-    spec.isModulatable = param.isModulatable;
-    spec.isDiscrete = param.isDiscrete;
-    spec.exposeToIeum = param.exposeToIeum;
-    spec.preferredBindingKey = param.preferredBindingKey;
-    spec.exportSymbol = param.exportSymbol;
-    spec.categoryPath = param.categoryPath;
-    return spec;
-  }
-
-  static juce::String formatValueForDisplay(const juce::var &value,
-                                            const TParamSpec &spec) {
-    if (value.isVoid())
-      return "-";
-
-    switch (spec.valueType) {
-    case TParamValueType::Bool:
-      return (bool)value ? "On" : "Off";
-    case TParamValueType::Enum:
-      for (const auto &option : spec.enumOptions) {
-        if (varEquals(option.value, value))
-          return option.label.isNotEmpty() ? option.label : option.id;
-      }
-      return value.toString();
-    case TParamValueType::Int: {
-      juce::String text((int)juce::roundToInt(numericValue(value)));
-      if (spec.unitLabel.isNotEmpty())
-        text << " " << spec.unitLabel;
-      return text;
-    }
-    case TParamValueType::Float: {
-      juce::String text(numericValue(value), juce::jlimit(0, 6, spec.displayPrecision));
-      if (spec.unitLabel.isNotEmpty())
-        text << " " << spec.unitLabel;
-      return text;
-    }
-    case TParamValueType::String:
-    case TParamValueType::Auto:
-      break;
-    }
-
-    return value.toString();
-  }
-
-  static juce::var parseTextValue(const juce::String &text, const TParamSpec &spec,
-                                  const juce::var &prototype) {
-    if (spec.valueType == TParamValueType::Bool)
-      return parseEditedValue(text, prototype.isVoid() ? juce::var(false) : prototype);
-
-    if (spec.valueType == TParamValueType::Int)
-      return juce::roundToInt(text.getDoubleValue());
-
-    if (spec.valueType == TParamValueType::Float)
-      return text.getDoubleValue();
-
-    if (spec.valueType == TParamValueType::Enum) {
-      for (const auto &option : spec.enumOptions) {
-        if (option.id.equalsIgnoreCase(text) ||
-            option.label.equalsIgnoreCase(text) ||
-            option.value.toString().equalsIgnoreCase(text)) {
-          return option.value;
-        }
-      }
-    }
-
-    return parseEditedValue(text, prototype);
-  }
-
-  static int editorHeightFor(const ParamEditor &entry) {
-    if (dynamic_cast<juce::Slider *>(entry.editor.get()) != nullptr)
-      return 32;
-    return 24;
-  }
-
   void timerCallback() override {
     if (!isPanelOpen() || paramProvider == nullptr)
       return;
@@ -539,58 +364,7 @@ private:
                                 juce::Colours::white.withAlpha(0.74f));
       paramsContent->addAndMakeVisible(entry->caption.get());
 
-      if (entry->spec.preferredWidget == TParamWidgetHint::Combo &&
-          !entry->spec.enumOptions.empty()) {
-        auto combo = std::make_unique<juce::ComboBox>();
-        int id = 1;
-        int selectedId = 0;
-        for (const auto &option : entry->spec.enumOptions) {
-          combo->addItem(option.label.isNotEmpty() ? option.label : option.id, id);
-          if (selectedId == 0 && varEquals(option.value, value))
-            selectedId = id;
-          ++id;
-        }
-        combo->setSelectedId(selectedId > 0 ? selectedId : 1,
-                             juce::dontSendNotification);
-        combo->setEnabled(!entry->spec.isReadOnly);
-        entry->editor = std::move(combo);
-      } else if (entry->spec.preferredWidget == TParamWidgetHint::Toggle ||
-                 entry->spec.valueType == TParamValueType::Bool) {
-        auto toggle = std::make_unique<juce::ToggleButton>();
-        toggle->setToggleState((bool)value, juce::dontSendNotification);
-        toggle->setEnabled(!entry->spec.isReadOnly);
-        entry->editor = std::move(toggle);
-      } else if (entry->spec.preferredWidget == TParamWidgetHint::Slider &&
-                 hasNumericRange(entry->spec)) {
-        auto slider = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal,
-                                                     juce::Slider::TextBoxRight);
-        slider->setRange(numericValue(entry->spec.minValue),
-                         numericValue(entry->spec.maxValue),
-                         sliderIntervalFor(entry->spec));
-        slider->setValue(numericValue(value), juce::dontSendNotification);
-        slider->setNumDecimalPlacesToDisplay(
-            entry->spec.valueType == TParamValueType::Int || entry->spec.isDiscrete
-                ? 0
-                : juce::jlimit(0, 6, entry->spec.displayPrecision));
-        slider->setTextValueSuffix(entry->spec.unitLabel.isNotEmpty()
-                                       ? " " + entry->spec.unitLabel
-                                       : juce::String());
-        slider->setDoubleClickReturnValue(true, numericValue(entry->spec.defaultValue));
-        slider->setEnabled(!entry->spec.isReadOnly);
-        entry->editor = std::move(slider);
-      } else {
-        auto textEditor = std::make_unique<juce::TextEditor>();
-        textEditor->setText(formatValueForDisplay(value, entry->spec),
-                            juce::dontSendNotification);
-        textEditor->setColour(juce::TextEditor::backgroundColourId,
-                              juce::Colour(0xff171717));
-        textEditor->setColour(juce::TextEditor::textColourId,
-                              juce::Colours::white);
-        textEditor->setColour(juce::TextEditor::outlineColourId,
-                              juce::Colour(0xff343434));
-        textEditor->setReadOnly(entry->spec.isReadOnly);
-        entry->editor = std::move(textEditor);
-      }
+      entry->editor = createParamEditor(entry->spec, value);
 
       entry->descriptionLabel = std::make_unique<juce::Label>();
       entry->descriptionLabel->setText(entry->spec.description,
@@ -669,8 +443,9 @@ private:
       entry->caption->setBounds(0, y, width, 16);
       y += 18;
 
-      entry->editor->setBounds(0, y, width, editorHeightFor(*entry));
-      y += editorHeightFor(*entry) + 4;
+      const int editorHeight = editorHeightFor(*entry->editor);
+      entry->editor->setBounds(0, y, width, editorHeight);
+      y += editorHeight + 4;
 
       if (entry->descriptionLabel->isVisible()) {
         entry->descriptionLabel->setBounds(0, y, width, 14);
@@ -689,26 +464,7 @@ private:
   }
 
   juce::var readEditorValue(const ParamEditor &entry) const {
-    if (const auto *combo = dynamic_cast<juce::ComboBox *>(entry.editor.get())) {
-      const int index = combo->getSelectedItemIndex();
-      if (index >= 0 && index < (int)entry.spec.enumOptions.size())
-        return entry.spec.enumOptions[(size_t)index].value;
-      return entry.originalValue;
-    }
-
-    if (const auto *toggle = dynamic_cast<juce::ToggleButton *>(entry.editor.get()))
-      return toggle->getToggleState();
-
-    if (const auto *slider = dynamic_cast<juce::Slider *>(entry.editor.get())) {
-      if (entry.spec.valueType == TParamValueType::Int || entry.spec.isDiscrete)
-        return juce::roundToInt(slider->getValue());
-      return slider->getValue();
-    }
-
-    if (const auto *editor = dynamic_cast<juce::TextEditor *>(entry.editor.get()))
-      return parseTextValue(editor->getText(), entry.spec, entry.originalValue);
-
-    return entry.originalValue;
+    return Teul::readEditorValue(*entry.editor, entry.spec, entry.originalValue);
   }
 
   void updateRuntimeValueLabels() {
@@ -726,41 +482,14 @@ private:
       }
       entry->runtimeValueLabel->setText(runtimeText, juce::dontSendNotification);
 
-      juce::String bindingText = entry->spec.exposeToIeum ? "Ieum: exposed"
-                                                          : "Ieum: hidden";
-      if (entry->spec.exposeToIeum && entry->spec.preferredBindingKey.isNotEmpty())
-        bindingText << " / key: " << entry->spec.preferredBindingKey;
-      if (entry->spec.isAutomatable)
-        bindingText << " / auto";
-      if (entry->spec.isModulatable)
-        bindingText << " / mod";
-      if (entry->spec.isReadOnly)
-        bindingText << " / read-only";
-      entry->bindingInfoLabel->setText(bindingText, juce::dontSendNotification);
+      entry->bindingInfoLabel->setText(makeIeumBindingText(entry->spec),
+                                       juce::dontSendNotification);
 
-      juce::String gyeolBindingText;
-      if (!entry->spec.exposeToIeum) {
-        gyeolBindingText = "Gyeol: hidden";
-      } else if (bindingSummaryResolver == nullptr) {
-        gyeolBindingText = "Gyeol: source unavailable";
-      } else {
-        const auto summary = bindingSummaryResolver(entry->paramId);
-        if (summary.isNotEmpty())
-          gyeolBindingText =
-              juce::String(juce::CharPointer_UTF8("梨⑦샋?ы삹 ")) + summary;
-        else
-          gyeolBindingText = "Gyeol: unbound";
-      }
-
-      const auto bindingColour = gyeolBindingText.startsWith("Gyeol: hidden")
-                                     ? juce::Colours::white.withAlpha(0.28f)
-                                     : (gyeolBindingText.startsWith("Gyeol: unbound") ||
-                                                gyeolBindingText.startsWith("Gyeol: source")
-                                            ? juce::Colours::white.withAlpha(0.36f)
-                                            : juce::Colour(0xffd9c27c));
+      const auto gyeolBinding = makeGyeolBindingPresentation(
+          entry->spec, entry->paramId, bindingSummaryResolver);
       entry->gyeolBindingLabel->setColour(juce::Label::textColourId,
-                                          bindingColour);
-      entry->gyeolBindingLabel->setText(gyeolBindingText,
+                                          gyeolBinding.colour);
+      entry->gyeolBindingLabel->setText(gyeolBinding.text,
                                         juce::dontSendNotification);
     }
 
