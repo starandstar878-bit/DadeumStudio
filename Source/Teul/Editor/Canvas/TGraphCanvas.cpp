@@ -23,8 +23,10 @@ TGraphCanvas::TGraphCanvas(TGraphDocument &doc) : document(doc) {
   viewOriginWorld = {doc.meta.canvasOffsetX, doc.meta.canvasOffsetY};
   zoomLevel = doc.meta.canvasZoom;
 
-  if (zoomLevel < 0.1f)
+  if (!std::isfinite(zoomLevel))
     zoomLevel = 1.0f;
+
+  zoomLevel = juce::jlimit(0.1f, 5.0f, zoomLevel);
 
   rebuildNodeComponents();
 
@@ -310,8 +312,12 @@ void TGraphCanvas::mouseWheelMove(const juce::MouseEvent &event,
                                   const juce::MouseWheelDetails &wheel) {
   if (event.mods.isCtrlDown() || event.mods.isCommandDown() ||
       event.mods.isAltDown()) {
-    const float zoomDelta = wheel.deltaY * 2.0f;
-    const float nextZoom = juce::jlimit(0.1f, 5.0f, zoomLevel + zoomDelta);
+    const float delta = wheel.deltaY != 0.0f ? wheel.deltaY : wheel.deltaX;
+    if (std::abs(delta) <= 0.0001f)
+      return;
+
+    const float nextZoom =
+        zoomLevel * static_cast<float>(std::pow(1.1f, delta * 4.0f));
     setZoomLevel(nextZoom, event.position);
   } else {
     const float panSpeedPixels = 50.0f;
@@ -439,6 +445,8 @@ bool TGraphCanvas::keyStateChanged(bool isKeyDown) {
 
 void TGraphCanvas::setZoomLevel(float newZoom,
                                 juce::Point<float> anchorPosView) {
+  newZoom = juce::jlimit(0.1f, 5.0f, newZoom);
+
   if (juce::exactlyEqual(newZoom, zoomLevel))
     return;
 
