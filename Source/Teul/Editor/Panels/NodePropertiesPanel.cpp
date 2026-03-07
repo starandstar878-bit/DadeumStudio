@@ -5,7 +5,7 @@
 #include "Teul/Editor/Panels/Property/ParamValueFormatter.h"
 #include "Teul/History/TCommands.h"
 #include "Teul/Model/TGraphDocument.h"
-#include "Teul/UI/Canvas/TGraphCanvas.h"
+#include "Teul/Editor/Canvas/TGraphCanvas.h"
 
 #include <map>
 #include <set>

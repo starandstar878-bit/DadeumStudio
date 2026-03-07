@@ -1,6 +1,6 @@
 #include "Teul/Editor/Node/NodePreviewRenderer.h"
 
-#include "Teul/UI/TeulPalette.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 
 #include <algorithm>
 #include <cmath>

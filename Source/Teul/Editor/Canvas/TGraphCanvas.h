@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../Model/TGraphDocument.h"
+#include "Teul/Model/TGraphDocument.h"
 #include <JuceHeader.h>
 #include <functional>
 #include <memory>

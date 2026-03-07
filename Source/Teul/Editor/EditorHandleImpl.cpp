@@ -3,7 +3,7 @@
 #include "Teul/Editor/Panels/NodeLibraryPanel.h"
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
 #include "Teul/Registry/TNodeRegistry.h"
-#include "Teul/UI/Canvas/TGraphCanvas.h"
+#include "Teul/Editor/Canvas/TGraphCanvas.h"
 
 namespace Teul {
 

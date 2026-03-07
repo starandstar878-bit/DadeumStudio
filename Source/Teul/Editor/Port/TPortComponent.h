@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../Model/TPort.h"
+#include "Teul/Model/TPort.h"
 #include <JuceHeader.h>
 
 namespace Teul {

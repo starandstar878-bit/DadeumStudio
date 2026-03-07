@@ -1,7 +1,7 @@
-#include "TNodeComponent.h"
-#include "../../Editor/Node/NodePreviewRenderer.h"
-#include "../../UI/TeulPalette.h"
-#include "../Canvas/TGraphCanvas.h"
+#include "Teul/Editor/Node/TNodeComponent.h"
+#include "Teul/Editor/Node/NodePreviewRenderer.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
+#include "Teul/Editor/Canvas/TGraphCanvas.h"
 
 #include <algorithm>
 

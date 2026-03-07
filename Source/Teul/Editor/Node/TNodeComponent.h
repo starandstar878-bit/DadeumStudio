@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../../Model/TNode.h"
-#include "../../Registry/TNodeRegistry.h"
-#include "../Port/TPortComponent.h"
+#include "Teul/Model/TNode.h"
+#include "Teul/Registry/TNodeRegistry.h"
+#include "Teul/Editor/Port/TPortComponent.h"
 #include <JuceHeader.h>
 #include <memory>
 #include <vector>

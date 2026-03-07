@@ -189,9 +189,37 @@
     <ClCompile Include="..\..\Source\Gyeol\Runtime\RuntimeDiagnostics.cpp"/>
     <ClCompile Include="..\..\Source\Gyeol\Widgets\WidgetLibraryExchange.cpp"/>
     <ClCompile Include="..\..\Source\Gyeol\Serialization\DocumentJson.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Model\TGraphDocument.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Registry\TNodeRegistry.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Runtime\TGraphRuntime.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Serialization\TFileIo.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp"/>
-    <ClCompile Include="..\..\Source\Teul\Teul.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\EditorHandle.cpp">
+      <ObjectFileName>$(IntDir)Teul\EditorHandle.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\EditorHandleImpl.cpp">
+      <ObjectFileName>$(IntDir)Teul\EditorHandleImpl.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Canvas\TGraphCanvas.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Canvas\CanvasRenderers.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Search\SearchController.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Search\QuickAddOverlay.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Search\NodeSearchOverlay.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Search\CommandPaletteOverlay.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\ConnectionInteraction.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\SelectionController.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\NodeFrameInteraction.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\AlignmentEngine.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\ContextMenuController.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Node\TNodeComponent.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Node\NodePreviewRenderer.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Port\TPortComponent.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodeLibraryPanel.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodePropertiesPanel.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamValueFormatter.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamEditorFactory.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\BindingSummaryPresenter.cpp"/>
     <ClCompile Include="..\..\Source\Main.cpp"/>
     <ClCompile Include="..\..\Source\MainComponent.cpp"/>
     <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_audio_basics\audio_play_head\juce_AudioPlayHead.cpp">

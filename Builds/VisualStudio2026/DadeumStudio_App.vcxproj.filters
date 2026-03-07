@@ -877,14 +877,86 @@
     <ClCompile Include="..\..\Source\Gyeol\Serialization\DocumentJson.cpp">
       <Filter>DadeumStudio\Source\Gyeol\Serialization</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Model\TGraphDocument.cpp">
+      <Filter>DadeumStudio\Source\Teul\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Registry\TNodeRegistry.cpp">
+      <Filter>DadeumStudio\Source\Teul\Registry</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Runtime\TGraphRuntime.cpp">
+      <Filter>DadeumStudio\Source\Teul\Runtime</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp">
+      <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Serialization\TFileIo.cpp">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp">
       <Filter>DadeumStudio\Source\Teul\Export</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Teul.cpp">
-      <Filter>DadeumStudio\Source\Teul</Filter>
+    <ClCompile Include="..\..\Source\Teul\Editor\EditorHandle.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\EditorHandleImpl.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Canvas\TGraphCanvas.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Canvas\CanvasRenderers.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Search\SearchController.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Search</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Search\QuickAddOverlay.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Search</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Search\NodeSearchOverlay.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Search</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Search\CommandPaletteOverlay.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Search</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\ConnectionInteraction.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Interaction</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\SelectionController.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Interaction</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\NodeFrameInteraction.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Interaction</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\AlignmentEngine.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Interaction</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\ContextMenuController.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Interaction</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Node\TNodeComponent.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Node</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Node\NodePreviewRenderer.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Node</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Port\TPortComponent.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Port</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodeLibraryPanel.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodePropertiesPanel.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamValueFormatter.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Panels\Property</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamEditorFactory.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Panels\Property</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\BindingSummaryPresenter.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Panels\Property</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Main.cpp">
       <Filter>DadeumStudio\Source</Filter>
