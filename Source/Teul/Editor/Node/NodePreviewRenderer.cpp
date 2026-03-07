@@ -15,6 +15,10 @@ struct MeterBar {
   juce::Colour colour;
 };
 
+constexpr int kNodeHeaderHeight = 32;
+constexpr int kNodePortRowHeight = 22;
+constexpr int kNodeMinWidth = 140;
+
 static InlinePreviewKind inlinePreviewKindForImpl(const TNodeDescriptor *descriptor) {
   if (descriptor == nullptr)
     return InlinePreviewKind::none;
@@ -427,6 +431,22 @@ int previewHeightForKind(InlinePreviewKind kind) {
 
 int minWidthForKind(InlinePreviewKind kind) {
   return minWidthForKindImpl(kind);
+}
+
+juce::Point<int> measureNodeSize(const TNodeDescriptor *descriptor,
+                                 int inputPortCount,
+                                 int outputPortCount,
+                                 bool collapsed) {
+  const auto previewKind = inlinePreviewKindForImpl(descriptor);
+  const int width = juce::jmax(kNodeMinWidth, minWidthForKindImpl(previewKind));
+  if (collapsed)
+    return {width, kNodeHeaderHeight};
+
+  const int maxPortCount = juce::jmax(inputPortCount, outputPortCount);
+  const int height = kNodeHeaderHeight +
+                     maxPortCount * kNodePortRowHeight + 20 +
+                     previewHeightForKindImpl(previewKind);
+  return {width, height};
 }
 
 juce::Rectangle<float> makePreviewBounds(const juce::Rectangle<float> &bounds,

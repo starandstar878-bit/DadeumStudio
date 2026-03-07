@@ -59,19 +59,9 @@ void TNodeComponent::updateFromModel() {
 void TNodeComponent::recalculateHeight() {
   const TNode *nodePtr = ownerCanvas.getDocument().findNode(nodeId);
   const bool collapsed = nodePtr ? nodePtr->collapsed : false;
-  const auto previewKind = inlinePreviewKindFor(descriptor);
-  const int width = juce::jmax(minNodeWidth, minWidthForKind(previewKind));
-
-  if (collapsed) {
-    setSize(width, headerHeight);
-    return;
-  }
-
-  const size_t maxPorts = std::max(inPorts.size(), outPorts.size());
-  const int previewHeight = previewHeightForKind(previewKind);
-  const int totalHeight = headerHeight + (int)maxPorts * portRowHeight + 20 +
-                          previewHeight;
-  setSize(width, totalHeight);
+  const auto size = measureNodeSize(descriptor, (int)inPorts.size(),
+                                    (int)outPorts.size(), collapsed);
+  setSize(size.x, size.y);
 }
 
 void TNodeComponent::resized() {

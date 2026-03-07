@@ -21,6 +21,10 @@ enum class InlinePreviewKind {
 InlinePreviewKind inlinePreviewKindFor(const TNodeDescriptor *descriptor);
 int previewHeightForKind(InlinePreviewKind kind);
 int minWidthForKind(InlinePreviewKind kind);
+juce::Point<int> measureNodeSize(const TNodeDescriptor *descriptor,
+                                 int inputPortCount,
+                                 int outputPortCount,
+                                 bool collapsed = false);
 juce::Rectangle<float> makePreviewBounds(const juce::Rectangle<float> &bounds,
                                          InlinePreviewKind kind);
 void drawOscillatorPreview(juce::Graphics &g,

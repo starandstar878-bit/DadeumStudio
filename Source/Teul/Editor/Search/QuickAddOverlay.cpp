@@ -1,11 +1,29 @@
 #include "Teul/Editor/Search/SearchController.h"
 
+#include "Teul/Editor/Node/NodePreviewRenderer.h"
 #include "Teul/History/TCommands.h"
 
 #include <algorithm>
 #include <set>
 
 namespace Teul {
+namespace {
+
+static juce::Point<int> measureDescriptorNodeSize(const TNodeDescriptor &descriptor) {
+  int inputPortCount = 0;
+  int outputPortCount = 0;
+
+  for (const auto &portSpec : descriptor.portSpecs) {
+    if (portSpec.direction == TPortDirection::Input)
+      ++inputPortCount;
+    else
+      ++outputPortCount;
+  }
+
+  return measureNodeSize(&descriptor, inputPortCount, outputPortCount, false);
+}
+
+} // namespace
 
 bool TGraphCanvas::insertNodeOnConnection(ConnectionId connectionId,
                                           NodeId insertedNodeId) {
@@ -73,9 +91,10 @@ bool TGraphCanvas::addNodeByTypeAtView(const juce::String &typeKey,
   node.nodeId = document.allocNodeId();
   node.typeKey = desc->typeKey;
 
+  const auto nodeSize = measureDescriptorNodeSize(*desc);
   const auto world = viewToWorld(viewPos);
-  node.x = world.x;
-  node.y = world.y;
+  node.x = world.x - (float)nodeSize.x * 0.5f;
+  node.y = world.y - (float)nodeSize.y * 0.5f;
 
   for (const auto &param : desc->paramSpecs)
     node.params[param.key] = param.defaultValue;
