@@ -22,11 +22,13 @@ public:
 
   const TPort &getPortData() const { return portData; }
   void setDragTargetHighlight(bool enabled, bool validType);
+  void setScaleFactor(float newScale);
 
 private:
   TNodeComponent &ownerNode;
   TPort portData;
 
+  float scaleFactor = 1.0f;
   bool isHovered = false;
   bool isDragTargetHighlighted = false;
   bool isDragTargetTypeValid = true;

@@ -46,6 +46,7 @@ public:
   bool keyStateChanged(bool isKeyDown) override;
 
   void setZoomLevel(float newZoom, juce::Point<float> anchorPosView);
+  float getZoomLevel() const noexcept { return zoomLevel; }
 
   juce::Point<float> viewToWorld(juce::Point<float> viewPos) const;
   juce::Point<float> worldToView(juce::Point<float> worldPos) const;
@@ -211,7 +212,6 @@ private:
 
   void recalcMiniMapCache();
   juce::Point<float> miniMapToWorld(juce::Point<float> miniPoint) const;
-  juce::Point<float> worldToNodeLayout(juce::Point<float> worldPos) const;
   juce::Rectangle<float> getNodeBoundsInView(const TNodeComponent &nodeComponent) const;
 
   void pushStatusHint(const juce::String &text);

@@ -29,6 +29,8 @@ public:
   const TGraphCanvas &getOwnerCanvas() const noexcept { return ownerCanvas; }
 
   void updateFromModel();
+  void setViewScale(float newScale);
+  float getViewScale() const noexcept { return viewScale; }
   juce::Rectangle<int> getCollapseButtonBounds() const;
 
   TPortComponent *findPortComponent(PortId portId) noexcept;
@@ -54,6 +56,8 @@ private:
   const TNodeDescriptor *descriptor;
 
   juce::ComponentDragger dragger;
+  juce::Point<int> logicalSize;
+  float viewScale = 1.0f;
 
   std::vector<std::unique_ptr<TPortComponent>> inPorts;
   std::vector<std::unique_ptr<TPortComponent>> outPorts;
@@ -66,6 +70,9 @@ private:
   bool isHoveringCollapse = false;
 
   void recalculateHeight();
+  void applyViewScale();
+  int scaledInt(int value) const noexcept;
+  float scaledFloat(float value) const noexcept;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TNodeComponent)
 };

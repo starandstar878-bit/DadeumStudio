@@ -7,10 +7,17 @@ namespace Teul {
 
 TPortComponent::TPortComponent(TNodeComponent &owner, const TPort &port)
     : ownerNode(owner), portData(port) {
-  setSize(14, 14);
+  setScaleFactor(1.0f);
 }
 
 TPortComponent::~TPortComponent() = default;
+
+void TPortComponent::setScaleFactor(float newScale) {
+  scaleFactor = juce::jmax(0.1f, newScale);
+  const int size = juce::jmax(4, juce::roundToInt(14.0f * scaleFactor));
+  setSize(size, size);
+  repaint();
+}
 
 juce::Colour TPortComponent::getPortColor() const {
   switch (portData.dataType) {
@@ -41,28 +48,35 @@ void TPortComponent::setDragTargetHighlight(bool enabled, bool validType) {
 void TPortComponent::paint(juce::Graphics &g) {
   const auto bounds = getLocalBounds().toFloat();
   const juce::Colour baseColor = getPortColor();
+  const float haloExpand = juce::jmax(1.0f, 3.0f * scaleFactor);
+  const float outlineExpand = juce::jmax(0.8f, 1.5f * scaleFactor);
+  const float reducedInner = juce::jmax(0.75f, 1.0f * scaleFactor);
+  const float reducedCore = juce::jmax(1.0f, 2.0f * scaleFactor);
+  const float outlineThickness = juce::jmax(1.0f, 1.5f * scaleFactor);
+  const float coreOutlineThickness = juce::jmax(0.8f, 1.0f * scaleFactor);
 
   if (isDragTargetHighlighted) {
     const juce::Colour targetColor =
         isDragTargetTypeValid ? baseColor.brighter(0.35f) : juce::Colours::red;
     g.setColour(targetColor.withAlpha(0.22f));
-    g.fillEllipse(bounds.expanded(3.0f));
+    g.fillEllipse(bounds.expanded(haloExpand));
     g.setColour(targetColor.withAlpha(0.9f));
-    g.drawEllipse(bounds.expanded(1.5f), 2.0f);
+    g.drawEllipse(bounds.expanded(outlineExpand),
+                  juce::jmax(1.0f, 2.0f * scaleFactor));
   }
 
   if (isHovered || isDragTargetHighlighted) {
     g.setColour(baseColor.brighter(0.2f));
-    g.fillEllipse(bounds.reduced(1.0f));
+    g.fillEllipse(bounds.reduced(reducedInner));
     g.setColour(baseColor.withAlpha(0.45f));
-    g.drawEllipse(bounds, 1.5f);
+    g.drawEllipse(bounds, outlineThickness);
     return;
   }
 
   g.setColour(baseColor);
-  g.fillEllipse(bounds.reduced(2.0f));
+  g.fillEllipse(bounds.reduced(reducedCore));
   g.setColour(juce::Colours::black.withAlpha(0.6f));
-  g.drawEllipse(bounds.reduced(2.0f), 1.0f);
+  g.drawEllipse(bounds.reduced(reducedCore), coreOutlineThickness);
 }
 
 void TPortComponent::mouseEnter(const juce::MouseEvent &) {

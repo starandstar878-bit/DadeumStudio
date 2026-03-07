@@ -4,6 +4,7 @@
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace Teul {
 namespace {
@@ -42,6 +43,7 @@ void TNodeComponent::updateFromModel() {
 
   for (const auto &portData : nodePtr->ports) {
     auto comp = std::make_unique<TPortComponent>(*this, portData);
+    comp->setScaleFactor(viewScale);
     addAndMakeVisible(comp.get());
 
     if (portData.direction == TPortDirection::Input)
@@ -57,27 +59,61 @@ void TNodeComponent::updateFromModel() {
 void TNodeComponent::recalculateHeight() {
   const TNode *nodePtr = ownerCanvas.getDocument().findNode(nodeId);
   const bool collapsed = nodePtr ? nodePtr->collapsed : false;
-  const auto size = measureNodeSize(descriptor, (int)inPorts.size(),
-                                    (int)outPorts.size(), collapsed);
-  setSize(size.x, size.y);
+  logicalSize = measureNodeSize(descriptor, (int)inPorts.size(),
+                                (int)outPorts.size(), collapsed);
+  applyViewScale();
+}
+
+void TNodeComponent::setViewScale(float newScale) {
+  newScale = juce::jmax(0.1f, newScale);
+  if (std::abs(viewScale - newScale) <= 0.0001f)
+    return;
+
+  viewScale = newScale;
+  for (auto &port : inPorts)
+    port->setScaleFactor(viewScale);
+  for (auto &port : outPorts)
+    port->setScaleFactor(viewScale);
+
+  applyViewScale();
+  resized();
+}
+
+void TNodeComponent::applyViewScale() {
+  const int width = juce::jmax(1, scaledInt(logicalSize.x));
+  const int height = juce::jmax(1, scaledInt(logicalSize.y));
+  setSize(width, height);
+}
+
+int TNodeComponent::scaledInt(int value) const noexcept {
+  return juce::roundToInt((float)value * viewScale);
+}
+
+float TNodeComponent::scaledFloat(float value) const noexcept {
+  return value * viewScale;
 }
 
 void TNodeComponent::resized() {
   const TNode *nodePtr = ownerCanvas.getDocument().findNode(nodeId);
   const bool collapsed = nodePtr ? nodePtr->collapsed : false;
+  const int headerHeightPx = scaledInt(headerHeight);
+  const int portRowHeightPx = scaledInt(portRowHeight);
+  const int portSizePx = juce::jmax(4, scaledInt(14));
+  const int portHalf = portSizePx / 2;
+  const int portYInset = scaledInt(8);
 
-  int y = headerHeight + 8;
+  int y = headerHeightPx + portYInset;
   for (auto &p : inPorts) {
-    p->setBounds(-7, y, 14, 14);
+    p->setBounds(-portHalf, y, portSizePx, portSizePx);
     p->setVisible(!collapsed);
-    y += portRowHeight;
+    y += portRowHeightPx;
   }
 
-  y = headerHeight + 8;
+  y = headerHeightPx + portYInset;
   for (auto &p : outPorts) {
-    p->setBounds(getWidth() - 7, y, 14, 14);
+    p->setBounds(getWidth() - portHalf, y, portSizePx, portSizePx);
     p->setVisible(!collapsed);
-    y += portRowHeight;
+    y += portRowHeightPx;
   }
 }
 
@@ -123,6 +159,19 @@ void TNodeComponent::paint(juce::Graphics &g) {
   const bool collapsed = nodePtr ? nodePtr->collapsed : false;
   const bool hasError = nodePtr ? nodePtr->hasError : false;
   const auto previewKind = inlinePreviewKindFor(descriptor);
+  const float cornerRadiusPx = scaledFloat((float)cornerRadius);
+  const float headerHeightPx = scaledFloat((float)headerHeight);
+  const float titleFontPx = juce::jmax(7.0f, scaledFloat(14.0f));
+  const float bodyFontPx = juce::jmax(6.0f, scaledFloat(11.0f));
+  const int labelInsetPx = juce::jmax(4, scaledInt(12));
+  const int labelWidthPx = juce::jmax(24, scaledInt(72));
+  const int portTextHeightPx = juce::jmax(8, scaledInt(14));
+  const int portTextStartYPx = scaledInt(headerHeight + 8) - scaledInt(1);
+  const int portRowHeightPx = scaledInt(portRowHeight);
+  const float borderThicknessPx = juce::jmax(1.0f, 1.0f * viewScale);
+  const float borderSelectedThicknessPx = juce::jmax(1.2f, 1.5f * viewScale);
+  const float errorGlowExpandPx = juce::jmax(1.0f, 2.0f * viewScale);
+  const float errorGlowThicknessPx = juce::jmax(1.2f, 2.0f * viewScale);
 
   const auto bounds = getLocalBounds().toFloat();
 
@@ -130,23 +179,23 @@ void TNodeComponent::paint(juce::Graphics &g) {
     g.setOpacity(0.4f);
 
   g.setColour(TeulPalette::NodeBackground);
-  g.fillRoundedRectangle(bounds, (float)cornerRadius);
+  g.fillRoundedRectangle(bounds, cornerRadiusPx);
 
-  juce::Rectangle<float> headerBounds = bounds.withHeight((float)headerHeight);
+  juce::Rectangle<float> headerBounds = bounds.withHeight(headerHeightPx);
   juce::Colour headerColor = TeulPalette::NodeHeader;
   if (nodePtr != nullptr && nodePtr->colorTag.isNotEmpty())
     headerColor = colorFromTag(nodePtr->colorTag).withAlpha(0.75f);
   g.setColour(headerColor);
 
   if (collapsed) {
-    g.fillRoundedRectangle(headerBounds, (float)cornerRadius);
+    g.fillRoundedRectangle(headerBounds, cornerRadiusPx);
   } else {
-    g.fillRoundedRectangle(headerBounds, (float)cornerRadius);
-    g.fillRect(headerBounds.withTop(headerBounds.getBottom() - (float)cornerRadius));
+    g.fillRoundedRectangle(headerBounds, cornerRadiusPx);
+    g.fillRect(headerBounds.withTop(headerBounds.getBottom() - cornerRadiusPx));
   }
 
   juce::String title = descriptor ? descriptor->displayName : "Unknown";
-  g.setFont(juce::FontOptions(14.0f, juce::Font::bold));
+  g.setFont(juce::FontOptions(titleFontPx, juce::Font::bold));
 
   if (hasError) {
     g.setColour(juce::Colour(0xfff87171));
@@ -155,7 +204,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
     g.setColour(juce::Colours::white);
   }
 
-  g.drawText(title, headerBounds.reduced(8.0f, 0).toNearestInt(),
+  g.drawText(title, headerBounds.reduced(scaledFloat(8.0f), 0).toNearestInt(),
              juce::Justification::centredLeft);
 
   const auto colBtn = getCollapseButtonBounds().toFloat();
@@ -166,20 +215,21 @@ void TNodeComponent::paint(juce::Graphics &g) {
 
   if (!collapsed) {
     g.setColour(juce::Colours::lightgrey);
-    g.setFont(juce::FontOptions(11.0f));
+    g.setFont(juce::FontOptions(bodyFontPx));
 
-    int yIn = headerHeight + 8 - 1;
+    int yIn = portTextStartYPx;
     for (auto &p : inPorts) {
-      g.drawText(p->getPortData().name, 12, yIn, 72, 14,
-                 juce::Justification::centredLeft);
-      yIn += portRowHeight;
+      g.drawText(p->getPortData().name, labelInsetPx, yIn, labelWidthPx,
+                 portTextHeightPx, juce::Justification::centredLeft);
+      yIn += portRowHeightPx;
     }
 
-    int yOut = headerHeight + 8 - 1;
+    int yOut = portTextStartYPx;
     for (auto &p : outPorts) {
-      g.drawText(p->getPortData().name, getWidth() - 12 - 72, yOut, 72, 14,
-                 juce::Justification::centredRight);
-      yOut += portRowHeight;
+      g.drawText(p->getPortData().name,
+                 getWidth() - labelInsetPx - labelWidthPx, yOut, labelWidthPx,
+                 portTextHeightPx, juce::Justification::centredRight);
+      yOut += portRowHeightPx;
     }
 
     if (nodePtr != nullptr) {
@@ -206,21 +256,27 @@ void TNodeComponent::paint(juce::Graphics &g) {
 
   if (isSelected) {
     g.setColour(TeulPalette::NodeBorderSelected);
-    g.drawRoundedRectangle(bounds, (float)cornerRadius, 1.5f);
+    g.drawRoundedRectangle(bounds, cornerRadiusPx, borderSelectedThicknessPx);
   } else {
     g.setColour(TeulPalette::NodeBorder);
-    g.drawRoundedRectangle(bounds, (float)cornerRadius, 1.0f);
+    g.drawRoundedRectangle(bounds, cornerRadiusPx, borderThicknessPx);
   }
 
   if (hasError) {
     g.setColour(juce::Colour(0x60f87171));
-    g.drawRoundedRectangle(bounds.expanded(2.0f), (float)cornerRadius + 2.0f, 2.0f);
+    g.drawRoundedRectangle(bounds.expanded(errorGlowExpandPx),
+                           cornerRadiusPx + errorGlowExpandPx,
+                           errorGlowThicknessPx);
   }
 }
 
 juce::Rectangle<int> TNodeComponent::getCollapseButtonBounds() const {
-  return juce::Rectangle<int>(getWidth() - 28, (headerHeight - 20) / 2, 20,
-                              20);
+  const int buttonSize = juce::jmax(8, scaledInt(20));
+  const int rightInset = juce::jmax(4, scaledInt(8));
+  const int headerHeightPx = scaledInt(headerHeight);
+  return juce::Rectangle<int>(getWidth() - rightInset - buttonSize,
+                              (headerHeightPx - buttonSize) / 2, buttonSize,
+                              buttonSize);
 }
 
 void TNodeComponent::mouseMove(const juce::MouseEvent &e) {

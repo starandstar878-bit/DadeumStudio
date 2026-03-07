@@ -119,9 +119,10 @@ void TGraphCanvas::updateChildPositions() {
     if (hidden)
       continue;
 
+    nodeComponent->setViewScale(zoomLevel);
     nodeComponent->setTopLeftPosition(
-        worldToNodeLayout(juce::Point<float>(nodeData->x, nodeData->y)).roundToInt());
-    nodeComponent->setTransform(juce::AffineTransform::scale(zoomLevel));
+        worldToView(juce::Point<float>(nodeData->x, nodeData->y)).roundToInt());
+    nodeComponent->setTransform(juce::AffineTransform());
   }
 
   recalcMiniMapCache();
@@ -460,19 +461,9 @@ juce::Point<float> TGraphCanvas::worldToView(juce::Point<float> worldPos) const 
   return (worldPos - viewOriginWorld) * zoomLevel;
 }
 
-juce::Point<float> TGraphCanvas::worldToNodeLayout(juce::Point<float> worldPos) const {
-  return worldPos - viewOriginWorld;
-}
-
 juce::Rectangle<float>
 TGraphCanvas::getNodeBoundsInView(const TNodeComponent &nodeComponent) const {
-  const TNode *nodeData = document.findNode(nodeComponent.getNodeId());
-  if (nodeData == nullptr)
-    return {};
-
-  const auto topLeftView = worldToView({nodeData->x, nodeData->y});
-  return {topLeftView.x, topLeftView.y, nodeComponent.getWidth() * zoomLevel,
-          nodeComponent.getHeight() * zoomLevel};
+  return nodeComponent.getBounds().toFloat();
 }
 
 void TGraphCanvas::timerCallback() {
