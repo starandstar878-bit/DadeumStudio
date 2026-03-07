@@ -41,6 +41,7 @@ public:
       const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) override;
   void itemDropped(
       const juce::DragAndDropTarget::SourceDetails &dragSourceDetails) override;
+  bool shouldDrawDragImageWhenOver() override { return false; }
 
   bool keyPressed(const juce::KeyPress &key) override;
   bool keyStateChanged(bool isKeyDown) override;
