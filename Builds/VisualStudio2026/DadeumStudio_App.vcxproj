@@ -190,6 +190,7 @@
     <ClCompile Include="..\..\Source\Gyeol\Widgets\WidgetLibraryExchange.cpp"/>
     <ClCompile Include="..\..\Source\Gyeol\Serialization\DocumentJson.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Teul.cpp"/>
     <ClCompile Include="..\..\Source\Main.cpp"/>
     <ClCompile Include="..\..\Source\MainComponent.cpp"/>
@@ -2934,6 +2935,7 @@
     <ClInclude Include="..\..\Source\Teul\Model\TConnection.h"/>
     <ClInclude Include="..\..\Source\Teul\Model\TGraphDocument.h"/>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h"/>
+    <ClInclude Include="..\..\Source\Teul\Export\TExport.h"/>
     <ClInclude Include="..\..\Source\Teul\Teul.h"/>
     <ClInclude Include="..\..\Source\AppServices.h"/>
     <ClInclude Include="..\..\Source\MainComponent.h"/>

@@ -11,10 +11,8 @@
 #include <map>
 #include <set>
 
-// Teul sources are included here because the generated project currently compiles
-// only Teul.cpp and TSerializer.cpp for the Teul module.
+// Most Teul sources are included here because the generated project still compiles Teul as a single translation unit.
 #include "Model/TGraphDocument.cpp"
-#include "Export/TExport.cpp"
 #include "Registry/TNodeRegistry.cpp"
 #include "Runtime/TGraphRuntime.cpp"
 #include "UI/Port/TPortComponent.cpp"
@@ -1018,7 +1016,7 @@ private:
         const auto summary = bindingSummaryResolver(entry->paramId);
         if (summary.isNotEmpty())
           gyeolBindingText =
-              juce::String(juce::CharPointer_UTF8("ð ")) + summary;
+              juce::String(juce::CharPointer_UTF8("梨⑦샋?ы삹 ")) + summary;
         else
           gyeolBindingText = "Gyeol: unbound";
       }

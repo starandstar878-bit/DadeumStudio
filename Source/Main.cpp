@@ -10,8 +10,11 @@
 #include "Gyeol/Export/JuceComponentExport.h"
 #include "Gyeol/Runtime/PropertyBindingResolver.h"
 #include "Gyeol/Widgets/WidgetRegistry.h"
+#include "Teul/Export/TExport.h"
+#include "Teul/Registry/TNodeRegistry.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
+#include <algorithm>
 #include <iostream>
 #include <map>
 
@@ -76,6 +79,171 @@ resolveRuntimeParamKey(const std::map<juce::String, juce::var> &params,
   }
 
   return trimmed;
+}
+
+int inferTeulPortChannelIndex(juce::StringRef portName) {
+  const auto lowered = juce::String(portName).trim().toLowerCase();
+  if (lowered == "r" || lowered == "r in" || lowered == "r out" ||
+      lowered.startsWith("r ") || lowered.startsWith("right")) {
+    return 1;
+  }
+
+  return 0;
+}
+
+Teul::TNode makeTeulNodeFromDescriptor(const Teul::TNodeDescriptor &descriptor,
+                                       Teul::TGraphDocument &document,
+                                       float x,
+                                       float y,
+                                       const juce::String &label = {}) {
+  Teul::TNode node;
+  node.nodeId = document.allocNodeId();
+  node.typeKey = descriptor.typeKey;
+  node.x = x;
+  node.y = y;
+  node.label = label;
+
+  for (const auto &spec : descriptor.paramSpecs)
+    node.params[spec.key] = spec.defaultValue;
+
+  for (const auto &portSpec : descriptor.portSpecs) {
+    Teul::TPort port;
+    port.portId = document.allocPortId();
+    port.ownerNodeId = node.nodeId;
+    port.direction = portSpec.direction;
+    port.dataType = portSpec.dataType;
+    port.name = portSpec.name;
+    port.channelIndex = inferTeulPortChannelIndex(portSpec.name);
+    node.ports.push_back(port);
+  }
+
+  return node;
+}
+
+const Teul::TPort *findTeulPortByName(const Teul::TNode &node,
+                                      juce::StringRef portName) {
+  for (const auto &port : node.ports) {
+    if (port.name.equalsIgnoreCase(juce::String(portName)))
+      return &port;
+  }
+
+  return nullptr;
+}
+
+juce::Result addTeulConnection(Teul::TGraphDocument &document,
+                               Teul::NodeId fromNodeId,
+                               juce::StringRef fromPortName,
+                               Teul::NodeId toNodeId,
+                               juce::StringRef toPortName) {
+  const auto *fromNode = document.findNode(fromNodeId);
+  const auto *toNode = document.findNode(toNodeId);
+  if (fromNode == nullptr || toNode == nullptr)
+    return juce::Result::fail("Teul smoke graph references a missing node.");
+
+  const auto *fromPort = findTeulPortByName(*fromNode, fromPortName);
+  const auto *toPort = findTeulPortByName(*toNode, toPortName);
+  if (fromPort == nullptr || toPort == nullptr) {
+    return juce::Result::fail("Teul smoke graph references a missing port.");
+  }
+
+  Teul::TConnection connection;
+  connection.connectionId = document.allocConnectionId();
+  connection.from.nodeId = fromNodeId;
+  connection.from.portId = fromPort->portId;
+  connection.to.nodeId = toNodeId;
+  connection.to.portId = toPort->portId;
+  document.connections.push_back(connection);
+  return juce::Result::ok();
+}
+
+Teul::TGraphDocument
+makeTeulPhase5SmokeDocument(const Teul::TNodeRegistry &registry,
+                            const juce::File &assetSourceFile) {
+  Teul::TGraphDocument document;
+  document.meta.name = "Teul Phase5 Smoke";
+
+  const auto *oscillatorDescriptor =
+      registry.descriptorFor("Teul.Source.Oscillator");
+  const auto *vcaDescriptor = registry.descriptorFor("Teul.Mixer.VCA");
+  const auto *constantDescriptor = registry.descriptorFor("Teul.Source.Constant");
+  const auto *outputDescriptor = registry.descriptorFor("Teul.Routing.AudioOut");
+  if (oscillatorDescriptor == nullptr || vcaDescriptor == nullptr ||
+      constantDescriptor == nullptr || outputDescriptor == nullptr) {
+    return document;
+  }
+
+  auto oscillator = makeTeulNodeFromDescriptor(*oscillatorDescriptor, document,
+                                               80.0f, 120.0f, "Carrier");
+  oscillator.params["waveform"] = 3;
+  oscillator.params["frequency"] = 330.0;
+  oscillator.params["gain"] = 0.55;
+  oscillator.params["impulsePath"] = assetSourceFile.getFullPathName();
+
+  auto vca = makeTeulNodeFromDescriptor(*vcaDescriptor, document, 320.0f,
+                                        120.0f, "Amp");
+  vca.params["gain"] = 0.75;
+
+  auto cvConstant = makeTeulNodeFromDescriptor(*constantDescriptor, document,
+                                               320.0f, 280.0f, "CV");
+  cvConstant.params["value"] = 0.85;
+
+  auto deadConstant = makeTeulNodeFromDescriptor(*constantDescriptor, document,
+                                                 560.0f, 300.0f, "Dead");
+  deadConstant.params["value"] = 0.25;
+
+  auto output = makeTeulNodeFromDescriptor(*outputDescriptor, document, 560.0f,
+                                           120.0f, "Main Out");
+  output.params["volume"] = 0.9;
+
+  const auto oscillatorId = oscillator.nodeId;
+  const auto vcaId = vca.nodeId;
+  const auto cvConstantId = cvConstant.nodeId;
+  const auto outputId = output.nodeId;
+
+  document.nodes.push_back(std::move(oscillator));
+  document.nodes.push_back(std::move(vca));
+  document.nodes.push_back(std::move(cvConstant));
+  document.nodes.push_back(std::move(deadConstant));
+  document.nodes.push_back(std::move(output));
+
+  juce::ignoreUnused(addTeulConnection(document, oscillatorId, "Out", vcaId,
+                                       "In"));
+  juce::ignoreUnused(addTeulConnection(document, cvConstantId, "Value", vcaId,
+                                       "CV"));
+  juce::ignoreUnused(addTeulConnection(document, vcaId, "Out", outputId,
+                                       "L In"));
+  juce::ignoreUnused(addTeulConnection(document, vcaId, "Out", outputId,
+                                       "R In"));
+  return document;
+}
+
+Teul::TGraphDocument
+makeTeulPhase5InvalidSmokeDocument(const Teul::TNodeRegistry &registry,
+                                   const juce::File &assetSourceFile) {
+  auto document = makeTeulPhase5SmokeDocument(registry, assetSourceFile);
+
+  std::vector<Teul::NodeId> removedIds;
+  document.nodes.erase(
+      std::remove_if(document.nodes.begin(), document.nodes.end(),
+                     [&](const auto &node) {
+                       if (node.typeKey == "Teul.Routing.AudioOut") {
+                         removedIds.push_back(node.nodeId);
+                         return true;
+                       }
+                       return false;
+                     }),
+      document.nodes.end());
+
+  document.connections.erase(
+      std::remove_if(document.connections.begin(), document.connections.end(),
+                     [&](const auto &connection) {
+                       return std::find(removedIds.begin(), removedIds.end(),
+                                        connection.from.nodeId) != removedIds.end() ||
+                              std::find(removedIds.begin(), removedIds.end(),
+                                        connection.to.nodeId) != removedIds.end();
+                     }),
+      document.connections.end());
+  return document;
 }
 
 Gyeol::DocumentModel makePhase6SmokeDocument() {
@@ -426,6 +594,149 @@ juce::Result runPhase6ExportSmoke(const juce::StringArray &args) {
   std::cout << "Phase6 smoke checks: PASS" << std::endl;
   return juce::Result::ok();
 }
+juce::Result runTeulPhase5ExportSmoke(const juce::StringArray &args) {
+  const auto outputArg = argValue(args, "--output-dir=");
+  juce::File outputDirectory;
+  if (outputArg.isNotEmpty()) {
+    outputDirectory = juce::File(outputArg);
+  } else {
+    outputDirectory =
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulExport")
+            .getChildFile("Phase5Smoke_" +
+                          juce::String(juce::Time::currentTimeMillis()));
+  }
+
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  const auto assetSource = outputDirectory.getSiblingFile("Phase5SmokeImpulse.wav");
+  if (!assetSource.getParentDirectory().createDirectory() &&
+      !assetSource.getParentDirectory().exists()) {
+    return juce::Result::fail("Failed to create Teul smoke asset directory.");
+  }
+  if (!assetSource.replaceWithText("teul phase5 smoke asset", false, false,
+                                   "\r\n")) {
+    return juce::Result::fail("Failed to create Teul smoke asset file.");
+  }
+
+  const auto document = makeTeulPhase5SmokeDocument(*registry, assetSource);
+  if (document.nodes.empty()) {
+    return juce::Result::fail(
+        "Teul smoke graph could not be constructed from the registry.");
+  }
+
+  Teul::TExportOptions options;
+  options.mode = Teul::TExportMode::RuntimeModule;
+  options.outputDirectory = outputDirectory;
+  options.projectRootDirectory = juce::File::getCurrentWorkingDirectory();
+  options.runtimeClassName = "TeulPhase5SmokeRuntime";
+  options.overwriteExistingFiles = true;
+  options.writeManifestJson = true;
+  options.writeGraphJson = true;
+  options.writeRuntimeDataJson = true;
+  options.writeRuntimeModuleFiles = true;
+  options.writeBuildHints = true;
+  options.packageAssets = true;
+
+  Teul::TExportReport report;
+  const auto exportResult =
+      Teul::TExporter::exportToDirectory(document, *registry, options, report);
+  std::cout << report.toText() << std::endl;
+  if (exportResult.failed())
+    return exportResult;
+
+  for (const auto &file : {report.graphFile, report.manifestFile,
+                           report.runtimeDataFile, report.generatedHeaderFile,
+                           report.generatedSourceFile, report.cmakeHintsFile,
+                           report.jucerHintsFile, report.reportFile}) {
+    if (!file.existsAsFile()) {
+      return juce::Result::fail("Teul smoke export missing expected file: " +
+                                file.getFullPathName());
+    }
+  }
+
+  juce::var runtimeJson;
+  {
+    const auto parseResult =
+        juce::JSON::parse(report.runtimeDataFile.loadFileAsString(), runtimeJson);
+    if (parseResult.failed()) {
+      return juce::Result::fail("Teul smoke runtime JSON parse failed: " +
+                                parseResult.getErrorMessage());
+    }
+  }
+
+  auto *runtimeRoot = runtimeJson.getDynamicObject();
+  if (runtimeRoot == nullptr)
+    return juce::Result::fail("Teul smoke runtime JSON root is invalid.");
+
+  const auto *scheduleArray = runtimeRoot->getProperty("schedule").getArray();
+  const auto *bufferPlanArray = runtimeRoot->getProperty("bufferPlan").getArray();
+  const auto *assetArray = runtimeRoot->getProperty("assets").getArray();
+  if (scheduleArray == nullptr || scheduleArray->isEmpty()) {
+    return juce::Result::fail("Teul smoke runtime JSON has no schedule.");
+  }
+  if (bufferPlanArray == nullptr || bufferPlanArray->isEmpty()) {
+    return juce::Result::fail("Teul smoke runtime JSON has no bufferPlan.");
+  }
+  if (assetArray == nullptr || assetArray->isEmpty()) {
+    return juce::Result::fail("Teul smoke runtime JSON has no assets.");
+  }
+
+  if (report.summary.prunedNodeCount <= 0) {
+    return juce::Result::fail("Teul smoke export expected at least one pruned node.");
+  }
+  if (report.summary.apvtsParamCount <= 0) {
+    return juce::Result::fail("Teul smoke export expected APVTS parameters.");
+  }
+  if (report.summary.copiedAssetCount <= 0) {
+    return juce::Result::fail("Teul smoke export expected a packaged asset copy.");
+  }
+
+  Teul::TGraphDocument importedDocument;
+  const auto importResult =
+      Teul::TExporter::importEditableGraphPackage(report.manifestFile,
+                                                  importedDocument);
+  if (importResult.failed())
+    return importResult;
+  if (importedDocument.nodes.size() != document.nodes.size() ||
+      importedDocument.connections.size() != document.connections.size()) {
+    return juce::Result::fail(
+        "Teul smoke editable graph round-trip changed graph topology.");
+  }
+
+  const auto sourceText = report.generatedSourceFile.loadFileAsString();
+  for (const auto &token : {"createParameterLayout()", "embeddedGraphJson()",
+                            "embeddedRuntimeJson()", "setParamById(",
+                            "nodeSchedule() const noexcept"}) {
+    if (!sourceText.contains(token)) {
+      return juce::Result::fail(
+          juce::String("Teul generated runtime source missing token: ") + juce::String(token));
+    }
+  }
+
+  auto invalidOptions = options;
+  invalidOptions.outputDirectory = outputDirectory.getSiblingFile(
+      outputDirectory.getFileName() + "_invalid");
+  const auto invalidDocument =
+      makeTeulPhase5InvalidSmokeDocument(*registry, assetSource);
+  Teul::TExportReport invalidReport;
+  const auto invalidResult = Teul::TExporter::exportToDirectory(
+      invalidDocument, *registry, invalidOptions, invalidReport);
+  if (invalidResult.wasOk() || invalidReport.errorCount() <= 0 ||
+      !invalidReport.toText().contains("missing_primary_audio_output")) {
+    return juce::Result::fail(
+        "Teul invalid smoke export must fail with missing audio output diagnostics.");
+  }
+
+  std::cout << "Teul Phase5 smoke export directory: "
+            << outputDirectory.getFullPathName() << std::endl;
+  std::cout << "Teul Phase5 smoke checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
+
 } // namespace
 
 //==============================================================================
@@ -434,9 +745,9 @@ public:
   //==============================================================================
   DadeumStudioApplication() {}
 
-  // AppServices 는 애플리케이션과 수명을 같이한다.
-  // AudioDeviceManager 는 여기서 단 하나만 초기화되고,
-  // MainComponent(→ Teul) 에 참조로 전달된다.
+  // AppServices ??????壤굿??Β??????????源놁７???沃섃뫖荑???????????????ル뒌??????轅붽틓?????
+  // AudioDeviceManager ????????????黎앸럽??筌뚭퍏???紐꾨퓠?熬곣뫀猷???????硫멸킐?????椰????
+  // MainComponent(??Teul) ???耀붾굝???????????癰궽블뀮???????獄쏅챶留?????轅붽틓?????
   AppServices appServices;
 
   const juce::String getApplicationName() override {
@@ -450,6 +761,20 @@ public:
   //==============================================================================
   void initialise(const juce::String &commandLine) override {
     const auto args = parseCommandLineArgs(commandLine);
+    if (hasArg(args, "--teul-phase5-export-smoke")) {
+      const auto smokeResult = runTeulPhase5ExportSmoke(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase5 smoke failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
     if (hasArg(args, "--phase6-export-smoke")) {
       const auto smokeResult = runPhase6ExportSmoke(args);
       if (smokeResult.failed()) {

@@ -68,6 +68,9 @@
     <Filter Include="DadeumStudio\Source\Teul\Serialization">
       <UniqueIdentifier>{C67EC42A-69A7-211D-CDF3-2B3A64B1505F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DadeumStudio\Source\Teul\Export">
+      <UniqueIdentifier>{4D4F42A6-A4F0-4D72-8B6F-92A6B9CF8A70}</UniqueIdentifier>
+    </Filter>
     <Filter Include="DadeumStudio\Source\Teul">
       <UniqueIdentifier>{6352B415-E509-789B-5761-54E9EFAA463C}</UniqueIdentifier>
     </Filter>
@@ -876,6 +879,9 @@
     </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp">
+      <Filter>DadeumStudio\Source\Teul\Export</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Teul.cpp">
       <Filter>DadeumStudio\Source\Teul</Filter>
@@ -3866,6 +3872,9 @@
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Teul\Export\TExport.h">
+      <Filter>DadeumStudio\Source\Teul\Export</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Teul.h">
       <Filter>DadeumStudio\Source\Teul</Filter>
