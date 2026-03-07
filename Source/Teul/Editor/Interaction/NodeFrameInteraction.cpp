@@ -209,7 +209,9 @@ void TGraphCanvas::requestNodeMouseDown(NodeId nodeId,
     return;
   }
 
-  startNodeDrag(nodeId, event.getEventRelativeTo(this).position);
+  const juce::Point<float> mouseView =
+      getLocalPoint(nullptr, event.getScreenPosition()).toFloat();
+  startNodeDrag(nodeId, mouseView);
 }
 
 void TGraphCanvas::requestNodeMouseDrag(NodeId nodeId,
@@ -219,7 +221,9 @@ void TGraphCanvas::requestNodeMouseDrag(NodeId nodeId,
   if (!nodeDragState.active)
     return;
 
-  updateNodeDrag(event.getEventRelativeTo(this).position);
+  const juce::Point<float> mouseView =
+      getLocalPoint(nullptr, event.getScreenPosition()).toFloat();
+  updateNodeDrag(mouseView);
 }
 
 void TGraphCanvas::requestNodeMouseUp(NodeId nodeId,
