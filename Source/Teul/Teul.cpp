@@ -1274,10 +1274,12 @@ struct EditorHandle::Impl : private juce::Timer {
 
 EditorHandle::EditorHandle(juce::AudioDeviceManager *audioDeviceManager,
                            ParamBindingSummaryResolver bindingSummaryResolver,
-                           ParamBindingRevisionProvider bindingRevisionProvider)
-    : impl(std::make_unique<Impl>(*this, audioDeviceManager,
-                                  std::move(bindingSummaryResolver),
-                                  std::move(bindingRevisionProvider))) {}
+                           ParamBindingRevisionProvider bindingRevisionProvider) {
+  impl = std::make_unique<Impl>(*this, audioDeviceManager,
+                                std::move(bindingSummaryResolver),
+                                std::move(bindingRevisionProvider));
+  resized();
+}
 EditorHandle::~EditorHandle() = default;
 
 TGraphDocument &EditorHandle::document() noexcept { return impl->doc; }
@@ -1300,6 +1302,9 @@ void EditorHandle::paint(juce::Graphics &g) {
 }
 
 void EditorHandle::resized() {
+  if (impl == nullptr)
+    return;
+
   auto area = getLocalBounds();
   auto top = area.removeFromTop(36).reduced(6, 4);
 
