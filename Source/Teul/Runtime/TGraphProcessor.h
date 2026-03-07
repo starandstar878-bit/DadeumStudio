@@ -32,6 +32,8 @@ public:
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
       buffer.clear(i, 0, buffer.getNumSamples());
 
+    runtime.setCurrentChannelLayout(totalNumInputChannels,
+                                    totalNumOutputChannels);
     runtime.processBlock(buffer, midiMessages);
   }
 
@@ -84,6 +86,7 @@ public:
 
   void processBlock(juce::AudioBuffer<float> &buffer,
                     juce::MidiBuffer &midiMessages) {
+    runtime.setCurrentChannelLayout(0, buffer.getNumChannels());
     runtime.processBlock(buffer, midiMessages);
   }
 

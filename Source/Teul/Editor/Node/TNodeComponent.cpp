@@ -174,11 +174,20 @@ void TNodeComponent::paint(juce::Graphics &g) {
   const float errorGlowThicknessPx = juce::jmax(1.2f, 2.0f * viewScale);
 
   const auto bounds = getLocalBounds().toFloat();
+  const auto &runtimeOverlay = ownerCanvas.getRuntimeOverlayState();
+  const float heatLevel =
+      descriptor != nullptr && runtimeOverlay.activeNodeCount > 0
+          ? juce::jlimit(0.0f, 1.0f,
+                         ((float)descriptor->capabilities.estimatedCpuCost - 1.0f) /
+                             7.0f)
+          : 0.0f;
+  const juce::Colour nodeFill = TeulPalette::NodeBackground.interpolatedWith(
+      juce::Colour(0xff7c2d12), heatLevel * 0.4f);
 
   if (bypassed)
     g.setOpacity(0.4f);
 
-  g.setColour(TeulPalette::NodeBackground);
+  g.setColour(nodeFill);
   g.fillRoundedRectangle(bounds, cornerRadiusPx);
 
   juce::Rectangle<float> headerBounds = bounds.withHeight(headerHeightPx);
@@ -250,6 +259,35 @@ void TNodeComponent::paint(juce::Graphics &g) {
       case InlinePreviewKind::none:
       default:
         break;
+      }
+    }
+
+    if (isSelected && !outPorts.empty()) {
+      const float probeWidth = juce::jmax(34.0f, scaledFloat(40.0f));
+      const float probeHeight = juce::jmax(10.0f, scaledFloat(12.0f));
+      const float probeInset = scaledFloat(6.0f);
+      const float barInset = scaledFloat(2.0f);
+      float probeY = (float)portTextStartYPx + scaledFloat(1.0f);
+
+      for (const auto &port : outPorts) {
+        const float level = ownerCanvas.getPortLevel(port->getPortData().portId);
+        auto probeRect = juce::Rectangle<float>(
+            getWidth() - labelInsetPx - labelWidthPx - probeWidth - probeInset,
+            probeY, probeWidth, probeHeight);
+        auto barRect = probeRect.reduced(barInset, barInset);
+        barRect.setWidth(barRect.getWidth() * juce::jlimit(0.0f, 1.0f, level));
+
+        g.setColour(juce::Colour(0xcc0f172a));
+        g.fillRoundedRectangle(probeRect, probeHeight * 0.5f);
+        g.setColour(juce::Colour(0x9960a5fa));
+        g.fillRoundedRectangle(barRect, juce::jmax(2.0f, probeHeight * 0.35f));
+        g.setColour(juce::Colour(0xff93c5fd));
+        g.drawRoundedRectangle(probeRect, probeHeight * 0.5f, 0.9f);
+        g.setColour(juce::Colours::white.withAlpha(0.88f));
+        g.setFont(juce::FontOptions(juce::jmax(6.0f, scaledFloat(9.0f))));
+        g.drawText(juce::String(level, 2), probeRect.toNearestInt(),
+                   juce::Justification::centred, false);
+        probeY += (float)portRowHeightPx;
       }
     }
   }

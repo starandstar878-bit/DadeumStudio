@@ -5,8 +5,8 @@
 
 ## 현재 상태 요약
 
-- 기능 로드맵은 `Phase 5: Export Foundation & Diagnostics`까지 완료됨
-- UI 로드맵은 `Phase 5: 파라미터 편집 패널`까지 완료됨
+- 기능 로드맵은 `Phase 6: Runtime Hardening & Real-time Safety`까지 완료됨
+- UI 로드맵은 `Phase 6: 런타임 상태/안전성 UX`까지 완료됨
 - 남은 작업은 크게 두 갈래로 나뉨
   - 상용 1.0에 직접 필요한 코어 기능/UI
   - 상용 1.0 이후로 미뤄도 되는 확장 노드/플러그인 ABI
@@ -49,7 +49,7 @@
 
 ---
 
-### 마일스톤 1: Runtime Safety 코어
+### 마일스톤 1: Runtime Safety 코어 [DONE]
 
 **기능 먼저**
 - 기능 `Phase 6`

@@ -57,6 +57,11 @@ void TGraphCanvas::setBindingSummaryResolver(BindingSummaryResolver resolver) {
   bindingSummaryResolver = std::move(resolver);
 }
 
+void TGraphCanvas::setRuntimeOverlayState(const RuntimeOverlayState &state) {
+  runtimeOverlayState = state;
+  repaint();
+}
+
 float TGraphCanvas::getPortLevel(PortId portId) const {
   if (!portLevelProvider)
     return 0.0f;
@@ -136,6 +141,7 @@ void TGraphCanvas::paint(juce::Graphics &g) {
   drawFrames(g);
   drawConnections(g);
   drawSelectionOverlay(g);
+  drawRuntimeOverlay(g);
   drawMiniMap(g);
   drawLibraryDropPreview(g);
   drawZoomIndicator(g);

@@ -22,11 +22,13 @@ public:
   struct RuntimeStats {
     double sampleRate = 48000.0;
     int preparedBlockSize = 256;
+    int lastInputChannels = 0;
     int lastOutputChannels = 0;
     int activeNodeCount = 0;
     int allocatedPortChannels = 0;
     int largestBlockSeen = 0;
     int largestOutputChannelCountSeen = 0;
+    int smoothingActiveCount = 0;
     std::uint64_t processBlockCount = 0;
     std::uint64_t rebuildRequestCount = 0;
     std::uint64_t rebuildCommitCount = 0;
@@ -36,6 +38,11 @@ public:
     std::uint64_t activeGeneration = 0;
     std::uint64_t pendingGeneration = 0;
     bool rebuildPending = false;
+    bool clipDetected = false;
+    bool denormalDetected = false;
+    bool xrunDetected = false;
+    bool mutedFallbackActive = false;
+    float cpuLoadPercent = 0.0f;
     double lastBuildMilliseconds = 0.0;
     double maxBuildMilliseconds = 0.0;
     double lastProcessMilliseconds = 0.0;
@@ -51,6 +58,7 @@ public:
   void releaseResources();
   void processBlock(juce::AudioBuffer<float> &deviceBuffer,
                     juce::MidiBuffer &midiMessages);
+  void setCurrentChannelLayout(int inputChannels, int outputChannels) noexcept;
 
   void audioDeviceAboutToStart(juce::AudioIODevice *device) override;
   void audioDeviceStopped() override;
@@ -101,6 +109,9 @@ private:
     TNodeInstance *instance = nullptr;
     juce::String paramKey;
     std::array<char, 32> paramKeyUtf8{};
+    float currentValue = 0.0f;
+    float targetValue = 0.0f;
+    bool smoothingEnabled = false;
   };
 
   struct RenderState : public juce::ReferenceCountedObject {
@@ -121,9 +132,7 @@ private:
 
     std::atomic<RenderState *> state{nullptr};
 
-    RenderState::Ptr get() const {
-      return state.load(std::memory_order_acquire);
-    }
+    RenderState::Ptr get() const { return state.load(std::memory_order_acquire); }
 
     bool hasState() const noexcept {
       return state.load(std::memory_order_acquire) != nullptr;
@@ -188,6 +197,8 @@ private:
   static float measureSignalLevel(const float *samples, int numSamples) noexcept;
   static float smoothMeterLevel(float previousLevel,
                                 float measuredLevel) noexcept;
+  static bool shouldSmoothParam(const TParamSpec *paramSpec,
+                                const juce::var &initialValue) noexcept;
   static void writeParamKey(char *dest,
                             std::size_t destSize,
                             const juce::String &paramKey);
@@ -205,7 +216,10 @@ private:
   const TNodeRegistry *nodeRegistry = nullptr;
   std::atomic<double> currentSampleRate{48000.0};
   std::atomic<int> currentBlockSize{256};
+  std::atomic<int> lastInputChannels{0};
   std::atomic<int> lastOutputChannels{0};
+  int outputFadeSamplesRemaining = 0;
+  float outputFadeCurrentGain = 1.0f;
 
   mutable juce::CriticalSection paramSurfaceLock;
   TGraphDocument surfaceDocument;
@@ -238,6 +252,11 @@ private:
   std::atomic<int> allocatedPortChannels{0};
   std::atomic<int> largestBlockSeen{0};
   std::atomic<int> largestOutputChannelCountSeen{0};
+  std::atomic<int> smoothingActiveCount{0};
+  std::atomic<bool> clipDetected{false};
+  std::atomic<bool> denormalDetected{false};
+  std::atomic<bool> xrunDetected{false};
+  std::atomic<bool> mutedFallbackActive{false};
 
   juce::MidiBuffer deviceCallbackMidiScratch;
 

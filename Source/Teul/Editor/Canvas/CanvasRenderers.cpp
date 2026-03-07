@@ -457,6 +457,97 @@ void TGraphCanvas::drawSelectionOverlay(juce::Graphics &g) {
   }
 }
 
+void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
+  const bool hasRuntimeData = runtimeOverlayState.blockSize > 0 ||
+                              runtimeOverlayState.activeGeneration > 0 ||
+                              runtimeOverlayState.activeNodeCount > 0;
+  if (!hasRuntimeData)
+    return;
+
+  auto area = getLocalBounds().removeFromBottom(84).removeFromLeft(380).reduced(12);
+  if (area.getWidth() < 180 || area.getHeight() < 48)
+    return;
+
+  g.setColour(juce::Colour(0xd8101720));
+  g.fillRoundedRectangle(area.toFloat(), 10.0f);
+  g.setColour(juce::Colour(0x4460a5fa));
+  g.drawRoundedRectangle(area.toFloat(), 10.0f, 1.0f);
+
+  auto content = area.reduced(10, 8);
+  auto header = content.removeFromTop(18);
+  auto detail = content.removeFromTop(16);
+  auto badgeRow = content.removeFromTop(18);
+
+  const juce::String headerText = juce::String::formatted(
+      "Runtime  %.1f kHz  |  %d blk  |  %d in / %d out  |  CPU %.1f%%",
+      runtimeOverlayState.sampleRate * 0.001,
+      runtimeOverlayState.blockSize,
+      runtimeOverlayState.inputChannels,
+      runtimeOverlayState.outputChannels,
+      runtimeOverlayState.cpuLoadPercent);
+  const juce::String detailText = juce::String::formatted(
+      "Nodes %d  |  Buffers %d  |  Gen %llu  |  Pending %llu",
+      runtimeOverlayState.activeNodeCount,
+      runtimeOverlayState.allocatedPortChannels,
+      static_cast<unsigned long long>(runtimeOverlayState.activeGeneration),
+      static_cast<unsigned long long>(runtimeOverlayState.pendingGeneration));
+
+  g.setColour(juce::Colours::white.withAlpha(0.95f));
+  g.setFont(13.0f);
+  g.drawText(headerText, header, juce::Justification::centredLeft, false);
+
+  g.setColour(juce::Colours::white.withAlpha(0.62f));
+  g.setFont(11.0f);
+  g.drawText(detailText, detail, juce::Justification::centredLeft, false);
+
+  auto drawBadge = [&](const juce::String &text, juce::Colour colour) {
+    if (text.isEmpty() || badgeRow.getWidth() <= 8)
+      return;
+
+    const int width = juce::jlimit(56, juce::jmax(70, area.getWidth() / 4),
+                                   18 + text.length() * 8);
+    auto badge = badgeRow.removeFromLeft(juce::jmin(width, badgeRow.getWidth()));
+    badgeRow.removeFromLeft(6);
+
+    g.setColour(colour.withAlpha(0.2f));
+    g.fillRoundedRectangle(badge.toFloat(), 8.0f);
+    g.setColour(colour.withAlpha(0.9f));
+    g.drawRoundedRectangle(badge.toFloat(), 8.0f, 1.0f);
+    g.setColour(colour.brighter(0.2f));
+    g.setFont(10.0f);
+    g.drawText(text, badge, juce::Justification::centred, false);
+  };
+
+  bool drewBadge = false;
+  if (runtimeOverlayState.rebuildPending) {
+    drawBadge("Deferred Apply", juce::Colour(0xfff59e0b));
+    drewBadge = true;
+  }
+  if (runtimeOverlayState.smoothingActiveCount > 0) {
+    drawBadge("Smooth " + juce::String(runtimeOverlayState.smoothingActiveCount),
+              juce::Colour(0xff60a5fa));
+    drewBadge = true;
+  }
+  if (runtimeOverlayState.xrunDetected) {
+    drawBadge("XRUN", juce::Colour(0xffef4444));
+    drewBadge = true;
+  }
+  if (runtimeOverlayState.clipDetected) {
+    drawBadge("Clip", juce::Colour(0xfff97316));
+    drewBadge = true;
+  }
+  if (runtimeOverlayState.denormalDetected) {
+    drawBadge("Denormal", juce::Colour(0xffeab308));
+    drewBadge = true;
+  }
+  if (runtimeOverlayState.mutedFallbackActive) {
+    drawBadge("Muted Fallback", juce::Colour(0xff94a3b8));
+    drewBadge = true;
+  }
+  if (!drewBadge)
+    drawBadge("Stable", juce::Colour(0xff22c55e));
+}
+
 void TGraphCanvas::drawStatusHint(juce::Graphics &g) {
   if (statusHintAlpha <= 0.01f || statusHintText.isEmpty())
     return;

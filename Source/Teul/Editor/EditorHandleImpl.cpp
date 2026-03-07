@@ -1,11 +1,126 @@
 #include "Teul/Editor/EditorHandleImpl.h"
 
+#include "Teul/Editor/Canvas/TGraphCanvas.h"
 #include "Teul/Editor/Panels/NodeLibraryPanel.h"
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
 #include "Teul/Registry/TNodeRegistry.h"
-#include "Teul/Editor/Canvas/TGraphCanvas.h"
 
 namespace Teul {
+
+class RuntimeStatusStrip : public juce::Component {
+public:
+  void setStats(const TGraphRuntime::RuntimeStats &newStats) {
+    stats = newStats;
+    repaint();
+  }
+
+  void setTransientMessage(const juce::String &text, juce::Colour accent) {
+    transientMessage = text;
+    transientAccent = accent;
+    repaint();
+  }
+
+  void paint(juce::Graphics &g) override {
+    auto bounds = getLocalBounds();
+    if (bounds.isEmpty())
+      return;
+
+    g.setColour(juce::Colour(0xdd0b1220));
+    g.fillRoundedRectangle(bounds.toFloat(), 10.0f);
+    g.setColour(juce::Colour(0x4460a5fa));
+    g.drawRoundedRectangle(bounds.toFloat(), 10.0f, 1.0f);
+
+    auto content = bounds.reduced(10, 7);
+    auto header = content.removeFromTop(15);
+    auto summary = content.removeFromTop(14);
+    auto badges = content.removeFromTop(16);
+
+    const juce::String headerText = juce::String::formatted(
+        "%.1f kHz  |  %d blk  |  %d in / %d out  |  CPU %.1f%%",
+        stats.sampleRate * 0.001,
+        stats.preparedBlockSize,
+        stats.lastInputChannels,
+        stats.lastOutputChannels,
+        stats.cpuLoadPercent);
+
+    juce::String summaryText = juce::String::formatted(
+        "Gen %llu  |  Nodes %d  |  Buffers %d  |  Process %.2f ms",
+        static_cast<unsigned long long>(stats.activeGeneration),
+        stats.activeNodeCount,
+        stats.allocatedPortChannels,
+        stats.lastProcessMilliseconds);
+    juce::Colour summaryColour = juce::Colours::white.withAlpha(0.62f);
+
+    if (transientMessage.isNotEmpty()) {
+      summaryText = transientMessage;
+      summaryColour = transientAccent;
+    }
+
+    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.setFont(juce::FontOptions(12.5f, juce::Font::bold));
+    g.drawText(headerText, header, juce::Justification::centredLeft, false);
+
+    g.setColour(summaryColour);
+    g.setFont(11.0f);
+    g.drawText(summaryText, summary, juce::Justification::centredLeft, false);
+
+    int badgeX = badges.getX();
+    auto drawBadge = [&](const juce::String &text, juce::Colour colour) {
+      if (text.isEmpty())
+        return;
+
+      const int badgeWidth = juce::jlimit(60, 150, 18 + text.length() * 7);
+      if (badgeX + badgeWidth > badges.getRight())
+        return;
+
+      juce::Rectangle<int> badge(badgeX, badges.getY(), badgeWidth,
+                                 badges.getHeight());
+      badgeX += badgeWidth + 6;
+
+      g.setColour(colour.withAlpha(0.18f));
+      g.fillRoundedRectangle(badge.toFloat(), 7.0f);
+      g.setColour(colour.withAlpha(0.88f));
+      g.drawRoundedRectangle(badge.toFloat(), 7.0f, 1.0f);
+      g.setColour(colour.brighter(0.15f));
+      g.setFont(10.0f);
+      g.drawText(text, badge, juce::Justification::centred, false);
+    };
+
+    bool drewBadge = false;
+    if (stats.rebuildPending) {
+      drawBadge("Deferred Apply", juce::Colour(0xfff59e0b));
+      drewBadge = true;
+    }
+    if (stats.smoothingActiveCount > 0) {
+      drawBadge("Smooth " + juce::String(stats.smoothingActiveCount),
+                juce::Colour(0xff60a5fa));
+      drewBadge = true;
+    }
+    if (stats.xrunDetected) {
+      drawBadge("XRUN", juce::Colour(0xffef4444));
+      drewBadge = true;
+    }
+    if (stats.clipDetected) {
+      drawBadge("Clip", juce::Colour(0xfff97316));
+      drewBadge = true;
+    }
+    if (stats.denormalDetected) {
+      drawBadge("Denormal", juce::Colour(0xffeab308));
+      drewBadge = true;
+    }
+    if (stats.mutedFallbackActive) {
+      drawBadge("Muted Fallback", juce::Colour(0xff94a3b8));
+      drewBadge = true;
+    }
+    if (!drewBadge)
+      drawBadge("Stable", juce::Colour(0xff22c55e));
+  }
+
+private:
+  TGraphRuntime::RuntimeStats stats;
+  juce::String transientMessage;
+  juce::Colour transientAccent = juce::Colour(0xff60a5fa);
+};
 
 EditorHandle::Impl::Impl(
     EditorHandle &ownerIn, juce::AudioDeviceManager *audioDeviceManagerIn,
@@ -37,6 +152,9 @@ EditorHandle::Impl::Impl(
       std::move(bindingSummaryResolverIn));
   propertiesPanel->setLayoutChangedCallback([this] { owner.resized(); });
   owner.addAndMakeVisible(*propertiesPanel);
+
+  runtimeStatusStrip = std::make_unique<RuntimeStatusStrip>();
+  owner.addAndMakeVisible(*runtimeStatusStrip);
 
   canvas->setNodeSelectionChangedHandler(
       [this](const std::vector<NodeId> &selectedNodeIds) {
@@ -112,6 +230,11 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   top.removeFromLeft(4);
   commandPaletteButton.setBounds(top.removeFromLeft(60));
 
+  if (runtimeStatusStrip != nullptr) {
+    auto statusArea = area.removeFromTop(48).reduced(6, 4);
+    runtimeStatusStrip->setBounds(statusArea);
+  }
+
   if (libraryPanel != nullptr) {
     libraryPanel->setVisible(libraryVisible);
     if (libraryVisible) {
@@ -150,6 +273,8 @@ void EditorHandle::Impl::timerCallback() {
       propertiesPanel->refreshBindingSummaries();
     lastBindingRevision = currentBindingRevision;
   }
+
+  refreshRuntimeUi();
 }
 
 void EditorHandle::Impl::rebuildAll(bool rebuildRuntime) {
@@ -164,6 +289,7 @@ void EditorHandle::Impl::rebuildAll(bool rebuildRuntime) {
 
   lastDocumentRevision = doc.getDocumentRevision();
   lastRuntimeRevision = doc.getRuntimeRevision();
+  refreshRuntimeUi(true);
   owner.resized();
 }
 
@@ -181,6 +307,83 @@ void EditorHandle::Impl::handleSelectionChanged(
 void EditorHandle::Impl::openProperties(NodeId nodeId) {
   if (propertiesPanel != nullptr)
     propertiesPanel->inspectNode(nodeId);
+}
+
+void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {
+  const auto stats = runtime.getRuntimeStats();
+
+  if ((stats.xrunDetected && !lastRuntimeStats.xrunDetected)) {
+    pushRuntimeMessage("Audio block exceeded budget", juce::Colour(0xffef4444),
+                       60);
+  } else if (stats.clipDetected && !lastRuntimeStats.clipDetected) {
+    pushRuntimeMessage("Output clip detected", juce::Colour(0xfff97316), 60);
+  } else if (stats.denormalDetected && !lastRuntimeStats.denormalDetected) {
+    pushRuntimeMessage("Denormal activity detected", juce::Colour(0xffeab308),
+                       60);
+  } else if (stats.mutedFallbackActive && !lastRuntimeStats.mutedFallbackActive) {
+    pushRuntimeMessage("Muted fallback is active", juce::Colour(0xff94a3b8),
+                       50);
+  } else if (stats.rebuildPending && !lastRuntimeStats.rebuildPending) {
+    pushRuntimeMessage("Deferred apply queued for safe commit",
+                       juce::Colour(0xfff59e0b), 55);
+  } else if (!stats.rebuildPending && lastRuntimeStats.rebuildPending) {
+    pushRuntimeMessage("Deferred apply committed", juce::Colour(0xff22c55e),
+                       40);
+  } else if (forceMessage ||
+             stats.sampleRate != lastRuntimeStats.sampleRate ||
+             stats.preparedBlockSize != lastRuntimeStats.preparedBlockSize ||
+             stats.lastInputChannels != lastRuntimeStats.lastInputChannels ||
+             stats.lastOutputChannels != lastRuntimeStats.lastOutputChannels) {
+    pushRuntimeMessage(
+        juce::String::formatted("Runtime prepared: %.1f kHz / %d blk / %d in / %d out",
+                                stats.sampleRate * 0.001,
+                                stats.preparedBlockSize,
+                                stats.lastInputChannels,
+                                stats.lastOutputChannels),
+        juce::Colour(0xff60a5fa), 36);
+  }
+
+  if (runtimeMessageTicksRemaining > 0) {
+    --runtimeMessageTicksRemaining;
+  } else if (runtimeMessageText.isNotEmpty()) {
+    runtimeMessageText.clear();
+  }
+
+  if (runtimeStatusStrip != nullptr) {
+    runtimeStatusStrip->setStats(stats);
+    runtimeStatusStrip->setTransientMessage(runtimeMessageText,
+                                            runtimeMessageAccent);
+  }
+
+  if (canvas != nullptr) {
+    TGraphCanvas::RuntimeOverlayState overlay;
+    overlay.sampleRate = stats.sampleRate;
+    overlay.blockSize = stats.preparedBlockSize;
+    overlay.inputChannels = stats.lastInputChannels;
+    overlay.outputChannels = stats.lastOutputChannels;
+    overlay.activeNodeCount = stats.activeNodeCount;
+    overlay.allocatedPortChannels = stats.allocatedPortChannels;
+    overlay.smoothingActiveCount = stats.smoothingActiveCount;
+    overlay.activeGeneration = stats.activeGeneration;
+    overlay.pendingGeneration = stats.pendingGeneration;
+    overlay.rebuildPending = stats.rebuildPending;
+    overlay.clipDetected = stats.clipDetected;
+    overlay.denormalDetected = stats.denormalDetected;
+    overlay.xrunDetected = stats.xrunDetected;
+    overlay.mutedFallbackActive = stats.mutedFallbackActive;
+    overlay.cpuLoadPercent = stats.cpuLoadPercent;
+    canvas->setRuntimeOverlayState(overlay);
+  }
+
+  lastRuntimeStats = stats;
+}
+
+void EditorHandle::Impl::pushRuntimeMessage(const juce::String &text,
+                                            juce::Colour accent,
+                                            int ticks) {
+  runtimeMessageText = text;
+  runtimeMessageAccent = accent;
+  runtimeMessageTicksRemaining = juce::jmax(1, ticks);
 }
 
 } // namespace Teul

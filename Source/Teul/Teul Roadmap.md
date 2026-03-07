@@ -282,11 +282,11 @@
 
 ### 구현 단계
 
-- [ ] **audio thread 무할당/무락 보장**: process 경로에서 동적 할당, lock, string lookup, file IO 제거
-- [ ] **파라미터 smoothing / bypass / denormal 처리**: zipper noise, bypass pop, denormal slowdown을 막는 공통 규약 정리
-- [ ] **sampleRate / blockSize / channel layout 적응성**: mono/stereo/multi-channel, 작은 블록/큰 블록, sample rate 변화에 대한 prepare 정책 확정
-- [ ] **runtime rebuild / state handoff 안전화**: UI 편집 중 그래프 재빌드와 런타임 상태 전환 충돌 방지
-- [ ] **성능 budget 계측기**: CPU, 메모리, 임시 버퍼, rebuild cost를 측정하는 내부 디버그 카운터 추가
+- [x] **audio thread 무할당/무락 보장**: process 경로에서 동적 할당, lock, string lookup, file IO 제거
+- [x] **파라미터 smoothing / bypass / denormal 처리**: zipper noise, bypass pop, denormal slowdown을 막는 공통 규약 정리
+- [x] **sampleRate / blockSize / channel layout 적응성**: mono/stereo/multi-channel, 작은 블록/큰 블록, sample rate 변화에 대한 prepare 정책 확정
+- [x] **runtime rebuild / state handoff 안전화**: UI 편집 중 그래프 재빌드와 런타임 상태 전환 충돌 방지
+- [x] **성능 budget 계측기**: CPU, 메모리, 임시 버퍼, rebuild cost를 측정하는 내부 디버그 카운터 추가
 
 ---
 

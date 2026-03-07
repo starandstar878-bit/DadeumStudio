@@ -141,6 +141,10 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
   newState->totalAllocatedChannels = portChannelCounter;
 
   for (const auto &entry : newState->sortedNodes) {
+    const TNodeDescriptor *desc = nullptr;
+    if (nodeRegistry != nullptr)
+      desc = nodeRegistry->descriptorFor(entry.nodeSnapshot.typeKey);
+
     for (const auto &port : entry.nodeSnapshot.ports) {
       if (port.direction != TPortDirection::Output ||
           port.dataType == TPortDataType::MIDI) {
@@ -157,11 +161,9 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
     }
 
     std::set<juce::String> dispatchKeys;
-    if (nodeRegistry != nullptr) {
-      if (const auto *desc = nodeRegistry->descriptorFor(entry.nodeSnapshot.typeKey)) {
-        for (const auto &spec : desc->paramSpecs)
-          dispatchKeys.insert(spec.key);
-      }
+    if (desc != nullptr) {
+      for (const auto &spec : desc->paramSpecs)
+        dispatchKeys.insert(spec.key);
     }
 
     for (const auto &[key, value] : entry.nodeSnapshot.params) {
@@ -170,10 +172,29 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
     }
 
     for (const auto &key : dispatchKeys) {
+      const TParamSpec *paramSpec = nullptr;
+      if (desc != nullptr) {
+        for (const auto &candidate : desc->paramSpecs) {
+          if (candidate.key == key) {
+            paramSpec = &candidate;
+            break;
+          }
+        }
+      }
+
+      const auto valueIt = entry.nodeSnapshot.params.find(key);
+      const juce::var initialValue =
+          valueIt != entry.nodeSnapshot.params.end()
+              ? valueIt->second
+              : (paramSpec != nullptr ? paramSpec->defaultValue : juce::var{});
+
       ParamDispatch dispatch;
       dispatch.nodeId = entry.nodeId;
       dispatch.instance = entry.instance.get();
       dispatch.paramKey = key;
+      dispatch.currentValue = paramValueToFloat(initialValue);
+      dispatch.targetValue = dispatch.currentValue;
+      dispatch.smoothingEnabled = shouldSmoothParam(paramSpec, initialValue);
       writeParamKey(dispatch.paramKeyUtf8, key);
       newState->paramDispatches.push_back(std::move(dispatch));
     }
@@ -208,6 +229,8 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
                           std::memory_order_relaxed);
     allocatedPortChannels.store(newState->totalAllocatedChannels,
                                 std::memory_order_relaxed);
+    outputFadeSamplesRemaining = 0;
+    outputFadeCurrentGain = 1.0f;
   } else {
     pendingState.set(newState);
     pendingGeneration.store(newState->generation, std::memory_order_release);
@@ -247,6 +270,14 @@ void TGraphRuntime::releaseResources() {
   releaseState(pendingState.get());
 }
 
+void TGraphRuntime::setCurrentChannelLayout(int inputChannels,
+                                            int outputChannels) noexcept {
+  lastInputChannels.store(juce::jmax(0, inputChannels),
+                          std::memory_order_relaxed);
+  lastOutputChannels.store(juce::jmax(0, outputChannels),
+                           std::memory_order_relaxed);
+}
+
 void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
                                  juce::MidiBuffer &midiMessages) {
   juce::ScopedNoDenormals noDenormals;
@@ -264,6 +295,12 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
   deviceBuffer.clear();
 
   if (!state) {
+    mutedFallbackActive.store(true, std::memory_order_relaxed);
+    smoothingActiveCount.store(0, std::memory_order_relaxed);
+    clipDetected.store(false, std::memory_order_relaxed);
+    denormalDetected.store(false, std::memory_order_relaxed);
+    xrunDetected.store(false, std::memory_order_relaxed);
+
     const auto elapsedMicros =
         ticksToMicros(juce::Time::getHighResolutionTicks() - processStartTicks);
     lastProcessMicros.store(elapsedMicros, std::memory_order_relaxed);
@@ -274,6 +311,12 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
   const int numSamples = juce::jmin(deviceBuffer.getNumSamples(),
                                     state->globalPortBuffer.getNumSamples());
   if (numSamples <= 0) {
+    mutedFallbackActive.store(true, std::memory_order_relaxed);
+    smoothingActiveCount.store(0, std::memory_order_relaxed);
+    clipDetected.store(false, std::memory_order_relaxed);
+    denormalDetected.store(false, std::memory_order_relaxed);
+    xrunDetected.store(false, std::memory_order_relaxed);
+
     const auto elapsedMicros =
         ticksToMicros(juce::Time::getHighResolutionTicks() - processStartTicks);
     lastProcessMicros.store(elapsedMicros, std::memory_order_relaxed);
@@ -281,6 +324,7 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
     return;
   }
 
+  mutedFallbackActive.store(false, std::memory_order_relaxed);
   state->globalPortBuffer.clear();
 
   int start1 = 0, size1 = 0, start2 = 0, size2 = 0;
@@ -288,13 +332,13 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
                                start2, size2);
 
   auto applyParamChange = [&](const ParamChange &change) {
-    const ParamDispatch *dispatch = nullptr;
+    ParamDispatch *dispatch = nullptr;
 
     if (change.generation == state->generation && change.dispatchSlot >= 0 &&
         change.dispatchSlot < static_cast<int>(state->paramDispatches.size())) {
       dispatch = &state->paramDispatches[static_cast<std::size_t>(change.dispatchSlot)];
     } else {
-      for (const auto &candidate : state->paramDispatches) {
+      for (auto &candidate : state->paramDispatches) {
         if (dispatchMatches(candidate, change.nodeId, change.paramKey)) {
           dispatch = &candidate;
           break;
@@ -307,6 +351,13 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
       return;
     }
 
+    if (dispatch->smoothingEnabled) {
+      dispatch->targetValue = change.value;
+      return;
+    }
+
+    dispatch->currentValue = change.value;
+    dispatch->targetValue = change.value;
     dispatch->instance->setParameterValue(dispatch->paramKey, change.value);
     paramChangeCount.fetch_add(1, std::memory_order_relaxed);
     reportParamValueChange(change.nodeId, dispatch->paramKey, change.value);
@@ -317,6 +368,40 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
   for (int i = 0; i < size2; ++i)
     applyParamChange(paramQueueData[start2 + i]);
   paramQueueFifo.finishedRead(size1 + size2);
+
+  const double sampleRate = currentSampleRate.load(std::memory_order_relaxed);
+  const float rampAlpha =
+      (sampleRate > 0.0)
+          ? juce::jlimit(0.0f, 1.0f,
+                         static_cast<float>((double)numSamples / sampleRate) /
+                             0.03f)
+          : 1.0f;
+  int smoothingCount = 0;
+
+  for (auto &dispatch : state->paramDispatches) {
+    if (!dispatch.smoothingEnabled || dispatch.instance == nullptr)
+      continue;
+
+    const float delta = dispatch.targetValue - dispatch.currentValue;
+    if (std::abs(delta) <= 0.0001f) {
+      dispatch.currentValue = dispatch.targetValue;
+      continue;
+    }
+
+    dispatch.currentValue += delta * rampAlpha;
+    if (std::abs(dispatch.targetValue - dispatch.currentValue) <= 0.0005f)
+      dispatch.currentValue = dispatch.targetValue;
+
+    dispatch.instance->setParameterValue(dispatch.paramKey, dispatch.currentValue);
+    paramChangeCount.fetch_add(1, std::memory_order_relaxed);
+    reportParamValueChange(dispatch.nodeId, dispatch.paramKey,
+                           dispatch.currentValue);
+
+    if (std::abs(dispatch.targetValue - dispatch.currentValue) > 0.0005f)
+      ++smoothingCount;
+  }
+
+  smoothingActiveCount.store(smoothingCount, std::memory_order_relaxed);
 
   for (auto &entry : state->sortedNodes) {
     for (const auto &mix : entry.preProcessMixes) {
@@ -336,6 +421,48 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
       entry.instance->processSamples(ctx);
     }
   }
+
+  if (outputFadeSamplesRemaining > 0) {
+    const int fadeSamples = juce::jmin(outputFadeSamplesRemaining, numSamples);
+    const float startGain = outputFadeCurrentGain;
+    const float gainStep =
+        fadeSamples > 0 ? (1.0f - startGain) / (float)fadeSamples : 0.0f;
+
+    for (int channelIndex = 0; channelIndex < deviceBuffer.getNumChannels();
+         ++channelIndex) {
+      auto *samples = deviceBuffer.getWritePointer(channelIndex);
+      float gain = startGain;
+      for (int sampleIndex = 0; sampleIndex < fadeSamples; ++sampleIndex) {
+        samples[sampleIndex] *= gain;
+        gain += gainStep;
+      }
+    }
+
+    outputFadeCurrentGain = juce::jmin(1.0f, startGain + gainStep * fadeSamples);
+    outputFadeSamplesRemaining -= fadeSamples;
+    if (outputFadeSamplesRemaining <= 0) {
+      outputFadeSamplesRemaining = 0;
+      outputFadeCurrentGain = 1.0f;
+    }
+  }
+
+  bool clipped = false;
+  bool denormal = false;
+  for (int channelIndex = 0; channelIndex < deviceBuffer.getNumChannels();
+       ++channelIndex) {
+    const float *samples = deviceBuffer.getReadPointer(channelIndex);
+    for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
+      const float sample = samples[sampleIndex];
+      const float magnitude = std::abs(sample);
+      if (magnitude > 1.0f)
+        clipped = true;
+      if (magnitude > 0.0f && magnitude < 1.0e-20f)
+        denormal = true;
+    }
+  }
+
+  clipDetected.store(clipped, std::memory_order_relaxed);
+  denormalDetected.store(denormal, std::memory_order_relaxed);
 
   if (state->portLevels) {
     for (std::size_t index = 0; index < state->portTelemetry.size(); ++index) {
@@ -359,6 +486,12 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
       ticksToMicros(juce::Time::getHighResolutionTicks() - processStartTicks);
   lastProcessMicros.store(elapsedMicros, std::memory_order_relaxed);
   updateAtomicMax(maxProcessMicros, elapsedMicros);
+
+  const double blockBudgetMicros =
+      sampleRate > 0.0 ? ((double)numSamples / sampleRate) * 1000000.0 : 0.0;
+  xrunDetected.store(blockBudgetMicros > 0.0 &&
+                         (double)elapsedMicros > blockBudgetMicros,
+                     std::memory_order_relaxed);
 }
 
 float TGraphRuntime::getPortLevel(PortId portId) const noexcept {
@@ -377,6 +510,7 @@ TGraphRuntime::RuntimeStats TGraphRuntime::getRuntimeStats() const noexcept {
   RuntimeStats stats;
   stats.sampleRate = currentSampleRate.load(std::memory_order_relaxed);
   stats.preparedBlockSize = currentBlockSize.load(std::memory_order_relaxed);
+  stats.lastInputChannels = lastInputChannels.load(std::memory_order_relaxed);
   stats.lastOutputChannels = lastOutputChannels.load(std::memory_order_relaxed);
   stats.activeNodeCount = activeNodeCount.load(std::memory_order_relaxed);
   stats.allocatedPortChannels =
@@ -384,6 +518,8 @@ TGraphRuntime::RuntimeStats TGraphRuntime::getRuntimeStats() const noexcept {
   stats.largestBlockSeen = largestBlockSeen.load(std::memory_order_relaxed);
   stats.largestOutputChannelCountSeen =
       largestOutputChannelCountSeen.load(std::memory_order_relaxed);
+  stats.smoothingActiveCount =
+      smoothingActiveCount.load(std::memory_order_relaxed);
   stats.processBlockCount = processBlockCount.load(std::memory_order_relaxed);
   stats.rebuildRequestCount =
       rebuildRequestCount.load(std::memory_order_relaxed);
@@ -397,6 +533,11 @@ TGraphRuntime::RuntimeStats TGraphRuntime::getRuntimeStats() const noexcept {
   stats.activeGeneration = activeGeneration.load(std::memory_order_relaxed);
   stats.pendingGeneration = pendingGeneration.load(std::memory_order_relaxed);
   stats.rebuildPending = rebuildPending.load(std::memory_order_relaxed);
+  stats.clipDetected = clipDetected.load(std::memory_order_relaxed);
+  stats.denormalDetected = denormalDetected.load(std::memory_order_relaxed);
+  stats.xrunDetected = xrunDetected.load(std::memory_order_relaxed);
+  stats.mutedFallbackActive =
+      mutedFallbackActive.load(std::memory_order_relaxed);
   stats.lastBuildMilliseconds =
       microsToMilliseconds(lastBuildMicros.load(std::memory_order_relaxed));
   stats.maxBuildMilliseconds =
@@ -405,6 +546,17 @@ TGraphRuntime::RuntimeStats TGraphRuntime::getRuntimeStats() const noexcept {
       microsToMilliseconds(lastProcessMicros.load(std::memory_order_relaxed));
   stats.maxProcessMilliseconds =
       microsToMilliseconds(maxProcessMicros.load(std::memory_order_relaxed));
+
+  const double blockDurationMs =
+      (stats.sampleRate > 0.0 && stats.preparedBlockSize > 0)
+          ? ((double)stats.preparedBlockSize / stats.sampleRate) * 1000.0
+          : 0.0;
+  stats.cpuLoadPercent =
+      blockDurationMs > 0.0
+          ? static_cast<float>(juce::jlimit(
+                0.0, 999.0,
+                (stats.lastProcessMilliseconds / blockDurationMs) * 100.0))
+          : 0.0f;
   return stats;
 }
 
@@ -423,8 +575,9 @@ void TGraphRuntime::audioDeviceIOCallbackWithContext(
     const juce::AudioIODeviceCallbackContext &context) {
   juce::AudioBuffer<float> buffer(outputChannelData, numOutputChannels,
                                   numSamples);
-  juce::ignoreUnused(inputChannelData, numInputChannels, context);
+  juce::ignoreUnused(inputChannelData, context);
 
+  setCurrentChannelLayout(numInputChannels, numOutputChannels);
   deviceCallbackMidiScratch.clear();
   processBlock(buffer, deviceCallbackMidiScratch);
 }
@@ -695,6 +848,9 @@ bool TGraphRuntime::commitPendingStateIfNeeded() noexcept {
                         std::memory_order_relaxed);
   allocatedPortChannels.store(nextState->totalAllocatedChannels,
                               std::memory_order_relaxed);
+  outputFadeSamplesRemaining = juce::jmax(
+      1, juce::jmin(currentBlockSize.load(std::memory_order_relaxed), 128));
+  outputFadeCurrentGain = 0.0f;
   return true;
 }
 
@@ -748,6 +904,24 @@ float TGraphRuntime::smoothMeterLevel(float previousLevel,
     return measuredLevel;
 
   return juce::jmax(measuredLevel, previousLevel * 0.84f);
+}
+
+bool TGraphRuntime::shouldSmoothParam(const TParamSpec *paramSpec,
+                                      const juce::var &initialValue) noexcept {
+  if (paramSpec == nullptr)
+    return initialValue.isDouble() || (!initialValue.isInt() &&
+                                       !initialValue.isInt64() &&
+                                       !initialValue.isBool());
+
+  if (paramSpec->isReadOnly || paramSpec->isDiscrete ||
+      paramSpec->valueType == TParamValueType::Bool ||
+      paramSpec->valueType == TParamValueType::Enum ||
+      paramSpec->preferredWidget == TParamWidgetHint::Toggle ||
+      paramSpec->preferredWidget == TParamWidgetHint::Combo) {
+    return false;
+  }
+
+  return true;
 }
 
 void TGraphRuntime::writeParamKey(char *dest,

@@ -13,6 +13,7 @@ class TGraphCanvas;
 class TNodeRegistry;
 class NodeLibraryPanel;
 class NodePropertiesPanel;
+class RuntimeStatusStrip;
 
 struct EditorHandle::Impl : private juce::Timer {
   explicit Impl(EditorHandle &owner,
@@ -32,6 +33,10 @@ private:
   void rebuildAll(bool rebuildRuntime);
   void handleSelectionChanged(const std::vector<NodeId> &selectedNodeIds);
   void openProperties(NodeId nodeId);
+  void refreshRuntimeUi(bool forceMessage = false);
+  void pushRuntimeMessage(const juce::String &text,
+                          juce::Colour accent,
+                          int ticks = 50);
 
   EditorHandle &owner;
   TGraphDocument doc;
@@ -40,6 +45,7 @@ private:
   std::unique_ptr<TGraphCanvas> canvas;
   std::unique_ptr<NodeLibraryPanel> libraryPanel;
   std::unique_ptr<NodePropertiesPanel> propertiesPanel;
+  std::unique_ptr<RuntimeStatusStrip> runtimeStatusStrip;
   juce::AudioDeviceManager *audioDeviceManager = nullptr;
 
   juce::TextButton toggleLibraryButton;
@@ -51,6 +57,10 @@ private:
   std::uint64_t lastDocumentRevision = 0;
   std::uint64_t lastRuntimeRevision = 0;
   std::uint64_t lastBindingRevision = 0;
+  TGraphRuntime::RuntimeStats lastRuntimeStats;
+  juce::String runtimeMessageText;
+  juce::Colour runtimeMessageAccent = juce::Colour(0xff60a5fa);
+  int runtimeMessageTicksRemaining = 0;
   ParamBindingRevisionProvider bindingRevisionProvider;
 };
 

@@ -171,19 +171,19 @@
 ### 구현 단계
 
 #### 단계 1: 런타임 상태 HUD
-- [ ] **세션 상태 바**: sample rate, block size, channel layout, CPU load, rebuild pending, bypass 상태를 상단 HUD에 집계
-- [ ] **오디오 상태 배지**: xrun, clip, denormal, muted fallback 같은 런타임 이상 상태를 색상 배지와 짧은 원인 텍스트로 표시
-- [ ] **실행 모드 전환 피드백**: Stop/Preview/Run 전환 시 prepare/rebuild/reset이 언제 발생하는지 사용자에게 명확히 안내
+- [x] **세션 상태 바**: sample rate, block size, channel layout, CPU load, rebuild pending, bypass 상태를 상단 HUD에 집계
+- [x] **오디오 상태 배지**: xrun, clip, denormal, muted fallback 같은 런타임 이상 상태를 색상 배지와 짧은 원인 텍스트로 표시
+- [x] **실행 모드 전환 피드백**: Stop/Preview/Run 전환 시 prepare/rebuild/reset이 언제 발생하는지 사용자에게 명확히 안내
 
 #### 단계 2: 안전한 편집 피드백
-- [ ] **deferred apply 배너**: 오디오 재구성이 필요한 변경은 즉시 적용 대신 안전 지점에서 반영된다는 배너/큐 UI 제공
-- [ ] **파라미터 smoothing 시각화**: smoothing, bypass fade, snap-to-step 같은 동작이 UI에서 예측 가능하게 보이도록 표시
-- [ ] **위험 동작 가드**: Run 중 asset 교체, channel layout 변경, 대규모 삭제 같은 고위험 동작에 경고와 복구 경로 제공
+- [x] **deferred apply 배너**: 오디오 재구성이 필요한 변경은 즉시 적용 대신 안전 지점에서 반영된다는 배너/큐 UI 제공
+- [x] **파라미터 smoothing 시각화**: smoothing, bypass fade, snap-to-step 같은 동작이 UI에서 예측 가능하게 보이도록 표시
+- [x] **위험 동작 가드**: Run 중 asset 교체, channel layout 변경, 대규모 삭제 같은 고위험 동작에 경고와 복구 경로 제공
 
 #### 단계 3: 성능/핫스팟 가시화
-- [ ] **노드 비용 heatmap**: CPU 사용량이 큰 노드나 병목 경로를 canvas 위 heatmap/outline으로 표시
-- [ ] **버퍼/스케줄 오버레이**: export/runtime 스케줄과 임시 버퍼 사용량을 시각적으로 탐색하는 디버그 오버레이 제공
-- [ ] **라이브 프로브**: wire/노드 위에 레벨, CV 값, gate 상태를 가볍게 찍어볼 수 있는 probe 모드 제공
+- [x] **노드 비용 heatmap**: CPU 사용량이 큰 노드나 병목 경로를 canvas 위 heatmap/outline으로 표시
+- [x] **버퍼/스케줄 오버레이**: export/runtime 스케줄과 임시 버퍼 사용량을 시각적으로 탐색하는 디버그 오버레이 제공
+- [x] **라이브 프로브**: wire/노드 위에 레벨, CV 값, gate 상태를 가볍게 찍어볼 수 있는 probe 모드 제공
 
 ---
 

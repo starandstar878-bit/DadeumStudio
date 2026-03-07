@@ -2,6 +2,7 @@
 
 #include "Teul/Model/TGraphDocument.h"
 #include <JuceHeader.h>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <unordered_map>
@@ -84,6 +85,28 @@ public:
       std::function<juce::String(const juce::String &paramId)>;
   void setBindingSummaryResolver(BindingSummaryResolver resolver);
 
+  struct RuntimeOverlayState {
+    double sampleRate = 0.0;
+    int blockSize = 0;
+    int inputChannels = 0;
+    int outputChannels = 0;
+    int activeNodeCount = 0;
+    int allocatedPortChannels = 0;
+    int smoothingActiveCount = 0;
+    std::uint64_t activeGeneration = 0;
+    std::uint64_t pendingGeneration = 0;
+    bool rebuildPending = false;
+    bool clipDetected = false;
+    bool denormalDetected = false;
+    bool xrunDetected = false;
+    bool mutedFallbackActive = false;
+    float cpuLoadPercent = 0.0f;
+  };
+
+  void setRuntimeOverlayState(const RuntimeOverlayState &state);
+  const RuntimeOverlayState &getRuntimeOverlayState() const noexcept {
+    return runtimeOverlayState;
+  }
   using NodePropertiesRequestHandler = std::function<void(NodeId)>;
   void setNodePropertiesRequestHandler(NodePropertiesRequestHandler handler);
 
@@ -118,6 +141,7 @@ private:
   void drawMiniMap(juce::Graphics &g);
   void drawLibraryDropPreview(juce::Graphics &g);
   void drawSelectionOverlay(juce::Graphics &g);
+  void drawRuntimeOverlay(juce::Graphics &g);
   void drawStatusHint(juce::Graphics &g);
 
   juce::Path makeWirePath(juce::Point<float> from,
@@ -310,6 +334,7 @@ private:
 
   juce::String statusHintText;
   float statusHintAlpha = 0.0f;
+  RuntimeOverlayState runtimeOverlayState;
 
   const TNodeRegistry *nodeRegistry = nullptr;
   NodePropertiesRequestHandler nodePropertiesRequestHandler;
