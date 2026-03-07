@@ -1,0 +1,34 @@
+#pragma once
+
+#include "Teul/Bridge/ITeulParamProvider.h"
+#include "Teul/Public/EditorHandle.h"
+#include "Teul/Registry/TNodeRegistry.h"
+
+#include <JuceHeader.h>
+#include <functional>
+#include <memory>
+
+namespace Teul {
+
+struct TGraphDocument;
+class TGraphCanvas;
+
+class NodePropertiesPanel : public juce::Component {
+public:
+  ~NodePropertiesPanel() override = default;
+
+  virtual void setParamProvider(ITeulParamProvider *provider) = 0;
+  virtual void setLayoutChangedCallback(std::function<void()> callback) = 0;
+  virtual bool isPanelOpen() const noexcept = 0;
+  virtual void inspectNode(NodeId nodeId) = 0;
+  virtual void refreshFromDocument() = 0;
+  virtual void refreshBindingSummaries() = 0;
+  virtual void hidePanel() = 0;
+
+  static std::unique_ptr<NodePropertiesPanel> create(
+      TGraphDocument &document, TGraphCanvas &canvas,
+      const TNodeRegistry &registry, ITeulParamProvider *provider,
+      ParamBindingSummaryResolver bindingSummaryResolver);
+};
+
+} // namespace Teul

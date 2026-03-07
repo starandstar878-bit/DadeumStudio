@@ -154,16 +154,16 @@ It should be removed after:
 
 ### Stage 2: Editor Shell Split
 
-- [TODO] `Source/Teul/Editor/EditorHandleImpl.h`
-- [TODO] `Source/Teul/Editor/EditorHandleImpl.cpp`
-- [TODO] move `EditorHandle::Impl` body out of `EditorHandle.cpp`
+- [DONE] `Source/Teul/Editor/EditorHandleImpl.h`
+- [DONE] `Source/Teul/Editor/EditorHandleImpl.cpp`
+- [DONE] move `EditorHandle::Impl` body out of `EditorHandle.cpp`
 
 ### Stage 3: Panel Split
 
-- [TODO] `Source/Teul/Editor/Panels/NodeLibraryPanel.h`
-- [TODO] `Source/Teul/Editor/Panels/NodeLibraryPanel.cpp`
-- [TODO] `Source/Teul/Editor/Panels/NodePropertiesPanel.h`
-- [TODO] `Source/Teul/Editor/Panels/NodePropertiesPanel.cpp`
+- [DONE] `Source/Teul/Editor/Panels/NodeLibraryPanel.h`
+- [DONE] `Source/Teul/Editor/Panels/NodeLibraryPanel.cpp`
+- [DONE] `Source/Teul/Editor/Panels/NodePropertiesPanel.h`
+- [DONE] `Source/Teul/Editor/Panels/NodePropertiesPanel.cpp`
 - [TODO] `Source/Teul/Editor/Panels/Property/ParamEditorFactory.h`
 - [TODO] `Source/Teul/Editor/Panels/Property/ParamEditorFactory.cpp`
 - [TODO] `Source/Teul/Editor/Panels/Property/ParamValueFormatter.h`
@@ -179,9 +179,9 @@ It should be removed after:
 
 ### Stage 5: Node Rendering Split
 
-- [TODO] `Source/Teul/Editor/Node/NodePreviewRenderer.h`
-- [TODO] `Source/Teul/Editor/Node/NodePreviewRenderer.cpp`
-- [TODO] update `TNodeComponent.cpp` to delegate preview drawing only
+- [DONE] `Source/Teul/Editor/Node/NodePreviewRenderer.h`
+- [DONE] `Source/Teul/Editor/Node/NodePreviewRenderer.cpp`
+- [DONE] update `TNodeComponent.cpp` to delegate preview drawing only
 
 ### Stage 6: Build Finalization
 
