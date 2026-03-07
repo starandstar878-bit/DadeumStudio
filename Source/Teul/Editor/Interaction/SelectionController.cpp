@@ -2,6 +2,7 @@
 
 #include "Teul/Editor/Node/TNodeComponent.h"
 #include "Teul/History/TCommands.h"
+#include "Teul/Registry/TNodeRegistry.h"
 
 #include <algorithm>
 #include <set>
@@ -131,17 +132,57 @@ void TGraphCanvas::duplicateSelection() {
   pushStatusHint("Duplicated selection. Undo: Ctrl+Z");
 }
 
-void TGraphCanvas::deleteSelectionWithPrompt() {
-  if (selectedNodeIds.empty())
+TGraphCanvas::DeleteSelectionImpact
+TGraphCanvas::analyzeDeleteSelectionImpact(
+    const std::vector<NodeId> &targets) const {
+  DeleteSelectionImpact impact;
+  if (targets.empty())
+    return impact;
+
+  const std::set<NodeId> targetSet(targets.begin(), targets.end());
+  for (const auto &connection : document.connections) {
+    if (targetSet.count(connection.from.nodeId) > 0 ||
+        targetSet.count(connection.to.nodeId) > 0) {
+      ++impact.touchingConnectionCount;
+    }
+  }
+
+  if (bindingSummaryResolver == nullptr || nodeRegistry == nullptr)
+    return impact;
+
+  std::set<juce::String> seenBindings;
+  for (const NodeId nodeId : targets) {
+    const TNode *node = document.findNode(nodeId);
+    if (node == nullptr)
+      continue;
+
+    juce::String nodeName = node->label;
+    if (nodeName.isEmpty()) {
+      if (const auto *descriptor = nodeRegistry->descriptorFor(node->typeKey))
+        nodeName = descriptor->displayName;
+      else
+        nodeName = node->typeKey;
+    }
+
+    for (const auto &param : nodeRegistry->listExposedParamsForNode(*node)) {
+      const juce::String summary = bindingSummaryResolver(param.paramId).trim();
+      if (summary.isEmpty())
+        continue;
+
+      const juce::String item =
+          nodeName + " / " + param.paramLabel + ": " + summary;
+      if (seenBindings.insert(item).second)
+        impact.bindingSummaries.push_back(item);
+    }
+  }
+
+  return impact;
+}
+
+void TGraphCanvas::deleteNodes(const std::vector<NodeId> &targets) {
+  if (targets.empty())
     return;
 
-  const bool confirmed = juce::AlertWindow::showOkCancelBox(
-      juce::MessageBoxIconType::WarningIcon, "Delete Nodes",
-      "Delete selected nodes? You can undo with Ctrl+Z.", "OK", "Cancel", nullptr, nullptr);
-  if (!confirmed)
-    return;
-
-  const std::vector<NodeId> targets = selectedNodeIds;
   clearNodeSelection();
 
   for (const NodeId id : targets)
@@ -150,6 +191,110 @@ void TGraphCanvas::deleteSelectionWithPrompt() {
   selectedConnectionId = kInvalidConnectionId;
   rebuildNodeComponents();
   pushStatusHint("Selection deleted. Undo: Ctrl+Z");
+}
+
+void TGraphCanvas::deleteSelectionWithPrompt() {
+
+  if (selectedNodeIds.empty())
+
+    return;
+
+
+
+  const std::vector<NodeId> targets = selectedNodeIds;
+
+  const auto impact = analyzeDeleteSelectionImpact(targets);
+
+
+
+  if (!impact.requiresConfirmation()) {
+
+    deleteNodes(targets);
+
+    return;
+
+  }
+
+
+
+  juce::String message =
+
+      targets.size() == 1 ? "Delete selected node?" : "Delete selected nodes?";
+
+
+
+  if (impact.touchingConnectionCount > 0) {
+
+    message << "\n\nThis will also remove "
+
+            << juce::String(impact.touchingConnectionCount) << " connected wire";
+
+    if (impact.touchingConnectionCount != 1)
+
+      message << "s";
+
+    message << ".";
+
+  }
+
+
+
+  if (!impact.bindingSummaries.empty()) {
+
+    message << "\n\nThis may break "
+
+            << juce::String((int)impact.bindingSummaries.size())
+
+            << " Gyeol widget binding";
+
+    if (impact.bindingSummaries.size() != 1)
+
+      message << "s";
+
+    message << " connected through Ieum.";
+
+
+
+    const int previewCount = juce::jmin(3, (int)impact.bindingSummaries.size());
+
+    for (int index = 0; index < previewCount; ++index)
+
+      message << "\n- " << impact.bindingSummaries[(size_t)index];
+
+
+
+    if ((int)impact.bindingSummaries.size() > previewCount) {
+
+      message << "\n- ... and "
+
+              << juce::String((int)impact.bindingSummaries.size() - previewCount)
+
+              << " more";
+
+    }
+
+  }
+
+
+
+  message << "\n\nCtrl+Z will undo.";
+
+
+
+  const bool confirmed = juce::AlertWindow::showOkCancelBox(
+
+      juce::MessageBoxIconType::WarningIcon, "Delete Nodes", message, "OK",
+
+      "Cancel", nullptr, nullptr);
+
+  if (!confirmed)
+
+    return;
+
+
+
+  deleteNodes(targets);
+
 }
 
 void TGraphCanvas::disconnectSelectionWithPrompt() {

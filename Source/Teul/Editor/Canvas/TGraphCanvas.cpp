@@ -51,6 +51,10 @@ void TGraphCanvas::setPortLevelProvider(PortLevelProvider provider) {
   portLevelProvider = std::move(provider);
 }
 
+void TGraphCanvas::setBindingSummaryResolver(BindingSummaryResolver resolver) {
+  bindingSummaryResolver = std::move(resolver);
+}
+
 float TGraphCanvas::getPortLevel(PortId portId) const {
   if (!portLevelProvider)
     return 0.0f;

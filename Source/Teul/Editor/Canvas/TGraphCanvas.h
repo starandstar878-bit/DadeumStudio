@@ -78,6 +78,10 @@ public:
   void setPortLevelProvider(PortLevelProvider provider);
   float getPortLevel(PortId portId) const;
 
+  using BindingSummaryResolver =
+      std::function<juce::String(const juce::String &paramId)>;
+  void setBindingSummaryResolver(BindingSummaryResolver resolver);
+
   using NodePropertiesRequestHandler = std::function<void(NodeId)>;
   void setNodePropertiesRequestHandler(NodePropertiesRequestHandler handler);
 
@@ -171,6 +175,18 @@ private:
   void syncNodeSelectionToComponents();
   void updateMarqueeSelection();
 
+  struct DeleteSelectionImpact {
+    int touchingConnectionCount = 0;
+    std::vector<juce::String> bindingSummaries;
+
+    bool requiresConfirmation() const noexcept {
+      return touchingConnectionCount > 0 || !bindingSummaries.empty();
+    }
+  };
+
+  DeleteSelectionImpact
+  analyzeDeleteSelectionImpact(const std::vector<NodeId> &targets) const;
+  void deleteNodes(const std::vector<NodeId> &targets);
   void duplicateSelection();
   void deleteSelectionWithPrompt();
   void disconnectSelectionWithPrompt();
@@ -275,6 +291,7 @@ private:
   float flowPhase = 0.0f;
   ConnectionLevelProvider connectionLevelProvider;
   PortLevelProvider portLevelProvider;
+  BindingSummaryResolver bindingSummaryResolver;
 
   std::vector<juce::String> recentNodeTypes;
 

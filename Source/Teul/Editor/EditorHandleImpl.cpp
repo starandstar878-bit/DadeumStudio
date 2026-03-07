@@ -20,6 +20,7 @@ EditorHandle::Impl::Impl(
   });
   canvas->setPortLevelProvider(
       [this](PortId portId) { return runtime.getPortLevel(portId); });
+  canvas->setBindingSummaryResolver(bindingSummaryResolverIn);
   canvas->setNodePropertiesRequestHandler(
       [this](NodeId nodeId) { openProperties(nodeId); });
   owner.addAndMakeVisible(*canvas);
