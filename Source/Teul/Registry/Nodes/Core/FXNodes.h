@@ -1,5 +1,5 @@
 #pragma once
-#include "../TNodeSDK.h"
+#include "../../TNodeSDK.h"
 
 namespace Teul::Nodes {
 
