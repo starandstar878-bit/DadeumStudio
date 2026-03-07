@@ -483,10 +483,10 @@ void TGraphCanvas::recalcMiniMapCache() {
                                              viewportWidthWorld,
                                              viewportHeightWorld);
 
-  float minX = viewportWorld.getX();
-  float minY = viewportWorld.getY();
-  float maxX = viewportWorld.getRight();
-  float maxY = viewportWorld.getBottom();
+  float minX = std::numeric_limits<float>::max();
+  float minY = std::numeric_limits<float>::max();
+  float maxX = -std::numeric_limits<float>::max();
+  float maxY = -std::numeric_limits<float>::max();
 
   for (const auto &node : document.nodes) {
     minX = juce::jmin(minX, node.x);
@@ -502,14 +502,29 @@ void TGraphCanvas::recalcMiniMapCache() {
     maxY = juce::jmax(maxY, frame.y + frame.height);
   }
 
-  const float width = juce::jmax(1.0f, maxX - minX);
-  const float height = juce::jmax(1.0f, maxY - minY);
-  const float paddingX = juce::jmax(80.0f, width * 0.08f);
-  const float paddingY = juce::jmax(60.0f, height * 0.08f);
+  juce::Rectangle<float> contentBounds;
+  if (minX == std::numeric_limits<float>::max()) {
+    contentBounds = viewportWorld;
+  } else {
+    contentBounds = juce::Rectangle<float>(
+        minX, minY, juce::jmax(1.0f, maxX - minX), juce::jmax(1.0f, maxY - minY));
+  }
 
-  miniMapWorldBounds = juce::Rectangle<float>(minX - paddingX, minY - paddingY,
-                                              width + paddingX * 2.0f,
-                                              height + paddingY * 2.0f);
+  if (contentBounds.getWidth() < viewportWorld.getWidth()) {
+    const float grow = (viewportWorld.getWidth() - contentBounds.getWidth()) * 0.5f;
+    contentBounds = contentBounds.expanded(grow, 0.0f);
+  }
+
+  if (contentBounds.getHeight() < viewportWorld.getHeight()) {
+    const float grow =
+        (viewportWorld.getHeight() - contentBounds.getHeight()) * 0.5f;
+    contentBounds = contentBounds.expanded(0.0f, grow);
+  }
+
+  const float paddingX = juce::jmax(80.0f, contentBounds.getWidth() * 0.08f);
+  const float paddingY = juce::jmax(60.0f, contentBounds.getHeight() * 0.08f);
+
+  miniMapWorldBounds = contentBounds.expanded(paddingX, paddingY);
   miniMapCacheValid = true;
 }
 
