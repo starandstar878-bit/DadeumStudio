@@ -20,17 +20,191 @@ float normalizeSample(float sample) noexcept {
 juce::File makeArtifactDirectory(const TVerificationGraphFixture &fixture,
                                  const TVerificationRenderProfile &profile,
                                  const TVerificationStimulusSpec &stimulus) {
-  auto dir = juce::File::getCurrentWorkingDirectory()
-                 .getChildFile("Builds")
-                 .getChildFile("TeulVerification")
-                 .getChildFile("EditableRoundTrip")
-                 .getChildFile(sanitizePathFragment(fixture.fixtureId) + "_" +
-                               sanitizePathFragment(stimulus.stimulusId) + "_" +
-                               sanitizePathFragment(profile.profileId));
-  return dir;
+  return juce::File::getCurrentWorkingDirectory()
+      .getChildFile("Builds")
+      .getChildFile("TeulVerification")
+      .getChildFile("EditableRoundTrip")
+      .getChildFile(sanitizePathFragment(fixture.fixtureId) + "_" +
+                    sanitizePathFragment(stimulus.stimulusId) + "_" +
+                    sanitizePathFragment(profile.profileId));
 }
 void writeTextArtifact(const juce::File &file, const juce::String &text) {
   juce::ignoreUnused(file.replaceWithText(text, false, false, "\r\n"));
+}
+void writeJsonArtifact(const juce::File &file, const juce::var &json) {
+  juce::ignoreUnused(
+      file.replaceWithText(juce::JSON::toString(json, true), false, false, "\r\n"));
+}
+juce::String relativeArtifactPath(const juce::File &root, const juce::File &file) {
+  const auto path = file.getFullPathName();
+  if (path.isEmpty())
+    return {};
+  return file.getRelativePathFrom(root).replaceCharacter('\\', '/');
+}
+juce::var makeArtifactFileEntry(const juce::String &role,
+                                const juce::File &root,
+                                const juce::File &file) {
+  auto *entry = new juce::DynamicObject();
+  entry->setProperty("role", role);
+  entry->setProperty("relativePath", relativeArtifactPath(root, file));
+  entry->setProperty("exists", file.exists());
+  return juce::var(entry);
+}
+juce::String buildParitySummaryText(const TVerificationParityReport &report) {
+  juce::String summary;
+  summary << "graphId=" << report.graphId << "\r\n";
+  summary << "stimulusId=" << report.stimulusId << "\r\n";
+  summary << "profileId=" << report.profileId << "\r\n";
+  summary << "modeId=" << report.modeId << "\r\n";
+  summary << "passed=" << (report.passed ? "true" : "false") << "\r\n";
+  summary << "importedDocumentLoaded="
+          << (report.importedDocumentLoaded ? "true" : "false") << "\r\n";
+  summary << "artifactDirectory=" << report.artifactDirectory << "\r\n";
+  summary << "totalSamples=" << report.totalSamples << "\r\n";
+  summary << "comparedChannels=" << report.comparedChannels << "\r\n";
+  summary << "maxAbsoluteError=" << juce::String(report.maxAbsoluteError, 9)
+          << "\r\n";
+  summary << "rmsError=" << juce::String(report.rmsError, 12) << "\r\n";
+  summary << "firstMismatchChannel=" << report.firstMismatchChannel << "\r\n";
+  summary << "firstMismatchSample=" << report.firstMismatchSample << "\r\n";
+  summary << "exportWarnings=" << report.exportWarningCount << "\r\n";
+  summary << "exportErrors=" << report.exportErrorCount << "\r\n";
+  if (report.failureReason.isNotEmpty())
+    summary << "failureReason=" << report.failureReason << "\r\n";
+  return summary;
+}
+juce::String buildFailureSummaryText(const TVerificationParityReport &report) {
+  juce::String text = report.failureReason.trim();
+  const auto exportText = report.exportReport.toText().trim();
+  if (exportText.isNotEmpty()) {
+    if (text.isNotEmpty())
+      text << "\r\n\r\n";
+    text << exportText;
+  }
+  return text;
+}
+juce::var makeParityArtifactBundle(const juce::File &artifactDirectory,
+                                   const TVerificationParityReport &report) {
+  juce::Array<juce::var> files;
+  const auto addArtifactFile = [&](const juce::String &role, const juce::File &file) {
+    if (file.getFullPathName().isNotEmpty())
+      files.add(makeArtifactFileEntry(role, artifactDirectory, file));
+  };
+  addArtifactFile("paritySummary", artifactDirectory.getChildFile("parity-summary.txt"));
+  addArtifactFile("exportReport", artifactDirectory.getChildFile("export-report.txt"));
+  addArtifactFile("failureSummary", artifactDirectory.getChildFile("parity-failure.txt"));
+  addArtifactFile("editableExportPackage", artifactDirectory.getChildFile("export-package"));
+  addArtifactFile("editableGraph", report.exportReport.graphFile);
+  addArtifactFile("editableManifest", report.exportReport.manifestFile);
+  addArtifactFile("editableRuntimeData", report.exportReport.runtimeDataFile);
+  addArtifactFile("editableExportReport", report.exportReport.reportFile);
+  auto *root = new juce::DynamicObject();
+  root->setProperty("kind", "teul-verification-artifact-bundle");
+  root->setProperty("scope", "case");
+  root->setProperty("graphId", report.graphId);
+  root->setProperty("stimulusId", report.stimulusId);
+  root->setProperty("profileId", report.profileId);
+  root->setProperty("modeId", report.modeId);
+  root->setProperty("passed", report.passed);
+  root->setProperty("artifactDirectory", artifactDirectory.getFullPathName());
+  root->setProperty("importedDocumentLoaded", report.importedDocumentLoaded);
+  root->setProperty("totalSamples", report.totalSamples);
+  root->setProperty("comparedChannels", report.comparedChannels);
+  root->setProperty("firstMismatchChannel", report.firstMismatchChannel);
+  root->setProperty("firstMismatchSample", report.firstMismatchSample);
+  root->setProperty("maxAbsoluteError", report.maxAbsoluteError);
+  root->setProperty("rmsError", report.rmsError);
+  root->setProperty("exportWarningCount", report.exportWarningCount);
+  root->setProperty("exportErrorCount", report.exportErrorCount);
+  if (report.failureReason.isNotEmpty())
+    root->setProperty("failureReason", report.failureReason);
+  root->setProperty("files", juce::var(files));
+  return juce::var(root);
+}
+void finalizeParityCaseArtifacts(const juce::File &artifactDirectory,
+                                 const TVerificationParityReport &report) {
+  juce::ignoreUnused(artifactDirectory.createDirectory());
+  writeTextArtifact(artifactDirectory.getChildFile("parity-summary.txt"),
+                    buildParitySummaryText(report));
+  writeTextArtifact(artifactDirectory.getChildFile("export-report.txt"),
+                    report.exportReport.toText());
+  if (report.failureReason.isNotEmpty()) {
+    writeTextArtifact(artifactDirectory.getChildFile("parity-failure.txt"),
+                      buildFailureSummaryText(report));
+  }
+  writeJsonArtifact(artifactDirectory.getChildFile("artifact-bundle.json"),
+                    makeParityArtifactBundle(artifactDirectory, report));
+}
+juce::String buildParitySuiteSummaryText(const TVerificationParitySuiteReport &report) {
+  juce::String summary;
+  summary << "passed=" << (report.passed ? "true" : "false") << "\r\n";
+  summary << "suiteId=" << report.suiteId << "\r\n";
+  summary << "artifactDirectory=" << report.artifactDirectory << "\r\n";
+  summary << "totalCaseCount=" << report.totalCaseCount << "\r\n";
+  summary << "passedCaseCount=" << report.passedCaseCount << "\r\n";
+  summary << "failedCaseCount=" << report.failedCaseCount << "\r\n\r\n";
+  for (const auto &caseReport : report.caseReports) {
+    summary << "case=" << caseReport.graphId << "/" << caseReport.stimulusId
+            << "/" << caseReport.profileId << "\r\n";
+    summary << "passed=" << (caseReport.passed ? "true" : "false") << "\r\n";
+    summary << "artifactDirectory=" << caseReport.artifactDirectory << "\r\n";
+    if (caseReport.failureReason.isNotEmpty())
+      summary << "failureReason=" << caseReport.failureReason << "\r\n";
+    summary << "maxAbsoluteError="
+            << juce::String(caseReport.maxAbsoluteError, 9) << "\r\n";
+    summary << "rmsError=" << juce::String(caseReport.rmsError, 12)
+            << "\r\n\r\n";
+  }
+  return summary;
+}
+juce::var makeParitySuiteArtifactBundle(const juce::File &artifactDirectory,
+                                        const TVerificationParitySuiteReport &report) {
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("matrixSummary",
+                                  artifactDirectory,
+                                  artifactDirectory.getChildFile("matrix-summary.txt")));
+  juce::Array<juce::var> cases;
+  for (const auto &caseReport : report.caseReports) {
+    auto *entry = new juce::DynamicObject();
+    entry->setProperty("graphId", caseReport.graphId);
+    entry->setProperty("stimulusId", caseReport.stimulusId);
+    entry->setProperty("profileId", caseReport.profileId);
+    entry->setProperty("modeId", caseReport.modeId);
+    entry->setProperty("passed", caseReport.passed);
+    entry->setProperty("artifactDirectory", caseReport.artifactDirectory);
+    if (caseReport.artifactDirectory.isNotEmpty()) {
+      const auto caseDir = juce::File(caseReport.artifactDirectory);
+      entry->setProperty("relativeArtifactDirectory",
+                         relativeArtifactPath(artifactDirectory, caseDir));
+      entry->setProperty("bundleRelativePath",
+                         relativeArtifactPath(
+                             artifactDirectory,
+                             caseDir.getChildFile("artifact-bundle.json")));
+    }
+    if (caseReport.failureReason.isNotEmpty())
+      entry->setProperty("failureReason", caseReport.failureReason);
+    cases.add(juce::var(entry));
+  }
+  auto *root = new juce::DynamicObject();
+  root->setProperty("kind", "teul-verification-artifact-bundle");
+  root->setProperty("scope", "suite");
+  root->setProperty("suiteId", report.suiteId);
+  root->setProperty("passed", report.passed);
+  root->setProperty("artifactDirectory", artifactDirectory.getFullPathName());
+  root->setProperty("totalCaseCount", report.totalCaseCount);
+  root->setProperty("passedCaseCount", report.passedCaseCount);
+  root->setProperty("failedCaseCount", report.failedCaseCount);
+  root->setProperty("files", juce::var(files));
+  root->setProperty("cases", juce::var(cases));
+  return juce::var(root);
+}
+void finalizeParitySuiteArtifacts(const juce::File &artifactDirectory,
+                                  const TVerificationParitySuiteReport &report) {
+  juce::ignoreUnused(artifactDirectory.createDirectory());
+  writeTextArtifact(artifactDirectory.getChildFile("matrix-summary.txt"),
+                    buildParitySuiteSummaryText(report));
+  writeJsonArtifact(artifactDirectory.getChildFile("artifact-bundle.json"),
+                    makeParitySuiteArtifactBundle(artifactDirectory, report));
 }
 } // namespace
 bool runEditableExportRoundTripParity(
@@ -50,13 +224,16 @@ bool runEditableExportRoundTripParity(
   reportOut.artifactDirectory = artifactDirectory.getFullPathName();
   juce::ignoreUnused(artifactDirectory.deleteRecursively());
   juce::ignoreUnused(artifactDirectory.createDirectory());
+  struct ArtifactScope {
+    juce::File directory;
+    TVerificationParityReport &report;
+    ~ArtifactScope() { finalizeParityCaseArtifacts(directory, report); }
+  } artifactScope{artifactDirectory, reportOut};
   TVerificationRenderResult sourceRender;
   juce::String sourceRenderError;
   if (!renderGraphWithStimulus(registry, fixture.document, profile, stimulus,
                                sourceRender, &sourceRenderError)) {
     reportOut.failureReason = "Source runtime render failed: " + sourceRenderError;
-    writeTextArtifact(artifactDirectory.getChildFile("parity-failure.txt"),
-                      reportOut.failureReason);
     return false;
   }
   TExportOptions options;
@@ -71,18 +248,16 @@ bool runEditableExportRoundTripParity(
   reportOut.exportWarningCount = exportReport.warningCount();
   reportOut.exportErrorCount = exportReport.errorCount();
   if (exportResult.failed()) {
-    reportOut.failureReason = "EditableGraph export failed: " + exportResult.getErrorMessage();
-    writeTextArtifact(artifactDirectory.getChildFile("parity-failure.txt"),
-                      reportOut.failureReason + "\r\n\r\n" + exportReport.toText());
+    reportOut.failureReason =
+        "EditableGraph export failed: " + exportResult.getErrorMessage();
     return false;
   }
   TGraphDocument importedDocument;
   const auto importResult =
       TExporter::importEditableGraphPackage(options.outputDirectory, importedDocument);
   if (importResult.failed()) {
-    reportOut.failureReason = "EditableGraph import failed: " + importResult.getErrorMessage();
-    writeTextArtifact(artifactDirectory.getChildFile("parity-failure.txt"),
-                      reportOut.failureReason + "\r\n\r\n" + exportReport.toText());
+    reportOut.failureReason =
+        "EditableGraph import failed: " + importResult.getErrorMessage();
     return false;
   }
   reportOut.importedDocumentLoaded = true;
@@ -91,8 +266,6 @@ bool runEditableExportRoundTripParity(
   if (!renderGraphWithStimulus(registry, importedDocument, profile, stimulus,
                                importedRender, &importedRenderError)) {
     reportOut.failureReason = "Imported runtime render failed: " + importedRenderError;
-    writeTextArtifact(artifactDirectory.getChildFile("parity-failure.txt"),
-                      reportOut.failureReason + "\r\n\r\n" + exportReport.toText());
     return false;
   }
   const int channels = juce::jmin(sourceRender.audioBuffer.getNumChannels(),
@@ -103,8 +276,6 @@ bool runEditableExportRoundTripParity(
   reportOut.comparedChannels = channels;
   if (channels <= 0 || samples <= 0) {
     reportOut.failureReason = "Parity render produced an empty audio buffer.";
-    writeTextArtifact(artifactDirectory.getChildFile("parity-failure.txt"),
-                      reportOut.failureReason);
     return false;
   }
   double squaredErrorSum = 0.0;
@@ -119,8 +290,6 @@ bool runEditableExportRoundTripParity(
         reportOut.firstMismatchChannel = channel;
         reportOut.firstMismatchSample = sampleIndex;
         reportOut.failureReason = "Parity compare encountered NaN or Inf.";
-        writeTextArtifact(artifactDirectory.getChildFile("parity-failure.txt"),
-                          reportOut.failureReason);
         return false;
       }
       const double error = static_cast<double>(a) - static_cast<double>(b);
@@ -135,29 +304,12 @@ bool runEditableExportRoundTripParity(
       }
     }
   }
-  reportOut.rmsError = comparedSampleCount > 0
-                           ? std::sqrt(squaredErrorSum / static_cast<double>(comparedSampleCount))
-                           : 0.0;
+  reportOut.rmsError =
+      comparedSampleCount > 0
+          ? std::sqrt(squaredErrorSum / static_cast<double>(comparedSampleCount))
+          : 0.0;
   reportOut.passed = reportOut.maxAbsoluteError <= maxAbsoluteTolerance &&
                      reportOut.rmsError <= rmsTolerance;
-  juce::String summary;
-  summary << "graphId=" << reportOut.graphId << "\r\n";
-  summary << "stimulusId=" << reportOut.stimulusId << "\r\n";
-  summary << "profileId=" << reportOut.profileId << "\r\n";
-  summary << "modeId=" << reportOut.modeId << "\r\n";
-  summary << "passed=" << (reportOut.passed ? "true" : "false") << "\r\n";
-  summary << "totalSamples=" << reportOut.totalSamples << "\r\n";
-  summary << "comparedChannels=" << reportOut.comparedChannels << "\r\n";
-  summary << "maxAbsoluteError=" << juce::String(reportOut.maxAbsoluteError, 9) << "\r\n";
-  summary << "rmsError=" << juce::String(reportOut.rmsError, 12) << "\r\n";
-  summary << "firstMismatchChannel=" << reportOut.firstMismatchChannel << "\r\n";
-  summary << "firstMismatchSample=" << reportOut.firstMismatchSample << "\r\n";
-  summary << "exportWarnings=" << reportOut.exportWarningCount << "\r\n";
-  summary << "exportErrors=" << reportOut.exportErrorCount << "\r\n";
-  if (reportOut.failureReason.isNotEmpty())
-    summary << "failureReason=" << reportOut.failureReason << "\r\n";
-  writeTextArtifact(artifactDirectory.getChildFile("parity-summary.txt"), summary);
-  writeTextArtifact(artifactDirectory.getChildFile("export-report.txt"), exportReport.toText());
   return reportOut.passed;
 }
 bool runInitialG1StaticParitySmoke(const TNodeRegistry &registry,
@@ -191,32 +343,34 @@ bool runRepresentativePrimaryParityMatrix(
   reportOut.artifactDirectory = suiteArtifactDirectory.getFullPathName();
   juce::ignoreUnused(suiteArtifactDirectory.deleteRecursively());
   juce::ignoreUnused(suiteArtifactDirectory.createDirectory());
-
+  struct ArtifactScope {
+    juce::File directory;
+    TVerificationParitySuiteReport &report;
+    ~ArtifactScope() { finalizeParitySuiteArtifacts(directory, report); }
+  } artifactScope{suiteArtifactDirectory, reportOut};
   struct MatrixCase {
     juce::String fixtureId;
     TVerificationRenderProfile profile;
     TVerificationStimulusSpec stimulus;
   };
-
   std::vector<MatrixCase> matrixCases;
-  matrixCases.push_back({"G1", makePrimaryVerificationRenderProfile(),
-                         makeStaticRenderStimulus()});
-  matrixCases.push_back({"G2", makePrimaryVerificationRenderProfile(),
-                         makeSweepAutomationStimulus("LowPass", "cutoff",
-                                                     320.0f, 7200.0f)});
-  matrixCases.push_back({"G3", makePrimaryVerificationRenderProfile(),
-                         makeSweepAutomationStimulus("Stereo Pan", "pan",
-                                                     -1.0f, 1.0f)});
-  matrixCases.push_back({"G4", makePrimaryVerificationRenderProfile(),
-                         makeMidiPhraseStimulus()});
-  matrixCases.push_back({"G5", makePrimaryVerificationRenderProfile(),
-                         makeStepAutomationStimulus("Delay", "mix", 0.15f,
-                                                    0.75f, 0.25)});
-
+  matrixCases.push_back(
+      {"G1", makePrimaryVerificationRenderProfile(), makeStaticRenderStimulus()});
+  matrixCases.push_back({"G2",
+                         makePrimaryVerificationRenderProfile(),
+                         makeSweepAutomationStimulus("LowPass", "cutoff", 320.0f,
+                                                     7200.0f)});
+  matrixCases.push_back({"G3",
+                         makePrimaryVerificationRenderProfile(),
+                         makeSweepAutomationStimulus("Stereo Pan", "pan", -1.0f,
+                                                     1.0f)});
+  matrixCases.push_back(
+      {"G4", makePrimaryVerificationRenderProfile(), makeMidiPhraseStimulus()});
+  matrixCases.push_back({"G5",
+                         makePrimaryVerificationRenderProfile(),
+                         makeStepAutomationStimulus("Delay", "mix", 0.15f, 0.75f,
+                                                    0.25)});
   const auto fixtures = makeRepresentativeVerificationGraphSet(registry);
-  juce::String summary;
-  summary << "suiteId=" << reportOut.suiteId << "\r\n";
-
   for (const auto &matrixCase : matrixCases) {
     TVerificationParityReport caseReport;
     const TVerificationGraphFixture *fixtureMatch = nullptr;
@@ -226,7 +380,6 @@ bool runRepresentativePrimaryParityMatrix(
         break;
       }
     }
-
     if (fixtureMatch == nullptr) {
       caseReport.graphId = matrixCase.fixtureId;
       caseReport.stimulusId = matrixCase.stimulus.stimulusId;
@@ -240,38 +393,15 @@ bool runRepresentativePrimaryParityMatrix(
           registry, *fixtureMatch, matrixCase.profile, matrixCase.stimulus,
           caseReport);
     }
-
     ++reportOut.totalCaseCount;
     if (caseReport.passed)
       ++reportOut.passedCaseCount;
     else
       ++reportOut.failedCaseCount;
     reportOut.caseReports.push_back(caseReport);
-
-    summary << "case=" << caseReport.graphId << "/" << caseReport.stimulusId
-            << "/" << caseReport.profileId << "\r\n";
-    summary << "passed=" << (caseReport.passed ? "true" : "false")
-            << "\r\n";
-    summary << "artifactDirectory=" << caseReport.artifactDirectory << "\r\n";
-    if (caseReport.failureReason.isNotEmpty())
-      summary << "failureReason=" << caseReport.failureReason << "\r\n";
-    summary << "maxAbsoluteError="
-            << juce::String(caseReport.maxAbsoluteError, 9) << "\r\n";
-    summary << "rmsError=" << juce::String(caseReport.rmsError, 12)
-            << "\r\n\r\n";
   }
-
-  reportOut.passed = reportOut.totalCaseCount > 0 && reportOut.failedCaseCount == 0;
-  summary = "passed=" + juce::String(reportOut.passed ? "true" : "false") +
-            "\r\n" +
-            "totalCaseCount=" + juce::String(reportOut.totalCaseCount) +
-            "\r\n" +
-            "passedCaseCount=" + juce::String(reportOut.passedCaseCount) +
-            "\r\n" +
-            "failedCaseCount=" + juce::String(reportOut.failedCaseCount) +
-            "\r\n\r\n" + summary;
-  writeTextArtifact(suiteArtifactDirectory.getChildFile("matrix-summary.txt"),
-                    summary);
+  reportOut.passed =
+      reportOut.totalCaseCount > 0 && reportOut.failedCaseCount == 0;
   return reportOut.passed;
 }
 } // namespace Teul

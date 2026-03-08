@@ -143,6 +143,70 @@ juce::Result runCommandLine(const juce::String &commandLine,
   exitCodeOut = childProcess.getExitCode();
   return juce::Result::ok();
 }
+juce::String relativeArtifactPath(const juce::File &root,
+                                  const juce::File &file) {
+  const auto path = file.getFullPathName();
+  if (path.isEmpty())
+    return {};
+  return file.getRelativePathFrom(root).replaceCharacter('\\', '/');
+}
+juce::var makeArtifactFileEntry(const juce::String &role,
+                                const juce::File &root,
+                                const juce::File &file) {
+  auto *entry = new juce::DynamicObject();
+  entry->setProperty("role", role);
+  entry->setProperty("relativePath", relativeArtifactPath(root, file));
+  entry->setProperty("exists", file.exists());
+  return juce::var(entry);
+}
+bool writeJsonArtifact(const juce::File &file, const juce::var &json) {
+  return file.replaceWithText(juce::JSON::toString(json, true), false, false,
+                              "\r\n");
+}
+juce::Result writeTeulRuntimeCompileSmokeArtifactBundle(
+    const juce::File &outputDirectory,
+    const juce::String &runtimeClassName,
+    const juce::String &vcVarsPath,
+    bool passed,
+    const juce::String &failureReason,
+    int exportExitCode,
+    int compileExitCode) {
+  juce::ignoreUnused(outputDirectory.createDirectory());
+  juce::Array<juce::var> files;
+  const auto addFile = [&](const juce::String &role, const juce::File &file) {
+    if (file.getFullPathName().isNotEmpty())
+      files.add(makeArtifactFileEntry(role, outputDirectory, file));
+  };
+  addFile("generatedHeader", outputDirectory.getChildFile(runtimeClassName + ".h"));
+  addFile("generatedSource", outputDirectory.getChildFile(runtimeClassName + ".cpp"));
+  addFile("objectFile", outputDirectory.getChildFile(runtimeClassName + ".obj"));
+  addFile("phase5ExportLog",
+          outputDirectory.getChildFile("phase5-export-smoke.txt"));
+  addFile("compileOutput", outputDirectory.getChildFile("compile-output.txt"));
+  addFile("exportManifest", outputDirectory.getChildFile("export-manifest.json"));
+  addFile("exportReport", outputDirectory.getChildFile("export-report.txt"));
+  addFile("editableGraph", outputDirectory.getChildFile("editable-graph.teul"));
+  addFile("runtimeData", outputDirectory.getChildFile("export-runtime.json"));
+  addFile("assetDirectory", outputDirectory.getChildFile("Assets"));
+  auto *root = new juce::DynamicObject();
+  root->setProperty("kind", "teul-verification-artifact-bundle");
+  root->setProperty("scope", "runtime-compile-smoke");
+  root->setProperty("passed", passed);
+  root->setProperty("artifactDirectory", outputDirectory.getFullPathName());
+  root->setProperty("runtimeClassName", runtimeClassName);
+  root->setProperty("vcvars64Path", vcVarsPath);
+  root->setProperty("exportExitCode", exportExitCode);
+  root->setProperty("compileExitCode", compileExitCode);
+  if (failureReason.isNotEmpty())
+    root->setProperty("failureReason", failureReason);
+  root->setProperty("files", juce::var(files));
+  const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
+  if (!writeJsonArtifact(bundleFile, juce::var(root))) {
+    return juce::Result::fail(
+        "Failed to write runtime compile smoke artifact bundle.");
+  }
+  return juce::Result::ok();
+}
 juce::String buildTeulCompileSmokeScript(const juce::File &outputDirectory,
                                          const juce::String &runtimeClassName) {
   const auto vcVarsPath = resolveVcVars64Path();
@@ -726,38 +790,33 @@ juce::Result runPhase6ExportSmoke(const juce::StringArray &args) {
 
 juce::Result runTeulPhase7ParitySmoke(const juce::StringArray &args) {
   juce::ignoreUnused(args);
-
   auto registry = Teul::makeDefaultNodeRegistry();
   if (!registry)
     return juce::Result::fail("Failed to create Teul node registry.");
-
   Teul::TVerificationParityReport report;
   const bool passed = Teul::runInitialG1StaticParitySmoke(*registry, report);
-
   if (report.artifactDirectory.isEmpty()) {
     return juce::Result::fail(
         "Teul parity smoke did not produce an artifact directory.");
   }
-
   const auto artifactDirectory = juce::File(report.artifactDirectory);
   if (!artifactDirectory.isDirectory()) {
     return juce::Result::fail(
         "Teul parity smoke artifact directory is missing: " +
         artifactDirectory.getFullPathName());
   }
-
   const auto summaryFile = artifactDirectory.getChildFile("parity-summary.txt");
   const auto exportReportFile =
       artifactDirectory.getChildFile("export-report.txt");
-  if (!summaryFile.existsAsFile() || !exportReportFile.existsAsFile()) {
+  const auto bundleFile = artifactDirectory.getChildFile("artifact-bundle.json");
+  if (!summaryFile.existsAsFile() || !exportReportFile.existsAsFile() ||
+      !bundleFile.existsAsFile()) {
     return juce::Result::fail(
         "Teul parity smoke is missing expected report artifacts.");
   }
-
   std::cout << "Teul Phase7 parity artifact directory: "
             << artifactDirectory.getFullPathName() << std::endl;
   std::cout << summaryFile.loadFileAsString() << std::endl;
-
   if (!passed) {
     const auto failureReason = report.failureReason.trim();
     return juce::Result::fail(
@@ -766,13 +825,11 @@ juce::Result runTeulPhase7ParitySmoke(const juce::StringArray &args) {
             : juce::String(
                   "Teul parity smoke failed without a detailed reason."));
   }
-
   if (!report.importedDocumentLoaded || report.comparedChannels <= 0 ||
       report.totalSamples <= 0) {
     return juce::Result::fail(
         "Teul parity smoke did not complete a valid round-trip comparison.");
   }
-
   std::cout << "Teul Phase7 parity smoke checks: PASS" << std::endl;
   return juce::Result::ok();
 }
@@ -829,64 +886,87 @@ juce::Result runTeulPhase7RuntimeCompileSmoke(const juce::StringArray &args) {
             .getChildFile("TeulCompileSmoke_" +
                           juce::String(juce::Time::currentTimeMillis()));
   }
-
   const auto vcVarsPath = resolveVcVars64Path();
-  if (vcVarsPath.isEmpty()) {
-    return juce::Result::fail(
-        "Visual Studio vcvars64.bat was not found for compile smoke.");
-  }
-
   juce::String exportOutput;
-  int exportExitCode = -1;
-  const juce::StringArray exportCommand = {
-      juce::File::getSpecialLocation(juce::File::currentExecutableFile)
-          .getFullPathName(),
-      "--teul-phase5-export-smoke",
-      "--output-dir=" + outputDirectory.getFullPathName()};
-  const auto exportRun =
-      runChildProcess(exportCommand, exportOutput, exportExitCode, 120000);
-  juce::ignoreUnused(outputDirectory.createDirectory());
-  juce::ignoreUnused(outputDirectory.getChildFile("phase5-export-smoke.txt")
-                         .replaceWithText(exportOutput, false, false, "\r\n"));
-  if (exportRun.failed())
-    return exportRun;
-  if (exportExitCode != 0) {
-    return juce::Result::fail(
-        "Teul Phase5 export smoke failed before compile smoke.\n" +
-        exportOutput);
-  }
-
-  const auto generatedHeader =
-      outputDirectory.getChildFile(runtimeClassName + ".h");
-  const auto generatedSource =
-      outputDirectory.getChildFile(runtimeClassName + ".cpp");
-  if (!generatedHeader.existsAsFile() || !generatedSource.existsAsFile()) {
-    return juce::Result::fail(
-        "Runtime compile smoke is missing generated RuntimeModule files.");
-  }
-
   juce::String compileOutput;
+  int exportExitCode = -1;
   int compileExitCode = -1;
-  const auto compileCommand =
-      juce::String("cmd.exe /c ") +
-      buildTeulCompileSmokeScript(outputDirectory, runtimeClassName);
-  const auto compileRun =
-      runCommandLine(compileCommand, compileOutput, compileExitCode, 120000);
-  juce::ignoreUnused(outputDirectory.getChildFile("compile-output.txt")
-                         .replaceWithText(compileOutput, false, false, "\r\n"));
-  if (compileRun.failed())
-    return compileRun;
-  if (compileExitCode != 0) {
+  juce::Result result = juce::Result::ok();
+  do {
+    if (vcVarsPath.isEmpty()) {
+      result = juce::Result::fail(
+          "Visual Studio vcvars64.bat was not found for compile smoke.");
+      break;
+    }
+    const juce::StringArray exportCommand = {
+        juce::File::getSpecialLocation(juce::File::currentExecutableFile)
+            .getFullPathName(),
+        "--teul-phase5-export-smoke",
+        "--output-dir=" + outputDirectory.getFullPathName()};
+    const auto exportRun =
+        runChildProcess(exportCommand, exportOutput, exportExitCode, 120000);
+    juce::ignoreUnused(outputDirectory.createDirectory());
+    juce::ignoreUnused(outputDirectory.getChildFile("phase5-export-smoke.txt")
+                           .replaceWithText(exportOutput, false, false, "\r\n"));
+    if (exportRun.failed()) {
+      result = exportRun;
+      break;
+    }
+    if (exportExitCode != 0) {
+      result = juce::Result::fail(
+          "Teul Phase5 export smoke failed before compile smoke.\n" +
+          exportOutput);
+      break;
+    }
+    const auto generatedHeader =
+        outputDirectory.getChildFile(runtimeClassName + ".h");
+    const auto generatedSource =
+        outputDirectory.getChildFile(runtimeClassName + ".cpp");
+    if (!generatedHeader.existsAsFile() || !generatedSource.existsAsFile()) {
+      result = juce::Result::fail(
+          "Runtime compile smoke is missing generated RuntimeModule files.");
+      break;
+    }
+    const auto compileCommand =
+        juce::String("cmd.exe /c ") +
+        buildTeulCompileSmokeScript(outputDirectory, runtimeClassName);
+    const auto compileRun =
+        runCommandLine(compileCommand, compileOutput, compileExitCode, 120000);
+    juce::ignoreUnused(outputDirectory.getChildFile("compile-output.txt")
+                           .replaceWithText(compileOutput, false, false, "\r\n"));
+    if (compileRun.failed()) {
+      result = compileRun;
+      break;
+    }
+    if (compileExitCode != 0) {
+      result = juce::Result::fail(
+          "Generated RuntimeModule compile smoke failed.\n" + compileOutput);
+      break;
+    }
+    const auto objectFile = outputDirectory.getChildFile(runtimeClassName + ".obj");
+    if (!objectFile.existsAsFile()) {
+      result = juce::Result::fail(
+          "Generated RuntimeModule compile smoke did not produce an object file.");
+      break;
+    }
+  } while (false);
+  const auto bundleWrite = writeTeulRuntimeCompileSmokeArtifactBundle(
+      outputDirectory,
+      runtimeClassName,
+      vcVarsPath,
+      result.wasOk(),
+      result.failed() ? result.getErrorMessage() : juce::String(),
+      exportExitCode,
+      compileExitCode);
+  if (bundleWrite.failed())
+    return bundleWrite;
+  const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
+  if (!bundleFile.existsAsFile()) {
     return juce::Result::fail(
-        "Generated RuntimeModule compile smoke failed.\n" + compileOutput);
+        "Runtime compile smoke did not produce an artifact bundle.");
   }
-
-  const auto objectFile = outputDirectory.getChildFile(runtimeClassName + ".obj");
-  if (!objectFile.existsAsFile()) {
-    return juce::Result::fail(
-        "Generated RuntimeModule compile smoke did not produce an object file.");
-  }
-
+  if (result.failed())
+    return result;
   std::cout << "Teul Phase7 runtime compile smoke directory: "
             << outputDirectory.getFullPathName() << std::endl;
   std::cout << compileOutput << std::endl;
