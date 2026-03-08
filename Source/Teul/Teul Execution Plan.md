@@ -181,6 +181,8 @@
 - [x] Expand parity coverage from `G1 + S1` to the representative matrix.
 - [x] Add generated RuntimeModule compile smoke on exported `.h/.cpp`.
 - [x] Add CI-friendly failure artifact bundling for automated runs.
+- [x] Add benchmark runner: `teul_benchmark_gate.bat`.
+- [x] Add representative benchmark baseline and regression gate.
 
 **Verification Notes (2026-03-09)**
 - [x] `build_check.bat` passed after fixture/stimulus/parity/CLI integration.
@@ -193,11 +195,14 @@
 - [x] `artifact-bundle.json` is now emitted for parity smoke, parity matrix, per-case parity runs, and runtime compile smoke.
 - [x] `DadeumStudio.exe --teul-phase7-stress-soak` passed on the representative stress/soak suite.
 - [x] `stress-summary.txt` was generated under `Builds/TeulVerification/StressSoak/representative_stress_primary/`.
+- [x] `DadeumStudio.exe --teul-phase7-benchmark-gate` passed on the representative benchmark suite.
+- [x] `benchmark-summary.txt` was generated under `Builds/TeulVerification/Benchmark/representative_benchmark_primary/`.
 
 **Gate**
 - [x] parity test passes on representative graphs
 - [x] generated `.h/.cpp` compiles automatically
 - [x] long soak/stress runs collect logs without crashes
+- [x] benchmark regression gate passes on representative graphs
 ---
 
 ### 마일스톤 3: Preset / State / Recovery

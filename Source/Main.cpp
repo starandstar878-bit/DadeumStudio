@@ -13,6 +13,7 @@
 #include "Teul/Export/TExport.h"
 #include "Teul/Registry/TNodeRegistry.h"
 #include "Teul/Verification/TVerificationParity.h"
+#include "Teul/Verification/TVerificationBenchmark.h"
 #include "Teul/Verification/TVerificationStress.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
@@ -924,6 +925,56 @@ juce::Result runTeulPhase7StressSoak(const juce::StringArray &args) {
   return juce::Result::ok();
 }
 
+juce::Result runTeulPhase7BenchmarkGate(const juce::StringArray &args) {
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  const auto iterationArg = argValue(args, "--iteration-count=");
+  int iterationCount = 8;
+  if (iterationArg.isNotEmpty()) {
+    iterationCount = iterationArg.getIntValue();
+    if (iterationCount <= 0) {
+      return juce::Result::fail(
+          "Benchmark iteration count must be greater than zero.");
+    }
+  }
+
+  Teul::TVerificationBenchmarkSuiteReport report;
+  const bool passed =
+      Teul::runRepresentativeBenchmarkGate(*registry, report, iterationCount);
+  if (report.artifactDirectory.isEmpty()) {
+    return juce::Result::fail(
+        "Teul benchmark gate did not produce an artifact directory.");
+  }
+
+  const auto artifactDirectory = juce::File(report.artifactDirectory);
+  const auto summaryFile = artifactDirectory.getChildFile("benchmark-summary.txt");
+  const auto bundleFile = artifactDirectory.getChildFile("artifact-bundle.json");
+  if (!artifactDirectory.isDirectory() || !summaryFile.existsAsFile() ||
+      !bundleFile.existsAsFile()) {
+    return juce::Result::fail(
+        "Teul benchmark gate is missing expected suite artifacts.");
+  }
+
+  std::cout << "Teul Phase7 benchmark artifact directory: "
+            << artifactDirectory.getFullPathName() << std::endl;
+  std::cout << summaryFile.loadFileAsString() << std::endl;
+
+  if (!passed) {
+    return juce::Result::fail(
+        "Teul representative benchmark gate reported one or more failures.");
+  }
+
+  if (report.totalCaseCount <= 0 || report.failedCaseCount != 0) {
+    return juce::Result::fail(
+        "Teul benchmark gate did not complete a valid representative run.");
+  }
+
+  std::cout << "Teul Phase7 benchmark gate checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
+
 juce::Result runTeulPhase7RuntimeCompileSmoke(const juce::StringArray &args) {
   const auto outputArg = argValue(args, "--output-dir=");
   const auto runtimeClassName = juce::String("TeulPhase5SmokeRuntime");
@@ -1251,6 +1302,20 @@ public:
       const auto smokeResult = runTeulPhase7StressSoak(args);
       if (smokeResult.failed()) {
         std::cerr << "Teul Phase7 stress/soak failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
+    if (hasArg(args, "--teul-phase7-benchmark-gate")) {
+      const auto smokeResult = runTeulPhase7BenchmarkGate(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase7 benchmark gate failed: "
                   << smokeResult.getErrorMessage() << std::endl;
         setApplicationReturnValue(1);
       } else {
