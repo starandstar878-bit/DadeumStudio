@@ -129,7 +129,7 @@ EditorHandle::Impl::Impl(
     : owner(ownerIn), registryStore(makeDefaultNodeRegistry()),
       runtime(registryStore.get()), audioDeviceManager(audioDeviceManagerIn),
       bindingRevisionProvider(std::move(bindingRevisionProviderIn)) {
-  canvas = std::make_unique<TGraphCanvas>(doc);
+  canvas = std::make_unique<TGraphCanvas>(doc, *registryStore);
   canvas->setConnectionLevelProvider([this](const TConnection &connection) {
     return runtime.getPortLevel(connection.from.portId);
   });

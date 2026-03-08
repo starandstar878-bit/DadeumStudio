@@ -15,10 +15,9 @@
 
 namespace Teul {
 
-TGraphCanvas::TGraphCanvas(TGraphDocument &doc) : document(doc) {
+TGraphCanvas::TGraphCanvas(TGraphDocument &doc, const TNodeRegistry &registry)
+    : document(doc), nodeRegistry(&registry) {
   setWantsKeyboardFocus(true);
-
-  nodeRegistry = getSharedRegistry();
 
   viewOriginWorld = {doc.meta.canvasOffsetX, doc.meta.canvasOffsetY};
   zoomLevel = doc.meta.canvasZoom;
@@ -40,6 +39,7 @@ TGraphCanvas::TGraphCanvas(TGraphDocument &doc) : document(doc) {
 
 TGraphCanvas::~TGraphCanvas() {
   stopTimer();
+  nodeRegistry = nullptr;
   nodeSelectionChangedHandler = {};
   nodePropertiesRequestHandler = {};
   connectionLevelProvider = {};

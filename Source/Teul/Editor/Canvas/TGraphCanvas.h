@@ -20,7 +20,7 @@ class TGraphCanvas : public juce::Component,
                      public juce::DragAndDropTarget,
                      private juce::Timer {
 public:
-  explicit TGraphCanvas(TGraphDocument &doc);
+  explicit TGraphCanvas(TGraphDocument &doc, const TNodeRegistry &registry);
   ~TGraphCanvas() override;
 
   void paint(juce::Graphics &g) override;
