@@ -113,7 +113,7 @@
 
 ---
 
-### Milestone 2: Verification Backbone [IN PROGRESS]
+### Milestone 2: Verification Backbone [DONE]
 
 **Function First**
 - Phase `7`
@@ -183,6 +183,7 @@
 - [x] Add CI-friendly failure artifact bundling for automated runs.
 - [x] Add benchmark runner: `teul_benchmark_gate.bat`.
 - [x] Add representative benchmark baseline and regression gate.
+- [x] Diagnostics Drawer is available from the Teul toolbar and shows the latest parity, stress, benchmark, and compile artifacts.
 
 **Verification Notes (2026-03-09)**
 - [x] `build_check.bat` passed after fixture/stimulus/parity/CLI integration.
@@ -197,6 +198,7 @@
 - [x] `stress-summary.txt` was generated under `Builds/TeulVerification/StressSoak/representative_stress_primary/`.
 - [x] `DadeumStudio.exe --teul-phase7-benchmark-gate` passed on the representative benchmark suite.
 - [x] `benchmark-summary.txt` was generated under `Builds/TeulVerification/Benchmark/representative_benchmark_primary/`.
+- [x] The Diagnostics Drawer implementation now reads the latest verification summaries from generated artifacts.
 
 **Gate**
 - [x] parity test passes on representative graphs

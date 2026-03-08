@@ -222,6 +222,7 @@
     <ClCompile Include="..\..\Source\Teul\Editor\Port\TPortComponent.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodeLibraryPanel.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodePropertiesPanel.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\DiagnosticsDrawer.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamValueFormatter.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamEditorFactory.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\BindingSummaryPresenter.cpp"/>

@@ -964,6 +964,9 @@
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodePropertiesPanel.cpp">
       <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\DiagnosticsDrawer.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamValueFormatter.cpp">
       <Filter>DadeumStudio\Source\Teul\Editor\Panels\Property</Filter>
     </ClCompile>

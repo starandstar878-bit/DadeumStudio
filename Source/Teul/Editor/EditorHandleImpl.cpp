@@ -1,6 +1,7 @@
 #include "Teul/Editor/EditorHandleImpl.h"
 
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
+#include "Teul/Editor/Panels/DiagnosticsDrawer.h"
 #include "Teul/Editor/Panels/NodeLibraryPanel.h"
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
 #include "Teul/Registry/TNodeRegistry.h"
@@ -218,6 +219,11 @@ EditorHandle::Impl::Impl(
   propertiesPanel->setLayoutChangedCallback([this] { owner.resized(); });
   owner.addAndMakeVisible(*propertiesPanel);
 
+  diagnosticsDrawer = DiagnosticsDrawer::create();
+  diagnosticsDrawer->setLayoutChangedCallback([this] { owner.resized(); });
+  owner.addAndMakeVisible(*diagnosticsDrawer);
+  diagnosticsDrawer->setVisible(false);
+
   runtimeStatusStrip = std::make_unique<RuntimeStatusStrip>();
   owner.addAndMakeVisible(*runtimeStatusStrip);
 
@@ -233,6 +239,7 @@ EditorHandle::Impl::Impl(
   owner.addAndMakeVisible(toggleHeatmapButton);
   owner.addAndMakeVisible(toggleProbeButton);
   owner.addAndMakeVisible(toggleOverlayButton);
+  owner.addAndMakeVisible(toggleDiagnosticsButton);
 
   toggleLibraryButton.setButtonText("Library");
   quickAddButton.setButtonText("Quick Add");
@@ -241,13 +248,16 @@ EditorHandle::Impl::Impl(
   toggleHeatmapButton.setButtonText("Heat");
   toggleProbeButton.setButtonText("Probe");
   toggleOverlayButton.setButtonText("Overlay");
+  toggleDiagnosticsButton.setButtonText("Diagnostics");
 
   toggleHeatmapButton.setClickingTogglesState(true);
   toggleProbeButton.setClickingTogglesState(true);
   toggleOverlayButton.setClickingTogglesState(true);
+  toggleDiagnosticsButton.setClickingTogglesState(true);
   toggleHeatmapButton.setTooltip("Toggle node cost tint and heat rails");
   toggleProbeButton.setTooltip("Toggle node probe rails and selected readouts");
   toggleOverlayButton.setTooltip("Toggle runtime overlay card");
+  toggleDiagnosticsButton.setTooltip("Show latest verification and benchmark results");
 
   toggleLibraryButton.onClick = [this] {
     libraryVisible = !libraryVisible;
@@ -289,6 +299,12 @@ EditorHandle::Impl::Impl(
     syncRuntimeViewButtons();
   };
 
+  toggleDiagnosticsButton.onClick = [this] {
+    if (diagnosticsDrawer != nullptr)
+      diagnosticsDrawer->setDrawerOpen(toggleDiagnosticsButton.getToggleState());
+    syncRuntimeViewButtons();
+  };
+
   syncRuntimeViewButtons();
 
   rebuildAll(true);
@@ -314,6 +330,9 @@ EditorHandle::Impl::~Impl() {
     propertiesPanel->setLayoutChangedCallback({});
     propertiesPanel->setParamProvider(nullptr);
   }
+
+  if (diagnosticsDrawer != nullptr)
+    diagnosticsDrawer->setLayoutChangedCallback({});
 
   if (audioDeviceManager != nullptr)
     audioDeviceManager->removeAudioCallback(&runtime);
@@ -347,6 +366,8 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   toggleProbeButton.setBounds(top.removeFromLeft(92));
   top.removeFromLeft(4);
   toggleOverlayButton.setBounds(top.removeFromLeft(108));
+  top.removeFromLeft(4);
+  toggleDiagnosticsButton.setBounds(top.removeFromLeft(118));
 
   if (runtimeStatusStrip != nullptr) {
     auto statusArea = area.removeFromTop(60).reduced(6, 4);
@@ -364,6 +385,11 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   if (propertiesPanel != nullptr && propertiesPanel->isPanelOpen()) {
     auto right = area.removeFromRight(336);
     propertiesPanel->setBounds(right.reduced(0, 2));
+  }
+
+  if (diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen()) {
+    auto drawerArea = area.removeFromBottom(236).reduced(0, 2);
+    diagnosticsDrawer->setBounds(drawerArea);
   }
 
   if (canvas != nullptr)
@@ -393,6 +419,8 @@ void EditorHandle::Impl::timerCallback() {
   }
 
   refreshRuntimeUi();
+  if (diagnosticsDrawer != nullptr)
+    diagnosticsDrawer->refreshArtifacts();
 }
 
 void EditorHandle::Impl::rebuildAll(bool rebuildRuntime) {
@@ -507,12 +535,11 @@ void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {
   lastRuntimeStats = stats;
 }
 void EditorHandle::Impl::syncRuntimeViewButtons() {
-  if (canvas == nullptr)
-    return;
-
   auto syncButton = [](juce::TextButton &button, bool enabled,
-                       juce::Colour accent) {
+                       juce::Colour accent, const juce::String &onText,
+                       const juce::String &offText) {
     button.setToggleState(enabled, juce::dontSendNotification);
+    button.setButtonText(enabled ? onText : offText);
     button.setColour(juce::TextButton::buttonOnColourId,
                      accent.withAlpha(0.92f));
     button.setColour(juce::TextButton::buttonColourId,
@@ -525,23 +552,18 @@ void EditorHandle::Impl::syncRuntimeViewButtons() {
                              : juce::Colours::white.withAlpha(0.78f));
   };
 
-  toggleHeatmapButton.setButtonText(canvas->isRuntimeHeatmapEnabled()
-                                        ? "Heat On"
-                                        : "Heat");
-  syncButton(toggleHeatmapButton, canvas->isRuntimeHeatmapEnabled(),
-             juce::Colour(0xfff97316));
+  if (canvas != nullptr) {
+    syncButton(toggleHeatmapButton, canvas->isRuntimeHeatmapEnabled(),
+               juce::Colour(0xfff97316), "Heat On", "Heat");
+    syncButton(toggleProbeButton, canvas->isLiveProbeEnabled(),
+               juce::Colour(0xff60a5fa), "Probe On", "Probe");
+    syncButton(toggleOverlayButton, canvas->isDebugOverlayEnabled(),
+               juce::Colour(0xff22c55e), "Overlay On", "Overlay");
+  }
 
-  toggleProbeButton.setButtonText(canvas->isLiveProbeEnabled()
-                                      ? "Probe On"
-                                      : "Probe");
-  syncButton(toggleProbeButton, canvas->isLiveProbeEnabled(),
-             juce::Colour(0xff60a5fa));
-
-  toggleOverlayButton.setButtonText(canvas->isDebugOverlayEnabled()
-                                        ? "Overlay On"
-                                        : "Overlay");
-  syncButton(toggleOverlayButton, canvas->isDebugOverlayEnabled(),
-             juce::Colour(0xff22c55e));
+  syncButton(toggleDiagnosticsButton,
+             diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen(),
+             juce::Colour(0xff38bdf8), "Diagnostics On", "Diagnostics");
 }
 void EditorHandle::Impl::pushRuntimeMessage(const juce::String &text,
                                             juce::Colour accent,

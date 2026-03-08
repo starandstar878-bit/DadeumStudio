@@ -13,6 +13,7 @@ class TGraphCanvas;
 class TNodeRegistry;
 class NodeLibraryPanel;
 class NodePropertiesPanel;
+class DiagnosticsDrawer;
 class RuntimeStatusStrip;
 
 struct EditorHandle::Impl : private juce::Timer {
@@ -47,6 +48,7 @@ private:
   std::unique_ptr<TGraphCanvas> canvas;
   std::unique_ptr<NodeLibraryPanel> libraryPanel;
   std::unique_ptr<NodePropertiesPanel> propertiesPanel;
+  std::unique_ptr<DiagnosticsDrawer> diagnosticsDrawer;
   std::unique_ptr<RuntimeStatusStrip> runtimeStatusStrip;
   juce::AudioDeviceManager *audioDeviceManager = nullptr;
 
@@ -57,6 +59,7 @@ private:
   juce::TextButton toggleHeatmapButton;
   juce::TextButton toggleProbeButton;
   juce::TextButton toggleOverlayButton;
+  juce::TextButton toggleDiagnosticsButton;
 
   bool libraryVisible = true;
   std::uint64_t lastDocumentRevision = 0;
