@@ -178,4 +178,100 @@ bool runInitialG1StaticParitySmoke(const TNodeRegistry &registry,
   reportOut.failureReason = "G1 fixture was not found.";
   return false;
 }
+bool runRepresentativePrimaryParityMatrix(
+    const TNodeRegistry &registry,
+    TVerificationParitySuiteReport &reportOut) {
+  reportOut = {};
+  reportOut.suiteId = "representative-primary";
+  const auto suiteArtifactDirectory = juce::File::getCurrentWorkingDirectory()
+                                          .getChildFile("Builds")
+                                          .getChildFile("TeulVerification")
+                                          .getChildFile("EditableRoundTrip")
+                                          .getChildFile("RepresentativeMatrix_primary");
+  reportOut.artifactDirectory = suiteArtifactDirectory.getFullPathName();
+  juce::ignoreUnused(suiteArtifactDirectory.deleteRecursively());
+  juce::ignoreUnused(suiteArtifactDirectory.createDirectory());
+
+  struct MatrixCase {
+    juce::String fixtureId;
+    TVerificationRenderProfile profile;
+    TVerificationStimulusSpec stimulus;
+  };
+
+  std::vector<MatrixCase> matrixCases;
+  matrixCases.push_back({"G1", makePrimaryVerificationRenderProfile(),
+                         makeStaticRenderStimulus()});
+  matrixCases.push_back({"G2", makePrimaryVerificationRenderProfile(),
+                         makeSweepAutomationStimulus("LowPass", "cutoff",
+                                                     320.0f, 7200.0f)});
+  matrixCases.push_back({"G3", makePrimaryVerificationRenderProfile(),
+                         makeSweepAutomationStimulus("Stereo Pan", "pan",
+                                                     -1.0f, 1.0f)});
+  matrixCases.push_back({"G4", makePrimaryVerificationRenderProfile(),
+                         makeMidiPhraseStimulus()});
+  matrixCases.push_back({"G5", makePrimaryVerificationRenderProfile(),
+                         makeStepAutomationStimulus("Delay", "mix", 0.15f,
+                                                    0.75f, 0.25)});
+
+  const auto fixtures = makeRepresentativeVerificationGraphSet(registry);
+  juce::String summary;
+  summary << "suiteId=" << reportOut.suiteId << "\r\n";
+
+  for (const auto &matrixCase : matrixCases) {
+    TVerificationParityReport caseReport;
+    const TVerificationGraphFixture *fixtureMatch = nullptr;
+    for (const auto &fixture : fixtures) {
+      if (fixture.fixtureId == matrixCase.fixtureId) {
+        fixtureMatch = &fixture;
+        break;
+      }
+    }
+
+    if (fixtureMatch == nullptr) {
+      caseReport.graphId = matrixCase.fixtureId;
+      caseReport.stimulusId = matrixCase.stimulus.stimulusId;
+      caseReport.profileId = matrixCase.profile.profileId;
+      caseReport.modeId = "editable-roundtrip";
+      caseReport.failureReason =
+          "Representative parity matrix fixture was not found.";
+      caseReport.passed = false;
+    } else {
+      caseReport.passed = runEditableExportRoundTripParity(
+          registry, *fixtureMatch, matrixCase.profile, matrixCase.stimulus,
+          caseReport);
+    }
+
+    ++reportOut.totalCaseCount;
+    if (caseReport.passed)
+      ++reportOut.passedCaseCount;
+    else
+      ++reportOut.failedCaseCount;
+    reportOut.caseReports.push_back(caseReport);
+
+    summary << "case=" << caseReport.graphId << "/" << caseReport.stimulusId
+            << "/" << caseReport.profileId << "\r\n";
+    summary << "passed=" << (caseReport.passed ? "true" : "false")
+            << "\r\n";
+    summary << "artifactDirectory=" << caseReport.artifactDirectory << "\r\n";
+    if (caseReport.failureReason.isNotEmpty())
+      summary << "failureReason=" << caseReport.failureReason << "\r\n";
+    summary << "maxAbsoluteError="
+            << juce::String(caseReport.maxAbsoluteError, 9) << "\r\n";
+    summary << "rmsError=" << juce::String(caseReport.rmsError, 12)
+            << "\r\n\r\n";
+  }
+
+  reportOut.passed = reportOut.totalCaseCount > 0 && reportOut.failedCaseCount == 0;
+  summary = "passed=" + juce::String(reportOut.passed ? "true" : "false") +
+            "\r\n" +
+            "totalCaseCount=" + juce::String(reportOut.totalCaseCount) +
+            "\r\n" +
+            "passedCaseCount=" + juce::String(reportOut.passedCaseCount) +
+            "\r\n" +
+            "failedCaseCount=" + juce::String(reportOut.failedCaseCount) +
+            "\r\n\r\n" + summary;
+  writeTextArtifact(suiteArtifactDirectory.getChildFile("matrix-summary.txt"),
+                    summary);
+  return reportOut.passed;
+}
 } // namespace Teul

@@ -30,6 +30,18 @@ bool runEditableExportRoundTripParity(
     TVerificationParityReport &reportOut,
     float maxAbsoluteTolerance = 1.0e-5f,
     double rmsTolerance = 1.0e-6);
+struct TVerificationParitySuiteReport {
+  juce::String suiteId;
+  bool passed = false;
+  int totalCaseCount = 0;
+  int passedCaseCount = 0;
+  int failedCaseCount = 0;
+  juce::String artifactDirectory;
+  std::vector<TVerificationParityReport> caseReports;
+};
 bool runInitialG1StaticParitySmoke(const TNodeRegistry &registry,
                                    TVerificationParityReport &reportOut);
+bool runRepresentativePrimaryParityMatrix(
+    const TNodeRegistry &registry,
+    TVerificationParitySuiteReport &reportOut);
 } // namespace Teul

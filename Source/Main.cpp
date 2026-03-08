@@ -648,6 +648,45 @@ juce::Result runTeulPhase7ParitySmoke(const juce::StringArray &args) {
   std::cout << "Teul Phase7 parity smoke checks: PASS" << std::endl;
   return juce::Result::ok();
 }
+juce::Result runTeulPhase7ParityMatrix(const juce::StringArray &args) {
+  juce::ignoreUnused(args);
+
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  Teul::TVerificationParitySuiteReport report;
+  const bool passed = Teul::runRepresentativePrimaryParityMatrix(*registry, report);
+  if (report.artifactDirectory.isEmpty()) {
+    return juce::Result::fail(
+        "Teul parity matrix did not produce an artifact directory.");
+  }
+
+  const auto artifactDirectory = juce::File(report.artifactDirectory);
+  const auto summaryFile = artifactDirectory.getChildFile("matrix-summary.txt");
+  if (!artifactDirectory.isDirectory() || !summaryFile.existsAsFile()) {
+    return juce::Result::fail(
+        "Teul parity matrix is missing the expected matrix summary artifact.");
+  }
+
+  std::cout << "Teul Phase7 parity matrix artifact directory: "
+            << artifactDirectory.getFullPathName() << std::endl;
+  std::cout << summaryFile.loadFileAsString() << std::endl;
+
+  if (!passed) {
+    return juce::Result::fail(
+        "Teul representative parity matrix reported one or more failures.");
+  }
+
+  if (report.totalCaseCount <= 0 || report.failedCaseCount != 0) {
+    return juce::Result::fail(
+        "Teul parity matrix did not complete a valid representative run.");
+  }
+
+  std::cout << "Teul Phase7 parity matrix checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
+
 juce::Result runTeulPhase5ExportSmoke(const juce::StringArray &args) {
   const auto outputArg = argValue(args, "--output-dir=");
   juce::File outputDirectory;
@@ -843,6 +882,20 @@ public:
       quit();
       return;
     }
+    if (hasArg(args, "--teul-phase7-parity-matrix")) {
+      const auto smokeResult = runTeulPhase7ParityMatrix(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase7 parity matrix failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
     if (hasArg(args, "--phase6-export-smoke")) {
       const auto smokeResult = runPhase6ExportSmoke(args);
       if (smokeResult.failed()) {
