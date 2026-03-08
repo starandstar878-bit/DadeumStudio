@@ -34,6 +34,7 @@ private:
   void handleSelectionChanged(const std::vector<NodeId> &selectedNodeIds);
   void openProperties(NodeId nodeId);
   void refreshRuntimeUi(bool forceMessage = false);
+  void syncRuntimeViewButtons();
   void pushRuntimeMessage(const juce::String &text,
                           juce::Colour accent,
                           int ticks = 50);
@@ -52,6 +53,9 @@ private:
   juce::TextButton quickAddButton;
   juce::TextButton findNodeButton;
   juce::TextButton commandPaletteButton;
+  juce::TextButton toggleHeatmapButton;
+  juce::TextButton toggleProbeButton;
+  juce::TextButton toggleOverlayButton;
 
   bool libraryVisible = true;
   std::uint64_t lastDocumentRevision = 0;

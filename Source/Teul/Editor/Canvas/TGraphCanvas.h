@@ -103,7 +103,29 @@ public:
     float cpuLoadPercent = 0.0f;
   };
 
+  struct RuntimeViewOptions {
+    bool heatmapEnabled = true;
+    bool liveProbeEnabled = true;
+    bool debugOverlayEnabled = true;
+  };
+
   void setRuntimeOverlayState(const RuntimeOverlayState &state);
+  void setRuntimeViewOptions(const RuntimeViewOptions &options);
+  const RuntimeViewOptions &getRuntimeViewOptions() const noexcept {
+    return runtimeViewOptions;
+  }
+  void setRuntimeHeatmapEnabled(bool enabled);
+  bool isRuntimeHeatmapEnabled() const noexcept {
+    return runtimeViewOptions.heatmapEnabled;
+  }
+  void setLiveProbeEnabled(bool enabled);
+  bool isLiveProbeEnabled() const noexcept {
+    return runtimeViewOptions.liveProbeEnabled;
+  }
+  void setDebugOverlayEnabled(bool enabled);
+  bool isDebugOverlayEnabled() const noexcept {
+    return runtimeViewOptions.debugOverlayEnabled;
+  }
   const RuntimeOverlayState &getRuntimeOverlayState() const noexcept {
     return runtimeOverlayState;
   }
@@ -335,6 +357,7 @@ private:
   juce::String statusHintText;
   float statusHintAlpha = 0.0f;
   RuntimeOverlayState runtimeOverlayState;
+  RuntimeViewOptions runtimeViewOptions;
 
   const TNodeRegistry *nodeRegistry = nullptr;
   NodePropertiesRequestHandler nodePropertiesRequestHandler;

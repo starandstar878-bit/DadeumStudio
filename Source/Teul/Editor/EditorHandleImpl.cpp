@@ -165,11 +165,24 @@ EditorHandle::Impl::Impl(
   owner.addAndMakeVisible(quickAddButton);
   owner.addAndMakeVisible(findNodeButton);
   owner.addAndMakeVisible(commandPaletteButton);
+  owner.addAndMakeVisible(toggleHeatmapButton);
+  owner.addAndMakeVisible(toggleProbeButton);
+  owner.addAndMakeVisible(toggleOverlayButton);
 
   toggleLibraryButton.setButtonText("Library");
   quickAddButton.setButtonText("Quick Add");
   findNodeButton.setButtonText("Find Node");
   commandPaletteButton.setButtonText("Cmd");
+  toggleHeatmapButton.setButtonText("Heat");
+  toggleProbeButton.setButtonText("Probe");
+  toggleOverlayButton.setButtonText("Overlay");
+
+  toggleHeatmapButton.setClickingTogglesState(true);
+  toggleProbeButton.setClickingTogglesState(true);
+  toggleOverlayButton.setClickingTogglesState(true);
+  toggleHeatmapButton.setTooltip("Toggle node heatmap tint");
+  toggleProbeButton.setTooltip("Toggle live probe strips on selected nodes");
+  toggleOverlayButton.setTooltip("Toggle runtime overlay card");
 
   toggleLibraryButton.onClick = [this] {
     libraryVisible = !libraryVisible;
@@ -192,6 +205,26 @@ EditorHandle::Impl::Impl(
     if (canvas != nullptr)
       canvas->openCommandPalette();
   };
+
+  toggleHeatmapButton.onClick = [this] {
+    if (canvas != nullptr)
+      canvas->setRuntimeHeatmapEnabled(toggleHeatmapButton.getToggleState());
+    syncRuntimeViewButtons();
+  };
+
+  toggleProbeButton.onClick = [this] {
+    if (canvas != nullptr)
+      canvas->setLiveProbeEnabled(toggleProbeButton.getToggleState());
+    syncRuntimeViewButtons();
+  };
+
+  toggleOverlayButton.onClick = [this] {
+    if (canvas != nullptr)
+      canvas->setDebugOverlayEnabled(toggleOverlayButton.getToggleState());
+    syncRuntimeViewButtons();
+  };
+
+  syncRuntimeViewButtons();
 
   rebuildAll(true);
 
@@ -229,6 +262,12 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   findNodeButton.setBounds(top.removeFromLeft(90));
   top.removeFromLeft(4);
   commandPaletteButton.setBounds(top.removeFromLeft(60));
+  top.removeFromLeft(8);
+  toggleHeatmapButton.setBounds(top.removeFromLeft(64));
+  top.removeFromLeft(4);
+  toggleProbeButton.setBounds(top.removeFromLeft(72));
+  top.removeFromLeft(4);
+  toggleOverlayButton.setBounds(top.removeFromLeft(84));
 
   if (runtimeStatusStrip != nullptr) {
     auto statusArea = area.removeFromTop(48).reduced(6, 4);
@@ -355,6 +394,7 @@ void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {
                                             runtimeMessageAccent);
   }
 
+  syncRuntimeViewButtons();
   if (canvas != nullptr) {
     TGraphCanvas::RuntimeOverlayState overlay;
     overlay.sampleRate = stats.sampleRate;
@@ -376,6 +416,33 @@ void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {
   }
 
   lastRuntimeStats = stats;
+}
+
+void EditorHandle::Impl::syncRuntimeViewButtons() {
+  if (canvas == nullptr)
+    return;
+
+  auto syncButton = [](juce::TextButton &button, bool enabled,
+                       juce::Colour accent) {
+    button.setToggleState(enabled, juce::dontSendNotification);
+    button.setColour(juce::TextButton::buttonOnColourId,
+                     accent.withAlpha(0.75f));
+    button.setColour(juce::TextButton::buttonColourId,
+                     enabled ? accent.withAlpha(0.30f)
+                             : juce::Colour(0xff1f2937));
+    button.setColour(juce::TextButton::textColourOnId,
+                     juce::Colours::white.withAlpha(0.98f));
+    button.setColour(juce::TextButton::textColourOffId,
+                     enabled ? juce::Colours::white.withAlpha(0.95f)
+                             : juce::Colours::white.withAlpha(0.75f));
+  };
+
+  syncButton(toggleHeatmapButton, canvas->isRuntimeHeatmapEnabled(),
+             juce::Colour(0xfff97316));
+  syncButton(toggleProbeButton, canvas->isLiveProbeEnabled(),
+             juce::Colour(0xff60a5fa));
+  syncButton(toggleOverlayButton, canvas->isDebugOverlayEnabled(),
+             juce::Colour(0xff22c55e));
 }
 
 void EditorHandle::Impl::pushRuntimeMessage(const juce::String &text,

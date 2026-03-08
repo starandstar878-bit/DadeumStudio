@@ -458,6 +458,9 @@ void TGraphCanvas::drawSelectionOverlay(juce::Graphics &g) {
 }
 
 void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
+  if (!runtimeViewOptions.debugOverlayEnabled)
+    return;
+
   const bool hasRuntimeData = runtimeOverlayState.blockSize > 0 ||
                               runtimeOverlayState.activeGeneration > 0 ||
                               runtimeOverlayState.activeNodeCount > 0;

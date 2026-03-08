@@ -38,6 +38,16 @@ void TGraphCanvas::showCommandPaletteOverlay() {
                    [this] { showQuickAddPrompt(getViewCenter()); });
         addCommand("Jump To Node", "Search nodes and focus the camera",
                    [this] { showNodeSearchOverlay(); });
+        addCommand(isRuntimeHeatmapEnabled() ? "Hide Heatmap" : "Show Heatmap",
+                   "Toggle node CPU heat tint",
+                   [this] { setRuntimeHeatmapEnabled(!isRuntimeHeatmapEnabled()); });
+        addCommand(isLiveProbeEnabled() ? "Hide Live Probe" : "Show Live Probe",
+                   "Toggle selected-node probe strips",
+                   [this] { setLiveProbeEnabled(!isLiveProbeEnabled()); });
+        addCommand(isDebugOverlayEnabled() ? "Hide Runtime Overlay"
+                                           : "Show Runtime Overlay",
+                   "Toggle runtime debug card on the canvas",
+                   [this] { setDebugOverlayEnabled(!isDebugOverlayEnabled()); });
         addCommand("Add Bookmark", "Store the current viewport as a bookmark",
                    [this] {
                      TBookmark bookmark;

@@ -175,8 +175,10 @@ void TNodeComponent::paint(juce::Graphics &g) {
 
   const auto bounds = getLocalBounds().toFloat();
   const auto &runtimeOverlay = ownerCanvas.getRuntimeOverlayState();
+  const auto &runtimeViewOptions = ownerCanvas.getRuntimeViewOptions();
   const float heatLevel =
-      descriptor != nullptr && runtimeOverlay.activeNodeCount > 0
+      runtimeViewOptions.heatmapEnabled && descriptor != nullptr &&
+      runtimeOverlay.activeNodeCount > 0
           ? juce::jlimit(0.0f, 1.0f,
                          ((float)descriptor->capabilities.estimatedCpuCost - 1.0f) /
                              7.0f)
@@ -262,7 +264,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
       }
     }
 
-    if (isSelected && !outPorts.empty()) {
+    if (runtimeViewOptions.liveProbeEnabled && isSelected && !outPorts.empty()) {
       const float probeWidth = juce::jmax(34.0f, scaledFloat(40.0f));
       const float probeHeight = juce::jmax(10.0f, scaledFloat(12.0f));
       const float probeInset = scaledFloat(6.0f);

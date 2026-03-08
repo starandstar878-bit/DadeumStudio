@@ -62,6 +62,36 @@ void TGraphCanvas::setRuntimeOverlayState(const RuntimeOverlayState &state) {
   repaint();
 }
 
+void TGraphCanvas::setRuntimeViewOptions(const RuntimeViewOptions &options) {
+  runtimeViewOptions = options;
+  repaint();
+}
+
+void TGraphCanvas::setRuntimeHeatmapEnabled(bool enabled) {
+  if (runtimeViewOptions.heatmapEnabled == enabled)
+    return;
+
+  runtimeViewOptions.heatmapEnabled = enabled;
+  pushStatusHint(enabled ? "Heatmap visible" : "Heatmap hidden");
+}
+
+void TGraphCanvas::setLiveProbeEnabled(bool enabled) {
+  if (runtimeViewOptions.liveProbeEnabled == enabled)
+    return;
+
+  runtimeViewOptions.liveProbeEnabled = enabled;
+  pushStatusHint(enabled ? "Live probe visible" : "Live probe hidden");
+}
+
+void TGraphCanvas::setDebugOverlayEnabled(bool enabled) {
+  if (runtimeViewOptions.debugOverlayEnabled == enabled)
+    return;
+
+  runtimeViewOptions.debugOverlayEnabled = enabled;
+  pushStatusHint(enabled ? "Runtime overlay visible"
+                         : "Runtime overlay hidden");
+}
+
 float TGraphCanvas::getPortLevel(PortId portId) const {
   if (!portLevelProvider)
     return 0.0f;

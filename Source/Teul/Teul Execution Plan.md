@@ -83,10 +83,11 @@
 
 ---
 
-### 마일스톤 1.5: Runtime UX 가독성 보정
+### 마일스톤 1.5: Runtime UX 가독성 보정 [IN PROGRESS]
 
 **UI 보정 먼저**
 - `Phase 6` UI polish
+  - heatmap / live probe / overlay 진입 버튼, command palette 항목, 활성 상태 표시 추가
   - 상단 런타임 HUD 정보 위계 재정렬
   - 1차 상태(sample rate / block size / CPU / I/O)와 2차 상태(gen / nodes / buffers / process) 시각 분리
   - 오디오 상태 배지, deferred apply, 위험 경고의 강조 규칙 통일
