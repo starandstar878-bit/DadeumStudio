@@ -175,13 +175,13 @@
 - [x] Add a common parity report structure for artifacts and failure summaries.
 - [x] Wire `runtime vs export parity test` starting from `G1 Tone Path` as editable round-trip smoke.
 - [x] Add CLI smoke entry: `--teul-phase7-parity-smoke`.
-- [x] Add batch runner: `teul_parity_smoke.bat`.
-- [x] Add matrix runner: `teul_parity_matrix.bat`.
-- [x] Add compile runner: `teul_runtime_compile_smoke.bat`.
+- [x] Add batch runner: `Tools/TeulVerification/teul_parity_smoke.bat`.
+- [x] Add matrix runner: `Tools/TeulVerification/teul_parity_matrix.bat`.
+- [x] Add compile runner: `Tools/TeulVerification/teul_runtime_compile_smoke.bat`.
 - [x] Expand parity coverage from `G1 + S1` to the representative matrix.
 - [x] Add generated RuntimeModule compile smoke on exported `.h/.cpp`.
 - [x] Add CI-friendly failure artifact bundling for automated runs.
-- [x] Add benchmark runner: `teul_benchmark_gate.bat`.
+- [x] Add benchmark runner: `Tools/TeulVerification/teul_benchmark_gate.bat`.
 - [x] Add representative benchmark baseline and regression gate.
 - [x] Diagnostics Drawer is available from the Teul toolbar and shows the latest parity, stress, benchmark, and compile artifacts.
 
