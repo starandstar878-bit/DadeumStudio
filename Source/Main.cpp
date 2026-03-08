@@ -47,6 +47,134 @@ juce::String argValue(const juce::StringArray &args,
   return {};
 }
 
+juce::String resolveVcVars64Path() {
+  for (const auto &candidate : {
+           juce::String(
+               "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"),
+           juce::String(
+               "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat")}) {
+    if (juce::File(candidate).existsAsFile())
+      return candidate;
+  }
+
+  return {};
+}
+
+juce::StringArray teulCompileSmokeDefinitions() {
+  juce::StringArray definitions;
+  definitions.addArray({
+      "_CRT_SECURE_NO_WARNINGS",
+      "WIN32",
+      "_WINDOWS",
+      "DEBUG",
+      "_DEBUG",
+      "JUCE_PROJUCER_VERSION=0x8000c",
+      "JUCE_MODULE_AVAILABLE_juce_audio_basics=1",
+      "JUCE_MODULE_AVAILABLE_juce_audio_devices=1",
+      "JUCE_MODULE_AVAILABLE_juce_audio_formats=1",
+      "JUCE_MODULE_AVAILABLE_juce_audio_plugin_client=1",
+      "JUCE_MODULE_AVAILABLE_juce_audio_processors=1",
+      "JUCE_MODULE_AVAILABLE_juce_audio_processors_headless=1",
+      "JUCE_MODULE_AVAILABLE_juce_core=1",
+      "JUCE_MODULE_AVAILABLE_juce_data_structures=1",
+      "JUCE_MODULE_AVAILABLE_juce_events=1",
+      "JUCE_MODULE_AVAILABLE_juce_graphics=1",
+      "JUCE_MODULE_AVAILABLE_juce_gui_basics=1",
+      "JUCE_MODULE_AVAILABLE_juce_gui_extra=1",
+      "JUCE_MODULE_AVAILABLE_juce_video=1",
+      "JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1",
+      "JUCE_STRICT_REFCOUNTEDPOINTER=1",
+      "JUCE_STANDALONE_APPLICATION=1",
+      "JUCER_VS2026_78A5042=1",
+      "JUCE_APP_VERSION=1.0.0",
+      "JUCE_APP_VERSION_HEX=0x10000",
+      "JucePlugin_Build_VST=0",
+      "JucePlugin_Build_VST3=0",
+      "JucePlugin_Build_AU=0",
+      "JucePlugin_Build_AUv3=0",
+      "JucePlugin_Build_AAX=0",
+      "JucePlugin_Build_Standalone=0",
+      "JucePlugin_Build_Unity=0",
+      "JucePlugin_Build_LV2=0",
+  });
+  return definitions;
+}
+
+juce::Result runChildProcess(const juce::StringArray &arguments,
+                             juce::String &outputOut,
+                             int &exitCodeOut,
+                             int timeoutMs = 120000) {
+  juce::ChildProcess childProcess;
+  if (!childProcess.start(arguments)) {
+    return juce::Result::fail("Failed to start process: " +
+                              arguments.joinIntoString(" "));
+  }
+
+  if (!childProcess.waitForProcessToFinish(timeoutMs)) {
+    childProcess.kill();
+    outputOut = childProcess.readAllProcessOutput();
+    exitCodeOut = childProcess.getExitCode();
+    return juce::Result::fail("Process timed out: " +
+                              arguments.joinIntoString(" "));
+  }
+
+  outputOut = childProcess.readAllProcessOutput();
+  exitCodeOut = childProcess.getExitCode();
+  return juce::Result::ok();
+}
+
+
+juce::Result runCommandLine(const juce::String &commandLine,
+                            juce::String &outputOut,
+                            int &exitCodeOut,
+                            int timeoutMs = 120000) {
+  juce::ChildProcess childProcess;
+  if (!childProcess.start(commandLine))
+    return juce::Result::fail("Failed to start process: " + commandLine);
+
+  if (!childProcess.waitForProcessToFinish(timeoutMs)) {
+    childProcess.kill();
+    outputOut = childProcess.readAllProcessOutput();
+    exitCodeOut = childProcess.getExitCode();
+    return juce::Result::fail("Process timed out: " + commandLine);
+  }
+
+  outputOut = childProcess.readAllProcessOutput();
+  exitCodeOut = childProcess.getExitCode();
+  return juce::Result::ok();
+}
+juce::String buildTeulCompileSmokeScript(const juce::File &outputDirectory,
+                                         const juce::String &runtimeClassName) {
+  const auto vcVarsPath = resolveVcVars64Path();
+  const auto generatedSource =
+      outputDirectory.getChildFile(runtimeClassName + ".cpp");
+  const auto objectFile = outputDirectory.getChildFile(runtimeClassName + ".obj");
+  const auto projectRoot = juce::File::getCurrentWorkingDirectory();
+
+  juce::StringArray tokens;
+  tokens.add("call");
+  tokens.add(vcVarsPath.quoted());
+  tokens.add(">nul");
+  tokens.add("&&");
+  tokens.add("cl");
+  tokens.add("/nologo");
+  tokens.add("/c");
+  tokens.add("/std:c++17");
+  tokens.add("/EHsc");
+  tokens.add("/MDd");
+  tokens.add("/I" + outputDirectory.getFullPathName().quoted());
+  tokens.add("/I" + projectRoot.getChildFile("Source").getFullPathName().quoted());
+  tokens.add("/I" + projectRoot.getChildFile("JuceLibraryCode").getFullPathName().quoted());
+  tokens.add("/I\"C:\\JUCE\\modules\"");
+
+  for (const auto &definition : teulCompileSmokeDefinitions())
+    tokens.add("/D" + definition);
+
+  tokens.add("/Fo" + objectFile.getFullPathName().quoted());
+  tokens.add(generatedSource.getFullPathName().quoted());
+  return tokens.joinIntoString(" ");
+}
+
 juce::int64 parseWidgetIdFromVar(const juce::var &value) {
   if (value.isInt() || value.isInt64())
     return static_cast<juce::int64>(value);
@@ -687,6 +815,84 @@ juce::Result runTeulPhase7ParityMatrix(const juce::StringArray &args) {
   return juce::Result::ok();
 }
 
+
+juce::Result runTeulPhase7RuntimeCompileSmoke(const juce::StringArray &args) {
+  const auto outputArg = argValue(args, "--output-dir=");
+  const auto runtimeClassName = juce::String("TeulPhase5SmokeRuntime");
+  juce::File outputDirectory;
+  if (outputArg.isNotEmpty()) {
+    outputDirectory = juce::File(outputArg);
+  } else {
+    outputDirectory =
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulCompileSmoke_" +
+                          juce::String(juce::Time::currentTimeMillis()));
+  }
+
+  const auto vcVarsPath = resolveVcVars64Path();
+  if (vcVarsPath.isEmpty()) {
+    return juce::Result::fail(
+        "Visual Studio vcvars64.bat was not found for compile smoke.");
+  }
+
+  juce::String exportOutput;
+  int exportExitCode = -1;
+  const juce::StringArray exportCommand = {
+      juce::File::getSpecialLocation(juce::File::currentExecutableFile)
+          .getFullPathName(),
+      "--teul-phase5-export-smoke",
+      "--output-dir=" + outputDirectory.getFullPathName()};
+  const auto exportRun =
+      runChildProcess(exportCommand, exportOutput, exportExitCode, 120000);
+  juce::ignoreUnused(outputDirectory.createDirectory());
+  juce::ignoreUnused(outputDirectory.getChildFile("phase5-export-smoke.txt")
+                         .replaceWithText(exportOutput, false, false, "\r\n"));
+  if (exportRun.failed())
+    return exportRun;
+  if (exportExitCode != 0) {
+    return juce::Result::fail(
+        "Teul Phase5 export smoke failed before compile smoke.\n" +
+        exportOutput);
+  }
+
+  const auto generatedHeader =
+      outputDirectory.getChildFile(runtimeClassName + ".h");
+  const auto generatedSource =
+      outputDirectory.getChildFile(runtimeClassName + ".cpp");
+  if (!generatedHeader.existsAsFile() || !generatedSource.existsAsFile()) {
+    return juce::Result::fail(
+        "Runtime compile smoke is missing generated RuntimeModule files.");
+  }
+
+  juce::String compileOutput;
+  int compileExitCode = -1;
+  const auto compileCommand =
+      juce::String("cmd.exe /c ") +
+      buildTeulCompileSmokeScript(outputDirectory, runtimeClassName);
+  const auto compileRun =
+      runCommandLine(compileCommand, compileOutput, compileExitCode, 120000);
+  juce::ignoreUnused(outputDirectory.getChildFile("compile-output.txt")
+                         .replaceWithText(compileOutput, false, false, "\r\n"));
+  if (compileRun.failed())
+    return compileRun;
+  if (compileExitCode != 0) {
+    return juce::Result::fail(
+        "Generated RuntimeModule compile smoke failed.\n" + compileOutput);
+  }
+
+  const auto objectFile = outputDirectory.getChildFile(runtimeClassName + ".obj");
+  if (!objectFile.existsAsFile()) {
+    return juce::Result::fail(
+        "Generated RuntimeModule compile smoke did not produce an object file.");
+  }
+
+  std::cout << "Teul Phase7 runtime compile smoke directory: "
+            << outputDirectory.getFullPathName() << std::endl;
+  std::cout << compileOutput << std::endl;
+  std::cout << "Teul Phase7 runtime compile smoke checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
 juce::Result runTeulPhase5ExportSmoke(const juce::StringArray &args) {
   const auto outputArg = argValue(args, "--output-dir=");
   juce::File outputDirectory;
@@ -886,6 +1092,20 @@ public:
       const auto smokeResult = runTeulPhase7ParityMatrix(args);
       if (smokeResult.failed()) {
         std::cerr << "Teul Phase7 parity matrix failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
+    if (hasArg(args, "--teul-phase7-runtime-compile-smoke")) {
+      const auto smokeResult = runTeulPhase7RuntimeCompileSmoke(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase7 runtime compile smoke failed: "
                   << smokeResult.getErrorMessage() << std::endl;
         setApplicationReturnValue(1);
       } else {

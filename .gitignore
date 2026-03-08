@@ -64,3 +64,5 @@ Builds/**/App/
 Thumbs.db
 Builds/DebugScreenshots/
 Builds/TeulVerification/
+Builds/TeulCompileSmoke*/
+Builds/Phase5SmokeImpulse.wav

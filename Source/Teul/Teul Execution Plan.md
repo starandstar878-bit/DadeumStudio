@@ -177,20 +177,23 @@
 - [x] Add CLI smoke entry: `--teul-phase7-parity-smoke`.
 - [x] Add batch runner: `teul_parity_smoke.bat`.
 - [x] Add matrix runner: `teul_parity_matrix.bat`.
+- [x] Add compile runner: `teul_runtime_compile_smoke.bat`.
 - [x] Expand parity coverage from `G1 + S1` to the representative matrix.
-- [ ] Add generated RuntimeModule compile smoke on exported `.h/.cpp`.
+- [x] Add generated RuntimeModule compile smoke on exported `.h/.cpp`.
 - [ ] Add CI-friendly failure artifact bundling for automated runs.
 
-**Verification Notes (2026-03-08)**
+**Verification Notes (2026-03-09)**
 - [x] `build_check.bat` passed after fixture/stimulus/parity/CLI integration.
 - [x] `DadeumStudio.exe --teul-phase7-parity-smoke` passed with `G1 / S1 / primary`.
 - [x] `parity-summary.txt` recorded `passed=true`, `maxAbsoluteError=0`, `rmsError=0` for the initial smoke.
 - [x] `DadeumStudio.exe --teul-phase7-parity-matrix` passed on the representative primary matrix.
 - [x] `matrix-summary.txt` was generated under `Builds/TeulVerification/EditableRoundTrip/RepresentativeMatrix_primary/`.
+- [x] `DadeumStudio.exe --teul-phase7-runtime-compile-smoke` passed on exported RuntimeModule code.
+- [x] `compile-output.txt` was generated under `Builds/TeulCompileSmoke_*/`.
 
 **Gate**
 - [x] parity test passes on representative graphs
-- [ ] generated `.h/.cpp` compiles automatically
+- [x] generated `.h/.cpp` compiles automatically
 - [ ] long soak/stress runs collect logs without crashes
 ---
 
