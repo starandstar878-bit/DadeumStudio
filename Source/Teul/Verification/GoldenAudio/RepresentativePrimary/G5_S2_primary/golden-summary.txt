@@ -1,0 +1,9 @@
+graphId=G5
+stimulusId=S2
+profileId=primary
+modeId=record
+passed=true
+baselineDirectory=C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Verification\GoldenAudio\RepresentativePrimary\G5_S2_primary
+totalSamples=96000
+sampleRate=48000.0
+blockSize=128

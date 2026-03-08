@@ -1,0 +1,1 @@
+{"graphId": "G4", "displayName": "MIDI Voice", "stimulusId": "S4", "profileId": "primary", "sampleRate": 48000.0, "blockSize": 128, "outputChannels": 2, "durationSeconds": 2.0, "totalSamples": 96000, "renderedBlockCount": 750, "baselineWave": "golden-output.wav", "recordedAtUtcMilliseconds": 1772994354862}

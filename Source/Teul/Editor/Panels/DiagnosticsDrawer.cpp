@@ -230,6 +230,15 @@ public:
 
     std::vector<DiagnosticSnapshot> snapshots;
     snapshots.push_back(loadSummarySnapshot(
+        "Golden Audio",
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulVerification")
+            .getChildFile("GoldenAudio")
+            .getChildFile("RepresentativePrimary_verify")
+            .getChildFile("golden-suite-summary.txt"),
+        {}));
+    snapshots.push_back(loadSummarySnapshot(
         "Parity Smoke",
         juce::File::getCurrentWorkingDirectory()
             .getChildFile("Builds")

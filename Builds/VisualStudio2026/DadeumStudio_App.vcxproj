@@ -197,6 +197,7 @@
     <ClCompile Include="..\..\Source\Teul\Verification\TVerificationParity.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Verification\TVerificationStress.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Verification\TVerificationBenchmark.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationGoldenAudio.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Serialization\TFileIo.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp"/>
@@ -2973,6 +2974,7 @@
     <ClInclude Include="..\..\Source\Teul\Verification\TVerificationParity.h"/>
     <ClInclude Include="..\..\Source\Teul\Verification\TVerificationStress.h"/>
     <ClInclude Include="..\..\Source\Teul\Verification\TVerificationBenchmark.h"/>
+    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationGoldenAudio.h"/>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h"/>
     <ClInclude Include="..\..\Source\Teul\Export\TExport.h"/>
     <ClInclude Include="..\..\Source\Teul\Teul.h"/>

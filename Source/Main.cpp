@@ -14,6 +14,7 @@
 #include "Teul/Registry/TNodeRegistry.h"
 #include "Teul/Verification/TVerificationParity.h"
 #include "Teul/Verification/TVerificationBenchmark.h"
+#include "Teul/Verification/TVerificationGoldenAudio.h"
 #include "Teul/Verification/TVerificationStress.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
@@ -925,6 +926,62 @@ juce::Result runTeulPhase7StressSoak(const juce::StringArray &args) {
   return juce::Result::ok();
 }
 
+juce::Result runTeulPhase7GoldenAudioRecord(const juce::StringArray &args) {
+  juce::ignoreUnused(args);
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  Teul::TVerificationGoldenAudioSuiteReport report;
+  const bool passed = Teul::runRepresentativeGoldenAudioRecord(*registry, report);
+  const auto baselineDirectory = juce::File(report.baselineDirectory);
+  const auto summaryFile = baselineDirectory.getChildFile("golden-suite-summary.txt");
+  const auto bundleFile = baselineDirectory.getChildFile("artifact-bundle.json");
+  if (!baselineDirectory.isDirectory() || !summaryFile.existsAsFile() ||
+      !bundleFile.existsAsFile()) {
+    return juce::Result::fail(
+        "Teul golden audio record did not produce expected baseline artifacts.");
+  }
+
+  std::cout << "Teul Phase7 golden record baseline directory: "
+            << baselineDirectory.getFullPathName() << std::endl;
+  std::cout << summaryFile.loadFileAsString() << std::endl;
+
+  if (!passed || report.failedCaseCount != 0)
+    return juce::Result::fail("Teul representative golden audio record reported one or more failures.");
+
+  std::cout << "Teul Phase7 golden record checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
+
+juce::Result runTeulPhase7GoldenAudioVerify(const juce::StringArray &args) {
+  juce::ignoreUnused(args);
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  Teul::TVerificationGoldenAudioSuiteReport report;
+  const bool passed = Teul::runRepresentativeGoldenAudioVerify(*registry, report);
+  const auto artifactDirectory = juce::File(report.artifactDirectory);
+  const auto summaryFile = artifactDirectory.getChildFile("golden-suite-summary.txt");
+  const auto bundleFile = artifactDirectory.getChildFile("artifact-bundle.json");
+  if (!artifactDirectory.isDirectory() || !summaryFile.existsAsFile() ||
+      !bundleFile.existsAsFile()) {
+    return juce::Result::fail(
+        "Teul golden audio verify did not produce expected verification artifacts.");
+  }
+
+  std::cout << "Teul Phase7 golden verify artifact directory: "
+            << artifactDirectory.getFullPathName() << std::endl;
+  std::cout << summaryFile.loadFileAsString() << std::endl;
+
+  if (!passed || report.failedCaseCount != 0)
+    return juce::Result::fail("Teul representative golden audio verify reported one or more failures.");
+
+  std::cout << "Teul Phase7 golden verify checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
+
 juce::Result runTeulPhase7BenchmarkGate(const juce::StringArray &args) {
   auto registry = Teul::makeDefaultNodeRegistry();
   if (!registry)
@@ -1256,6 +1313,34 @@ public:
       return;
     }
 
+
+    if (hasArg(args, "--teul-phase7-golden-audio-record")) {
+      const auto smokeResult = runTeulPhase7GoldenAudioRecord(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase7 golden audio record failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
+    if (hasArg(args, "--teul-phase7-golden-audio-verify")) {
+      const auto smokeResult = runTeulPhase7GoldenAudioVerify(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase7 golden audio verify failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
 
     if (hasArg(args, "--teul-phase7-parity-smoke")) {
       const auto smokeResult = runTeulPhase7ParitySmoke(args);

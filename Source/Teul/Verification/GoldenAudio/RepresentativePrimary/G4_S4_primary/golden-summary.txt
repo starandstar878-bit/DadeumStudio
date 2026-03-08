@@ -1,0 +1,9 @@
+graphId=G4
+stimulusId=S4
+profileId=primary
+modeId=record
+passed=true
+baselineDirectory=C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Verification\GoldenAudio\RepresentativePrimary\G4_S4_primary
+totalSamples=96000
+sampleRate=48000.0
+blockSize=128

@@ -1,0 +1,9 @@
+graphId=G3
+stimulusId=S3
+profileId=primary
+modeId=record
+passed=true
+baselineDirectory=C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Verification\GoldenAudio\RepresentativePrimary\G3_S3_primary
+totalSamples=96000
+sampleRate=48000.0
+blockSize=128

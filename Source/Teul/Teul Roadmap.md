@@ -299,13 +299,13 @@
 - [x] representative fixture/stimulus baseline
 - [x] parity smoke, representative matrix, compile smoke
 - [x] representative stress/soak suite, benchmark gate, artifact bundle
-- [ ] golden audio harness
+- [x] golden audio harness
 - [ ] compiled RuntimeModule parity
 - [ ] headless CI, fuzz automation
 
 ### 구현 단계
 
-- [ ] **golden audio test**: 대표 그래프의 입력/출력 오디오 스냅샷을 저장하고 회귀 테스트 수행
+- [x] **golden audio test**: representative primary baseline record/verify와 WAV snapshot 비교 경로 구현
 - [x] **runtime vs export parity test**: representative parity smoke/matrix and editable round-trip artifacts are implemented
 - [x] **export compile CI**: generated `.h/.cpp` compile smoke and CLI/batch entry points are implemented
 - [ ] **stress / fuzz / soak test**: representative stress/soak suite is done; random fuzz and extended soak are still pending

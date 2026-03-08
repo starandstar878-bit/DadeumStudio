@@ -175,6 +175,8 @@
 - [x] Add a common parity report structure for artifacts and failure summaries.
 - [x] Wire `runtime vs export parity test` starting from `G1 Tone Path` as editable round-trip smoke.
 - [x] Add CLI smoke entry: `--teul-phase7-parity-smoke`.
+- [x] Add golden audio record runner: `Tools/TeulVerification/teul_golden_audio_record.bat`.
+- [x] Add golden audio verify runner: `Tools/TeulVerification/teul_golden_audio_verify.bat`.
 - [x] Add batch runner: `Tools/TeulVerification/teul_parity_smoke.bat`.
 - [x] Add matrix runner: `Tools/TeulVerification/teul_parity_matrix.bat`.
 - [x] Add compile runner: `Tools/TeulVerification/teul_runtime_compile_smoke.bat`.
@@ -186,6 +188,9 @@
 - [x] Diagnostics Drawer is available from the Teul toolbar and shows the latest parity, stress, benchmark, and compile artifacts.
 
 **Verification Notes (2026-03-09)**
+- [x] `DadeumStudio.exe --teul-phase7-golden-audio-record` recorded representative golden baselines.
+- [x] `DadeumStudio.exe --teul-phase7-golden-audio-verify` passed on the representative golden suite.
+- [x] `golden-suite-summary.txt` and `golden-output.wav` were generated for representative primary cases.
 - [x] `build_check.bat` passed after fixture/stimulus/parity/CLI integration.
 - [x] `DadeumStudio.exe --teul-phase7-parity-smoke` passed with `G1 / S1 / primary`.
 - [x] `parity-summary.txt` recorded `passed=true`, `maxAbsoluteError=0`, `rmsError=0` for the initial smoke.
