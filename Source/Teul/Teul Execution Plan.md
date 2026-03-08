@@ -113,36 +113,72 @@
 
 ---
 
-### 마일스톤 2: Verification Backbone
+### Milestone 2: Verification Backbone [IN PROGRESS]
 
-**기능 먼저**
-- 기능 `Phase 7`
+**Function First**
+- Phase `7`
   - golden audio test
   - runtime vs export parity test
   - export compile CI
   - stress / fuzz / soak test
   - benchmark regression gate
 
-**바로 이어서 UI**
-- UI `Phase 7`
+**Then UI**
+- UI Phase `7`
   - Diagnostics Drawer
-  - 문제 원인 카드
-  - report diff 뷰
-  - runtime vs export 비교 화면
-  - benchmark 타임라인
-  - smoke/export artifact 뷰어
+  - root-cause cards
+  - report diff view
+  - runtime vs export compare view
+  - benchmark timeline
+  - smoke/export artifact viewer
   - one-click validate/export/benchmark
-  - 대표 그래프 세트 관리
-  - 결과 공유 포맷
+  - representative graph set manager
+  - result sharing format
 
-**이 단계가 중요한 이유**
-- 검증 인프라가 없으면 다음 단계에서 생기는 회귀를 못 잡는다.
-- 특히 export codegen, asset packaging, preset migration은 “눈으로 보기엔 정상”인데 결과가 틀릴 수 있는 영역이다.
+**Why This Matters**
+- Without verification infrastructure, later regressions will not be caught early.
+- Export codegen, asset packaging, and preset migration can look correct in the UI while still producing wrong results.
 
-**게이트**
-- parity test가 대표 그래프에서 통과
-- generated `.h/.cpp`가 자동 컴파일됨
-- 장시간 soak/stress에서 크래시 없이 로그를 수집 가능
+**Step 1: Verification Baseline v1 [DONE]**
+- Representative graph set v1
+  - `G1 Tone Path`: `Oscillator -> VCA -> Audio Output`
+    - Purpose: basic audio path, gain application, reset/restart consistency
+  - `G2 Filter Sweep`: `Oscillator -> LowPass Filter -> Audio Output`
+    - Purpose: filter automation, smoothing, cutoff/resonance parity
+  - `G3 Stereo Motion`: `Oscillator -> Stereo Panner -> Audio Output`
+    - Purpose: stereo routing, pan automation, left/right balance parity
+  - `G4 MIDI Voice`: `MIDI Input -> MIDI to CV -> ADSR Envelope -> VCA -> Audio Output`
+    - Purpose: note timing, gate/CV response, envelope shape parity
+  - `G5 Time Tail`: `Oscillator -> Delay` or `Oscillator -> Reverb -> Audio Output`
+    - Purpose: state retention, tail behavior, reset parity, long render stability
+- Stimulus set v1
+  - `S1 Static Render`: 2-second render at default parameters
+  - `S2 Step Automation`: 250 ms step changes over a 2-second render
+  - `S3 Sweep Automation`: 2-second linear sweep for cutoff / gain / pan style parameters
+  - `S4 MIDI Phrase`: 2-second note on/off pattern for `G4 MIDI Voice`
+- Render profile v1
+  - primary: `48 kHz / 128 samples / stereo`
+  - secondary: `48 kHz / 480 samples / stereo`
+  - extended: `96 kHz / 128 samples / stereo` for `G1`, `G2`, `G3` first
+- Parity tolerance v1
+  - audio compare: per-channel `max abs error <= 1e-5` and `RMS error <= 1e-6`
+  - gate/event timing: exact sample index match
+  - `NaN` / `Inf`: immediate failure
+  - denormals are normalized to `0` before comparison
+- Failure artifact requirements
+  - graph ID, stimulus ID, render profile, seed/document revision, first mismatch sample index, peak error, RMS error, and failing buffer dump
+- This baseline is the shared contract for the future `golden audio harness`, `runtime vs export parity harness`, `benchmark baseline`, and `Diagnostics Drawer`.
+
+**Next Implementation Order**
+1. Lock `G1` to `G5` as actual test documents or generated fixtures.
+2. Split `S1` to `S4` into reusable headless stimulus helpers.
+3. Wire `runtime vs export parity test` starting from `G1 Tone Path`.
+4. Add a common report structure for parity failures so CI and the future diagnostics UI can reuse it.
+
+**Gate**
+- parity test passes on representative graphs
+- generated `.h/.cpp` compiles automatically
+- long soak/stress runs collect logs without crashes
 
 ---
 
