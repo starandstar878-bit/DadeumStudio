@@ -7,6 +7,7 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include <string>
 
 namespace Teul {
 
@@ -370,7 +371,7 @@ private:
   struct LibraryDropPreviewState {
     bool active = false;
     juce::Point<float> pointView;
-    juce::String typeKey;
+    std::string typeKeyUtf8;
   } libraryDropPreview;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TGraphCanvas)

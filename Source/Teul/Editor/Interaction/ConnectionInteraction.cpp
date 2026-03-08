@@ -220,10 +220,17 @@ void TGraphCanvas::itemDragMove(
     return;
   }
 
+  const auto nextTypeKeyUtf8 = typeKey.toStdString();
+  const bool previewChanged = !libraryDropPreview.active ||
+                              libraryDropPreview.pointView != point ||
+                              libraryDropPreview.typeKeyUtf8 != nextTypeKeyUtf8;
+
   libraryDropPreview.active = true;
   libraryDropPreview.pointView = point;
-  libraryDropPreview.typeKey = typeKey;
-  repaint();
+  libraryDropPreview.typeKeyUtf8 = nextTypeKeyUtf8;
+
+  if (previewChanged)
+    repaint();
 }
 
 void TGraphCanvas::itemDragExit(
@@ -231,7 +238,9 @@ void TGraphCanvas::itemDragExit(
   if (!libraryDropPreview.active)
     return;
 
-  libraryDropPreview = LibraryDropPreviewState{};
+  libraryDropPreview.active = false;
+  libraryDropPreview.pointView = {};
+  libraryDropPreview.typeKeyUtf8.clear();
   repaint();
 }
 

@@ -97,11 +97,13 @@ int scoreTextMatch(const juce::String &textRaw,
 static const char *kLibraryDragPrefix = "teul.node:";
 
 juce::String extractLibraryDragTypeKey(const juce::var &description) {
-  const juce::String text = description.toString();
+  const auto descriptionText = description.toString();
+  const auto text = juce::String::fromUTF8(descriptionText.toRawUTF8());
   if (!text.startsWith(kLibraryDragPrefix))
     return {};
 
-  return text.fromFirstOccurrenceOf(kLibraryDragPrefix, false, false);
+  const auto typeKey = text.fromFirstOccurrenceOf(kLibraryDragPrefix, false, false);
+  return juce::String::fromUTF8(typeKey.toRawUTF8());
 }
 
 std::vector<const TNodeDescriptor *> TGraphCanvas::getAllNodeDescriptors() const {

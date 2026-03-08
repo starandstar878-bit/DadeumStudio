@@ -397,13 +397,15 @@ void TGraphCanvas::drawLibraryDropPreview(juce::Graphics &g) {
   if (!libraryDropPreview.active)
     return;
 
+  const auto previewTypeKey =
+      juce::String::fromUTF8(libraryDropPreview.typeKeyUtf8.c_str());
   const auto *desc =
-      nodeRegistry ? nodeRegistry->descriptorFor(libraryDropPreview.typeKey) : nullptr;
+      nodeRegistry ? nodeRegistry->descriptorFor(previewTypeKey) : nullptr;
   const juce::String title =
-      desc != nullptr ? desc->displayName : libraryDropPreview.typeKey;
+      desc != nullptr ? desc->displayName : previewTypeKey;
   const juce::String subtitle =
       desc != nullptr ? desc->category + " / " + desc->typeKey
-                      : libraryDropPreview.typeKey;
+                      : previewTypeKey;
 
   auto bubble = juce::Rectangle<float>(libraryDropPreview.pointView.x + 14.0f,
                                        libraryDropPreview.pointView.y - 10.0f,
