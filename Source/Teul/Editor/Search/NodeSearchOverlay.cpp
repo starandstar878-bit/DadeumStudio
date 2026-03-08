@@ -20,11 +20,14 @@ void TGraphCanvas::showNodeSearchOverlay() {
 
         std::vector<Candidate> candidates;
         for (const auto &node : document.nodes) {
-          const auto *desc =
-              nodeRegistry ? nodeRegistry->descriptorFor(node.typeKey) : nullptr;
+          const auto *desc = findDescriptorByTypeKey(node.typeKey);
           Candidate candidate;
           candidate.nodeId = node.nodeId;
-          candidate.title = nodeLabelForUi(node, nodeRegistry);
+          candidate.title = node.label.isNotEmpty()
+                                ? node.label
+                                : (desc != nullptr && desc->displayName.isNotEmpty()
+                                       ? desc->displayName
+                                       : node.typeKey);
           const juce::String category =
               desc != nullptr ? desc->category : categoryLabelForTypeKey(node.typeKey);
           candidate.subtitle = category + " / " + node.typeKey;

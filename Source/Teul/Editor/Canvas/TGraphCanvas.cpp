@@ -16,7 +16,7 @@
 namespace Teul {
 
 TGraphCanvas::TGraphCanvas(TGraphDocument &doc, const TNodeRegistry &registry)
-    : document(doc), nodeRegistry(&registry) {
+    : document(doc), nodeDescriptors(registry.getAllDescriptors()) {
   setWantsKeyboardFocus(true);
 
   viewOriginWorld = {doc.meta.canvasOffsetX, doc.meta.canvasOffsetY};
@@ -39,7 +39,6 @@ TGraphCanvas::TGraphCanvas(TGraphDocument &doc, const TNodeRegistry &registry)
 
 TGraphCanvas::~TGraphCanvas() {
   stopTimer();
-  nodeRegistry = nullptr;
   nodeSelectionChangedHandler = {};
   nodePropertiesRequestHandler = {};
   connectionLevelProvider = {};
@@ -133,9 +132,7 @@ void TGraphCanvas::rebuildNodeComponents() {
   nodeComponents.clear();
 
   for (const auto &node : document.nodes) {
-    const TNodeDescriptor *desc = nullptr;
-    if (nodeRegistry)
-      desc = nodeRegistry->descriptorFor(node.typeKey);
+    const TNodeDescriptor *desc = findDescriptorByTypeKey(node.typeKey);
 
     auto comp = std::make_unique<TNodeComponent>(*this, node.nodeId, desc);
     addAndMakeVisible(comp.get());

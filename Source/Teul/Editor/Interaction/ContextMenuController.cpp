@@ -154,8 +154,7 @@ bool TGraphCanvas::isReplacementCompatible(const TNode &oldNode,
 bool TGraphCanvas::replaceNode(NodeId nodeId,
                                const juce::String &replacementTypeKey) {
   const TNode *oldNode = document.findNode(nodeId);
-  const TNodeDescriptor *desc =
-      nodeRegistry ? nodeRegistry->descriptorFor(replacementTypeKey) : nullptr;
+  const TNodeDescriptor *desc = findDescriptorByTypeKey(replacementTypeKey);
 
   if (oldNode == nullptr || desc == nullptr)
     return false;

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <set>
 
 namespace Teul {
 
@@ -10,13 +11,12 @@ const TNodeRegistry *getSharedRegistry() {
   return reg.get();
 }
 
-
 static juce::String toLowerCase(const juce::String &text) {
   return text.toLowerCase();
 }
 
 juce::String nodeLabelForUi(const TNode &node,
-                                   const TNodeRegistry *registry) {
+                            const TNodeRegistry *registry) {
   if (node.label.isNotEmpty())
     return node.label;
 
@@ -71,7 +71,7 @@ static int fuzzySubsequenceScore(const juce::String &textLower,
 }
 
 int scoreTextMatch(const juce::String &textRaw,
-                          const juce::String &queryRaw) {
+                   const juce::String &queryRaw) {
   const juce::String text = toLowerCase(textRaw.trim());
   const juce::String query = toLowerCase(queryRaw.trim());
   if (query.isEmpty())
@@ -96,6 +96,101 @@ int scoreTextMatch(const juce::String &textRaw,
 
 static const char *kLibraryDragPrefix = "teul.node:";
 
+namespace {
+
+void applyUiFallbackMetadata(TTeulExposedParam &param, const juce::var &value,
+                             const juce::String &key) {
+  param.valueType = value.isBool() ? TParamValueType::Bool
+                                   : (value.isInt() || value.isInt64())
+                                         ? TParamValueType::Int
+                                         : value.isString() ? TParamValueType::String
+                                                            : TParamValueType::Float;
+  param.preferredWidget = param.valueType == TParamValueType::Bool
+                              ? TParamWidgetHint::Toggle
+                              : param.valueType == TParamValueType::String
+                                    ? TParamWidgetHint::Text
+                                    : TParamWidgetHint::Slider;
+  param.isDiscrete = param.valueType == TParamValueType::Bool ||
+                     param.valueType == TParamValueType::Int;
+  param.preferredBindingKey = key;
+  param.exportSymbol = key;
+}
+
+std::vector<TTeulExposedParam> buildUiFallbackExposedParams(
+    const TNode &node, const juce::String &displayName,
+    const juce::String &typeKey, const std::vector<TParamSpec> &paramSpecs) {
+  std::vector<TTeulExposedParam> result;
+  std::set<juce::String> seenKeys;
+
+  const juce::String nodeName =
+      node.label.isNotEmpty() ? node.label : displayName;
+
+  result.reserve(paramSpecs.size() + node.params.size());
+  for (const auto &spec : paramSpecs) {
+    if (!spec.exposeToIeum)
+      continue;
+
+    TTeulExposedParam param;
+    param.paramId = makeTeulParamId(node.nodeId, spec.key);
+    param.nodeId = node.nodeId;
+    param.nodeTypeKey = typeKey;
+    param.nodeDisplayName = nodeName;
+    param.paramKey = spec.key;
+    param.paramLabel = spec.label.isNotEmpty() ? spec.label : spec.key;
+    param.defaultValue = spec.defaultValue;
+
+    if (const auto it = node.params.find(spec.key); it != node.params.end())
+      param.currentValue = it->second;
+    else
+      param.currentValue = spec.defaultValue;
+
+    param.valueType = spec.valueType;
+    param.minValue = spec.minValue;
+    param.maxValue = spec.maxValue;
+    param.step = spec.step;
+    param.unitLabel = spec.unitLabel;
+    param.displayPrecision = spec.displayPrecision;
+    param.group = spec.group;
+    param.description = spec.description;
+    param.enumOptions = spec.enumOptions;
+    param.preferredWidget = spec.preferredWidget;
+    param.showInNodeBody = spec.showInNodeBody;
+    param.showInPropertyPanel = spec.showInPropertyPanel;
+    param.isReadOnly = spec.isReadOnly;
+    param.isAutomatable = spec.isAutomatable;
+    param.isModulatable = spec.isModulatable;
+    param.isDiscrete = spec.isDiscrete;
+    param.exposeToIeum = spec.exposeToIeum;
+    param.preferredBindingKey = spec.preferredBindingKey;
+    param.exportSymbol = spec.exportSymbol;
+    param.categoryPath = spec.categoryPath;
+
+    result.push_back(std::move(param));
+    seenKeys.insert(spec.key);
+  }
+
+  for (const auto &[key, value] : node.params) {
+    if (seenKeys.find(key) != seenKeys.end())
+      continue;
+
+    TTeulExposedParam param;
+    param.paramId = makeTeulParamId(node.nodeId, key);
+    param.nodeId = node.nodeId;
+    param.nodeTypeKey = typeKey;
+    param.nodeDisplayName = nodeName;
+    param.paramKey = key;
+    param.paramLabel = key;
+    param.defaultValue = value;
+    param.currentValue = value;
+    applyUiFallbackMetadata(param, value, key);
+    result.push_back(std::move(param));
+  }
+
+  return result;
+}
+
+} // namespace
+
 juce::String extractLibraryDragTypeKey(const juce::var &description) {
   const auto descriptionText = description.toString();
   const auto text = juce::String::fromUTF8(descriptionText.toRawUTF8());
@@ -106,14 +201,32 @@ juce::String extractLibraryDragTypeKey(const juce::var &description) {
   return juce::String::fromUTF8(typeKey.toRawUTF8());
 }
 
+const TNodeDescriptor *
+TGraphCanvas::findDescriptorByTypeKey(const juce::String &typeKey) const noexcept {
+  for (const auto &desc : nodeDescriptors) {
+    if (desc.typeKey == typeKey)
+      return &desc;
+  }
+  return nullptr;
+}
+
+std::vector<TTeulExposedParam>
+TGraphCanvas::listExposedParamsForNode(const TNode &node) const {
+  if (const auto *desc = findDescriptorByTypeKey(node.typeKey)) {
+    if (desc->exposedParamFactory)
+      return desc->exposedParamFactory(node);
+
+    return buildUiFallbackExposedParams(node, desc->displayName, desc->typeKey,
+                                        desc->paramSpecs);
+  }
+
+  return buildUiFallbackExposedParams(node, node.typeKey, node.typeKey, {});
+}
+
 std::vector<const TNodeDescriptor *> TGraphCanvas::getAllNodeDescriptors() const {
   std::vector<const TNodeDescriptor *> result;
-  if (nodeRegistry == nullptr)
-    return result;
-
-  const auto &all = nodeRegistry->getAllDescriptors();
-  result.reserve(all.size());
-  for (const auto &desc : all)
+  result.reserve(nodeDescriptors.size());
+  for (const auto &desc : nodeDescriptors)
     result.push_back(&desc);
 
   std::stable_sort(result.begin(), result.end(),
@@ -159,8 +272,7 @@ bool TGraphCanvas::focusNodeByQuery(const juce::String &query) {
   int bestScore = std::numeric_limits<int>::min();
 
   for (const auto &node : document.nodes) {
-    const TNodeDescriptor *desc =
-        nodeRegistry ? nodeRegistry->descriptorFor(node.typeKey) : nullptr;
+    const TNodeDescriptor *desc = findDescriptorByTypeKey(node.typeKey);
 
     int score = scoreTextMatch(node.label, q);
     score = juce::jmax(score, scoreTextMatch(node.typeKey, q));

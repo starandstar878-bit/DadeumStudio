@@ -62,10 +62,10 @@ bool TGraphCanvas::insertNodeOnConnection(ConnectionId connectionId,
 bool TGraphCanvas::addNodeByTypeAtView(const juce::String &typeKey,
                                        juce::Point<float> viewPos,
                                        bool tryInsertOnWire) {
-  if (nodeRegistry == nullptr)
+  if (nodeDescriptors.empty())
     return false;
 
-  const TNodeDescriptor *desc = nodeRegistry->descriptorFor(typeKey);
+  const TNodeDescriptor *desc = findDescriptorByTypeKey(typeKey);
   if (desc == nullptr)
     return false;
 

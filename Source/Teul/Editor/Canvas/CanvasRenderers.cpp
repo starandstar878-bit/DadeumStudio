@@ -399,8 +399,7 @@ void TGraphCanvas::drawLibraryDropPreview(juce::Graphics &g) {
 
   const auto previewTypeKey =
       juce::String::fromUTF8(libraryDropPreview.typeKeyUtf8.c_str());
-  const auto *desc =
-      nodeRegistry ? nodeRegistry->descriptorFor(previewTypeKey) : nullptr;
+  const auto *desc = findDescriptorByTypeKey(previewTypeKey);
   const juce::String title =
       desc != nullptr ? desc->displayName : previewTypeKey;
   const juce::String subtitle =

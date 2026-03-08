@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Teul/Model/TGraphDocument.h"
+#include "Teul/Registry/TNodeRegistry.h"
 #include <JuceHeader.h>
 #include <cstdint>
 #include <functional>
@@ -211,6 +212,10 @@ private:
   void rememberRecentNode(const juce::String &typeKey);
   int scoreDescriptorMatch(const TNodeDescriptor &desc,
                            const juce::String &query) const;
+  const TNodeDescriptor *
+  findDescriptorByTypeKey(const juce::String &typeKey) const noexcept;
+  std::vector<TTeulExposedParam> listExposedParamsForNode(
+      const TNode &node) const;
 
   bool insertNodeOnConnection(ConnectionId connectionId,
                               NodeId insertedNodeId);
@@ -360,7 +365,7 @@ private:
   RuntimeOverlayState runtimeOverlayState;
   RuntimeViewOptions runtimeViewOptions;
 
-  const TNodeRegistry *nodeRegistry = nullptr;
+  std::vector<TNodeDescriptor> nodeDescriptors;
   NodePropertiesRequestHandler nodePropertiesRequestHandler;
   NodeSelectionChangedHandler nodeSelectionChangedHandler;
 

@@ -152,7 +152,7 @@ TGraphCanvas::analyzeDeleteSelectionImpact(
     }
   }
 
-  if (bindingSummaryResolver == nullptr || nodeRegistry == nullptr)
+  if (bindingSummaryResolver == nullptr)
     return impact;
 
   std::set<juce::String> seenBindings;
@@ -163,13 +163,13 @@ TGraphCanvas::analyzeDeleteSelectionImpact(
 
     juce::String nodeName = node->label;
     if (nodeName.isEmpty()) {
-      if (const auto *descriptor = nodeRegistry->descriptorFor(node->typeKey))
+      if (const auto *descriptor = findDescriptorByTypeKey(node->typeKey))
         nodeName = descriptor->displayName;
       else
         nodeName = node->typeKey;
     }
 
-    for (const auto &param : nodeRegistry->listExposedParamsForNode(*node)) {
+    for (const auto &param : listExposedParamsForNode(*node)) {
       const juce::String summary = bindingSummaryResolver(param.paramId).trim();
       if (summary.isEmpty())
         continue;
