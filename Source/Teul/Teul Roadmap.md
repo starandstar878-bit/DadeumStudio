@@ -292,24 +292,30 @@
 
 ## Phase 7: Verification & Benchmark Infrastructure
 
-### 목표
-- 런타임 그래프와 export된 module의 결과 일치성과 성능 회귀를 자동으로 검출한다.
+### Goal
+- Detect runtime/export regressions and performance regressions with a minimal verification backbone that is fast enough to run continuously.
 
 ### Current Status
 - [x] representative fixture/stimulus baseline
-- [x] parity smoke, representative matrix, compile smoke
+- [x] golden audio baseline record/verify
+- [x] editable round-trip parity smoke and representative matrix
+- [x] generated RuntimeModule compile smoke
 - [x] representative stress/soak suite, benchmark gate, artifact bundle
-- [x] golden audio harness
 - [ ] compiled RuntimeModule parity
-- [ ] headless CI, fuzz automation
+- [ ] headless CI execution
 
-### 구현 단계
+### Scope
+- [x] **golden audio test**: representative primary baseline record/verify and WAV snapshot comparison are implemented
+- [x] **runtime vs export parity test**: editable round-trip parity smoke/matrix and artifact reports are implemented
+- [x] **export compile smoke**: generated `.h/.cpp` compile check and CLI/batch entry points are implemented
+- [x] **representative soak + benchmark gate**: representative stress/soak suite and benchmark regression gate are implemented
+- [ ] **compiled RuntimeModule parity**: run the generated RuntimeModule and compare its output directly against runtime output
+- [ ] **headless CI**: run golden/parity/compile/benchmark checks automatically in CI
 
-- [x] **golden audio test**: representative primary baseline record/verify와 WAV snapshot 비교 경로 구현
-- [x] **runtime vs export parity test**: representative parity smoke/matrix and editable round-trip artifacts are implemented
-- [x] **export compile CI**: generated `.h/.cpp` compile smoke and CLI/batch entry points are implemented
-- [ ] **stress / fuzz / soak test**: representative stress/soak suite is done; random fuzz and extended soak are still pending
-- [x] **benchmark regression gate**: representative benchmark baseline/gate and artifact bundles are implemented
+### Deferred From Phase 7
+- Random fuzz automation
+- Extended long-duration soak variants
+- Additional profiles beyond the representative primary suite
 
 ---
 
