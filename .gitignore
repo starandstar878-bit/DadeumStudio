@@ -62,3 +62,4 @@ Builds/**/App/
 # Common OS noise
 .DS_Store
 Thumbs.db
+Builds/DebugScreenshots/
