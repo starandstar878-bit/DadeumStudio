@@ -103,9 +103,11 @@ function Get-MatchingProcesses {
     [string]$ResolvedExePath
   )
 
-  return @(Get-Process -Name $ProcessName -ErrorAction SilentlyContinue |
+  return @(
+    Get-Process -Name $ProcessName -ErrorAction SilentlyContinue |
       Where-Object { Test-ProcessMatchesExePath -Process $_ -ResolvedExePath $ResolvedExePath } |
-      Sort-Object StartTime -Descending)
+      Sort-Object StartTime -Descending
+  )
 }
 
 function Wait-ForVisibleProcess {
@@ -143,6 +145,8 @@ using System;
 using System.Runtime.InteropServices;
 
 public static class NativeMethods {
+  public static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
+
   [StructLayout(LayoutKind.Sequential)]
   public struct RECT {
     public int Left;
@@ -159,8 +163,63 @@ public static class NativeMethods {
 
   [DllImport("user32.dll")]
   public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+
+  [DllImport("Shcore.dll", SetLastError = true)]
+  public static extern int SetProcessDpiAwareness(int awareness);
+
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern bool SetProcessDPIAware();
+
+  [DllImport("dwmapi.dll")]
+  public static extern int DwmGetWindowAttribute(IntPtr hWnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
 }
 "@
+
+function Enable-DpiAwareness {
+  try {
+    if ([NativeMethods]::SetProcessDpiAwarenessContext([NativeMethods]::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
+      return
+    }
+  } catch {
+  }
+
+  try {
+    if ([NativeMethods]::SetProcessDpiAwareness(2) -eq 0) {
+      return
+    }
+  } catch {
+  }
+
+  try {
+    [NativeMethods]::SetProcessDPIAware() | Out-Null
+  } catch {
+  }
+}
+
+function Get-WindowBounds {
+  param([IntPtr]$WindowHandle)
+
+  $rect = New-Object NativeMethods+RECT
+  $rectSize = [System.Runtime.InteropServices.Marshal]::SizeOf([type][NativeMethods+RECT])
+  $dwmResult = [NativeMethods]::DwmGetWindowAttribute($WindowHandle, 9, [ref]$rect, $rectSize)
+
+  if ($dwmResult -ne 0) {
+    if (-not [NativeMethods]::GetWindowRect($WindowHandle, [ref]$rect)) {
+      throw "Failed to get window bounds."
+    }
+  }
+
+  $width = $rect.Right - $rect.Left
+  $height = $rect.Bottom - $rect.Top
+  if ($width -le 0 -or $height -le 0) {
+    throw "Window bounds are invalid."
+  }
+
+  return New-Object System.Drawing.Rectangle($rect.Left, $rect.Top, $width, $height)
+}
 
 function Prepare-WindowForScreenCapture {
   param([IntPtr]$WindowHandle)
@@ -178,26 +237,16 @@ function Capture-WindowBitmap {
   }
 
   Prepare-WindowForScreenCapture -WindowHandle $WindowHandle
+  $bounds = Get-WindowBounds -WindowHandle $WindowHandle
 
-  $rect = New-Object NativeMethods+RECT
-  if (-not [NativeMethods]::GetWindowRect($WindowHandle, [ref]$rect)) {
-    throw "Failed to get window bounds."
-  }
-
-  $width = $rect.Right - $rect.Left
-  $height = $rect.Bottom - $rect.Top
-  if ($width -le 0 -or $height -le 0) {
-    throw "Window bounds are invalid."
-  }
-
-  $bitmap = New-Object System.Drawing.Bitmap($width, $height)
+  $bitmap = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)
   try {
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     try {
-      $source = New-Object System.Drawing.Point($rect.Left, $rect.Top)
+      $source = New-Object System.Drawing.Point($bounds.Left, $bounds.Top)
       $target = [System.Drawing.Point]::Empty
-      $size = New-Object System.Drawing.Size($width, $height)
-      $graphics.CopyFromScreen($source, $target, $size)
+      $size = New-Object System.Drawing.Size($bounds.Width, $bounds.Height)
+      $graphics.CopyFromScreen($source, $target, $size, [System.Drawing.CopyPixelOperation]::SourceCopy)
     } finally {
       $graphics.Dispose()
     }
@@ -208,6 +257,8 @@ function Capture-WindowBitmap {
     throw
   }
 }
+
+Enable-DpiAwareness
 
 $repoRoot = Get-RepoRoot
 $resolvedExePath = Resolve-ExePath -RequestedPath $ExePath -RepoRoot $repoRoot -PlatformName $Platform -ConfigurationName $Configuration
