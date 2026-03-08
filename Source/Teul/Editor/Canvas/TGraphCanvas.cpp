@@ -40,6 +40,11 @@ TGraphCanvas::TGraphCanvas(TGraphDocument &doc) : document(doc) {
 
 TGraphCanvas::~TGraphCanvas() {
   stopTimer();
+  nodeSelectionChangedHandler = {};
+  nodePropertiesRequestHandler = {};
+  connectionLevelProvider = {};
+  portLevelProvider = {};
+  bindingSummaryResolver = {};
   document.meta.canvasOffsetX = viewOriginWorld.x;
   document.meta.canvasOffsetY = viewOriginWorld.y;
   document.meta.canvasZoom = zoomLevel;

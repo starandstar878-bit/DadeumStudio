@@ -43,11 +43,15 @@ void TGraphCanvas::selectOnlyNode(NodeId nodeId) {
 }
 
 void TGraphCanvas::syncNodeSelectionToComponents() {
-  for (auto &comp : nodeComponents)
-    comp->isSelected = isNodeSelected(comp->getNodeId());
+  for (auto &comp : nodeComponents) {
+    if (comp != nullptr)
+      comp->isSelected = isNodeSelected(comp->getNodeId());
+  }
 
-  if (nodeSelectionChangedHandler != nullptr)
-    nodeSelectionChangedHandler(selectedNodeIds);
+  auto handler = nodeSelectionChangedHandler;
+  const auto selectionSnapshot = selectedNodeIds;
+  if (handler != nullptr)
+    handler(selectionSnapshot);
 
   repaint();
 }

@@ -236,6 +236,20 @@ EditorHandle::Impl::Impl(
 
 EditorHandle::Impl::~Impl() {
   stopTimer();
+
+  if (canvas != nullptr) {
+    canvas->setNodeSelectionChangedHandler({});
+    canvas->setNodePropertiesRequestHandler({});
+    canvas->setConnectionLevelProvider({});
+    canvas->setPortLevelProvider({});
+    canvas->setBindingSummaryResolver({});
+  }
+
+  if (propertiesPanel != nullptr) {
+    propertiesPanel->setLayoutChangedCallback({});
+    propertiesPanel->setParamProvider(nullptr);
+  }
+
   if (audioDeviceManager != nullptr)
     audioDeviceManager->removeAudioCallback(&runtime);
 }
