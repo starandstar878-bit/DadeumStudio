@@ -4,8 +4,7 @@ param(
   [ValidateSet("Debug", "Release", "Verify")][string]$Configuration = "Debug",
   [ValidateSet("x64", "Win32")][string]$Platform = "x64",
   [int]$StartupTimeoutSeconds = 20,
-  [int]$RenderDelayMilliseconds = 1200,
-  [switch]$KeepOpen
+  [int]$RenderDelayMilliseconds = 500
 )
 
 Set-StrictMode -Version Latest
@@ -26,7 +25,7 @@ function Resolve-OutputPath {
   )
 
   if ([string]::IsNullOrWhiteSpace($RequestedPath)) {
-    $outputDirectory = Join-Path $RepoRoot "Builds\\DebugScreenshots"
+    $outputDirectory = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot "Builds\DebugScreenshots"))
     New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     return Join-Path $outputDirectory ("DadeumStudio-DebugShot-" + (Get-Timestamp) + ".png")
   }
@@ -56,18 +55,21 @@ function Resolve-ExePath {
   )
 
   if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
-    $fullPath = [System.IO.Path]::GetFullPath(
-        [Environment]::ExpandEnvironmentVariables($RequestedPath))
+    $fullPath = [System.IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($RequestedPath))
     if (-not (Test-Path -LiteralPath $fullPath)) {
       throw "Requested executable not found: $fullPath"
     }
     return $fullPath
   }
 
+  $vs2026Path = "Builds\VisualStudio2026\{0}\{1}\App\DadeumStudio.exe" -f $PlatformName, $ConfigurationName
+  $vs2022Path = "Builds\VisualStudio2022\{0}\{1}\App\DadeumStudio.exe" -f $PlatformName, $ConfigurationName
+  $verifyPath = "Builds\VisualStudio2026\Builds\VisualStudio2026\{0}\{1}\Bin\DadeumStudio.exe" -f $PlatformName, $ConfigurationName
+
   $candidates = @(
-    (Join-Path $RepoRoot "Builds\\VisualStudio2026\\$PlatformName\\$ConfigurationName\\App\\DadeumStudio.exe"),
-    (Join-Path $RepoRoot "Builds\\VisualStudio2022\\$PlatformName\\$ConfigurationName\\App\\DadeumStudio.exe"),
-    (Join-Path $RepoRoot "Builds\\VisualStudio2026\\Builds\\VisualStudio2026\\$PlatformName\\$ConfigurationName\\Bin\\DadeumStudio.exe")
+    [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $vs2026Path)),
+    [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $vs2022Path)),
+    [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $verifyPath))
   )
 
   foreach ($candidate in $candidates) {
@@ -79,54 +81,58 @@ function Resolve-ExePath {
   throw ("Debug executable not found. Expected one of:`n" + ($candidates -join "`n"))
 }
 
-function Get-LatestVisibleProcess {
-  param([string]$ProcessName)
+function Test-ProcessMatchesExePath {
+  param(
+    [System.Diagnostics.Process]$Process,
+    [string]$ResolvedExePath
+  )
 
-  $matches = @(Get-Process -Name $ProcessName -ErrorAction SilentlyContinue |
-      Where-Object { $_.MainWindowHandle -ne 0 })
-  if ($matches.Count -eq 0) {
-    return $null
+  try {
+    if (-not [string]::IsNullOrWhiteSpace($Process.Path)) {
+      return [string]::Equals($Process.Path, $ResolvedExePath, [System.StringComparison]::OrdinalIgnoreCase)
+    }
+  } catch {
   }
 
-  return $matches | Sort-Object StartTime -Descending | Select-Object -First 1
+  return $true
 }
 
-function Wait-ForMainWindowHandle {
+function Get-MatchingProcesses {
   param(
-    [System.Diagnostics.Process]$PrimaryProcess,
     [string]$ProcessName,
+    [string]$ResolvedExePath
+  )
+
+  return @(Get-Process -Name $ProcessName -ErrorAction SilentlyContinue |
+      Where-Object { Test-ProcessMatchesExePath -Process $_ -ResolvedExePath $ResolvedExePath } |
+      Sort-Object StartTime -Descending)
+}
+
+function Wait-ForVisibleProcess {
+  param(
+    [string]$ProcessName,
+    [string]$ResolvedExePath,
     [int]$TimeoutSeconds
   )
 
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
   while ((Get-Date) -lt $deadline) {
-    if ($PrimaryProcess -ne $null) {
+    $matches = Get-MatchingProcesses -ProcessName $ProcessName -ResolvedExePath $ResolvedExePath
+    foreach ($process in $matches) {
       try {
-        $PrimaryProcess.Refresh()
+        $process.Refresh()
       } catch {
       }
 
-      if (-not $PrimaryProcess.HasExited -and $PrimaryProcess.MainWindowHandle -ne 0) {
-        return [IntPtr]$PrimaryProcess.MainWindowHandle
-      }
-    }
-
-    $fallbackProcess = Get-LatestVisibleProcess -ProcessName $ProcessName
-    if ($fallbackProcess -ne $null) {
-      try {
-        $fallbackProcess.Refresh()
-      } catch {
-      }
-
-      if ($fallbackProcess.MainWindowHandle -ne 0) {
-        return [IntPtr]$fallbackProcess.MainWindowHandle
+      if (-not $process.HasExited -and $process.MainWindowHandle -ne 0) {
+        return $process
       }
     }
 
     Start-Sleep -Milliseconds 250
   }
 
-  throw "Timed out waiting for a visible window from process '$ProcessName'."
+  throw "No visible debug window found for '$ProcessName'. Launch the app first and keep it visible."
 }
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -153,9 +159,6 @@ public static class NativeMethods {
 
   [DllImport("user32.dll")]
   public static extern bool SetForegroundWindow(IntPtr hWnd);
-
-  [DllImport("user32.dll")]
-  public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, int nFlags);
 }
 "@
 
@@ -174,6 +177,8 @@ function Capture-WindowBitmap {
     throw "Window handle is invalid."
   }
 
+  Prepare-WindowForScreenCapture -WindowHandle $WindowHandle
+
   $rect = New-Object NativeMethods+RECT
   if (-not [NativeMethods]::GetWindowRect($WindowHandle, [ref]$rect)) {
     throw "Failed to get window bounds."
@@ -189,28 +194,12 @@ function Capture-WindowBitmap {
   try {
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     try {
-      $deviceContext = $graphics.GetHdc()
-      try {
-        $printed = [NativeMethods]::PrintWindow($WindowHandle, $deviceContext, 2)
-      } finally {
-        $graphics.ReleaseHdc($deviceContext)
-      }
+      $source = New-Object System.Drawing.Point($rect.Left, $rect.Top)
+      $target = [System.Drawing.Point]::Empty
+      $size = New-Object System.Drawing.Size($width, $height)
+      $graphics.CopyFromScreen($source, $target, $size)
     } finally {
       $graphics.Dispose()
-    }
-
-    if (-not $printed) {
-      Prepare-WindowForScreenCapture -WindowHandle $WindowHandle
-
-      $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-      try {
-        $source = New-Object System.Drawing.Point($rect.Left, $rect.Top)
-        $target = [System.Drawing.Point]::Empty
-        $size = New-Object System.Drawing.Size($width, $height)
-        $graphics.CopyFromScreen($source, $target, $size)
-      } finally {
-        $graphics.Dispose()
-      }
     }
 
     return $bitmap
@@ -221,22 +210,26 @@ function Capture-WindowBitmap {
 }
 
 $repoRoot = Get-RepoRoot
-$resolvedExePath = Resolve-ExePath -RequestedPath $ExePath -RepoRoot $repoRoot `
-    -PlatformName $Platform -ConfigurationName $Configuration
+$resolvedExePath = Resolve-ExePath -RequestedPath $ExePath -RepoRoot $repoRoot -PlatformName $Platform -ConfigurationName $Configuration
 $resolvedOutputPath = Resolve-OutputPath -RequestedPath $Path -RepoRoot $repoRoot
 $processName = [System.IO.Path]::GetFileNameWithoutExtension($resolvedExePath)
-$startedProcess = $null
+$targetProcess = Wait-ForVisibleProcess -ProcessName $processName -ResolvedExePath $resolvedExePath -TimeoutSeconds $StartupTimeoutSeconds
 
 try {
-  $startedProcess = Start-Process -FilePath $resolvedExePath `
-      -WorkingDirectory (Split-Path -Parent $resolvedExePath) -PassThru
-  $windowHandle = Wait-ForMainWindowHandle -PrimaryProcess $startedProcess `
-      -ProcessName $processName -TimeoutSeconds $StartupTimeoutSeconds
+  try {
+    $targetProcess.Refresh()
+  } catch {
+  }
+
+  if ($targetProcess.MainWindowHandle -eq 0) {
+    $targetProcess = Wait-ForVisibleProcess -ProcessName $processName -ResolvedExePath $resolvedExePath -TimeoutSeconds $StartupTimeoutSeconds
+  }
 
   if ($RenderDelayMilliseconds -gt 0) {
     Start-Sleep -Milliseconds $RenderDelayMilliseconds
   }
 
+  $windowHandle = [IntPtr]$targetProcess.MainWindowHandle
   $bitmap = Capture-WindowBitmap -WindowHandle $windowHandle
   try {
     $bitmap.Save($resolvedOutputPath, [System.Drawing.Imaging.ImageFormat]::Png)
@@ -245,16 +238,9 @@ try {
   }
 
   Write-Output "EXE=$resolvedExePath"
+  Write-Output "SOURCE=existing"
+  Write-Output "PID=$($targetProcess.Id)"
   Write-Output "HANDLE=$([Int64]$windowHandle)"
   Write-Output "SCREENSHOT=$resolvedOutputPath"
 } finally {
-  if ($startedProcess -ne $null -and -not $KeepOpen) {
-    try {
-      if (-not $startedProcess.HasExited) {
-        $startedProcess.CloseMainWindow() | Out-Null
-        $startedProcess.WaitForExit(5000) | Out-Null
-      }
-    } catch {
-    }
-  }
 }
