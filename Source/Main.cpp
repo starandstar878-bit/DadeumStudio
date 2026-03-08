@@ -12,6 +12,7 @@
 #include "Gyeol/Widgets/WidgetRegistry.h"
 #include "Teul/Export/TExport.h"
 #include "Teul/Registry/TNodeRegistry.h"
+#include "Teul/Verification/TVerificationParity.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
 #include <algorithm>
@@ -594,6 +595,59 @@ juce::Result runPhase6ExportSmoke(const juce::StringArray &args) {
   std::cout << "Phase6 smoke checks: PASS" << std::endl;
   return juce::Result::ok();
 }
+
+juce::Result runTeulPhase7ParitySmoke(const juce::StringArray &args) {
+  juce::ignoreUnused(args);
+
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  Teul::TVerificationParityReport report;
+  const bool passed = Teul::runInitialG1StaticParitySmoke(*registry, report);
+
+  if (report.artifactDirectory.isEmpty()) {
+    return juce::Result::fail(
+        "Teul parity smoke did not produce an artifact directory.");
+  }
+
+  const auto artifactDirectory = juce::File(report.artifactDirectory);
+  if (!artifactDirectory.isDirectory()) {
+    return juce::Result::fail(
+        "Teul parity smoke artifact directory is missing: " +
+        artifactDirectory.getFullPathName());
+  }
+
+  const auto summaryFile = artifactDirectory.getChildFile("parity-summary.txt");
+  const auto exportReportFile =
+      artifactDirectory.getChildFile("export-report.txt");
+  if (!summaryFile.existsAsFile() || !exportReportFile.existsAsFile()) {
+    return juce::Result::fail(
+        "Teul parity smoke is missing expected report artifacts.");
+  }
+
+  std::cout << "Teul Phase7 parity artifact directory: "
+            << artifactDirectory.getFullPathName() << std::endl;
+  std::cout << summaryFile.loadFileAsString() << std::endl;
+
+  if (!passed) {
+    const auto failureReason = report.failureReason.trim();
+    return juce::Result::fail(
+        failureReason.isNotEmpty()
+            ? failureReason
+            : juce::String(
+                  "Teul parity smoke failed without a detailed reason."));
+  }
+
+  if (!report.importedDocumentLoaded || report.comparedChannels <= 0 ||
+      report.totalSamples <= 0) {
+    return juce::Result::fail(
+        "Teul parity smoke did not complete a valid round-trip comparison.");
+  }
+
+  std::cout << "Teul Phase7 parity smoke checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
 juce::Result runTeulPhase5ExportSmoke(const juce::StringArray &args) {
   const auto outputArg = argValue(args, "--output-dir=");
   juce::File outputDirectory;
@@ -775,6 +829,20 @@ public:
       return;
     }
 
+
+    if (hasArg(args, "--teul-phase7-parity-smoke")) {
+      const auto smokeResult = runTeulPhase7ParitySmoke(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase7 parity smoke failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
     if (hasArg(args, "--phase6-export-smoke")) {
       const auto smokeResult = runPhase6ExportSmoke(args);
       if (smokeResult.failed()) {
