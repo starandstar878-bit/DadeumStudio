@@ -295,13 +295,21 @@
 ### 목표
 - 런타임 그래프와 export된 module의 결과 일치성과 성능 회귀를 자동으로 검출한다.
 
+### Current Status
+- [x] representative fixture/stimulus baseline
+- [x] parity smoke, representative matrix, compile smoke
+- [x] representative stress/soak suite, benchmark gate, artifact bundle
+- [ ] golden audio harness
+- [ ] compiled RuntimeModule parity
+- [ ] headless CI, fuzz automation
+
 ### 구현 단계
 
 - [ ] **golden audio test**: 대표 그래프의 입력/출력 오디오 스냅샷을 저장하고 회귀 테스트 수행
-- [ ] **runtime vs export parity test**: 같은 문서에서 런타임 처리 결과와 `RuntimeModule Export` 결과를 tolerance 기반으로 비교
-- [ ] **export compile CI**: generated `.h/.cpp`가 headless CI에서 자동 컴파일되는 파이프라인 추가
-- [ ] **stress / fuzz / soak test**: 랜덤 그래프, 긴 세션, 빠른 자동화, 반복 export/import를 장시간 검증
-- [ ] **benchmark regression gate**: 대표 그래프 CPU 사용량, rebuild 시간, export 시간 상한선을 두고 회귀를 차단
+- [x] **runtime vs export parity test**: representative parity smoke/matrix and editable round-trip artifacts are implemented
+- [x] **export compile CI**: generated `.h/.cpp` compile smoke and CLI/batch entry points are implemented
+- [ ] **stress / fuzz / soak test**: representative stress/soak suite is done; random fuzz and extended soak are still pending
+- [x] **benchmark regression gate**: representative benchmark baseline/gate and artifact bundles are implemented
 
 ---
 
@@ -377,6 +385,48 @@
 - [ ] **licensing / edition 정책**: 상용 제품화 시 기능 제한, 라이선스, 업그레이드 경로를 반영할 제품 정책 정리
 - [ ] **문서 / 튜토리얼 / 온보딩**: 첫 그래프 제작부터 export 통합까지 이어지는 사용자 문서와 샘플 콘텐츠 준비
 - [ ] **release checklist / LTS 정책**: 릴리스 전 체크리스트, 핫픽스 기준, 장기 지원 브랜치 운영 기준 정리
+
+---
+
+## Phase 13: Polyphonic & Voice Management (Functional Core)
+
+### 목표
+- 단일 보이스를 넘어 화음 연주가 가능한 폴리포니 엔진과 효율적인 보이스 할당(Voice Stealing) 시스템을 구축한다.
+
+### 구현 단계
+
+- [ ] **Polyphonic Graph Wrapper**: 전체 그래프(또는 그룹)를 보이스 단위로 인스턴스화하고 관리하는 상위 런타임 래퍼 구현
+- [ ] **Voice Allocation Engine**: MIDI Input에 따라 사용 가능한 보이스를 할당하고, 동시 발음 수 초과 시 우선순위에 따른 Voice Stealing(LIFO, FIFO, Quietest 등) 처리
+- [ ] **MIP (Midi-input-to-Polyphony) 인터페이스**: 개별 보이스 인스턴스가 자신의 Gate/Frequency/Velocity 상태를 안전하게 수신하는 내부 버스 구축
+- [ ] **Global vs Per-voice Param Routing**: 전체 보이스에 적용되는 글로벌 파라미터와 개별 보이스별로 동작하는 모듈레이션 경로 분리
+
+---
+
+## Phase 14: High-Quality DSP & Oversampling (Precision)
+
+### 목표
+- 에일리언싱(Aliasing) 방지 및 비선형 연산의 정밀도를 높이기 위한 오버샘플링 인프라와 고급 DSP 모듈을 추가한다.
+
+### 구현 단계
+
+- [ ] **Oversampling Pipeline**: 특정 노드나 그룹을 2x, 4x, 8x로 업샘플링하여 처리한 뒤 다운샘플링하는 고품질 리샘플러(FIR/Polyphase) 통합
+- [ ] **Anti-aliasing Oscillator**: 하드 클리핑이나 사각파 등에서 발생하는 노이즈를 억제하기 위한 BLIT(Band-limited Impulse Train) 또는 PolyBLEP 알고리즘 적용
+- [ ] **Zero-delay Feedback (ZDF) Filter**: 아날로그 회로의 피드백 루프를 수학적으로 정밀하게 모델링한 고품질 필터 알고리즘 추가
+- [ ] **Spectral Processing (FFT)**: 주파수 도메인에서 동작하는 스펙트럴 노드(Vocoder, Morphing, Noise Reduction) 기반 인프라 구축
+
+---
+
+## Phase 15: Engine Performance & Execution Optimization
+
+### 목표
+- 노드 수 증가에 따른 CPU 부하를 억제하고, 메모리 캐시 효율을 극대화하는 실행 최적화를 수행한다.
+
+### 구현 단계
+
+- [ ] **Node/Block Fusion**: 연속된 작은 노드 연산들을 하나의 루프로 합쳐 중간 버퍼 읽기/쓰기부하(Cache Miss)를 최소화하는 정적 분석 최적화
+- [ ] **SIMD Vectorization**: 오디오 버퍼 연산 시 SSE/AVX/NEON 등의 SIMD 명령어를 활용하도록 노드 내부 연산 벡터화
+- [ ] **JIT (Just-In-Time) Compilation**: (선택적) 그래프 구조를 런타임에 기계어로 직접 컴파일하여 함수 호출 오버헤드 제거
+- [ ] **Adaptive Processing**: 무음 구간(Silence) 감지 시 해당 노드 체인의 연산을 자동으로 스킵하는 부하 절감 로직 도입
 
 ---
 

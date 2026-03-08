@@ -197,17 +197,23 @@
 ### 목표
 - validation, export report, parity test, benchmark 결과를 사람이 빠르게 읽고 원인까지 추적할 수 있는 전용 진단 화면을 만든다.
 
+### Current Status
+- [x] Diagnostics Drawer baseline and toolbar entry point
+- [x] Latest parity/stress/benchmark/compile artifact summaries
+- [ ] Severity filters and node/connection focus jump
+- [ ] runtime/export compare screen, benchmark timeline, one-click action bar
+
 ### 구현 단계
 
 #### 단계 1: 진단 패널
-- [ ] **Diagnostics Drawer**: error/warning/info 목록, severity 필터, 클릭 시 해당 노드/연결로 카메라 점프
+- [x] **Diagnostics Drawer**: toolbar entry point and bottom drawer for latest parity/matrix/stress/benchmark/compile artifact summaries
 - [ ] **문제 원인 카드**: 누락 자산, 지원 불가 노드, 타입 불일치, export 제한 사항을 해결 액션과 함께 카드 형태로 제시
 - [ ] **report diff 뷰**: 현재 문서와 직전 validation/export 결과의 차이를 비교 표시
 
 #### 단계 2: 검증 결과 비교
 - [ ] **runtime vs export 비교 화면**: parity pass/fail, tolerance, 샘플 차이, 스냅샷 링크를 한 화면에 집계
 - [ ] **benchmark 타임라인**: 대표 그래프별 CPU/rebuild/export 시간 추세를 저장하고 회귀를 시각화
-- [ ] **smoke/export artifact 뷰어**: 생성된 manifest/runtime JSON/codegen 산출물을 빠르게 훑는 요약 뷰 제공
+- [x] **smoke/export artifact viewer**: Diagnostics Drawer shows latest compile/parity/stress/benchmark artifact paths and summaries
 
 #### 단계 3: 테스트 조작 UX
 - [ ] **one-click validate/export/benchmark**: 에디터 내부에서 주요 검증 작업을 즉시 실행하는 액션 바 제공
@@ -358,6 +364,32 @@
 - [ ] **support bundle 생성기**: 문서, report, 버전, 로그, 환경 정보를 한 번에 수집해 지원 요청용으로 묶기
 - [ ] **릴리스 readiness 대시보드**: QA 체크, known issue, 차단 이슈, export smoke 상태를 집계한 내부용 점검 화면
 - [ ] **edition/license 진입점**: 향후 제품 에디션 차이, 잠금 기능, 업그레이드 안내를 수용할 UI 훅 설계
+
+---
+
+## Phase 13: Polyphonic & Voice Config UX
+
+### 목표
+- 사용자가 발음 수(Voices), 보이스 할당 정책, 글로벌 모듈레이션을 시각적으로 설정하고 모니터링할 수 있는 UI를 제공한다.
+
+### 구현 단계
+
+- [ ] **Voice Manager Inspector**: 그래프 전체 설정에서 최대 발음 수, Stealing 모드를 선택하는 전용 패널 추가
+- [ ] **Active Voice Monitor**: 현재 몇 개의 보이스가 활성화(Note-on) 상태인지 실시간으로 보여주는 미니 HUD/인디케이터
+- [ ] **Voice Scoped Routing Visualizer**: 특정 연결이 '보이스별(Per-voice)'인지 '글로벌'인지 선의 스타일이나 색상으로 구분 표시
+
+---
+
+## Phase 14: Oversampling & High-Precision UI
+
+### 목표
+- 오버샘플링 설정과 에일리어싱 제거 상태, 신호 정밀도를 시각적으로 확인하고 제어할 수 있게 한다.
+
+### 구현 단계
+
+- [ ] **Oversampling Badge**: 오버샘플링이 활성화된 노드나 그룹에 `2x`, `4x` 등의 배율 배지 표시
+- [ ] **Precision Mode Toggle**: 실시간 성능 위주 vs 고품질 위주 렌더링 모드를 툴바에서 원클릭 전환
+- [ ] **Spectrum Aliasing Probe**: 특정 지점의 신호를 탭했을 때 에일리어싱 성분이 보이는지 간이 스펙트럼 뷰어 제공
 
 ---
 
