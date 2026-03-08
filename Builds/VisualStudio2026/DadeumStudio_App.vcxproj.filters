@@ -71,6 +71,9 @@
     <Filter Include="DadeumStudio\Source\Teul\Export">
       <UniqueIdentifier>{4D4F42A6-A4F0-4D72-8B6F-92A6B9CF8A70}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DadeumStudio\Source\Teul\Verification">
+      <UniqueIdentifier>{F0AE6C4E-25F8-41C3-90A8-7E09D6D1E7A5}</UniqueIdentifier>
+    </Filter>
     <Filter Include="DadeumStudio\Source\Teul">
       <UniqueIdentifier>{6352B415-E509-789B-5761-54E9EFAA463C}</UniqueIdentifier>
     </Filter>
@@ -885,6 +888,9 @@
     </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Runtime\TGraphRuntime.cpp">
       <Filter>DadeumStudio\Source\Teul\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationFixtures.cpp">
+      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
@@ -3941,6 +3947,9 @@
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Model\TGraphDocument.h">
       <Filter>DadeumStudio\Source\Teul\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationFixtures.h">
+      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
