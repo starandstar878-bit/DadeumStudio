@@ -7,6 +7,7 @@
 
 - 기능 로드맵은 `Phase 6: Runtime Hardening & Real-time Safety`까지 완료됨
 - UI 로드맵은 `Phase 6: 런타임 상태/안전성 UX`까지 완료됨
+- 다만 `Phase 6` UI는 기능 완료와 별개로 정보 위계, 가시성, 패널 밀도 측면의 후속 보정이 필요함
 - 남은 작업은 크게 두 갈래로 나뉨
   - 상용 1.0에 직접 필요한 코어 기능/UI
   - 상용 1.0 이후로 미뤄도 되는 확장 노드/플러그인 ABI
@@ -79,6 +80,31 @@
 - 대표 그래프가 128-sample block에서 글리치 없이 동작
 - process 경로에서 동적 할당/락/파일 IO가 제거됨
 - 런타임 상태를 UI에서 즉시 관찰 가능
+
+---
+
+### 마일스톤 1.5: Runtime UX 가독성 보정
+
+**UI 보정 먼저**
+- `Phase 6` UI polish
+  - 상단 런타임 HUD 정보 위계 재정렬
+  - 1차 상태(sample rate / block size / CPU / I/O)와 2차 상태(gen / nodes / buffers / process) 시각 분리
+  - 오디오 상태 배지, deferred apply, 위험 경고의 강조 규칙 통일
+  - 좌측 Node Library, 중앙 캔버스, 우측 Inspector의 기본 폭 밸런스 재조정
+  - Run 상태에서 캔버스 집중도를 해치지 않도록 패널 밀도와 기본 노출량 정리
+  - Inspector에서 편집 컨트롤, 런타임 메타 정보, 진단 정보를 섹션 단위로 분리
+  - 토스트/배너의 대비, 크기, 지속 시간 규칙 보정
+  - Mini-map / zoom HUD / 오버레이 진입점의 시각 완성도 정리
+
+**이 단계가 중요한 이유**
+- `Phase 6`는 기능적으로 완료됐지만, 현재 화면은 "런타임 정보가 있긴 한데 한눈에 들어오지 않는" 구간이 남아 있다.
+- 검증 Phase로 넘어가기 전에 정보 위계를 바로잡아야 이후 diagnostics, benchmark, export 비교 화면도 같은 패턴 위에서 안정적으로 확장된다.
+
+**게이트**
+- 100% 및 125% 배율에서 상단 HUD 1차/2차 정보가 한눈에 구분됨
+- 경고/배너/토스트가 일반 편집 상태와 명확히 구분되고 캔버스 위에서 묻히지 않음
+- 기본 편집 화면에서 캔버스 집중도가 유지되고, Inspector는 편집 정보와 진단 정보가 섞여 보이지 않음
+- 대표 캡처 세트(기본 Run / heatmap / live probe / buffer overlay / warning state) 기준으로 정보 전달력이 일관됨
 
 ---
 
@@ -363,20 +389,21 @@
 1. UI 잔여 프리뷰 3개 마감
 2. 기능 `Phase 6`
 3. UI `Phase 6`
-4. 기능 `Phase 7`
-5. UI `Phase 7`
-6. 기능 `Phase 8`
-7. UI `Phase 8`
-8. 상용 필수 노드 최소셋 추가
-9. 기능 `Phase 9`
-10. UI `Phase 9`
-11. 기능 `Phase 10`
-12. UI `Phase 10`
-13. 기능 `Phase 11`
-14. UI `Phase 11`
-15. 기능 `Phase 12`
-16. UI `Phase 12`
-17. 남은 노드 카탈로그 / 외부 플러그인 ABI는 1.0 이후 검토
+4. UI `Phase 6` polish (`마일스톤 1.5`)
+5. 기능 `Phase 7`
+6. UI `Phase 7`
+7. 기능 `Phase 8`
+8. UI `Phase 8`
+9. 상용 필수 노드 최소셋 추가
+10. 기능 `Phase 9`
+11. UI `Phase 9`
+12. 기능 `Phase 10`
+13. UI `Phase 10`
+14. 기능 `Phase 11`
+15. UI `Phase 11`
+16. 기능 `Phase 12`
+17. UI `Phase 12`
+18. 남은 노드 카탈로그 / 외부 플러그인 ABI는 1.0 이후 검토
 
 ---
 
