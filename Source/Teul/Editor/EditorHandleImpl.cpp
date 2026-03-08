@@ -417,14 +417,25 @@ void EditorHandle::Impl::handleSelectionChanged(
     return;
 
   if (selectedNodeIds.size() == 1)
-    propertiesPanel->inspectNode(selectedNodeIds.front());
+    inspectNodeWithReveal(selectedNodeIds.front());
   else
     propertiesPanel->hidePanel();
 }
 
 void EditorHandle::Impl::openProperties(NodeId nodeId) {
   if (propertiesPanel != nullptr)
-    propertiesPanel->inspectNode(nodeId);
+    inspectNodeWithReveal(nodeId);
+}
+
+void EditorHandle::Impl::inspectNodeWithReveal(NodeId nodeId) {
+  if (propertiesPanel == nullptr)
+    return;
+
+  const bool wasOpen = propertiesPanel->isPanelOpen();
+  propertiesPanel->inspectNode(nodeId);
+
+  if (!wasOpen && canvas != nullptr)
+    canvas->ensureNodeVisible(nodeId, 28.0f);
 }
 
 void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {

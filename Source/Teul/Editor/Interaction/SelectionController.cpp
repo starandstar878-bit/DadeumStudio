@@ -56,7 +56,7 @@ void TGraphCanvas::syncNodeSelectionToComponents() {
   repaint();
 }
 
-void TGraphCanvas::updateMarqueeSelection() {
+std::vector<NodeId> TGraphCanvas::collectMarqueeSelection() const {
   std::vector<NodeId> next = marqueeState.baseSelection;
 
   for (const auto &comp : nodeComponents) {
@@ -72,7 +72,11 @@ void TGraphCanvas::updateMarqueeSelection() {
       next.push_back(id);
   }
 
-  selectedNodeIds = std::move(next);
+  return next;
+}
+
+void TGraphCanvas::applyMarqueeSelection() {
+  selectedNodeIds = collectMarqueeSelection();
   syncNodeSelectionToComponents();
 }
 

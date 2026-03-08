@@ -127,6 +127,37 @@ void TGraphCanvas::focusNode(NodeId nodeId) {
   repaint();
 }
 
+bool TGraphCanvas::ensureNodeVisible(NodeId nodeId, float paddingView) {
+  auto *nodeComponent = findNodeComponent(nodeId);
+  if (nodeComponent == nullptr || !nodeComponent->isVisible())
+    return false;
+
+  const auto safeArea = getLocalBounds().toFloat().reduced(paddingView);
+  if (safeArea.getWidth() <= 0.0f || safeArea.getHeight() <= 0.0f)
+    return false;
+
+  const auto nodeBounds = getNodeBoundsInView(*nodeComponent);
+  juce::Point<float> deltaView;
+
+  if (nodeBounds.getRight() > safeArea.getRight())
+    deltaView.x = nodeBounds.getRight() - safeArea.getRight();
+  else if (nodeBounds.getX() < safeArea.getX())
+    deltaView.x = nodeBounds.getX() - safeArea.getX();
+
+  if (nodeBounds.getBottom() > safeArea.getBottom())
+    deltaView.y = nodeBounds.getBottom() - safeArea.getBottom();
+  else if (nodeBounds.getY() < safeArea.getY())
+    deltaView.y = nodeBounds.getY() - safeArea.getY();
+
+  if (deltaView.x == 0.0f && deltaView.y == 0.0f)
+    return false;
+
+  viewOriginWorld += deltaView / zoomLevel;
+  updateChildPositions();
+  repaint();
+  return true;
+}
+
 void TGraphCanvas::rebuildNodeComponents() {
   nodeComponents.clear();
 
@@ -171,12 +202,15 @@ void TGraphCanvas::paint(juce::Graphics &g) {
   drawInfiniteGrid(g);
   drawFrames(g);
   drawConnections(g);
-  drawSelectionOverlay(g);
   drawRuntimeOverlay(g);
   drawMiniMap(g);
   drawLibraryDropPreview(g);
   drawZoomIndicator(g);
   drawStatusHint(g);
+}
+
+void TGraphCanvas::paintOverChildren(juce::Graphics &g) {
+  drawSelectionOverlay(g);
 }
 
 void TGraphCanvas::resized() {
@@ -270,9 +304,6 @@ void TGraphCanvas::mouseDown(const juce::MouseEvent &event) {
     marqueeState.rectView = {event.position.x, event.position.y, 0.0f, 0.0f};
     marqueeState.baseSelection =
         marqueeState.additive ? selectedNodeIds : std::vector<NodeId>{};
-
-    if (!marqueeState.additive)
-      clearNodeSelection();
   }
 }
 
@@ -317,7 +348,6 @@ void TGraphCanvas::mouseDrag(const juce::MouseEvent &event) {
         juce::jmin(marqueeState.startView.y, event.position.y),
         juce::jmax(marqueeState.startView.x, event.position.x),
         juce::jmax(marqueeState.startView.y, event.position.y));
-    updateMarqueeSelection();
     repaint();
   }
 }
@@ -340,6 +370,7 @@ void TGraphCanvas::mouseUp(const juce::MouseEvent &event) {
     endFrameDrag();
 
   if (marqueeState.active) {
+    applyMarqueeSelection();
     marqueeState.active = false;
     repaint();
   }

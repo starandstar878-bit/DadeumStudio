@@ -33,6 +33,7 @@ private:
   void rebuildAll(bool rebuildRuntime);
   void handleSelectionChanged(const std::vector<NodeId> &selectedNodeIds);
   void openProperties(NodeId nodeId);
+  void inspectNodeWithReveal(NodeId nodeId);
   void refreshRuntimeUi(bool forceMessage = false);
   void syncRuntimeViewButtons();
   void pushRuntimeMessage(const juce::String &text,

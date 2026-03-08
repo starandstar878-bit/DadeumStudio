@@ -25,6 +25,7 @@ public:
   ~TGraphCanvas() override;
 
   void paint(juce::Graphics &g) override;
+  void paintOverChildren(juce::Graphics &g) override;
   void resized() override;
 
   void mouseDown(const juce::MouseEvent &event) override;
@@ -75,6 +76,7 @@ public:
 
   void focusNode(NodeId nodeId);
   bool focusNodeByQuery(const juce::String &query);
+  bool ensureNodeVisible(NodeId nodeId, float paddingView = 24.0f);
 
   using ConnectionLevelProvider = std::function<float(const TConnection &)>;
   void setConnectionLevelProvider(ConnectionLevelProvider provider);
@@ -227,7 +229,8 @@ private:
   void setNodeSelection(NodeId nodeId, bool selected);
   void selectOnlyNode(NodeId nodeId);
   void syncNodeSelectionToComponents();
-  void updateMarqueeSelection();
+  std::vector<NodeId> collectMarqueeSelection() const;
+  void applyMarqueeSelection();
 
   struct DeleteSelectionImpact {
     int touchingConnectionCount = 0;
