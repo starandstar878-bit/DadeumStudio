@@ -169,17 +169,27 @@
   - graph ID, stimulus ID, render profile, seed/document revision, first mismatch sample index, peak error, RMS error, and failing buffer dump
 - This baseline is the shared contract for the future `golden audio harness`, `runtime vs export parity harness`, `benchmark baseline`, and `Diagnostics Drawer`.
 
-**Next Implementation Order**
-1. Lock `G1` to `G5` as actual test documents or generated fixtures.
-2. Split `S1` to `S4` into reusable headless stimulus helpers.
-3. Wire `runtime vs export parity test` starting from `G1 Tone Path`.
-4. Add a common report structure for parity failures so CI and the future diagnostics UI can reuse it.
+**Implementation Checklist**
+- [x] Lock `G1` to `G5` as actual fixture documents.
+- [x] Split `S1` to `S4` into reusable headless stimulus helpers.
+- [x] Add a common parity report structure for artifacts and failure summaries.
+- [x] Wire `runtime vs export parity test` starting from `G1 Tone Path` as editable round-trip smoke.
+- [x] Add CLI smoke entry: `--teul-phase7-parity-smoke`.
+- [x] Add batch runner: `teul_parity_smoke.bat`.
+- [ ] Expand parity coverage from `G1 + S1` to the representative matrix.
+- [ ] Add generated RuntimeModule compile smoke on exported `.h/.cpp`.
+- [ ] Add CI-friendly failure artifact bundling for automated runs.
+
+**Verification Notes (2026-03-08)**
+- [x] `build_check.bat` passed after fixture/stimulus/parity/CLI integration.
+- [x] `DadeumStudio.exe --teul-phase7-parity-smoke` passed with `G1 / S1 / primary`.
+- [x] `parity-summary.txt` and `export-report.txt` were generated under `Builds/TeulVerification/EditableRoundTrip/`.
+- [x] `parity-summary.txt` recorded `passed=true`, `maxAbsoluteError=0`, `rmsError=0` for the initial smoke.
 
 **Gate**
-- parity test passes on representative graphs
-- generated `.h/.cpp` compiles automatically
-- long soak/stress runs collect logs without crashes
-
+- [ ] parity test passes on representative graphs
+- [ ] generated `.h/.cpp` compiles automatically
+- [ ] long soak/stress runs collect logs without crashes
 ---
 
 ### 마일스톤 3: Preset / State / Recovery

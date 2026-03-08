@@ -63,3 +63,4 @@ Builds/**/App/
 .DS_Store
 Thumbs.db
 Builds/DebugScreenshots/
+Builds/TeulVerification/
