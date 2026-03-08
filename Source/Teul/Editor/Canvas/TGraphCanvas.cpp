@@ -76,26 +76,25 @@ void TGraphCanvas::setRuntimeHeatmapEnabled(bool enabled) {
     return;
 
   runtimeViewOptions.heatmapEnabled = enabled;
-  pushStatusHint(enabled ? "Heatmap visible" : "Heatmap hidden");
+  pushStatusHint(enabled ? "Heatmap on: node cost accents visible"
+                         : "Heatmap off");
 }
-
 void TGraphCanvas::setLiveProbeEnabled(bool enabled) {
   if (runtimeViewOptions.liveProbeEnabled == enabled)
     return;
 
   runtimeViewOptions.liveProbeEnabled = enabled;
-  pushStatusHint(enabled ? "Live probe visible" : "Live probe hidden");
+  pushStatusHint(enabled ? "Probe on: edge meters and selected readouts visible"
+                         : "Probe off");
 }
-
 void TGraphCanvas::setDebugOverlayEnabled(bool enabled) {
   if (runtimeViewOptions.debugOverlayEnabled == enabled)
     return;
 
   runtimeViewOptions.debugOverlayEnabled = enabled;
-  pushStatusHint(enabled ? "Runtime overlay visible"
-                         : "Runtime overlay hidden");
+  pushStatusHint(enabled ? "Overlay on: runtime card visible"
+                         : "Overlay off");
 }
-
 float TGraphCanvas::getPortLevel(PortId portId) const {
   if (!portLevelProvider)
     return 0.0f;

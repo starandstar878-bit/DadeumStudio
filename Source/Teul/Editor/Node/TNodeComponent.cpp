@@ -22,6 +22,29 @@ static juce::Colour colorFromTag(const juce::String &tagRaw) {
   return juce::Colours::transparentBlack;
 }
 
+static juce::Colour probeColourForPortType(TPortDataType type) {
+  switch (type) {
+  case TPortDataType::Audio:
+    return TeulPalette::PortAudio;
+  case TPortDataType::CV:
+    return TeulPalette::PortCV;
+  case TPortDataType::Gate:
+    return TeulPalette::PortGate;
+  case TPortDataType::MIDI:
+    return TeulPalette::PortMIDI;
+  case TPortDataType::Control:
+    return TeulPalette::PortControl;
+  default:
+    return juce::Colour(0xff60a5fa);
+  }
+}
+
+static juce::Colour heatColourForLevel(float heatLevel) {
+  return juce::Colour(0xfffb923c)
+      .interpolatedWith(juce::Colour(0xffef4444),
+                        juce::jlimit(0.0f, 1.0f, heatLevel * 1.1f));
+}
+
 } // namespace
 
 TNodeComponent::TNodeComponent(TGraphCanvas &canvas, NodeId id,
@@ -174,17 +197,17 @@ void TNodeComponent::paint(juce::Graphics &g) {
   const float errorGlowThicknessPx = juce::jmax(1.2f, 2.0f * viewScale);
 
   const auto bounds = getLocalBounds().toFloat();
-  const auto &runtimeOverlay = ownerCanvas.getRuntimeOverlayState();
   const auto &runtimeViewOptions = ownerCanvas.getRuntimeViewOptions();
-  const float heatLevel =
-      runtimeViewOptions.heatmapEnabled && descriptor != nullptr &&
-      runtimeOverlay.activeNodeCount > 0
-          ? juce::jlimit(0.0f, 1.0f,
-                         ((float)descriptor->capabilities.estimatedCpuCost - 1.0f) /
-                             7.0f)
-          : 0.0f;
+  const float estimatedCpuCost = descriptor != nullptr
+                                     ? (float)descriptor->capabilities.estimatedCpuCost
+                                     : 0.0f;
+  const float heatLevel = runtimeViewOptions.heatmapEnabled && descriptor != nullptr
+                              ? juce::jlimit(0.0f, 1.0f,
+                                             (estimatedCpuCost - 0.75f) / 4.25f)
+                              : 0.0f;
+  const juce::Colour heatColour = heatColourForLevel(heatLevel);
   const juce::Colour nodeFill = TeulPalette::NodeBackground.interpolatedWith(
-      juce::Colour(0xff7c2d12), heatLevel * 0.4f);
+      heatColour.darker(0.78f), heatLevel * 0.58f);
 
   if (bypassed)
     g.setOpacity(0.4f);
@@ -192,10 +215,28 @@ void TNodeComponent::paint(juce::Graphics &g) {
   g.setColour(nodeFill);
   g.fillRoundedRectangle(bounds, cornerRadiusPx);
 
+  if (!collapsed && heatLevel > 0.04f) {
+    auto heatStrip = juce::Rectangle<float>(
+        bounds.getX() + scaledFloat(6.0f), headerHeightPx + scaledFloat(6.0f),
+        juce::jmax(3.0f, scaledFloat(5.0f)),
+        juce::jmax(16.0f,
+                   bounds.getHeight() - headerHeightPx - scaledFloat(12.0f)));
+    g.setGradientFill(juce::ColourGradient(heatColour.withAlpha(0.92f),
+                                           heatStrip.getCentreX(),
+                                           heatStrip.getBottom(),
+                                           heatColour.withAlpha(0.18f),
+                                           heatStrip.getCentreX(),
+                                           heatStrip.getY(), false));
+    g.fillRoundedRectangle(heatStrip, heatStrip.getWidth() * 0.5f);
+  }
+
   juce::Rectangle<float> headerBounds = bounds.withHeight(headerHeightPx);
   juce::Colour headerColor = TeulPalette::NodeHeader;
   if (nodePtr != nullptr && nodePtr->colorTag.isNotEmpty())
     headerColor = colorFromTag(nodePtr->colorTag).withAlpha(0.75f);
+  else if (heatLevel > 0.0f)
+    headerColor = headerColor.interpolatedWith(heatColour.darker(0.48f),
+                                               heatLevel * 0.34f);
   g.setColour(headerColor);
 
   if (collapsed) {
@@ -264,15 +305,46 @@ void TNodeComponent::paint(juce::Graphics &g) {
       }
     }
 
+    if (runtimeViewOptions.liveProbeEnabled && !outPorts.empty()) {
+      const float railWidth = juce::jmax(4.0f, scaledFloat(isSelected ? 7.0f : 5.0f));
+      const float railInset = scaledFloat(7.0f);
+      const float railHeight = juce::jmax(10.0f, scaledFloat(12.0f));
+      float railY = (float)portTextStartYPx + scaledFloat(1.0f);
+
+      for (const auto &port : outPorts) {
+        const auto &portData = port->getPortData();
+        const float level = ownerCanvas.getPortLevel(portData.portId);
+        const juce::Colour probeColour = probeColourForPortType(portData.dataType);
+        auto railRect = juce::Rectangle<float>(getWidth() - railInset - railWidth,
+                                               railY, railWidth, railHeight);
+        g.setColour(juce::Colour(0xaa0f172a));
+        g.fillRoundedRectangle(railRect, railWidth * 0.5f);
+
+        auto fillRect = railRect.reduced(0.8f, 0.8f);
+        fillRect.removeFromTop(fillRect.getHeight() *
+                               (1.0f - juce::jlimit(0.0f, 1.0f, level)));
+        if (!fillRect.isEmpty()) {
+          g.setColour(probeColour.withAlpha(isSelected ? 0.95f : 0.72f));
+          g.fillRoundedRectangle(fillRect, railWidth * 0.45f);
+        }
+
+        g.setColour(probeColour.withAlpha(isSelected ? 0.82f : 0.48f));
+        g.drawRoundedRectangle(railRect, railWidth * 0.5f, 0.9f);
+        railY += (float)portRowHeightPx;
+      }
+    }
+
     if (runtimeViewOptions.liveProbeEnabled && isSelected && !outPorts.empty()) {
       const float probeWidth = juce::jmax(34.0f, scaledFloat(40.0f));
       const float probeHeight = juce::jmax(10.0f, scaledFloat(12.0f));
-      const float probeInset = scaledFloat(6.0f);
+      const float probeInset = scaledFloat(12.0f);
       const float barInset = scaledFloat(2.0f);
       float probeY = (float)portTextStartYPx + scaledFloat(1.0f);
 
       for (const auto &port : outPorts) {
-        const float level = ownerCanvas.getPortLevel(port->getPortData().portId);
+        const auto &portData = port->getPortData();
+        const float level = ownerCanvas.getPortLevel(portData.portId);
+        const juce::Colour probeColour = probeColourForPortType(portData.dataType);
         auto probeRect = juce::Rectangle<float>(
             getWidth() - labelInsetPx - labelWidthPx - probeWidth - probeInset,
             probeY, probeWidth, probeHeight);
@@ -281,9 +353,9 @@ void TNodeComponent::paint(juce::Graphics &g) {
 
         g.setColour(juce::Colour(0xcc0f172a));
         g.fillRoundedRectangle(probeRect, probeHeight * 0.5f);
-        g.setColour(juce::Colour(0x9960a5fa));
+        g.setColour(probeColour.withAlpha(0.82f));
         g.fillRoundedRectangle(barRect, juce::jmax(2.0f, probeHeight * 0.35f));
-        g.setColour(juce::Colour(0xff93c5fd));
+        g.setColour(probeColour.brighter(0.2f));
         g.drawRoundedRectangle(probeRect, probeHeight * 0.5f, 0.9f);
         g.setColour(juce::Colours::white.withAlpha(0.88f));
         g.setFont(juce::FontOptions(juce::jmax(6.0f, scaledFloat(9.0f))));
@@ -294,11 +366,19 @@ void TNodeComponent::paint(juce::Graphics &g) {
     }
   }
 
+  if (heatLevel > 0.08f) {
+    g.setColour(heatColour.withAlpha(isSelected ? 0.62f : 0.34f));
+    g.drawRoundedRectangle(bounds.reduced(scaledFloat(1.0f)),
+                           juce::jmax(1.0f, cornerRadiusPx - scaledFloat(1.0f)),
+                           juce::jmax(1.0f, scaledFloat(1.1f)));
+  }
+
   if (isSelected) {
     g.setColour(TeulPalette::NodeBorderSelected);
     g.drawRoundedRectangle(bounds, cornerRadiusPx, borderSelectedThicknessPx);
   } else {
-    g.setColour(TeulPalette::NodeBorder);
+    g.setColour(TeulPalette::NodeBorder.interpolatedWith(heatColour,
+                                                         heatLevel * 0.45f));
     g.drawRoundedRectangle(bounds, cornerRadiusPx, borderThicknessPx);
   }
 
@@ -309,7 +389,6 @@ void TNodeComponent::paint(juce::Graphics &g) {
                            errorGlowThicknessPx);
   }
 }
-
 juce::Rectangle<int> TNodeComponent::getCollapseButtonBounds() const {
   const int buttonSize = juce::jmax(8, scaledInt(20));
   const int rightInset = juce::jmax(4, scaledInt(8));

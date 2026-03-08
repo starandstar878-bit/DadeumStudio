@@ -21,67 +21,85 @@ public:
   }
 
   void paint(juce::Graphics &g) override {
-    auto bounds = getLocalBounds();
+    const auto bounds = getLocalBounds().toFloat();
     if (bounds.isEmpty())
       return;
 
-    g.setColour(juce::Colour(0xdd0b1220));
-    g.fillRoundedRectangle(bounds.toFloat(), 10.0f);
-    g.setColour(juce::Colour(0x4460a5fa));
-    g.drawRoundedRectangle(bounds.toFloat(), 10.0f, 1.0f);
+    const juce::Colour frameAccent =
+        (transientMessage.isNotEmpty() ? transientAccent : statusAccent())
+            .withAlpha(0.30f);
+    g.setGradientFill(juce::ColourGradient(juce::Colour(0xee0b1220),
+                                           bounds.getCentreX(), bounds.getY(),
+                                           juce::Colour(0xee111827),
+                                           bounds.getCentreX(),
+                                           bounds.getBottom(), false));
+    g.fillRoundedRectangle(bounds, 12.0f);
+    g.setColour(frameAccent);
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
 
-    auto content = bounds.reduced(10, 7);
-    auto header = content.removeFromTop(15);
-    auto summary = content.removeFromTop(14);
-    auto badges = content.removeFromTop(16);
+    auto content = getLocalBounds().reduced(12, 8);
+    auto primaryRow = content.removeFromTop(20);
+    auto secondaryRow = content.removeFromTop(16);
+    content.removeFromTop(4);
+    auto badgeRow = content.removeFromTop(20);
 
-    const juce::String headerText = juce::String::formatted(
-        "%.1f kHz  |  %d blk  |  %d in / %d out  |  CPU %.1f%%",
+    auto cpuChip = primaryRow.removeFromRight(92);
+    const juce::String primaryText = juce::String::formatted(
+        "%.1f kHz  |  %d blk  |  %d in / %d out",
         stats.sampleRate * 0.001,
         stats.preparedBlockSize,
         stats.lastInputChannels,
-        stats.lastOutputChannels,
-        stats.cpuLoadPercent);
-
-    juce::String summaryText = juce::String::formatted(
+        stats.lastOutputChannels);
+    const juce::String summaryText = juce::String::formatted(
         "Gen %llu  |  Nodes %d  |  Buffers %d  |  Process %.2f ms",
         static_cast<unsigned long long>(stats.activeGeneration),
         stats.activeNodeCount,
         stats.allocatedPortChannels,
         stats.lastProcessMilliseconds);
-    juce::Colour summaryColour = juce::Colours::white.withAlpha(0.62f);
 
-    if (transientMessage.isNotEmpty()) {
-      summaryText = transientMessage;
-      summaryColour = transientAccent;
+    g.setColour(juce::Colours::white.withAlpha(0.97f));
+    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    g.drawText(primaryText, primaryRow, juce::Justification::centredLeft,
+               false);
+
+    drawCpuChip(g, cpuChip);
+
+    auto summaryArea = secondaryRow;
+    if (transientMessage.isNotEmpty() && secondaryRow.getWidth() > 180) {
+      const int messageWidth = juce::jlimit(
+          144, juce::jmax(190, secondaryRow.getWidth() / 2),
+          30 + transientMessage.length() * 7);
+      auto messageArea = summaryArea.removeFromRight(
+          juce::jmin(messageWidth, summaryArea.getWidth()));
+      summaryArea.removeFromRight(8);
+      drawMessageChip(g, messageArea, transientMessage, transientAccent);
     }
 
-    g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.setFont(juce::FontOptions(12.5f, juce::Font::bold));
-    g.drawText(headerText, header, juce::Justification::centredLeft, false);
+    if (summaryArea.getWidth() > 40) {
+      g.setColour(juce::Colours::white.withAlpha(0.62f));
+      g.setFont(11.0f);
+      g.drawText(summaryText, summaryArea, juce::Justification::centredLeft,
+                 false);
+    }
 
-    g.setColour(summaryColour);
-    g.setFont(11.0f);
-    g.drawText(summaryText, summary, juce::Justification::centredLeft, false);
-
-    int badgeX = badges.getX();
+    int badgeX = badgeRow.getX();
     auto drawBadge = [&](const juce::String &text, juce::Colour colour) {
       if (text.isEmpty())
         return;
 
-      const int badgeWidth = juce::jlimit(60, 150, 18 + text.length() * 7);
-      if (badgeX + badgeWidth > badges.getRight())
+      const int badgeWidth = juce::jlimit(66, 168, 22 + text.length() * 7);
+      if (badgeX + badgeWidth > badgeRow.getRight())
         return;
 
-      juce::Rectangle<int> badge(badgeX, badges.getY(), badgeWidth,
-                                 badges.getHeight());
+      juce::Rectangle<int> badge(badgeX, badgeRow.getY(), badgeWidth,
+                                 badgeRow.getHeight());
       badgeX += badgeWidth + 6;
 
-      g.setColour(colour.withAlpha(0.18f));
-      g.fillRoundedRectangle(badge.toFloat(), 7.0f);
-      g.setColour(colour.withAlpha(0.88f));
-      g.drawRoundedRectangle(badge.toFloat(), 7.0f, 1.0f);
-      g.setColour(colour.brighter(0.15f));
+      g.setColour(colour.withAlpha(0.16f));
+      g.fillRoundedRectangle(badge.toFloat(), 8.0f);
+      g.setColour(colour.withAlpha(0.86f));
+      g.drawRoundedRectangle(badge.toFloat(), 8.0f, 1.0f);
+      g.setColour(colour.brighter(0.18f));
       g.setFont(10.0f);
       g.drawText(text, badge, juce::Justification::centred, false);
     };
@@ -117,11 +135,58 @@ public:
   }
 
 private:
+  juce::Colour statusAccent() const {
+    if (stats.xrunDetected)
+      return juce::Colour(0xffef4444);
+    if (stats.clipDetected)
+      return juce::Colour(0xfff97316);
+    if (stats.denormalDetected)
+      return juce::Colour(0xffeab308);
+    if (stats.rebuildPending)
+      return juce::Colour(0xfff59e0b);
+    if (stats.mutedFallbackActive)
+      return juce::Colour(0xff94a3b8);
+    return juce::Colour(0xff22c55e);
+  }
+
+  juce::Colour cpuAccent() const {
+    if (stats.xrunDetected || stats.clipDetected)
+      return juce::Colour(0xffef4444);
+    if (stats.cpuLoadPercent >= 65.0f)
+      return juce::Colour(0xfff97316);
+    if (stats.cpuLoadPercent >= 35.0f)
+      return juce::Colour(0xfff59e0b);
+    return juce::Colour(0xff60a5fa);
+  }
+
+  void drawCpuChip(juce::Graphics &g, juce::Rectangle<int> area) const {
+    const juce::Colour accent = cpuAccent();
+    g.setColour(accent.withAlpha(0.18f));
+    g.fillRoundedRectangle(area.toFloat(), 9.0f);
+    g.setColour(accent.withAlpha(0.90f));
+    g.drawRoundedRectangle(area.toFloat(), 9.0f, 1.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.97f));
+    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+    g.drawText(juce::String::formatted("CPU %.1f%%", stats.cpuLoadPercent),
+               area, juce::Justification::centred, false);
+  }
+
+  void drawMessageChip(juce::Graphics &g, juce::Rectangle<int> area,
+                       const juce::String &text, juce::Colour accent) const {
+    g.setColour(accent.withAlpha(0.18f));
+    g.fillRoundedRectangle(area.toFloat(), 7.0f);
+    g.setColour(accent.withAlpha(0.92f));
+    g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
+    g.setColour(accent.brighter(0.18f));
+    g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+    g.drawText(text, area.reduced(8, 0), juce::Justification::centredLeft,
+               false);
+  }
+
   TGraphRuntime::RuntimeStats stats;
   juce::String transientMessage;
   juce::Colour transientAccent = juce::Colour(0xff60a5fa);
 };
-
 EditorHandle::Impl::Impl(
     EditorHandle &ownerIn, juce::AudioDeviceManager *audioDeviceManagerIn,
     ParamBindingSummaryResolver bindingSummaryResolverIn,
@@ -180,8 +245,8 @@ EditorHandle::Impl::Impl(
   toggleHeatmapButton.setClickingTogglesState(true);
   toggleProbeButton.setClickingTogglesState(true);
   toggleOverlayButton.setClickingTogglesState(true);
-  toggleHeatmapButton.setTooltip("Toggle node heatmap tint");
-  toggleProbeButton.setTooltip("Toggle live probe strips on selected nodes");
+  toggleHeatmapButton.setTooltip("Toggle node cost tint and heat rails");
+  toggleProbeButton.setTooltip("Toggle node probe rails and selected readouts");
   toggleOverlayButton.setTooltip("Toggle runtime overlay card");
 
   toggleLibraryButton.onClick = [this] {
@@ -267,42 +332,42 @@ const TNodeRegistry *EditorHandle::Impl::registry() const noexcept {
 void EditorHandle::Impl::refreshFromDocument() { rebuildAll(true); }
 
 void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
-  auto top = area.removeFromTop(36).reduced(6, 4);
+  auto top = area.removeFromTop(40).reduced(6, 4);
 
-  toggleLibraryButton.setBounds(top.removeFromLeft(80));
+  toggleLibraryButton.setBounds(top.removeFromLeft(78));
   top.removeFromLeft(4);
-  quickAddButton.setBounds(top.removeFromLeft(90));
+  quickAddButton.setBounds(top.removeFromLeft(92));
   top.removeFromLeft(4);
-  findNodeButton.setBounds(top.removeFromLeft(90));
+  findNodeButton.setBounds(top.removeFromLeft(92));
   top.removeFromLeft(4);
   commandPaletteButton.setBounds(top.removeFromLeft(60));
   top.removeFromLeft(8);
-  toggleHeatmapButton.setBounds(top.removeFromLeft(64));
+  toggleHeatmapButton.setBounds(top.removeFromLeft(82));
   top.removeFromLeft(4);
-  toggleProbeButton.setBounds(top.removeFromLeft(72));
+  toggleProbeButton.setBounds(top.removeFromLeft(92));
   top.removeFromLeft(4);
-  toggleOverlayButton.setBounds(top.removeFromLeft(84));
+  toggleOverlayButton.setBounds(top.removeFromLeft(108));
 
   if (runtimeStatusStrip != nullptr) {
-    auto statusArea = area.removeFromTop(48).reduced(6, 4);
+    auto statusArea = area.removeFromTop(60).reduced(6, 4);
     runtimeStatusStrip->setBounds(statusArea);
   }
 
   if (libraryPanel != nullptr) {
     libraryPanel->setVisible(libraryVisible);
     if (libraryVisible) {
-      auto left = area.removeFromLeft(276);
-      libraryPanel->setBounds(left);
+      auto left = area.removeFromLeft(244);
+      libraryPanel->setBounds(left.reduced(0, 2));
     }
   }
 
   if (propertiesPanel != nullptr && propertiesPanel->isPanelOpen()) {
-    auto right = area.removeFromRight(316);
-    propertiesPanel->setBounds(right);
+    auto right = area.removeFromRight(336);
+    propertiesPanel->setBounds(right.reduced(0, 2));
   }
 
   if (canvas != nullptr)
-    canvas->setBounds(area);
+    canvas->setBounds(area.reduced(0, 2));
 }
 
 void EditorHandle::Impl::timerCallback() {
@@ -367,33 +432,32 @@ void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {
 
   if ((stats.xrunDetected && !lastRuntimeStats.xrunDetected)) {
     pushRuntimeMessage("Audio block exceeded budget", juce::Colour(0xffef4444),
-                       60);
+                       72);
   } else if (stats.clipDetected && !lastRuntimeStats.clipDetected) {
-    pushRuntimeMessage("Output clip detected", juce::Colour(0xfff97316), 60);
+    pushRuntimeMessage("Output clip detected", juce::Colour(0xfff97316), 72);
   } else if (stats.denormalDetected && !lastRuntimeStats.denormalDetected) {
     pushRuntimeMessage("Denormal activity detected", juce::Colour(0xffeab308),
-                       60);
+                       66);
   } else if (stats.mutedFallbackActive && !lastRuntimeStats.mutedFallbackActive) {
     pushRuntimeMessage("Muted fallback is active", juce::Colour(0xff94a3b8),
-                       50);
+                       60);
   } else if (stats.rebuildPending && !lastRuntimeStats.rebuildPending) {
     pushRuntimeMessage("Deferred apply queued for safe commit",
-                       juce::Colour(0xfff59e0b), 55);
+                       juce::Colour(0xfff59e0b), 66);
   } else if (!stats.rebuildPending && lastRuntimeStats.rebuildPending) {
     pushRuntimeMessage("Deferred apply committed", juce::Colour(0xff22c55e),
-                       40);
+                       48);
   } else if (forceMessage ||
              stats.sampleRate != lastRuntimeStats.sampleRate ||
              stats.preparedBlockSize != lastRuntimeStats.preparedBlockSize ||
              stats.lastInputChannels != lastRuntimeStats.lastInputChannels ||
              stats.lastOutputChannels != lastRuntimeStats.lastOutputChannels) {
     pushRuntimeMessage(
-        juce::String::formatted("Runtime prepared: %.1f kHz / %d blk / %d in / %d out",
-                                stats.sampleRate * 0.001,
-                                stats.preparedBlockSize,
-                                stats.lastInputChannels,
-                                stats.lastOutputChannels),
-        juce::Colour(0xff60a5fa), 36);
+        juce::String::formatted(
+            "Runtime prepared: %.1f kHz / %d blk / %d in / %d out",
+            stats.sampleRate * 0.001, stats.preparedBlockSize,
+            stats.lastInputChannels, stats.lastOutputChannels),
+        juce::Colour(0xff60a5fa), 42);
   }
 
   if (runtimeMessageTicksRemaining > 0) {
@@ -431,7 +495,6 @@ void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {
 
   lastRuntimeStats = stats;
 }
-
 void EditorHandle::Impl::syncRuntimeViewButtons() {
   if (canvas == nullptr)
     return;
@@ -440,25 +503,35 @@ void EditorHandle::Impl::syncRuntimeViewButtons() {
                        juce::Colour accent) {
     button.setToggleState(enabled, juce::dontSendNotification);
     button.setColour(juce::TextButton::buttonOnColourId,
-                     accent.withAlpha(0.75f));
+                     accent.withAlpha(0.92f));
     button.setColour(juce::TextButton::buttonColourId,
-                     enabled ? accent.withAlpha(0.30f)
-                             : juce::Colour(0xff1f2937));
+                     enabled ? accent.withAlpha(0.58f)
+                             : juce::Colour(0xff111827));
     button.setColour(juce::TextButton::textColourOnId,
-                     juce::Colours::white.withAlpha(0.98f));
+                     juce::Colours::white.withAlpha(0.99f));
     button.setColour(juce::TextButton::textColourOffId,
-                     enabled ? juce::Colours::white.withAlpha(0.95f)
-                             : juce::Colours::white.withAlpha(0.75f));
+                     enabled ? juce::Colours::white.withAlpha(0.97f)
+                             : juce::Colours::white.withAlpha(0.78f));
   };
 
+  toggleHeatmapButton.setButtonText(canvas->isRuntimeHeatmapEnabled()
+                                        ? "Heat On"
+                                        : "Heat");
   syncButton(toggleHeatmapButton, canvas->isRuntimeHeatmapEnabled(),
              juce::Colour(0xfff97316));
+
+  toggleProbeButton.setButtonText(canvas->isLiveProbeEnabled()
+                                      ? "Probe On"
+                                      : "Probe");
   syncButton(toggleProbeButton, canvas->isLiveProbeEnabled(),
              juce::Colour(0xff60a5fa));
+
+  toggleOverlayButton.setButtonText(canvas->isDebugOverlayEnabled()
+                                        ? "Overlay On"
+                                        : "Overlay");
   syncButton(toggleOverlayButton, canvas->isDebugOverlayEnabled(),
              juce::Colour(0xff22c55e));
 }
-
 void EditorHandle::Impl::pushRuntimeMessage(const juce::String &text,
                                             juce::Colour accent,
                                             int ticks) {

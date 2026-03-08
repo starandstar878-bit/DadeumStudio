@@ -7,7 +7,7 @@
 
 - 기능 로드맵은 `Phase 6: Runtime Hardening & Real-time Safety`까지 완료됨
 - UI 로드맵은 `Phase 6: 런타임 상태/안전성 UX`까지 완료됨
-- 다만 `Phase 6` UI는 기능 완료와 별개로 정보 위계, 가시성, 패널 밀도 측면의 후속 보정이 필요함
+- `마일스톤 1.5`까지 마감되어 `Phase 6` UI의 정보 위계, 가시성, 패널 밀도 보정이 반영됨
 - 남은 작업은 크게 두 갈래로 나뉨
   - 상용 1.0에 직접 필요한 코어 기능/UI
   - 상용 1.0 이후로 미뤄도 되는 확장 노드/플러그인 ABI
@@ -83,7 +83,7 @@
 
 ---
 
-### 마일스톤 1.5: Runtime UX 가독성 보정 [IN PROGRESS]
+### 마일스톤 1.5: Runtime UX 가독성 보정 [DONE]
 
 **UI 보정 먼저**
 - `Phase 6` UI polish
@@ -106,6 +106,10 @@
 - 경고/배너/토스트가 일반 편집 상태와 명확히 구분되고 캔버스 위에서 묻히지 않음
 - 기본 편집 화면에서 캔버스 집중도가 유지되고, Inspector는 편집 정보와 진단 정보가 섞여 보이지 않음
 - 대표 캡처 세트(기본 Run / heatmap / live probe / buffer overlay / warning state) 기준으로 정보 전달력이 일관됨
+
+**검증 메모 (2026-03-08)**
+- `build_check.bat` 기준 `EXIT_CODE=0`
+- 디버그 실행창 기본 Run 캡처로 상단 HUD, 토글 상태 표시, runtime overlay 배치 확인
 
 ---
 

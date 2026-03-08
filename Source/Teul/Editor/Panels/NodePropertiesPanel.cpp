@@ -54,6 +54,17 @@ static int colorTagToId(const juce::String &tagRaw) {
   return 1;
 }
 
+static bool shouldShowIeumBindingLine(const TParamSpec &spec,
+                                      const juce::String &text) {
+  return text.isNotEmpty() &&
+         (spec.exposeToIeum || spec.isAutomatable || spec.isModulatable ||
+          spec.isReadOnly || text != "Ieum: hidden");
+}
+
+static bool shouldShowGyeolBindingLine(const juce::String &text) {
+  return text.isNotEmpty() && text != "Gyeol: hidden";
+}
+
 class NodePropertiesPanelImpl final : public NodePropertiesPanel,
                             private juce::Timer,
                             private ITeulParamProvider::Listener {
@@ -190,52 +201,85 @@ public:
   }
 
   void paint(juce::Graphics &g) override {
-    g.fillAll(juce::Colour(0xff101010));
-    g.setColour(juce::Colour(0xff2f2f2f));
-    g.drawRect(getLocalBounds(), 1);
+    const auto panelBounds = getLocalBounds().toFloat().reduced(1.0f);
+    g.setGradientFill(juce::ColourGradient(juce::Colour(0xff0b1220),
+                                           panelBounds.getCentreX(),
+                                           panelBounds.getY(),
+                                           juce::Colour(0xff111827),
+                                           panelBounds.getCentreX(),
+                                           panelBounds.getBottom(), false));
+    g.fillRoundedRectangle(panelBounds, 12.0f);
+    g.setColour(juce::Colour(0xff324154));
+    g.drawRoundedRectangle(panelBounds, 12.0f, 1.0f);
 
     if (!isPanelOpen())
       return;
 
-    auto area = getLocalBounds().reduced(12, 0);
-    area.removeFromTop(86);
-    g.setColour(juce::Colours::white.withAlpha(0.65f));
-    g.setFont(11.0f);
-    g.drawText("Label", area.removeFromTop(16), juce::Justification::centredLeft,
-               false);
-    area.removeFromTop(32);
-    g.drawText("Color Tag", area.removeFromTop(16),
-               juce::Justification::centredLeft, false);
-    area.removeFromTop(30);
-    g.drawText("State", area.removeFromTop(16), juce::Justification::centredLeft,
-               false);
-    area.removeFromTop(34);
-    g.drawText("Parameters", area.removeFromTop(16),
-               juce::Justification::centredLeft, false);
-  }
+    auto area = getLocalBounds().reduced(12);
+    area.removeFromTop(24);
+    area.removeFromTop(4);
+    area.removeFromTop(18);
+    area.removeFromTop(10);
+    auto overview = area.removeFromTop(112);
+    area.removeFromTop(10);
+    auto state = area.removeFromTop(72);
+    area.removeFromTop(12);
+    auto params = area;
 
+    auto drawSection = [&](juce::Rectangle<int> rect, const juce::String &title,
+                           juce::Colour accent, const juce::String &subtitle) {
+      g.setColour(juce::Colour(0x88182231));
+      g.fillRoundedRectangle(rect.toFloat(), 10.0f);
+      g.setColour(accent.withAlpha(0.32f));
+      g.drawRoundedRectangle(rect.toFloat(), 10.0f, 1.0f);
+
+      auto header = rect.reduced(12, 8).removeFromTop(subtitle.isNotEmpty() ? 28 : 18);
+      g.setColour(juce::Colours::white.withAlpha(0.9f));
+      g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+      g.drawText(title, header.removeFromTop(16), juce::Justification::centredLeft,
+                 false);
+      if (subtitle.isNotEmpty()) {
+        g.setColour(juce::Colours::white.withAlpha(0.48f));
+        g.setFont(10.0f);
+        g.drawText(subtitle, header, juce::Justification::centredLeft, false);
+      }
+    };
+
+    drawSection(overview, "Overview", juce::Colour(0xff60a5fa), {});
+    drawSection(state, "State", juce::Colour(0xfff59e0b), {});
+    drawSection(params, "Parameters", juce::Colour(0xff22c55e),
+                "Runtime and binding metadata appear only when relevant.");
+  }
   void resized() override {
     auto area = getLocalBounds().reduced(12);
     auto header = area.removeFromTop(24);
-    closeButton.setBounds(header.removeFromRight(54));
+    closeButton.setBounds(header.removeFromRight(56));
     headerLabel.setBounds(header);
     area.removeFromTop(4);
     typeLabel.setBounds(area.removeFromTop(18));
-    area.removeFromTop(22);
-    nameEditor.setBounds(area.removeFromTop(26));
-    area.removeFromTop(22);
-    colorBox.setBounds(area.removeFromTop(24));
-    area.removeFromTop(22);
-    auto toggles = area.removeFromTop(24);
-    bypassToggle.setBounds(toggles.removeFromLeft(toggles.getWidth() / 2));
+    area.removeFromTop(10);
+
+    auto overview = area.removeFromTop(112).reduced(12, 28);
+    nameEditor.setBounds(overview.removeFromTop(26));
+    overview.removeFromTop(12);
+    colorBox.setBounds(overview.removeFromTop(24));
+
+    area.removeFromTop(10);
+    auto state = area.removeFromTop(72).reduced(12, 28);
+    auto toggles = state.removeFromTop(24);
+    const int toggleWidth = juce::jmax(40, (toggles.getWidth() - 8) / 2);
+    bypassToggle.setBounds(toggles.removeFromLeft(toggleWidth));
+    toggles.removeFromLeft(8);
     collapsedToggle.setBounds(toggles);
+    state.removeFromTop(10);
+    applyButton.setBounds(state.removeFromTop(24).removeFromLeft(88));
+
     area.removeFromTop(12);
-    applyButton.setBounds(area.removeFromTop(26).removeFromRight(72));
-    area.removeFromTop(12);
-    paramViewport.setBounds(area);
+    auto params = area;
+    params.removeFromTop(34);
+    paramViewport.setBounds(params);
     layoutParamEditors();
   }
-
 private:
   struct ParamEditor {
     TParamSpec spec;
@@ -350,7 +394,7 @@ private:
         entry->groupLabel->setJustificationType(juce::Justification::centredLeft);
         entry->groupLabel->setColour(juce::Label::textColourId,
                                      juce::Colours::white.withAlpha(0.86f));
-        entry->groupLabel->setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        entry->groupLabel->setFont(juce::FontOptions(11.5f, juce::Font::bold));
         paramsContent->addAndMakeVisible(entry->groupLabel.get());
         lastGroup = entry->spec.group;
       }
@@ -380,21 +424,24 @@ private:
       entry->runtimeValueLabel->setJustificationType(juce::Justification::centredLeft);
       entry->runtimeValueLabel->setColour(juce::Label::textColourId,
                                           juce::Colour(0xff8fb8ff));
-      entry->runtimeValueLabel->setFont(juce::FontOptions(10.5f));
+      entry->runtimeValueLabel->setFont(juce::FontOptions(10.0f, juce::Font::bold));
+      entry->runtimeValueLabel->setBorderSize(juce::BorderSize<int>(1, 6, 1, 6));
       paramsContent->addAndMakeVisible(entry->runtimeValueLabel.get());
 
       entry->bindingInfoLabel = std::make_unique<juce::Label>();
       entry->bindingInfoLabel->setJustificationType(juce::Justification::centredLeft);
       entry->bindingInfoLabel->setColour(juce::Label::textColourId,
                                          juce::Colours::white.withAlpha(0.44f));
-      entry->bindingInfoLabel->setFont(juce::FontOptions(10.0f));
+      entry->bindingInfoLabel->setFont(juce::FontOptions(9.8f));
+      entry->bindingInfoLabel->setBorderSize(juce::BorderSize<int>(1, 6, 1, 6));
       paramsContent->addAndMakeVisible(entry->bindingInfoLabel.get());
 
       entry->gyeolBindingLabel = std::make_unique<juce::Label>();
-      entry->gyeolBindingLabel->setJustificationType(juce::Justification::topLeft);
+      entry->gyeolBindingLabel->setJustificationType(juce::Justification::centredLeft);
       entry->gyeolBindingLabel->setColour(juce::Label::textColourId,
                                           juce::Colours::white.withAlpha(0.32f));
-      entry->gyeolBindingLabel->setFont(juce::FontOptions(10.0f));
+      entry->gyeolBindingLabel->setFont(juce::FontOptions(9.8f));
+      entry->gyeolBindingLabel->setBorderSize(juce::BorderSize<int>(1, 6, 1, 6));
       paramsContent->addAndMakeVisible(entry->gyeolBindingLabel.get());
 
       paramsContent->addAndMakeVisible(entry->editor.get());
@@ -440,29 +487,44 @@ private:
         y += 22;
       }
 
-      entry->caption->setBounds(0, y, width, 16);
-      y += 18;
+      entry->caption->setBounds(0, y, width, 18);
+      y += 20;
 
       const int editorHeight = editorHeightFor(*entry->editor);
       entry->editor->setBounds(0, y, width, editorHeight);
-      y += editorHeight + 4;
+      y += editorHeight + 6;
 
       if (entry->descriptionLabel->isVisible()) {
         entry->descriptionLabel->setBounds(0, y, width, 14);
-        y += 16;
+        y += 18;
       }
 
-      entry->runtimeValueLabel->setBounds(0, y, width, 14);
-      y += 16;
-      entry->bindingInfoLabel->setBounds(0, y, width, 14);
-      y += 16;
-      entry->gyeolBindingLabel->setBounds(0, y, width, 28);
-      y += 32;
+      if (entry->runtimeValueLabel->isVisible()) {
+        entry->runtimeValueLabel->setBounds(0, y, width, 18);
+        y += 22;
+      } else {
+        entry->runtimeValueLabel->setBounds(0, 0, 0, 0);
+      }
+
+      if (entry->bindingInfoLabel->isVisible()) {
+        entry->bindingInfoLabel->setBounds(0, y, width, 18);
+        y += 22;
+      } else {
+        entry->bindingInfoLabel->setBounds(0, 0, 0, 0);
+      }
+
+      if (entry->gyeolBindingLabel->isVisible()) {
+        entry->gyeolBindingLabel->setBounds(0, y, width, 18);
+        y += 22;
+      } else {
+        entry->gyeolBindingLabel->setBounds(0, 0, 0, 0);
+      }
+
+      y += 8;
     }
 
     paramsContent->setSize(width, juce::jmax(y, paramViewport.getHeight()));
   }
-
   juce::var readEditorValue(const ParamEditor &entry) const {
     return Teul::readEditorValue(*entry.editor, entry.spec, entry.originalValue);
   }
@@ -470,32 +532,57 @@ private:
   void updateRuntimeValueLabels() {
     for (auto &entry : paramEditors) {
       juce::String runtimeText;
+      bool hasRuntimeValue = false;
       const auto it = runtimeParamsById.find(entry->paramId);
       if (it != runtimeParamsById.end()) {
-        runtimeText = "Runtime: " + formatValueForDisplay(it->second.currentValue,
-                                                           entry->spec);
+        runtimeText = "Runtime: " +
+                      formatValueForDisplay(it->second.currentValue, entry->spec);
+        hasRuntimeValue = true;
       } else if (entry->spec.exposeToIeum && paramProvider != nullptr) {
         runtimeText = "Runtime: unavailable";
       } else {
-        runtimeText = "Document: " + formatValueForDisplay(entry->originalValue,
-                                                            entry->spec);
+        runtimeText = "Document: " +
+                      formatValueForDisplay(entry->originalValue, entry->spec);
       }
+      entry->runtimeValueLabel->setVisible(runtimeText.isNotEmpty());
+      entry->runtimeValueLabel->setColour(
+          juce::Label::backgroundColourId,
+          hasRuntimeValue ? juce::Colour(0x221d4ed8)
+                          : juce::Colour(0x221f2937));
+      entry->runtimeValueLabel->setColour(
+          juce::Label::textColourId,
+          hasRuntimeValue ? juce::Colour(0xff93c5fd)
+                          : juce::Colours::white.withAlpha(0.62f));
       entry->runtimeValueLabel->setText(runtimeText, juce::dontSendNotification);
 
-      entry->bindingInfoLabel->setText(makeIeumBindingText(entry->spec),
+      const auto ieumText = makeIeumBindingText(entry->spec);
+      const bool showIeum = shouldShowIeumBindingLine(entry->spec, ieumText);
+      entry->bindingInfoLabel->setVisible(showIeum);
+      entry->bindingInfoLabel->setColour(
+          juce::Label::backgroundColourId,
+          showIeum ? juce::Colour(0x16182232) : juce::Colours::transparentBlack);
+      entry->bindingInfoLabel->setText(showIeum ? ieumText : juce::String(),
                                        juce::dontSendNotification);
 
       const auto gyeolBinding = makeGyeolBindingPresentation(
           entry->spec, entry->paramId, bindingSummaryResolver);
+      const bool showGyeol = shouldShowGyeolBindingLine(gyeolBinding.text);
+      entry->gyeolBindingLabel->setVisible(showGyeol);
+      entry->gyeolBindingLabel->setColour(
+          juce::Label::backgroundColourId,
+          showGyeol ? gyeolBinding.colour.withAlpha(0.12f)
+                    : juce::Colours::transparentBlack);
       entry->gyeolBindingLabel->setColour(juce::Label::textColourId,
-                                          gyeolBinding.colour);
-      entry->gyeolBindingLabel->setText(gyeolBinding.text,
+                                          showGyeol ? gyeolBinding.colour
+                                                    : juce::Colours::white.withAlpha(0.32f));
+      entry->gyeolBindingLabel->setText(showGyeol ? gyeolBinding.text
+                                                  : juce::String(),
                                         juce::dontSendNotification);
     }
 
+    layoutParamEditors();
     repaint();
   }
-
   void applyChanges() {
     TNode *node = document.findNode(inspectedNodeId);
     if (node == nullptr)

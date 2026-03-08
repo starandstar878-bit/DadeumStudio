@@ -44,19 +44,25 @@ void TGraphCanvas::drawInfiniteGrid(juce::Graphics &g) {
 }
 
 void TGraphCanvas::drawZoomIndicator(juce::Graphics &g) {
-  juce::String zoomText =
+  const juce::String zoomText =
       juce::String(juce::roundToInt(zoomLevel * 100.0f)) + "%";
 
   auto area =
-      getLocalBounds().removeFromBottom(30).removeFromRight(80).reduced(5);
-  g.setColour(juce::Colour(0x80000000));
-  g.fillRoundedRectangle(area.toFloat(), 4.0f);
+      getLocalBounds().removeFromBottom(38).removeFromRight(112).reduced(8, 6);
+  g.setColour(juce::Colour(0xdd0b1220));
+  g.fillRoundedRectangle(area.toFloat(), 8.0f);
+  g.setColour(juce::Colour(0x4438bdf8));
+  g.drawRoundedRectangle(area.toFloat(), 8.0f, 1.0f);
 
-  g.setColour(juce::Colours::white);
-  g.setFont(14.0f);
-  g.drawText(zoomText, area, juce::Justification::centred, false);
+  auto content = area.reduced(10, 5);
+  g.setColour(juce::Colours::white.withAlpha(0.55f));
+  g.setFont(10.0f);
+  g.drawText("Zoom", content.removeFromTop(12),
+             juce::Justification::centredLeft, false);
+  g.setColour(juce::Colours::white.withAlpha(0.95f));
+  g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+  g.drawText(zoomText, content, juce::Justification::centredLeft, false);
 }
-
 juce::Colour TGraphCanvas::colorForPortType(TPortDataType type) const {
   switch (type) {
   case TPortDataType::Audio:
@@ -468,22 +474,31 @@ void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
   if (!hasRuntimeData)
     return;
 
-  auto area = getLocalBounds().removeFromBottom(84).removeFromLeft(380).reduced(12);
-  if (area.getWidth() < 180 || area.getHeight() < 48)
+  auto area =
+      getLocalBounds().removeFromBottom(108).removeFromLeft(408).reduced(12);
+  if (area.getWidth() < 220 || area.getHeight() < 68)
     return;
 
-  g.setColour(juce::Colour(0xd8101720));
-  g.fillRoundedRectangle(area.toFloat(), 10.0f);
-  g.setColour(juce::Colour(0x4460a5fa));
-  g.drawRoundedRectangle(area.toFloat(), 10.0f, 1.0f);
+  g.setGradientFill(juce::ColourGradient(juce::Colour(0xdd0b1220),
+                                         (float)area.getCentreX(),
+                                         (float)area.getY(),
+                                         juce::Colour(0xdd111827),
+                                         (float)area.getCentreX(),
+                                         (float)area.getBottom(), false));
+  g.fillRoundedRectangle(area.toFloat(), 12.0f);
+  g.setColour(juce::Colour(0x4438bdf8));
+  g.drawRoundedRectangle(area.toFloat(), 12.0f, 1.0f);
 
-  auto content = area.reduced(10, 8);
-  auto header = content.removeFromTop(18);
-  auto detail = content.removeFromTop(16);
+  auto content = area.reduced(12, 10);
+  auto titleRow = content.removeFromTop(14);
+  auto primaryRow = content.removeFromTop(18);
+  auto detailRow = content.removeFromTop(16);
+  auto viewRow = content.removeFromTop(16);
+  content.removeFromTop(4);
   auto badgeRow = content.removeFromTop(18);
 
-  const juce::String headerText = juce::String::formatted(
-      "Runtime  %.1f kHz  |  %d blk  |  %d in / %d out  |  CPU %.1f%%",
+  const juce::String primaryText = juce::String::formatted(
+      "%.1f kHz  |  %d blk  |  %d in / %d out  |  CPU %.1f%%",
       runtimeOverlayState.sampleRate * 0.001,
       runtimeOverlayState.blockSize,
       runtimeOverlayState.inputChannels,
@@ -495,29 +510,45 @@ void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
       runtimeOverlayState.allocatedPortChannels,
       static_cast<unsigned long long>(runtimeOverlayState.activeGeneration),
       static_cast<unsigned long long>(runtimeOverlayState.pendingGeneration));
+  const juce::String viewText =
+      "Views  " + juce::String(runtimeViewOptions.heatmapEnabled ? "Heat on" : "Heat off") +
+      "  |  " +
+      juce::String(runtimeViewOptions.liveProbeEnabled ? "Probe on" : "Probe off") +
+      "  |  Overlay on";
+
+  g.setColour(juce::Colours::white.withAlpha(0.55f));
+  g.setFont(10.0f);
+  g.drawText("Runtime Overlay", titleRow, juce::Justification::centredLeft,
+             false);
 
   g.setColour(juce::Colours::white.withAlpha(0.95f));
-  g.setFont(13.0f);
-  g.drawText(headerText, header, juce::Justification::centredLeft, false);
+  g.setFont(juce::FontOptions(12.5f, juce::Font::bold));
+  g.drawText(primaryText, primaryRow, juce::Justification::centredLeft, false);
 
   g.setColour(juce::Colours::white.withAlpha(0.62f));
-  g.setFont(11.0f);
-  g.drawText(detailText, detail, juce::Justification::centredLeft, false);
+  g.setFont(10.5f);
+  g.drawText(detailText, detailRow, juce::Justification::centredLeft, false);
+  g.setColour(juce::Colours::white.withAlpha(0.5f));
+  g.drawText(viewText, viewRow, juce::Justification::centredLeft, false);
 
+  int badgeX = badgeRow.getX();
   auto drawBadge = [&](const juce::String &text, juce::Colour colour) {
-    if (text.isEmpty() || badgeRow.getWidth() <= 8)
+    if (text.isEmpty())
       return;
 
-    const int width = juce::jlimit(56, juce::jmax(70, area.getWidth() / 4),
-                                   18 + text.length() * 8);
-    auto badge = badgeRow.removeFromLeft(juce::jmin(width, badgeRow.getWidth()));
-    badgeRow.removeFromLeft(6);
+    const int width = juce::jlimit(60, 160, 22 + text.length() * 7);
+    if (badgeX + width > badgeRow.getRight())
+      return;
 
-    g.setColour(colour.withAlpha(0.2f));
+    juce::Rectangle<int> badge(badgeX, badgeRow.getY(), width,
+                               badgeRow.getHeight());
+    badgeX += width + 6;
+
+    g.setColour(colour.withAlpha(0.18f));
     g.fillRoundedRectangle(badge.toFloat(), 8.0f);
-    g.setColour(colour.withAlpha(0.9f));
+    g.setColour(colour.withAlpha(0.86f));
     g.drawRoundedRectangle(badge.toFloat(), 8.0f, 1.0f);
-    g.setColour(colour.brighter(0.2f));
+    g.setColour(colour.brighter(0.18f));
     g.setFont(10.0f);
     g.drawText(text, badge, juce::Justification::centred, false);
   };
@@ -551,23 +582,23 @@ void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
   if (!drewBadge)
     drawBadge("Stable", juce::Colour(0xff22c55e));
 }
-
 void TGraphCanvas::drawStatusHint(juce::Graphics &g) {
   if (statusHintAlpha <= 0.01f || statusHintText.isEmpty())
     return;
 
-  auto area = getLocalBounds().removeFromTop(28).reduced(10, 4);
-  area.setWidth(juce::jmin(460, area.getWidth()));
+  auto area = getLocalBounds().removeFromTop(34).reduced(10, 4);
+  area.setWidth(juce::jmin(420, area.getWidth()));
 
-  g.setColour(juce::Colour(0xcc111111).withAlpha(statusHintAlpha));
-  g.fillRoundedRectangle(area.toFloat(), 5.0f);
+  g.setColour(juce::Colour(0xdd0b1220).withAlpha(statusHintAlpha));
+  g.fillRoundedRectangle(area.toFloat(), 7.0f);
+  g.setColour(juce::Colour(0x4460a5fa).withAlpha(statusHintAlpha));
+  g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
 
   g.setColour(juce::Colours::white.withAlpha(statusHintAlpha));
-  g.setFont(13.0f);
-  g.drawText(statusHintText, area.reduced(8, 0), juce::Justification::centredLeft,
-             false);
+  g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+  g.drawText(statusHintText, area.reduced(10, 0),
+             juce::Justification::centredLeft, false);
 }
-
 void TGraphCanvas::recalcMiniMapCache() {
   const float safeZoom = juce::jmax(zoomLevel, 0.0001f);
   const float viewportWidthWorld =
