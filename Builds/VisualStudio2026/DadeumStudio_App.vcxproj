@@ -194,6 +194,7 @@
     <ClCompile Include="..\..\Source\Teul\Runtime\TGraphRuntime.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Verification\TVerificationFixtures.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Verification\TVerificationStimulus.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationParity.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Serialization\TFileIo.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp"/>
@@ -2966,6 +2967,7 @@
     <ClInclude Include="..\..\Source\Teul\Model\TGraphDocument.h"/>
     <ClInclude Include="..\..\Source\Teul\Verification\TVerificationFixtures.h"/>
     <ClInclude Include="..\..\Source\Teul\Verification\TVerificationStimulus.h"/>
+    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationParity.h"/>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h"/>
     <ClInclude Include="..\..\Source\Teul\Export\TExport.h"/>
     <ClInclude Include="..\..\Source\Teul\Teul.h"/>
