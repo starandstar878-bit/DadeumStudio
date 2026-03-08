@@ -191,11 +191,13 @@
 - [x] `DadeumStudio.exe --teul-phase7-runtime-compile-smoke` passed on exported RuntimeModule code.
 - [x] `compile-output.txt` was generated under `Builds/TeulCompileSmoke_*/`.
 - [x] `artifact-bundle.json` is now emitted for parity smoke, parity matrix, per-case parity runs, and runtime compile smoke.
+- [x] `DadeumStudio.exe --teul-phase7-stress-soak` passed on the representative stress/soak suite.
+- [x] `stress-summary.txt` was generated under `Builds/TeulVerification/StressSoak/representative_stress_primary/`.
 
 **Gate**
 - [x] parity test passes on representative graphs
 - [x] generated `.h/.cpp` compiles automatically
-- [ ] long soak/stress runs collect logs without crashes
+- [x] long soak/stress runs collect logs without crashes
 ---
 
 ### 마일스톤 3: Preset / State / Recovery

@@ -895,6 +895,9 @@
     <ClCompile Include="..\..\Source\Teul\Verification\TVerificationStimulus.cpp">
       <Filter>DadeumStudio\Source\Teul\Verification</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationStress.cpp">
+      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
     </ClCompile>
@@ -3955,6 +3958,9 @@
       <Filter>DadeumStudio\Source\Teul\Verification</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Verification\TVerificationStimulus.h">
+      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationStress.h">
       <Filter>DadeumStudio\Source\Teul\Verification</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h">
