@@ -265,6 +265,8 @@ private:
   bool isPointInFrameTitle(int frameId, juce::Point<float> pointView) const;
   bool isNodeInsideFrame(const TNode &node, const TFrameRegion &frame) const;
   bool isNodeHiddenByCollapsedFrame(const TNode &node) const;
+  juce::Rectangle<float> getFrameMemberBoundsWorld(
+      const TFrameRegion &frame, float paddingWorld = 24.0f) const;
 
   void recalcMiniMapCache();
   juce::Point<float> miniMapToWorld(juce::Point<float> miniPoint) const;

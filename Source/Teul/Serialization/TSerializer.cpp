@@ -98,6 +98,7 @@ juce::var TSerializer::connectionToJson(const TConnection &conn) {
 juce::var TSerializer::frameToJson(const TFrameRegion &frame) {
   auto *obj = new juce::DynamicObject();
   obj->setProperty("id", frame.frameId);
+  obj->setProperty("uuid", frame.frameUuid);
   obj->setProperty("title", frame.title);
   obj->setProperty("x", frame.x);
   obj->setProperty("y", frame.y);
@@ -106,6 +107,13 @@ juce::var TSerializer::frameToJson(const TFrameRegion &frame) {
   obj->setProperty("color_argb", (int64_t)frame.colorArgb);
   obj->setProperty("collapsed", frame.collapsed);
   obj->setProperty("locked", frame.locked);
+  obj->setProperty("logical_group", frame.logicalGroup);
+  obj->setProperty("membership_explicit", frame.membershipExplicit);
+
+  juce::Array<juce::var> membersArr;
+  for (const auto memberNodeId : frame.memberNodeIds)
+    membersArr.add((int64_t)memberNodeId);
+  obj->setProperty("member_node_ids", membersArr);
   return juce::var(obj);
 }
 
@@ -268,6 +276,9 @@ bool TSerializer::jsonToFrame(TFrameRegion &frame, const juce::var &json) {
     return false;
 
   frame.frameId = (int)json.getProperty("id", 0);
+  frame.frameUuid = json.getProperty("uuid", "").toString();
+  if (frame.frameUuid.isEmpty())
+    frame.frameUuid = juce::Uuid().toString();
   frame.title = json.getProperty("title", "Frame").toString();
   frame.x = (float)json.getProperty("x", 0.0f);
   frame.y = (float)json.getProperty("y", 0.0f);
@@ -276,6 +287,17 @@ bool TSerializer::jsonToFrame(TFrameRegion &frame, const juce::var &json) {
   frame.colorArgb = (juce::uint32)(int64_t)json.getProperty("color_argb", 0x334d8bf7);
   frame.collapsed = json.getProperty("collapsed", false);
   frame.locked = json.getProperty("locked", false);
+  frame.logicalGroup = json.getProperty("logical_group", true);
+  frame.membershipExplicit = json.getProperty("membership_explicit", false);
+  frame.memberNodeIds.clear();
+
+  if (auto *membersArr = json.getProperty("member_node_ids", juce::var()).getArray()) {
+    for (const auto &memberVar : *membersArr)
+      frame.memberNodeIds.push_back((NodeId)(int64_t)memberVar);
+    if (!membersArr->isEmpty())
+      frame.membershipExplicit = true;
+  }
+
   return frame.frameId > 0;
 }
 

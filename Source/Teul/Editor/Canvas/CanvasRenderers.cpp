@@ -329,10 +329,35 @@ void TGraphCanvas::pushStatusHint(const juce::String &text) {
 }
 bool TGraphCanvas::isNodeInsideFrame(const TNode &node,
                                      const TFrameRegion &frame) const {
+  if (frame.membershipExplicit)
+    return frame.containsNode(node.nodeId);
+
   const juce::Rectangle<float> frameRect(frame.x, frame.y, frame.width,
                                          frame.height);
   const juce::Rectangle<float> nodeRect(node.x, node.y, 160.0f, 90.0f);
   return frameRect.intersects(nodeRect);
+}
+
+juce::Rectangle<float>
+TGraphCanvas::getFrameMemberBoundsWorld(const TFrameRegion &frame,
+                                        float paddingWorld) const {
+  juce::Rectangle<float> bounds;
+  bool hasBounds = false;
+
+  for (const auto memberNodeId : frame.memberNodeIds) {
+    const auto *node = document.findNode(memberNodeId);
+    if (node == nullptr)
+      continue;
+
+    const juce::Rectangle<float> nodeRect(node->x, node->y, 160.0f, 90.0f);
+    bounds = hasBounds ? bounds.getUnion(nodeRect) : nodeRect;
+    hasBounds = true;
+  }
+
+  if (!hasBounds)
+    return {frame.x, frame.y, frame.width, frame.height};
+
+  return bounds.expanded(paddingWorld, paddingWorld);
 }
 
 bool TGraphCanvas::isNodeHiddenByCollapsedFrame(const TNode &node) const {
@@ -387,6 +412,12 @@ void TGraphCanvas::drawFrames(juce::Graphics &g) {
     g.fillRoundedRectangle(titleRect, 7.0f);
 
     juce::String title = frame.title;
+    if (frame.logicalGroup) {
+      title += " [G";
+      if (frame.membershipExplicit)
+        title += ":" + juce::String((int)frame.memberNodeIds.size());
+      title += "]";
+    }
     if (frame.locked)
       title += " [L]";
     if (frame.collapsed)

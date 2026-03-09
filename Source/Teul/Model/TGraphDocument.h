@@ -3,6 +3,7 @@
 #include "TConnection.h"
 #include "TNode.h"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -22,6 +23,7 @@ struct TGraphMeta {
 
 struct TFrameRegion {
   int frameId = 0;
+  juce::String frameUuid;
   juce::String title = "Frame";
   float x = 0.0f;
   float y = 0.0f;
@@ -30,6 +32,25 @@ struct TFrameRegion {
   juce::uint32 colorArgb = 0x334d8bf7;
   bool collapsed = false;
   bool locked = false;
+  bool logicalGroup = true;
+  bool membershipExplicit = false;
+  std::vector<NodeId> memberNodeIds;
+
+  bool containsNode(NodeId nodeId) const noexcept {
+    return std::find(memberNodeIds.begin(), memberNodeIds.end(), nodeId) !=
+           memberNodeIds.end();
+  }
+
+  void addMember(NodeId nodeId) {
+    if (!containsNode(nodeId))
+      memberNodeIds.push_back(nodeId);
+  }
+
+  void removeMember(NodeId nodeId) noexcept {
+    memberNodeIds.erase(
+        std::remove(memberNodeIds.begin(), memberNodeIds.end(), nodeId),
+        memberNodeIds.end());
+  }
 };
 
 struct TBookmark {
@@ -51,7 +72,7 @@ struct TGraphDocument {
   TGraphDocument(TGraphDocument &&other) noexcept;
   TGraphDocument &operator=(TGraphDocument &&other) noexcept;
 
-  int schemaVersion = 2;
+  int schemaVersion = 3;
   TGraphMeta meta;
 
   std::vector<TNode> nodes;
@@ -105,6 +126,34 @@ struct TGraphDocument {
       if (frame.frameId == frameId)
         return &frame;
     return nullptr;
+  }
+  bool isNodeExplicitMemberOfFrame(NodeId nodeId, int frameId) const noexcept {
+    if (const auto *frame = findFrame(frameId))
+      return frame->containsNode(nodeId);
+    return false;
+  }
+
+  void addNodeToFrame(NodeId nodeId, int frameId) {
+    if (auto *frame = findFrame(frameId)) {
+      frame->membershipExplicit = true;
+      frame->addMember(nodeId);
+    }
+  }
+
+  void removeNodeFromFrame(NodeId nodeId, int frameId) {
+    if (auto *frame = findFrame(frameId)) {
+      frame->membershipExplicit = true;
+      frame->removeMember(nodeId);
+    }
+  }
+
+  void removeNodeFromAllFrames(NodeId nodeId) {
+    for (auto &frame : frames) {
+      if (frame.containsNode(nodeId)) {
+        frame.membershipExplicit = true;
+        frame.removeMember(nodeId);
+      }
+    }
   }
 
   TBookmark *findBookmark(int bookmarkId) noexcept {

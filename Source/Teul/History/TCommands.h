@@ -41,13 +41,22 @@ public:
   explicit DeleteNodeCommand(NodeId id) : targetId(id) {}
 
   void execute(TGraphDocument &doc) override {
-    // 1) 노드 백업
+    connBackup.clear();
+    frameMembershipBackup.clear();
+
     auto *n = doc.findNode(targetId);
-    if (n) {
+    if (n)
       nodeBackup = *n;
+
+    for (auto &frame : doc.frames) {
+      if (!frame.containsNode(targetId))
+        continue;
+
+      frameMembershipBackup.push_back({frame.frameId, frame.memberNodeIds});
+      frame.membershipExplicit = true;
+      frame.removeMember(targetId);
     }
 
-    // 2) 이 노드와 관련된 연결 찾아서 백업 및 삭제
     for (auto it = doc.connections.begin(); it != doc.connections.end();) {
       if (it->from.nodeId == targetId || it->to.nodeId == targetId) {
         connBackup.push_back(*it);
@@ -57,34 +66,37 @@ public:
       }
     }
 
-    // 3) 노드 본체 삭제
     auto nit =
         std::find_if(doc.nodes.begin(), doc.nodes.end(),
                      [this](const TNode &n) { return n.nodeId == targetId; });
-    if (nit != doc.nodes.end()) {
+    if (nit != doc.nodes.end())
       doc.nodes.erase(nit);
-    }
   }
 
   void undo(TGraphDocument &doc) override {
-    // 백업했던 노드 복구
-    if (nodeBackup.nodeId != kInvalidNodeId) {
+    if (nodeBackup.nodeId != kInvalidNodeId)
       doc.nodes.push_back(nodeBackup);
+
+    for (const auto &membership : frameMembershipBackup) {
+      if (auto *frame = doc.findFrame(membership.first)) {
+        frame->membershipExplicit = true;
+        frame->memberNodeIds = membership.second;
+      }
     }
-    // 백업했던 연결 복구
-    for (const auto &c : connBackup) {
+
+    for (const auto &c : connBackup)
       doc.connections.push_back(c);
-    }
   }
 
 private:
   NodeId targetId;
   TNode nodeBackup;
   std::vector<TConnection> connBackup;
+  std::vector<std::pair<int, std::vector<NodeId>>> frameMembershipBackup;
 };
 
 // =============================================================================
-//  연결 추가 (AddConnectionCommand)
+//  AddConnectionCommand
 // =============================================================================
 class AddConnectionCommand : public TCommand {
 public:

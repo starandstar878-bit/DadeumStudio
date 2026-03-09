@@ -68,16 +68,53 @@ void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
         if (result == 20) {
           TFrameRegion frame;
           frame.frameId = self.document.allocFrameId();
+          frame.frameUuid = juce::Uuid().toString();
           frame.title = "Frame " + juce::String(frame.frameId);
-          auto world = self.viewToWorld(pointView);
-          frame.x = world.x - 160.0f;
-          frame.y = world.y - 110.0f;
-          frame.width = 320.0f;
-          frame.height = 220.0f;
           frame.colorArgb = 0x334d8bf7;
+          frame.logicalGroup = true;
+          frame.membershipExplicit = true;
+
+          if (!self.selectedNodeIds.empty()) {
+            juce::Rectangle<float> memberBounds;
+            bool hasBounds = false;
+
+            for (const auto nodeId : self.selectedNodeIds) {
+              const auto *node = self.document.findNode(nodeId);
+              if (node == nullptr)
+                continue;
+
+              frame.addMember(nodeId);
+              const juce::Rectangle<float> nodeRect(node->x, node->y, 160.0f,
+                                                    90.0f);
+              memberBounds = hasBounds ? memberBounds.getUnion(nodeRect)
+                                       : nodeRect;
+              hasBounds = true;
+            }
+
+            if (hasBounds) {
+              memberBounds = memberBounds.expanded(24.0f, 24.0f);
+              frame.x = memberBounds.getX();
+              frame.y = memberBounds.getY();
+              frame.width = memberBounds.getWidth();
+              frame.height = memberBounds.getHeight();
+            }
+          }
+
+          if (frame.width <= 0.0f || frame.height <= 0.0f) {
+            auto world = self.viewToWorld(pointView);
+            frame.x = world.x - 160.0f;
+            frame.y = world.y - 110.0f;
+            frame.width = 320.0f;
+            frame.height = 220.0f;
+          }
+
           self.document.frames.push_back(frame);
           self.document.touch(false);
+          self.updateChildPositions();
           self.repaint();
+          self.pushStatusHint(frame.memberNodeIds.empty()
+                                  ? "Frame created. Use the frame menu to capture members."
+                                  : "Frame group created from selection.");
           return;
         }
 
@@ -387,10 +424,21 @@ void TGraphCanvas::showFrameContextMenu(int frameId,
   if (frameIt == document.frames.end())
     return;
 
+  const bool canCaptureSelection = !selectedNodeIds.empty();
+  const bool canReleaseSelection = std::any_of(
+      selectedNodeIds.begin(), selectedNodeIds.end(),
+      [&](NodeId nodeId) { return frameIt->containsNode(nodeId); });
+  const bool canFitToMembers =
+      frameIt->membershipExplicit && !frameIt->memberNodeIds.empty();
+
   juce::PopupMenu menu;
   menu.addItem(1, frameIt->collapsed ? "Expand Frame" : "Collapse Frame");
   menu.addItem(2, frameIt->locked ? "Unlock Frame" : "Lock Frame");
   menu.addItem(3, "Delete Frame");
+  menu.addSeparator();
+  menu.addItem(4, "Capture Selected Nodes", canCaptureSelection);
+  menu.addItem(5, "Release Selected Nodes", canReleaseSelection);
+  menu.addItem(6, "Fit To Members", canFitToMembers);
 
   juce::PopupMenu colorMenu;
   colorMenu.addItem(100, "Blue");
@@ -434,6 +482,66 @@ void TGraphCanvas::showFrameContextMenu(int frameId,
           self.document.touch(false);
           self.updateChildPositions();
           self.repaint();
+          return;
+        }
+        if (result == 4) {
+          bool changed = false;
+          for (const auto nodeId : self.selectedNodeIds) {
+            if (it->containsNode(nodeId))
+              continue;
+            it->membershipExplicit = true;
+            it->addMember(nodeId);
+            changed = true;
+          }
+          if (changed) {
+            const auto bounds = self.getFrameMemberBoundsWorld(*it);
+            it->x = bounds.getX();
+            it->y = bounds.getY();
+            it->width = bounds.getWidth();
+            it->height = bounds.getHeight();
+            self.document.touch(false);
+            self.updateChildPositions();
+            self.repaint();
+            self.pushStatusHint("Selected nodes captured into frame group.");
+          }
+          return;
+        }
+        if (result == 5) {
+          bool changed = false;
+          for (const auto nodeId : self.selectedNodeIds) {
+            if (!it->containsNode(nodeId))
+              continue;
+            it->membershipExplicit = true;
+            it->removeMember(nodeId);
+            changed = true;
+          }
+          if (changed) {
+            if (!it->memberNodeIds.empty()) {
+              const auto bounds = self.getFrameMemberBoundsWorld(*it);
+              it->x = bounds.getX();
+              it->y = bounds.getY();
+              it->width = bounds.getWidth();
+              it->height = bounds.getHeight();
+            }
+            self.document.touch(false);
+            self.updateChildPositions();
+            self.repaint();
+            self.pushStatusHint("Selected nodes released from frame group.");
+          }
+          return;
+        }
+        if (result == 6) {
+          if (it->membershipExplicit && !it->memberNodeIds.empty()) {
+            const auto bounds = self.getFrameMemberBoundsWorld(*it);
+            it->x = bounds.getX();
+            it->y = bounds.getY();
+            it->width = bounds.getWidth();
+            it->height = bounds.getHeight();
+            self.document.touch(false);
+            self.updateChildPositions();
+            self.repaint();
+            self.pushStatusHint("Frame resized to current group members.");
+          }
           return;
         }
         if (result >= 100 && result <= 103) {
