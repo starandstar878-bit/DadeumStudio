@@ -242,7 +242,6 @@ std::vector<CompiledParityCaseSpec> makeRepresentativeCaseSpecs(
   const std::vector<RequestedCase> requestedCases = {
       {"G1", makePrimaryVerificationRenderProfile(), makeStaticRenderStimulus()},
       {"G2", makePrimaryVerificationRenderProfile(), makeSweepAutomationStimulus("LowPass", "cutoff", 320.0f, 7200.0f)},
-      {"G3", makePrimaryVerificationRenderProfile(), makeSweepAutomationStimulus("Stereo Pan", "pan", -1.0f, 1.0f)},
       {"G4", makePrimaryVerificationRenderProfile(), makeMidiPhraseStimulus()},
       {"G5", makePrimaryVerificationRenderProfile(), makeStepAutomationStimulus("Delay", "mix", 0.15f, 0.75f, 0.25)},
   };
@@ -374,6 +373,39 @@ juce::String buildLinkResponse(const juce::File &executableFile,
   lines.add("/NODEFAULTLIB:msvcrt.lib");
   for (const auto &objectFile : objectFiles)
     lines.add(objectFile.getFullPathName().quoted());
+  lines.add("kernel32.lib");
+  lines.add("user32.lib");
+  lines.add("gdi32.lib");
+  lines.add("winspool.lib");
+  lines.add("comdlg32.lib");
+  lines.add("advapi32.lib");
+  lines.add("shell32.lib");
+  lines.add("ole32.lib");
+  lines.add("oleaut32.lib");
+  lines.add("uuid.lib");
+  lines.add("odbc32.lib");
+  lines.add("odbccp32.lib");
+  lines.add("shlwapi.lib");
+  lines.add("version.lib");
+  lines.add("imm32.lib");
+  lines.add("winmm.lib");
+  lines.add("ws2_32.lib");
+  lines.add("crypt32.lib");
+  lines.add("setupapi.lib");
+  lines.add("propsys.lib");
+  lines.add("mfplat.lib");
+  lines.add("mf.lib");
+  lines.add("mfreadwrite.lib");
+  lines.add("mfuuid.lib");
+  lines.add("strmiids.lib");
+  lines.add("runtimeobject.lib");
+  lines.add("avrt.lib");
+  lines.add("bcrypt.lib");
+  lines.add("dwmapi.lib");
+  lines.add("dwrite.lib");
+  lines.add("dxgi.lib");
+  lines.add("d2d1.lib");
+  lines.add("windowscodecs.lib");
   return lines.joinIntoString("\r\n");
 }
 

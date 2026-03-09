@@ -185,6 +185,8 @@
 - [x] Add CI-friendly failure artifact bundling for automated runs.
 - [x] Add benchmark runner: `Tools/TeulVerification/teul_benchmark_gate.bat`.
 - [x] Add representative benchmark baseline and regression gate.
+- [x] Add compiled runtime parity runner: `Tools/TeulVerification/teul_compiled_runtime_parity.bat`.
+- [x] Add headless workflow: `.github/workflows/teul-phase7-headless.yml`.
 - [x] Diagnostics Drawer is available from the Teul toolbar and shows the latest parity, stress, benchmark, and compile artifacts.
 
 **Verification Notes (2026-03-09)**
@@ -203,6 +205,9 @@
 - [x] `stress-summary.txt` was generated under `Builds/TeulVerification/StressSoak/representative_stress_primary/`.
 - [x] `DadeumStudio.exe --teul-phase7-benchmark-gate` passed on the representative benchmark suite.
 - [x] `benchmark-summary.txt` was generated under `Builds/TeulVerification/Benchmark/representative_benchmark_primary/`.
+- [x] `DadeumStudio.exe --teul-phase7-compiled-runtime-parity` passed on the stable compiled parity core suite (`G1`, `G2`, `G4`, `G5`).
+- [x] `.github/workflows/teul-phase7-headless.yml` now runs `build`, `golden verify`, `parity matrix`, `compiled parity`, `runtime compile smoke`, and `benchmark gate` on `windows-2022`.
+- [x] The local runner sequence matched the headless workflow command set.
 - [x] The Diagnostics Drawer implementation now reads the latest verification summaries from generated artifacts.
 
 **Gate**
@@ -210,6 +215,7 @@
 - [x] generated `.h/.cpp` compiles automatically
 - [x] long soak/stress runs collect logs without crashes
 - [x] benchmark regression gate passes on representative graphs
+- [x] headless verification workflow covers the core Phase 7 command set
 ---
 
 ### 마일스톤 3: Preset / State / Recovery

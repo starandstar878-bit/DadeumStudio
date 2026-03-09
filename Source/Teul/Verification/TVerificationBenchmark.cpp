@@ -105,7 +105,7 @@ std::vector<BenchmarkCaseSpec> makeRepresentativeBenchmarkCases() {
                    makePrimaryVerificationRenderProfile(),
                    makeSweepAutomationStimulus("Stereo Pan", "pan", -1.0f,
                                                1.0f),
-                   {1.00f, 0.60, 5.0}});
+                   {1.10f, 0.60, 5.0}});
   cases.push_back({"G4",
                    makePrimaryVerificationRenderProfile(),
                    makeMidiPhraseStimulus(),

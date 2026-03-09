@@ -202,6 +202,7 @@ bool renderCompiledRuntimeWithStimulus(TRuntimeClass &runtimeModule,
     return a.sampleOffset < b.sampleOffset;
   });
 
+  runtimeModule.setCurrentChannelLayout(0, profile.outputChannels);
   runtimeModule.reset();
   runtimeModule.prepare(profile.sampleRate, profile.blockSize);
 
@@ -244,6 +245,90 @@ bool renderCompiledRuntimeWithStimulus(TRuntimeClass &runtimeModule,
     ++resultOut.renderedBlockCount;
   }
 
+  return true;
+}
+
+bool renderRuntimeGraphWithStimulus(const Teul::TNodeRegistry &registry,
+                                    const Teul::TGraphDocument &document,
+                                    const Teul::TVerificationRenderProfile &profile,
+                                    const Teul::TVerificationStimulusSpec &stimulus,
+                                    Teul::TVerificationRenderResult &resultOut,
+                                    juce::String *errorMessageOut) {
+  if (profile.sampleRate <= 0.0 || profile.blockSize <= 0 ||
+      profile.outputChannels <= 0 || profile.durationSeconds <= 0.0) {
+    if (errorMessageOut != nullptr)
+      *errorMessageOut = "Invalid compiled parity render profile.";
+    return false;
+  }
+
+  std::vector<std::pair<Teul::NodeId, Teul::TVerificationAutomationLane>> resolvedLanes;
+  resolvedLanes.reserve(stimulus.automationLanes.size());
+  for (const auto &lane : stimulus.automationLanes) {
+    const auto nodeId = findNodeIdByLabel(document, lane.nodeLabel);
+    if (nodeId == Teul::kInvalidNodeId) {
+      if (errorMessageOut != nullptr)
+        *errorMessageOut = "Compiled parity stimulus references a missing node label: " +
+                           lane.nodeLabel;
+      return false;
+    }
+    resolvedLanes.push_back({nodeId, lane});
+  }
+
+  std::vector<Teul::TVerificationMidiEvent> midiEvents = stimulus.midiEvents;
+  std::sort(midiEvents.begin(), midiEvents.end(), [](const auto &a, const auto &b) {
+    return a.sampleOffset < b.sampleOffset;
+  });
+
+  Teul::TGraphRuntime runtime(&registry);
+  if (!runtime.buildGraph(document)) {
+    if (errorMessageOut != nullptr)
+      *errorMessageOut = "Failed to build compiled parity source graph.";
+    return false;
+  }
+
+  runtime.setCurrentChannelLayout(0, profile.outputChannels);
+  runtime.prepareToPlay(profile.sampleRate, profile.blockSize);
+
+  const int totalSamples = juce::jmax(
+      1, juce::roundToInt(profile.durationSeconds * profile.sampleRate));
+  resultOut.graphName = document.meta.name;
+  resultOut.stimulusId = stimulus.stimulusId;
+  resultOut.profileId = profile.profileId;
+  resultOut.totalSamples = totalSamples;
+  resultOut.audioBuffer.setSize(profile.outputChannels, totalSamples, false, false, true);
+  resultOut.audioBuffer.clear();
+  resultOut.renderedBlockCount = 0;
+
+  std::size_t midiEventIndex = 0;
+  for (int blockStart = 0; blockStart < totalSamples; blockStart += profile.blockSize) {
+    const int blockSamples = juce::jmin(profile.blockSize, totalSamples - blockStart);
+    for (const auto &resolvedLane : resolvedLanes) {
+      const float value = valueForLaneAtSample(resolvedLane.second, blockStart,
+                                               totalSamples, profile.sampleRate);
+      runtime.setParam(
+          Teul::makeTeulParamId(resolvedLane.first, resolvedLane.second.paramKey),
+          value);
+    }
+
+    juce::AudioBuffer<float> blockBuffer(profile.outputChannels, blockSamples);
+    juce::MidiBuffer midiBuffer;
+    while (midiEventIndex < midiEvents.size() &&
+           midiEvents[midiEventIndex].sampleOffset < (blockStart + blockSamples)) {
+      const auto &event = midiEvents[midiEventIndex];
+      if (event.sampleOffset >= blockStart)
+        midiBuffer.addEvent(event.message, event.sampleOffset - blockStart);
+      ++midiEventIndex;
+    }
+
+    runtime.processBlock(blockBuffer, midiBuffer);
+    for (int channel = 0; channel < profile.outputChannels; ++channel) {
+      resultOut.audioBuffer.copyFrom(channel, blockStart, blockBuffer, channel, 0,
+                                     blockSamples);
+    }
+    ++resultOut.renderedBlockCount;
+  }
+
+  resultOut.runtimeStats = runtime.getRuntimeStats();
   return true;
 }
 
@@ -375,9 +460,9 @@ int main(int argc, char *argv[]) {
   }
 
   Teul::TVerificationRenderResult runtimeRender;
-  if (!Teul::renderGraphWithStimulus(*registry, importedDocument, manifest.profile,
-                                     manifest.stimulus, runtimeRender,
-                                     &errorMessage)) {
+  if (!renderRuntimeGraphWithStimulus(*registry, importedDocument, manifest.profile,
+                                      manifest.stimulus, runtimeRender,
+                                      &errorMessage)) {
     writeTextArtifact(manifest.artifactDirectory.getChildFile("compiled-parity-failure.txt"),
                       errorMessage + "\r\n");
     std::cerr << errorMessage << std::endl;

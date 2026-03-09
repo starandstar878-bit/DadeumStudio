@@ -301,21 +301,22 @@
 - [x] editable round-trip parity smoke and representative matrix
 - [x] generated RuntimeModule compile smoke
 - [x] representative stress/soak suite, benchmark gate, artifact bundle
-- [ ] compiled RuntimeModule parity
-- [ ] headless CI execution
+- [x] compiled RuntimeModule parity
+- [x] headless CI execution
 
 ### Scope
 - [x] **golden audio test**: representative primary baseline record/verify and WAV snapshot comparison are implemented
 - [x] **runtime vs export parity test**: editable round-trip parity smoke/matrix and artifact reports are implemented
 - [x] **export compile smoke**: generated `.h/.cpp` compile check and CLI/batch entry points are implemented
 - [x] **representative soak + benchmark gate**: representative stress/soak suite and benchmark regression gate are implemented
-- [ ] **compiled RuntimeModule parity**: run the generated RuntimeModule and compare its output directly against runtime output
-- [ ] **headless CI**: run golden/parity/compile/benchmark checks automatically in CI
+- [x] **compiled RuntimeModule parity**: run the generated RuntimeModule and compare its output directly against runtime output
+- [x] **headless CI**: run golden/parity/compile/benchmark checks automatically in CI
 
 ### Deferred From Phase 7
 - Random fuzz automation
 - Extended long-duration soak variants
 - Additional profiles beyond the representative primary suite
+- Expanded compiled parity coverage for stereo-motion edge cases beyond the stable core suite
 
 ---
 

@@ -1187,6 +1187,7 @@ juce::String generateHeaderCode(const juce::String &className) {
   lines.add("    ~" + className + "() = default;");
   lines.add("");
   lines.add("    void prepare(double sampleRate, int maximumExpectedSamplesPerBlock);");
+  lines.add("    void setCurrentChannelLayout(int inputChannels, int outputChannels);");
   lines.add("    void reset();");
   lines.add("    void process(juce::AudioBuffer<float>& audioBuffer, juce::MidiBuffer& midiBuffer);");
   lines.add("");
@@ -1214,6 +1215,8 @@ juce::String generateHeaderCode(const juce::String &className) {
   lines.add("    juce::StringArray scheduleEntries;");
   lines.add("    std::map<juce::String, int> paramIndexById;");
   lines.add("    double currentSampleRate = 48000.0;");
+  lines.add("    int currentInputChannels = 0;");
+  lines.add("    int currentOutputChannels = 2;");
   lines.add("    int currentBlockSize = 256;");
   lines.add("};");
   lines.add("");
@@ -1259,6 +1262,7 @@ juce::String generateSourceCode(const juce::String &className,
   lines.add("void " + className + "::rebuildRuntime()");
   lines.add("{");
   lines.add("    runtime.buildGraph(document);");
+  lines.add("    runtime.setCurrentChannelLayout(currentInputChannels, currentOutputChannels);");
   lines.add("    runtime.prepareToPlay(currentSampleRate, currentBlockSize);");
   lines.add("}");
   lines.add("");
@@ -1267,6 +1271,13 @@ juce::String generateSourceCode(const juce::String &className,
   lines.add("    currentSampleRate = sampleRate;");
   lines.add("    currentBlockSize = maximumExpectedSamplesPerBlock;");
   lines.add("    runtime.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);");
+  lines.add("}");
+  lines.add("");
+  lines.add("void " + className + "::setCurrentChannelLayout(int inputChannels, int outputChannels)");
+  lines.add("{");
+  lines.add("    currentInputChannels = inputChannels;");
+  lines.add("    currentOutputChannels = outputChannels;");
+  lines.add("    runtime.setCurrentChannelLayout(inputChannels, outputChannels);");
   lines.add("}");
   lines.add("");
   lines.add("void " + className + "::reset()");
