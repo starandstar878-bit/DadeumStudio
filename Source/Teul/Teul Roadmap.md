@@ -322,16 +322,29 @@
 
 ## Phase 8: Preset, State & Compatibility
 
-### 목표
-- 버전이 달라져도 프로젝트, 프리셋, export 결과가 가능한 한 안정적으로 유지되게 한다.
+### Goal
+- Preserve reusable graph fragments, document state, autosave recovery, and compatibility metadata without breaking older Teul payloads.
 
-### 구현 단계
+### Current Status
+- [x] logical frame groups can be saved, loaded, and inserted as patch presets
+- [x] document-level state preset save/apply MVP is implemented
+- [x] autosave / crash recovery MVP restores the latest Teul session snapshot
+- [x] legacy alias compatibility smoke and compatibility matrix are implemented
+- [x] migration / degraded load reports and transient warning notices are implemented
+- [ ] explicit schema migration chain across versioned payload steps
+- [ ] preset browser, state diff UX, and recovery conflict UX remain in UI Phase 8
 
-- [ ] **preset/state 포맷 정의**: `paramId`, 그래프 메타데이터, 노드별 상태를 안정적으로 저장하는 preset/schema 설계
-- [ ] **schema migration 체계**: 구버전 `.teul`과 preset을 최신 구조로 올리는 migration 경로 추가
-- [ ] **호환성 alias 정책**: 노드 타입 이름 변경, 파라미터 키 변경, deprecated 노드 제거 시 대체 경로 제공
-- [ ] **autosave / crash recovery**: 비정상 종료 후 최근 작업을 복구하는 자동 저장/복원 경로 도입
-- [ ] **compatibility test matrix**: 예전 문서, 프리셋, 생성 코드를 새 버전에서 다시 여는 회귀 테스트 구축
+### Scope
+- [x] **preset/state format definition**: patch preset and state preset payload formats are fixed for the current MVP path
+- [ ] **explicit schema migration chain**: move beyond alias normalization to explicit version-to-version migration steps
+- [x] **compatibility alias policy**: document / patch preset / state preset legacy aliases restore with warning reports
+- [x] **autosave / crash recovery**: latest Teul autosave snapshot is persisted and restored after an unclean shutdown
+- [x] **compatibility test matrix**: representative legacy alias, schema-v1, and partial-apply matrix smoke is implemented
+- [x] **migration / degraded reporting**: load/apply paths emit degraded flags and warning lists for UI/diagnostics consumers
+
+### Deferred From Phase 8
+- Shared `PresetCore` / composite preset packaging for `Gyeol + Ieum + Teul`
+- Explicit multi-step migration chains for future schema versions beyond the current alias-normalization path
 
 ---
 

@@ -217,29 +217,57 @@
 - [x] headless verification workflow covers the core Phase 7 command set
 ---
 
-### 마일스톤 3: Preset / State / Recovery
+### ???? 3: Preset / State / Recovery
 
-**기능 먼저**
-- 기능 `Phase 8`
-  - preset/state 포맷 정의
-  - schema migration 체계
-  - 호환성 alias 정책
+**Function First**
+- Functional `Phase 8`
+  - patch preset storage around logical frame groups
+  - state preset save/apply
   - autosave / crash recovery
-  - compatibility test matrix
+  - compatibility alias handling and matrix smoke
+  - migration / degraded warning propagation
 
 **Milestone 3 Status**
 - [x] frame group -> patch preset save/load/insert MVP
 - [x] document-level state preset save/apply MVP
 - [x] autosave / crash recovery MVP
 - [x] legacy alias compatibility for document / patch preset / state preset
-- [ ] schema migration chain
-- [ ] compatibility test matrix
+- [x] compatibility test matrix
+- [x] migration / degraded load reports
+- [x] transient recovery / compatibility warning banner
+- [ ] explicit schema migration chain
+- [ ] preset browser / state diff / recovery conflict UX
+- [ ] external control sources / device profiles
 
 **Verification Notes (2026-03-09)**
 - [x] `Tools/TeulVerification/teul_patch_preset_smoke.bat` passed.
 - [x] `Tools/TeulVerification/teul_state_preset_smoke.bat` passed.
 - [x] `Tools/TeulVerification/teul_autosave_recovery_smoke.bat` passed.
 - [x] `Tools/TeulVerification/teul_compatibility_smoke.bat` passed on legacy document / patch preset / state preset aliases.
+- [x] `Tools/TeulVerification/teul_compatibility_matrix.bat` passed on the representative compatibility matrix.
+- [x] `build_check.bat` passed after the transient recovery warning banner integration.
+
+**Then UI**
+- UI `Phase 8`
+  - preset browser
+  - state diff / compare view
+  - dirty state and crash recovery preview
+  - migration warning / degraded recovery guidance
+  - control source rail and device profile UX
+
+**Why This Stage Matters**
+- Verification infrastructure is in place, so the next risk is losing work or restoring the wrong state.
+- The current MVP path already persists presets and recovery snapshots; the remaining work is hardening migration semantics and making those states understandable in the UI.
+
+**Gate**
+- [x] patch preset save/load/insert smoke passes
+- [x] state preset save/apply smoke passes
+- [x] autosave recovery smoke passes
+- [x] compatibility smoke and compatibility matrix pass
+- [ ] explicit schema migration chain is documented and exercised
+- [ ] UI Phase 8 exposes preset browsing, recovery preview, and warning detail clearly
+
+---
 
 ### External Control Sources / Device Profiles
 

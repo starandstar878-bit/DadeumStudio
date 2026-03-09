@@ -232,41 +232,47 @@
 
 ---
 
-## Phase 8: 프리셋/상태/복구 UX (Preset & Recovery UX)
+## Phase 8: ???/??/?? UX (Preset & Recovery UX)
 
-### 목표
-- 문서, 프리셋, 자동 저장 상태를 잃지 않고 다루며, 버전 차이와 충돌 상황도 사용자가 이해 가능한 흐름으로 안내한다.
+### Goal
+- Make preset save/apply, autosave recovery, and compatibility warnings understandable enough that users can trust restore flows before packaging work starts.
 
-### 구현 단계
+### Current Status
+- [x] transient recovery / compatibility warning banner is visible inside the Teul editor
+- [x] logical frame groups back the current patch preset MVP
+- [x] document-level state preset and autosave recovery MVP are implemented underneath the UI
+- [ ] preset browser, state diff UX, recovery chooser, and control source rail remain pending
 
-#### 단계 1: 프리셋 브라우저
-- [ ] **Preset Browser**: 태그, 즐겨찾기, 최근 사용, 미리듣기 메타데이터를 포함한 프리셋 탐색 패널
-- [ ] **노드 상태 스냅샷**: 전체 그래프뿐 아니라 선택 노드/서브그래프 단위 preset 저장과 recall 지원
-- [ ] **변경 비교 보기**: 현재 상태와 저장된 프리셋 간 차이를 항목별로 보여주는 diff 뷰 제공
+### Steps
 
-#### 단계 2: 저장/복구 흐름
-- [ ] **dirty state 표시**: 문서 제목, 탭, 패널에 저장 여부와 마지막 autosave 시점을 일관되게 표시
-- [ ] **crash recovery 대화상자**: 비정상 종료 후 복구 가능한 autosave 후보와 차이 요약을 제시
-- [ ] **충돌 해결 흐름**: 외부 수정, import 병합, 버전 충돌 시 선택 가능한 복구 경로 제공
+#### Step 1: Preset Library
+- [ ] **Preset Browser**: browse presets with tags, recent items, and preview metadata
+- [ ] **Node/Group Snapshot Save**: save selected frame groups or graph fragments as reusable patch presets
+- [ ] **State Diff View**: compare the current state against the selected preset before apply
 
-#### 단계 3: External Control Source Rail UX
-- [ ] **Input/Output/Control rail 레이아웃**: 좌측 Input rail, 우측 Output rail, 하단 Control Source rail을 고정 영역으로 두고 일반 캔버스 노드와 역할을 분리
-- [ ] **동적 장치 감지**: 연결된 MIDI foot controller, expression pedal, switch 입력을 감지해 rail 안에 임시 source로 자동 생성
-- [ ] **learn + confirm 플로우**: 사용자가 페달을 움직이거나 스위치를 눌러 `EXP 1`, `FS 1` 같은 source를 확정하고 이름, 타입, momentary/toggle 모드를 보정
-- [ ] **device profile persist**: 장치별 source 구성, 표시 이름, 바인딩, rail 배치를 profile로 저장하고 재연결 시 복원
-- [ ] **assignment inspector**: rail source를 선택하면 현재 바인딩 대상, 출력 포트(`Value`, `Gate`, `Trigger`), 장치 원본 CC/Note 정보를 inspector에서 편집
-- [ ] **rail collapse / density 제어**: 장치 수가 많아도 중앙 캔버스를 압박하지 않도록 compact, collapse, group-by-device 표시를 지원
+#### Step 2: Save / Recovery Flow
+- [ ] **Dirty State Indicator**: show modified state and the latest autosave time in the editor chrome
+- [ ] **Crash Recovery Preview**: show the autosave candidate and what will be restored after an unclean shutdown
+- [x] **Recovery Warning Banner**: show a transient banner when autosave restore, degraded preset apply, or compatibility fallback happens
+- [ ] **Conflict Resolution Flow**: explain merge / overwrite / keep-local choices for import and restore operations
 
+#### Step 3: External Control Source Rail UX
+- [ ] **Input / Output / Control Rail Layout**: reserve fixed rails for system I/O and control sources around the canvas
+- [ ] **Dynamic Device Detection**: create temporary control sources when MIDI foot controllers, expression pedals, or switches appear
+- [ ] **Learn + Confirm Flow**: let users confirm source meaning, display name, and momentary / toggle mode
+- [ ] **Device Profile Persist**: restore source layout and bindings when the same device reconnects
+- [ ] **Assignment Inspector**: inspect `Value`, `Gate`, and `Trigger` outputs and the underlying CC / Note source
+- [ ] **Rail Density Controls**: add compact / collapse / group-by-device presentation modes
 
-#### 단계 4: 호환성 안내 UX
-- [ ] **migration 경고 배너**: 구버전 문서/프리셋을 열 때 변환 항목과 잠재적 손실을 미리 안내
-- [ ] **deprecated/alias 표시**: 대체 노드, renamed param, 호환성 shim 사용 여부를 명시적으로 노출
-- [ ] **복구 가능성 등급**: 완전 복구/부분 복구/수동 조치 필요를 문서 단위 배지로 표시
+#### Step 4: Compatibility Guidance UX
+- [x] **Migration Warning Banner**: surface degraded restore and compatibility warnings directly in the editor
+- [ ] **Deprecated / Alias Detail**: show which renamed fields, aliases, or deprecated params were used during load
+- [ ] **Recovery Severity Grade**: distinguish full restore, partial restore, and manual follow-up needed
 
 ---
 
-> **→ 기능 로드맵 복귀**: `UI Phase 8` 완료 후 **[기능 Phase 9: Asset & Dependency Packaging](Teul%20Roadmap.md)** 로 복귀하세요.
-> 이제부터는 문서 내부만이 아니라 외부 자산까지 포함한 프로젝트 이동성과 복구 경험을 설계해야 합니다.
+> **? ?? ??? ??**: `UI Phase 8` ?? ? **[?? Phase 9: Asset & Dependency Packaging](Teul%20Roadmap.md)** ? ?????.
+> ????? ?? ???? ??? ?? ???? ??? ???? ???? ?? ??? ???? ???.
 
 ---
 
