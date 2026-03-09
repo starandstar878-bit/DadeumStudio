@@ -15,6 +15,7 @@ class NodeLibraryPanel;
 class NodePropertiesPanel;
 class DiagnosticsDrawer;
 class RuntimeStatusStrip;
+class DocumentNoticeBanner;
 
 struct EditorHandle::Impl : private juce::Timer {
   explicit Impl(EditorHandle &owner,
@@ -39,6 +40,7 @@ private:
   bool focusDiagnosticTarget(const juce::String &graphId,
                              const juce::String &query);
   void refreshRuntimeUi(bool forceMessage = false);
+  void refreshDocumentNoticeUi(bool force = false);
   void syncRuntimeViewButtons();
   void pushRuntimeMessage(const juce::String &text,
                           juce::Colour accent,
@@ -53,6 +55,7 @@ private:
   std::unique_ptr<NodePropertiesPanel> propertiesPanel;
   std::unique_ptr<DiagnosticsDrawer> diagnosticsDrawer;
   std::unique_ptr<RuntimeStatusStrip> runtimeStatusStrip;
+  std::unique_ptr<DocumentNoticeBanner> documentNoticeBanner;
   juce::AudioDeviceManager *audioDeviceManager = nullptr;
 
   juce::TextButton toggleLibraryButton;
@@ -67,6 +70,7 @@ private:
   bool libraryVisible = true;
   std::uint64_t lastDocumentRevision = 0;
   std::uint64_t lastRuntimeRevision = 0;
+  std::uint64_t lastDocumentNoticeRevision = 0;
   std::uint64_t lastBindingRevision = 0;
   TGraphRuntime::RuntimeStats lastRuntimeStats;
   juce::String runtimeMessageText;

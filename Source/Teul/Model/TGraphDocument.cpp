@@ -25,6 +25,8 @@ TGraphDocument::TGraphDocument(const TGraphDocument &other) {
   nextBookmarkId = other.nextBookmarkId;
   documentRevision = other.documentRevision;
   runtimeRevision = other.runtimeRevision;
+  transientNotice = other.transientNotice;
+  transientNoticeRevision = other.transientNoticeRevision;
   historyStack = std::make_unique<THistoryStack>();
 }
 
@@ -43,6 +45,8 @@ TGraphDocument &TGraphDocument::operator=(const TGraphDocument &other) {
     nextBookmarkId = other.nextBookmarkId;
     documentRevision = other.documentRevision;
     runtimeRevision = other.runtimeRevision;
+    transientNotice = other.transientNotice;
+    transientNoticeRevision = other.transientNoticeRevision;
     historyStack = std::make_unique<THistoryStack>();
   }
   return *this;

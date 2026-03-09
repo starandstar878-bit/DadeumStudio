@@ -243,6 +243,26 @@ static bool wasLastSessionShutdownClean(const juce::File &file) {
   return textValue.equalsIgnoreCase("true") || textValue == "1";
 }
 
+Teul::TDocumentNoticeLevel moreSevereNoticeLevel(
+    Teul::TDocumentNoticeLevel lhs,
+    Teul::TDocumentNoticeLevel rhs) noexcept {
+  return static_cast<int>(lhs) >= static_cast<int>(rhs) ? lhs : rhs;
+}
+
+juce::String mergeNoticeDetail(const juce::String &first,
+                               const juce::String &second) {
+  juce::StringArray parts;
+  auto addPart = [&parts](const juce::String &text) {
+    const auto normalized = text.trim();
+    if (normalized.isNotEmpty() && !parts.contains(normalized))
+      parts.add(normalized);
+  };
+
+  addPart(first);
+  addPart(second);
+  return parts.joinIntoString(" | ");
+}
+
 // =============================================================================
 //  MainComponent
 // =============================================================================
@@ -351,6 +371,27 @@ void MainComponent::restoreSession() {
       if (!Teul::TFileIo::loadFromFile(teulPage->document(), file)) {
         DBG("[Teul] Session restore failed: " + file.getFullPathName());
       } else {
+        if (!previousSessionWasClean) {
+          const auto existingNotice = teulPage->document().getTransientNotice();
+          auto detail = juce::String(
+              "Previous shutdown was not clean; restored the latest autosave snapshot.");
+          if (existingNotice.active) {
+            detail = mergeNoticeDetail(detail, existingNotice.title);
+            detail = mergeNoticeDetail(detail, existingNotice.detail);
+          }
+
+          const auto level =
+              existingNotice.active
+                  ? moreSevereNoticeLevel(existingNotice.level,
+                                          Teul::TDocumentNoticeLevel::warning)
+                  : Teul::TDocumentNoticeLevel::warning;
+          const auto title =
+              existingNotice.active
+                  ? juce::String("Recovered Teul autosave with warnings")
+                  : juce::String("Recovered Teul autosave");
+          teulPage->document().setTransientNotice(level, title, detail);
+        }
+
         teulPage->refreshFromDocument();
       }
     }

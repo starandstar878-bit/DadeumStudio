@@ -21,6 +21,15 @@ struct TGraphMeta {
   int blockSize = 256;
 };
 
+enum class TDocumentNoticeLevel { info, warning, degraded };
+
+struct TDocumentNotice {
+  bool active = false;
+  TDocumentNoticeLevel level = TDocumentNoticeLevel::info;
+  juce::String title;
+  juce::String detail;
+};
+
 struct TFrameRegion {
   int frameId = 0;
   juce::String frameUuid;
@@ -206,6 +215,45 @@ struct TGraphDocument {
   int getNextBookmarkId() const noexcept { return nextBookmarkId; }
   std::uint64_t getDocumentRevision() const noexcept { return documentRevision; }
   std::uint64_t getRuntimeRevision() const noexcept { return runtimeRevision; }
+  const TDocumentNotice &getTransientNotice() const noexcept {
+    return transientNotice;
+  }
+  std::uint64_t getTransientNoticeRevision() const noexcept {
+    return transientNoticeRevision;
+  }
+
+  void setTransientNotice(TDocumentNoticeLevel level,
+                          const juce::String &title,
+                          const juce::String &detail = {}) noexcept {
+    const auto normalizedTitle = title.trim();
+    const auto normalizedDetail = detail.trim();
+    if (normalizedTitle.isEmpty() && normalizedDetail.isEmpty()) {
+      clearTransientNotice();
+      return;
+    }
+
+    if (transientNotice.active && transientNotice.level == level &&
+        transientNotice.title == normalizedTitle &&
+        transientNotice.detail == normalizedDetail) {
+      return;
+    }
+
+    transientNotice.active = true;
+    transientNotice.level = level;
+    transientNotice.title = normalizedTitle;
+    transientNotice.detail = normalizedDetail;
+    ++transientNoticeRevision;
+  }
+
+  void clearTransientNotice() noexcept {
+    if (!transientNotice.active && transientNotice.title.isEmpty() &&
+        transientNotice.detail.isEmpty()) {
+      return;
+    }
+
+    transientNotice = {};
+    ++transientNoticeRevision;
+  }
 
   void setNextNodeId(NodeId id) noexcept { nextNodeId = id; }
   void setNextPortId(PortId id) noexcept { nextPortId = id; }
@@ -227,6 +275,8 @@ private:
   int nextBookmarkId = 1;
   std::uint64_t documentRevision = 0;
   std::uint64_t runtimeRevision = 0;
+  TDocumentNotice transientNotice;
+  std::uint64_t transientNoticeRevision = 0;
 
   std::unique_ptr<THistoryStack> historyStack;
 };

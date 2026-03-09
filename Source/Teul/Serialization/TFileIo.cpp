@@ -11,7 +11,8 @@ bool TFileIo::saveToFile(const TGraphDocument &doc, const juce::File &file) {
   return file.replaceWithText(jsonString, false, false, "\r\n");
 }
 
-bool TFileIo::loadFromFile(TGraphDocument &doc, const juce::File &file) {
+bool TFileIo::loadFromFile(TGraphDocument &doc, const juce::File &file,
+                           TSchemaMigrationReport *migrationReportOut) {
   if (!file.existsAsFile())
     return false;
 
@@ -22,7 +23,27 @@ bool TFileIo::loadFromFile(TGraphDocument &doc, const juce::File &file) {
   if (result.failed())
     return false;
 
-  return TSerializer::fromJson(doc, json);
+  TSchemaMigrationReport migrationReport;
+  if (!TSerializer::fromJson(doc, json, &migrationReport))
+    return false;
+
+  if (migrationReport.degraded || !migrationReport.warnings.isEmpty()) {
+    const auto level = migrationReport.degraded
+                           ? TDocumentNoticeLevel::degraded
+                           : TDocumentNoticeLevel::warning;
+    const auto title = migrationReport.degraded
+                           ? juce::String("Document restored in degraded mode")
+                           : juce::String("Document compatibility warnings");
+    doc.setTransientNotice(level, title,
+                           migrationReport.warnings.joinIntoString(" | "));
+  } else {
+    doc.clearTransientNotice();
+  }
+
+  if (migrationReportOut != nullptr)
+    *migrationReportOut = migrationReport;
+
+  return true;
 }
 
 } // namespace Teul

@@ -188,6 +188,17 @@ void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
     warnings.add(normalized);
 }
 
+juce::String joinWarnings(const juce::StringArray &warnings) {
+  juce::StringArray normalizedWarnings;
+  for (const auto &warning : warnings) {
+    const auto normalized = warning.trim();
+    if (normalized.isNotEmpty() && !normalizedWarnings.contains(normalized))
+      normalizedWarnings.add(normalized);
+  }
+
+  return normalizedWarnings.joinIntoString(" | ");
+}
+
 } // namespace
 
 juce::String TPatchPresetIO::fileExtension() { return ".teulpatch"; }
@@ -405,9 +416,24 @@ juce::Result TPatchPresetIO::insertFromFile(
     TPatchPresetSummary *summaryOut) {
   TGraphDocument presetDocument;
   TPatchPresetSummary summary;
-  const auto loadResult = loadFromFile(presetDocument, summary, file);
+  TPatchPresetLoadReport loadReport;
+  const auto loadResult =
+      loadFromFile(presetDocument, summary, file, &loadReport);
   if (loadResult.failed())
     return loadResult;
+
+  if (loadReport.degraded || !loadReport.warnings.isEmpty()) {
+    const auto level = loadReport.degraded ? TDocumentNoticeLevel::degraded
+                                           : TDocumentNoticeLevel::warning;
+    const auto title =
+        loadReport.degraded ? juce::String("Patch preset inserted with fallback")
+                            : juce::String("Patch preset compatibility warning");
+    auto detail = summary.presetName.trim();
+    if (detail.isNotEmpty())
+      detail << ": ";
+    detail << joinWarnings(loadReport.warnings);
+    targetDocument.setTransientNotice(level, title, detail);
+  }
 
   std::unordered_map<NodeId, NodeId> nodeIdMap;
   std::unordered_map<PortId, PortId> portIdMap;

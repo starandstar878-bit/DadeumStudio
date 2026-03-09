@@ -188,6 +188,82 @@ private:
   juce::String transientMessage;
   juce::Colour transientAccent = juce::Colour(0xff60a5fa);
 };
+
+class DocumentNoticeBanner : public juce::Component {
+public:
+  DocumentNoticeBanner() {
+    addAndMakeVisible(dismissButton);
+    dismissButton.setButtonText("Dismiss");
+    dismissButton.onClick = [this] {
+      if (dismissHandler != nullptr)
+        dismissHandler();
+    };
+    setVisible(false);
+  }
+
+  void setDismissHandler(std::function<void()> handler) {
+    dismissHandler = std::move(handler);
+  }
+
+  void setNotice(const TDocumentNotice &newNotice) {
+    notice = newNotice;
+    setVisible(notice.active);
+    repaint();
+  }
+
+  void paint(juce::Graphics &g) override {
+    if (!notice.active)
+      return;
+
+    const auto bounds = getLocalBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+
+    const auto accent = accentForLevel(notice.level);
+    g.setColour(juce::Colour(0xf4121826));
+    g.fillRoundedRectangle(bounds, 11.0f);
+    g.setColour(accent.withAlpha(0.85f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 11.0f, 1.0f);
+
+    auto textArea = getLocalBounds().reduced(14, 9);
+    textArea.removeFromRight(92);
+
+    g.setColour(juce::Colours::white.withAlpha(0.96f));
+    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    g.drawText(notice.title, textArea.removeFromTop(20),
+               juce::Justification::centredLeft, false);
+
+    if (notice.detail.isNotEmpty()) {
+      g.setColour(juce::Colours::white.withAlpha(0.72f));
+      g.setFont(11.0f);
+      g.drawFittedText(notice.detail, textArea, juce::Justification::topLeft,
+                       2, 0.92f);
+    }
+  }
+
+  void resized() override {
+    dismissButton.setBounds(getLocalBounds().removeFromRight(88).reduced(10, 10));
+  }
+
+private:
+  static juce::Colour accentForLevel(TDocumentNoticeLevel level) {
+    switch (level) {
+    case TDocumentNoticeLevel::degraded:
+      return juce::Colour(0xffef4444);
+    case TDocumentNoticeLevel::warning:
+      return juce::Colour(0xfff59e0b);
+    case TDocumentNoticeLevel::info:
+      return juce::Colour(0xff38bdf8);
+    }
+
+    return juce::Colour(0xff38bdf8);
+  }
+
+  TDocumentNotice notice;
+  juce::TextButton dismissButton;
+  std::function<void()> dismissHandler;
+};
+
 EditorHandle::Impl::Impl(
     EditorHandle &ownerIn, juce::AudioDeviceManager *audioDeviceManagerIn,
     ParamBindingSummaryResolver bindingSummaryResolverIn,
@@ -230,6 +306,14 @@ EditorHandle::Impl::Impl(
 
   runtimeStatusStrip = std::make_unique<RuntimeStatusStrip>();
   owner.addAndMakeVisible(*runtimeStatusStrip);
+
+  documentNoticeBanner = std::make_unique<DocumentNoticeBanner>();
+  documentNoticeBanner->setDismissHandler([this] {
+    doc.clearTransientNotice();
+    refreshDocumentNoticeUi(true);
+  });
+  owner.addAndMakeVisible(*documentNoticeBanner);
+  documentNoticeBanner->setVisible(false);
 
   canvas->setNodeSelectionChangedHandler(
       [this](const std::vector<NodeId> &selectedNodeIds) {
@@ -343,6 +427,9 @@ EditorHandle::Impl::~Impl() {
     diagnosticsDrawer->setLayoutChangedCallback({});
   }
 
+  if (documentNoticeBanner != nullptr)
+    documentNoticeBanner->setDismissHandler({});
+
   if (audioDeviceManager != nullptr)
     audioDeviceManager->removeAudioCallback(&runtime);
 }
@@ -381,6 +468,15 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   if (runtimeStatusStrip != nullptr) {
     auto statusArea = area.removeFromTop(60).reduced(6, 4);
     runtimeStatusStrip->setBounds(statusArea);
+  }
+
+  if (documentNoticeBanner != nullptr) {
+    if (documentNoticeBanner->isVisible()) {
+      auto bannerArea = area.removeFromTop(56).reduced(6, 3);
+      documentNoticeBanner->setBounds(bannerArea);
+    } else {
+      documentNoticeBanner->setBounds({});
+    }
   }
 
   if (libraryPanel != nullptr) {
@@ -428,6 +524,7 @@ void EditorHandle::Impl::timerCallback() {
   }
 
   refreshRuntimeUi();
+  refreshDocumentNoticeUi();
   if (diagnosticsDrawer != nullptr)
     diagnosticsDrawer->refreshArtifacts();
 }
@@ -445,6 +542,7 @@ void EditorHandle::Impl::rebuildAll(bool rebuildRuntime) {
   lastDocumentRevision = doc.getDocumentRevision();
   lastRuntimeRevision = doc.getRuntimeRevision();
   refreshRuntimeUi(true);
+  refreshDocumentNoticeUi(true);
   owner.resized();
 }
 
@@ -495,6 +593,22 @@ bool EditorHandle::Impl::focusDiagnosticTarget(const juce::String &graphId,
     return false;
 
   return canvas->focusNodeByQuery(query);
+}
+
+void EditorHandle::Impl::refreshDocumentNoticeUi(bool force) {
+  if (documentNoticeBanner == nullptr)
+    return;
+
+  const auto noticeRevision = doc.getTransientNoticeRevision();
+  if (!force && noticeRevision == lastDocumentNoticeRevision)
+    return;
+
+  const bool wasVisible = documentNoticeBanner->isVisible();
+  documentNoticeBanner->setNotice(doc.getTransientNotice());
+  lastDocumentNoticeRevision = noticeRevision;
+
+  if (wasVisible != documentNoticeBanner->isVisible())
+    owner.resized();
 }
 
 void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {

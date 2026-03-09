@@ -139,6 +139,17 @@ void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
     warnings.add(normalized);
 }
 
+juce::String joinWarnings(const juce::StringArray &warnings) {
+  juce::StringArray normalizedWarnings;
+  for (const auto &warning : warnings) {
+    const auto normalized = warning.trim();
+    if (normalized.isNotEmpty() && !normalizedWarnings.contains(normalized))
+      normalizedWarnings.add(normalized);
+  }
+
+  return normalizedWarnings.joinIntoString(" | ");
+}
+
 TNode *findFallbackNode(TGraphDocument &document,
                         const TStatePresetNodeState &nodeState) {
   TNode *match = nullptr;
@@ -369,6 +380,19 @@ juce::Result TStatePresetIO::applyToDocument(TGraphDocument &document,
       *reportOut = report;
     return juce::Result::fail(
         "State preset apply failed: no matching nodes were found.");
+  }
+
+  if (report.degraded || !report.warnings.isEmpty()) {
+    const auto level = report.degraded ? TDocumentNoticeLevel::degraded
+                                       : TDocumentNoticeLevel::warning;
+    const auto title =
+        report.degraded ? juce::String("State preset applied with fallback")
+                        : juce::String("State preset compatibility warning");
+    auto detail = summary.presetName.trim();
+    if (detail.isNotEmpty())
+      detail << ": ";
+    detail << joinWarnings(report.warnings);
+    document.setTransientNotice(level, title, detail);
   }
 
   document.touch(false);

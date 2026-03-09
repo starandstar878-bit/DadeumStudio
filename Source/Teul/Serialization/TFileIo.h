@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Model/TGraphDocument.h"
+#include "TSerializer.h"
 #include <JuceHeader.h>
 
 namespace Teul {
@@ -14,7 +15,8 @@ public:
   static bool saveToFile(const TGraphDocument &doc, const juce::File &file);
 
   /** .teul 파일에서 JSON 데이터를 읽어 TGraphDocument 객체에 채웁니다. */
-  static bool loadFromFile(TGraphDocument &doc, const juce::File &file);
+  static bool loadFromFile(TGraphDocument &doc, const juce::File &file,
+                           TSchemaMigrationReport *migrationReportOut = nullptr);
 };
 
 } // namespace Teul
