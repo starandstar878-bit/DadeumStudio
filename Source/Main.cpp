@@ -172,6 +172,17 @@ bool writeJsonArtifact(const juce::File &file, const juce::var &json) {
                               "\r\n");
 }
 
+juce::var stringArrayToJsonArray(const juce::StringArray &values) {
+  juce::Array<juce::var> items;
+  for (const auto &value : values)
+    items.add(value);
+  return juce::var(items);
+}
+
+juce::String summarizeWarnings(const juce::StringArray &values) {
+  return values.joinIntoString(" | ");
+}
+
 bool writeSessionStateArtifact(const juce::File &file, bool cleanShutdown) {
   auto *root = new juce::DynamicObject();
   root->setProperty("cleanShutdown", cleanShutdown);
@@ -1743,7 +1754,9 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
           sourceDocument.connections.size() ||
       restoredLegacyDocument.frames.size() != sourceDocument.frames.size() ||
       !legacyDocumentMigration.migrated ||
-      !legacyDocumentMigration.usedLegacyAliases) {
+      !legacyDocumentMigration.usedLegacyAliases ||
+      legacyDocumentMigration.degraded ||
+      legacyDocumentMigration.warnings.isEmpty()) {
     return juce::Result::fail(
         "Teul compatibility smoke legacy document restore mismatch.");
   }
@@ -1831,8 +1844,12 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       currentPatchLoadReport.usedLegacyAliases ||
       !legacyPatchLoadReport.migrated ||
       !legacyPatchLoadReport.usedLegacyAliases ||
+      legacyPatchLoadReport.degraded ||
+      legacyPatchLoadReport.warnings.isEmpty() ||
       !legacyPatchLoadReport.graphMigration.migrated ||
-      !legacyPatchLoadReport.graphMigration.usedLegacyAliases) {
+      !legacyPatchLoadReport.graphMigration.usedLegacyAliases ||
+      legacyPatchLoadReport.graphMigration.degraded ||
+      legacyPatchLoadReport.graphMigration.warnings.isEmpty()) {
     return juce::Result::fail(
         "Teul compatibility smoke legacy patch preset restore mismatch.");
   }
@@ -1937,7 +1954,11 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
           1.0e-9 ||
       mutatedAmpNode->bypassed != expectedAmpBypassed ||
       !legacyStateLoadReport.migrated ||
-      !legacyStateLoadReport.usedLegacyAliases) {
+      !legacyStateLoadReport.usedLegacyAliases ||
+      legacyStateLoadReport.degraded ||
+      legacyStateLoadReport.warnings.isEmpty() ||
+      legacyStateApplyReport.degraded ||
+      legacyStateApplyReport.warnings.isEmpty()) {
     return juce::Result::fail(
         "Teul compatibility smoke legacy state preset apply mismatch.");
   }
@@ -1954,6 +1975,13 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       "legacyDocumentUsedAliases=" +
       juce::String(legacyDocumentMigration.usedLegacyAliases ? "true" : "false") +
       "\r\n" +
+      "legacyDocumentDegraded=" +
+      juce::String(legacyDocumentMigration.degraded ? "true" : "false") +
+      "\r\n" +
+      "legacyDocumentWarningCount=" +
+      juce::String(legacyDocumentMigration.warnings.size()) + "\r\n" +
+      "legacyDocumentWarnings=" +
+      summarizeWarnings(legacyDocumentMigration.warnings) + "\r\n" +
       "legacyPatchNodes=" +
       juce::String((int)loadedLegacyPatchDocument.nodes.size()) + "\r\n" +
       "legacyPatchMigrated=" +
@@ -1962,8 +1990,24 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       "legacyPatchUsedAliases=" +
       juce::String(legacyPatchLoadReport.usedLegacyAliases ? "true" : "false") +
       "\r\n" +
+      "legacyPatchDegraded=" +
+      juce::String(legacyPatchLoadReport.degraded ? "true" : "false") +
+      "\r\n" +
+      "legacyPatchWarningCount=" +
+      juce::String(legacyPatchLoadReport.warnings.size()) + "\r\n" +
+      "legacyPatchWarnings=" +
+      summarizeWarnings(legacyPatchLoadReport.warnings) + "\r\n" +
       "legacyPatchGraphMigrated=" +
       juce::String(legacyPatchLoadReport.graphMigration.migrated ? "true" : "false") +
+      "\r\n" +
+      "legacyPatchGraphDegraded=" +
+      juce::String(legacyPatchLoadReport.graphMigration.degraded ? "true" : "false") +
+      "\r\n" +
+      "legacyPatchGraphWarningCount=" +
+      juce::String(legacyPatchLoadReport.graphMigration.warnings.size()) +
+      "\r\n" +
+      "legacyPatchGraphWarnings=" +
+      summarizeWarnings(legacyPatchLoadReport.graphMigration.warnings) +
       "\r\n" +
       "legacyStateAppliedNodes=" +
       juce::String(legacyStateApplyReport.appliedNodeCount) + "\r\n" +
@@ -1973,6 +2017,20 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       "legacyStateUsedAliases=" +
       juce::String(legacyStateLoadReport.usedLegacyAliases ? "true" : "false") +
       "\r\n" +
+      "legacyStateDegraded=" +
+      juce::String(legacyStateLoadReport.degraded ? "true" : "false") +
+      "\r\n" +
+      "legacyStateWarningCount=" +
+      juce::String(legacyStateLoadReport.warnings.size()) + "\r\n" +
+      "legacyStateWarnings=" +
+      summarizeWarnings(legacyStateLoadReport.warnings) + "\r\n" +
+      "legacyStateApplyDegraded=" +
+      juce::String(legacyStateApplyReport.degraded ? "true" : "false") +
+      "\r\n" +
+      "legacyStateApplyWarningCount=" +
+      juce::String(legacyStateApplyReport.warnings.size()) + "\r\n" +
+      "legacyStateApplyWarnings=" +
+      summarizeWarnings(legacyStateApplyReport.warnings) + "\r\n" +
       "legacyPatchFile=" + legacyPatchFile.getFullPathName() + "\r\n" +
       "legacyStateFile=" + legacyStateFile.getFullPathName() + "\r\n" +
       "passed=true\r\n";
@@ -1999,20 +2057,51 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
                           legacyDocumentMigration.migrated);
   bundleRoot->setProperty("legacyDocumentUsedAliases",
                           legacyDocumentMigration.usedLegacyAliases);
+  bundleRoot->setProperty("legacyDocumentDegraded",
+                          legacyDocumentMigration.degraded);
+  bundleRoot->setProperty("legacyDocumentWarningCount",
+                          legacyDocumentMigration.warnings.size());
+  bundleRoot->setProperty("legacyDocumentWarnings",
+                          stringArrayToJsonArray(legacyDocumentMigration.warnings));
   bundleRoot->setProperty("legacyPatchNodeCount",
                           (int)loadedLegacyPatchDocument.nodes.size());
   bundleRoot->setProperty("legacyPatchMigrated",
                           legacyPatchLoadReport.migrated);
   bundleRoot->setProperty("legacyPatchUsedAliases",
                           legacyPatchLoadReport.usedLegacyAliases);
+  bundleRoot->setProperty("legacyPatchDegraded",
+                          legacyPatchLoadReport.degraded);
+  bundleRoot->setProperty("legacyPatchWarningCount",
+                          legacyPatchLoadReport.warnings.size());
+  bundleRoot->setProperty("legacyPatchWarnings",
+                          stringArrayToJsonArray(legacyPatchLoadReport.warnings));
   bundleRoot->setProperty("legacyPatchGraphMigrated",
                           legacyPatchLoadReport.graphMigration.migrated);
+  bundleRoot->setProperty("legacyPatchGraphDegraded",
+                          legacyPatchLoadReport.graphMigration.degraded);
+  bundleRoot->setProperty("legacyPatchGraphWarningCount",
+                          legacyPatchLoadReport.graphMigration.warnings.size());
+  bundleRoot->setProperty(
+      "legacyPatchGraphWarnings",
+      stringArrayToJsonArray(legacyPatchLoadReport.graphMigration.warnings));
   bundleRoot->setProperty("legacyStateAppliedNodeCount",
                           legacyStateApplyReport.appliedNodeCount);
   bundleRoot->setProperty("legacyStateMigrated",
                           legacyStateLoadReport.migrated);
   bundleRoot->setProperty("legacyStateUsedAliases",
                           legacyStateLoadReport.usedLegacyAliases);
+  bundleRoot->setProperty("legacyStateDegraded",
+                          legacyStateLoadReport.degraded);
+  bundleRoot->setProperty("legacyStateWarningCount",
+                          legacyStateLoadReport.warnings.size());
+  bundleRoot->setProperty("legacyStateWarnings",
+                          stringArrayToJsonArray(legacyStateLoadReport.warnings));
+  bundleRoot->setProperty("legacyStateApplyDegraded",
+                          legacyStateApplyReport.degraded);
+  bundleRoot->setProperty("legacyStateApplyWarningCount",
+                          legacyStateApplyReport.warnings.size());
+  bundleRoot->setProperty("legacyStateApplyWarnings",
+                          stringArrayToJsonArray(legacyStateApplyReport.warnings));
   bundleRoot->setProperty("files", juce::var(files));
   if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
     return juce::Result::fail(
@@ -2050,6 +2139,9 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
     bool passed = false;
     bool migrated = false;
     bool usedLegacyAliases = false;
+    bool degraded = false;
+    int warningCount = 0;
+    juce::String warnings;
     juce::String detail;
     juce::String artifactRelativePath;
   };
@@ -2066,6 +2158,10 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
     entry->setProperty("passed", result.passed);
     entry->setProperty("migrated", result.migrated);
     entry->setProperty("usedLegacyAliases", result.usedLegacyAliases);
+    entry->setProperty("degraded", result.degraded);
+    entry->setProperty("warningCount", result.warningCount);
+    if (result.warnings.isNotEmpty())
+      entry->setProperty("warnings", result.warnings);
     if (result.detail.isNotEmpty())
       entry->setProperty("detail", result.detail);
     if (result.artifactRelativePath.isNotEmpty())
@@ -2098,21 +2194,44 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
     if (aliasResult.failed()) {
       caseResult.detail = aliasResult.getErrorMessage();
     } else {
-      const auto summaryFile =
-          aliasOutputDirectory.getChildFile("compatibility-summary.txt");
-      const auto summaryText = summaryFile.loadFileAsString();
-      caseResult.passed =
-          summaryText.contains("legacyDocumentMigrated=true") &&
-          summaryText.contains("legacyDocumentUsedAliases=true") &&
-          summaryText.contains("legacyPatchMigrated=true") &&
-          summaryText.contains("legacyPatchUsedAliases=true") &&
-          summaryText.contains("legacyPatchGraphMigrated=true") &&
-          summaryText.contains("legacyStateMigrated=true") &&
-          summaryText.contains("legacyStateUsedAliases=true") &&
-          summaryText.contains("passed=true");
-      if (!caseResult.passed) {
+      juce::var aliasBundleJson;
+      const auto aliasBundleFile =
+          aliasOutputDirectory.getChildFile("artifact-bundle.json");
+      if (!loadJsonFile(aliasBundleFile, aliasBundleJson)) {
         caseResult.detail =
-            "Legacy alias smoke summary is missing expected migration flags.";
+            "Legacy alias smoke bundle is missing or invalid.";
+      } else if (const auto *bundle = aliasBundleJson.getDynamicObject()) {
+        const auto readBool = [&](const char *key) {
+          return (bool)bundle->getProperty(key);
+        };
+        const auto readInt = [&](const char *key) {
+          return (int)bundle->getProperty(key);
+        };
+        caseResult.warningCount =
+            readInt("legacyDocumentWarningCount") +
+            readInt("legacyPatchWarningCount") +
+            readInt("legacyPatchGraphWarningCount") +
+            readInt("legacyStateWarningCount") +
+            readInt("legacyStateApplyWarningCount");
+        caseResult.degraded =
+            readBool("legacyDocumentDegraded") ||
+            readBool("legacyPatchDegraded") ||
+            readBool("legacyPatchGraphDegraded") ||
+            readBool("legacyStateDegraded") ||
+            readBool("legacyStateApplyDegraded");
+        caseResult.passed =
+            readBool("legacyDocumentMigrated") &&
+            readBool("legacyDocumentUsedAliases") &&
+            readBool("legacyPatchMigrated") &&
+            readBool("legacyPatchUsedAliases") &&
+            readBool("legacyPatchGraphMigrated") &&
+            readBool("legacyStateMigrated") &&
+            readBool("legacyStateUsedAliases") &&
+            caseResult.warningCount > 0 && !caseResult.degraded;
+        if (!caseResult.passed) {
+          caseResult.detail =
+              "Legacy alias smoke bundle is missing expected warning/degraded fields.";
+        }
       }
     }
 
@@ -2200,11 +2319,15 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
         restoredDocument.connections.size() == sourceDocument.connections.size() &&
         restoredDocument.frames.size() == sourceDocument.frames.size() &&
         migrationReport.migrated && !migrationReport.usedLegacyAliases &&
+        !migrationReport.degraded && migrationReport.warnings.size() > 0 &&
         migrationReport.sourceSchemaVersion == 1 &&
         migrationReport.targetSchemaVersion ==
             Teul::TSerializer::currentSchemaVersion();
     caseResult.migrated = migrationReport.migrated;
     caseResult.usedLegacyAliases = migrationReport.usedLegacyAliases;
+    caseResult.degraded = migrationReport.degraded;
+    caseResult.warningCount = migrationReport.warnings.size();
+    caseResult.warnings = summarizeWarnings(migrationReport.warnings);
     if (!caseResult.passed) {
       caseResult.detail =
           "Current-key document v1 case did not restore with the expected migration report.";
@@ -2251,6 +2374,7 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
 
     const auto loadResult = Teul::TPatchPresetIO::loadFromFile(
         loadedDocument, loadedSummary, caseFile, &loadReport);
+    const auto warningSummary = summarizeWarnings(loadReport.warnings);
     caseResult.passed =
         loadResult.wasOk() &&
         loadedDocument.nodes.size() == (size_t)currentPatchSummary.nodeCount &&
@@ -2260,10 +2384,16 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
         loadedSummary.connectionCount == currentPatchSummary.connectionCount &&
         loadedSummary.frameCount == currentPatchSummary.frameCount &&
         loadReport.migrated && !loadReport.usedLegacyAliases &&
+        !loadReport.degraded && loadReport.warnings.size() > 0 &&
         !loadReport.graphMigration.migrated &&
-        !loadReport.graphMigration.usedLegacyAliases;
+        !loadReport.graphMigration.usedLegacyAliases &&
+        !loadReport.graphMigration.degraded &&
+        (!removeSummary || warningSummary.containsIgnoreCase("summary"));
     caseResult.migrated = loadReport.migrated;
     caseResult.usedLegacyAliases = loadReport.usedLegacyAliases;
+    caseResult.degraded = loadReport.degraded || loadReport.graphMigration.degraded;
+    caseResult.warningCount = loadReport.warnings.size();
+    caseResult.warnings = warningSummary;
     if (!caseResult.passed) {
       caseResult.detail = loadResult.failed()
                               ? loadResult.getErrorMessage()
@@ -2293,7 +2423,8 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
     return stateSaveResult;
 
   auto runStateCase = [&](const juce::String &caseId,
-                          bool removeSummary) -> juce::Result {
+                          bool removeSummary,
+                          bool expectPartialApply) -> juce::Result {
     juce::var stateJson;
     if (!loadJsonFile(currentStateFile, stateJson)) {
       return juce::Result::fail(
@@ -2328,31 +2459,58 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
     mutatedCarrierNode->params["frequency"] = 91.0;
     mutatedAmpNode->params["gain"] = 0.18;
     mutatedAmpNode->bypassed = !expectedAmpBypassed;
+    if (expectPartialApply) {
+      mutatedAmpNode->typeKey = "Teul.Debug.Missing";
+      mutatedAmpNode->label = "Amp Missing";
+    }
 
     Teul::TStatePresetApplyReport applyReport;
     const auto applyResult =
         Teul::TStatePresetIO::applyToDocument(mutatedDocument, caseFile, &applyReport);
 
     mutatedCarrierNode = findTeulNodeByLabel(mutatedDocument, "Carrier");
-    mutatedAmpNode = findTeulNodeByLabel(mutatedDocument, "Amp");
+    auto *restoredAmpNode = findTeulNodeByLabel(mutatedDocument, "Amp");
+    const auto applyWarningSummary = summarizeWarnings(applyReport.warnings);
+    const auto loadWarningSummary = summarizeWarnings(loadReport.warnings);
 
     CompatibilityMatrixCaseResult caseResult;
     caseResult.caseId = caseId;
     caseResult.artifactRelativePath =
         relativeArtifactPath(outputDirectory, caseFile);
-    caseResult.passed =
-        loadResult.wasOk() && applyResult.wasOk() &&
-        loadedSummary.nodeStateCount == currentStateSummary.nodeStateCount &&
-        loadedSummary.paramValueCount == currentStateSummary.paramValueCount &&
-        loadReport.migrated && !loadReport.usedLegacyAliases &&
-        mutatedCarrierNode != nullptr && mutatedAmpNode != nullptr &&
-        std::abs((double)mutatedCarrierNode->params["frequency"] -
-                 expectedFrequency) <= 1.0e-9 &&
-        std::abs((double)mutatedAmpNode->params["gain"] - expectedAmpGain) <=
-            1.0e-9 &&
-        mutatedAmpNode->bypassed == expectedAmpBypassed;
+    if (expectPartialApply) {
+      caseResult.passed =
+          loadResult.wasOk() && applyResult.wasOk() &&
+          loadedSummary.nodeStateCount == currentStateSummary.nodeStateCount &&
+          loadedSummary.paramValueCount == currentStateSummary.paramValueCount &&
+          loadReport.migrated && !loadReport.usedLegacyAliases &&
+          !loadReport.degraded && applyReport.degraded &&
+          applyReport.skippedNodeCount > 0 &&
+          applyWarningSummary.containsIgnoreCase("skipped") &&
+          mutatedCarrierNode != nullptr &&
+          std::abs((double)mutatedCarrierNode->params["frequency"] -
+                   expectedFrequency) <= 1.0e-9 &&
+          restoredAmpNode == nullptr;
+    } else {
+      caseResult.passed =
+          loadResult.wasOk() && applyResult.wasOk() &&
+          loadedSummary.nodeStateCount == currentStateSummary.nodeStateCount &&
+          loadedSummary.paramValueCount == currentStateSummary.paramValueCount &&
+          loadReport.migrated && !loadReport.usedLegacyAliases &&
+          !loadReport.degraded && !applyReport.degraded &&
+          applyReport.warnings.size() > 0 &&
+          mutatedCarrierNode != nullptr && restoredAmpNode != nullptr &&
+          std::abs((double)mutatedCarrierNode->params["frequency"] -
+                   expectedFrequency) <= 1.0e-9 &&
+          std::abs((double)restoredAmpNode->params["gain"] - expectedAmpGain) <=
+              1.0e-9 &&
+          restoredAmpNode->bypassed == expectedAmpBypassed &&
+          (!removeSummary || loadWarningSummary.containsIgnoreCase("summary"));
+    }
     caseResult.migrated = loadReport.migrated;
     caseResult.usedLegacyAliases = loadReport.usedLegacyAliases;
+    caseResult.degraded = applyReport.degraded || loadReport.degraded;
+    caseResult.warningCount = applyReport.warnings.size();
+    caseResult.warnings = applyWarningSummary;
     if (!caseResult.passed) {
       caseResult.detail = loadResult.failed()
                               ? loadResult.getErrorMessage()
@@ -2366,13 +2524,17 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
   };
 
   const auto stateSchemaResult =
-      runStateCase("state_schema_v1_current_keys", false);
+      runStateCase("state_schema_v1_current_keys", false, false);
   if (stateSchemaResult.failed())
     return stateSchemaResult;
   const auto stateSummaryResult =
-      runStateCase("state_schema_v1_without_summary", true);
+      runStateCase("state_schema_v1_without_summary", true, false);
   if (stateSummaryResult.failed())
     return stateSummaryResult;
+  const auto statePartialResult =
+      runStateCase("state_schema_v1_partial_apply", false, true);
+  if (statePartialResult.failed())
+    return statePartialResult;
 
   const bool passed = failedCaseCount == 0;
   juce::String summaryText =
@@ -2391,6 +2553,16 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
     summaryText += "case." + caseResult.caseId + ".usedLegacyAliases=" +
                    juce::String(caseResult.usedLegacyAliases ? "true" : "false") +
                    "\r\n";
+    summaryText += "case." + caseResult.caseId + ".degraded=" +
+                   juce::String(caseResult.degraded ? "true" : "false") +
+                   "\r\n";
+    summaryText += "case." + caseResult.caseId + ".warningCount=" +
+                   juce::String(caseResult.warningCount) + "\r\n";
+    if (caseResult.warnings.isNotEmpty()) {
+      summaryText += "case." + caseResult.caseId + ".warnings=" +
+                     caseResult.warnings.replaceCharacters("\r\n", "  ") +
+                     "\r\n";
+    }
     if (caseResult.detail.isNotEmpty()) {
       summaryText += "case." + caseResult.caseId + ".detail=" +
                      caseResult.detail.replaceCharacters("\r\n", "  ") +

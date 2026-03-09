@@ -28,13 +28,18 @@ struct TStatePresetLoadReport {
   int targetSchemaVersion = 0;
   bool migrated = false;
   bool usedLegacyAliases = false;
+  bool degraded = false;
+  juce::StringArray warnings;
 };
 
 struct TStatePresetApplyReport {
   TStatePresetSummary summary;
+  TStatePresetLoadReport loadReport;
   int appliedNodeCount = 0;
   int skippedNodeCount = 0;
   int appliedParamValueCount = 0;
+  bool degraded = false;
+  juce::StringArray warnings;
   std::vector<NodeId> appliedNodeIds;
 };
 

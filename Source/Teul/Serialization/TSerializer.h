@@ -9,6 +9,8 @@ struct TSchemaMigrationReport {
   int targetSchemaVersion = 0;
   bool migrated = false;
   bool usedLegacyAliases = false;
+  bool degraded = false;
+  juce::StringArray warnings;
 };
 
 class TSerializer {

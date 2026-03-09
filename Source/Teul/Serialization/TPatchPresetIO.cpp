@@ -180,6 +180,14 @@ bool usesLegacyPatchAliases(const juce::DynamicObject *root) {
           root->hasProperty("graph_json"));
 }
 
+void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
+  const auto normalized = warning.trim();
+  if (normalized.isEmpty())
+    return;
+  if (!warnings.contains(normalized))
+    warnings.add(normalized);
+}
+
 } // namespace
 
 juce::String TPatchPresetIO::fileExtension() { return ".teulpatch"; }
@@ -309,14 +317,33 @@ juce::Result TPatchPresetIO::loadFromFile(
   loadReport.targetSchemaVersion = kPatchPresetSchemaVersion;
   loadReport.usedLegacyAliases = usesLegacyPatchAliases(root);
 
+  if (loadReport.usedLegacyAliases) {
+    appendWarning(loadReport.warnings,
+                  "Patch preset used legacy root field aliases during load.");
+  }
+
+  if (loadReport.sourceSchemaVersion < loadReport.targetSchemaVersion) {
+    appendWarning(loadReport.warnings,
+                  "Patch preset schema upgraded from v" +
+                      juce::String(loadReport.sourceSchemaVersion) + " to v" +
+                      juce::String(loadReport.targetSchemaVersion) + ".");
+  } else if (loadReport.sourceSchemaVersion > loadReport.targetSchemaVersion) {
+    loadReport.degraded = true;
+    appendWarning(
+        loadReport.warnings,
+        "Patch preset schema is newer than this build supports; using best-effort load.");
+  }
+
+  const auto summaryVar = propertyOrAlias(root, {"summary", "presetSummary"});
+  const bool hasSummaryObject = summaryVar.isObject();
+
   summaryOut = {};
   summaryOut.presetName =
       propertyOrAlias(root, {"preset_name", "presetName"}).toString();
   summaryOut.sourceFrameUuid =
       propertyOrAlias(root, {"source_frame_uuid", "sourceFrameUuid"})
           .toString();
-  hydrateSummaryFromJson(summaryOut,
-                         propertyOrAlias(root, {"summary", "presetSummary"}));
+  hydrateSummaryFromJson(summaryOut, summaryVar);
   if (summaryOut.presetName.isEmpty())
     summaryOut.presetName = file.getFileNameWithoutExtension();
 
@@ -329,19 +356,40 @@ juce::Result TPatchPresetIO::loadFromFile(
         "Patch preset load failed: graph payload could not be restored.");
   }
 
-  if (summaryOut.nodeCount <= 0)
+  for (const auto &warning : loadReport.graphMigration.warnings)
+    appendWarning(loadReport.warnings, "Graph: " + warning);
+
+  bool derivedSummaryField = false;
+  if (summaryOut.nodeCount <= 0) {
     summaryOut.nodeCount = (int)presetDocumentOut.nodes.size();
-  if (summaryOut.connectionCount <= 0)
+    derivedSummaryField = true;
+  }
+  if (summaryOut.connectionCount <= 0) {
     summaryOut.connectionCount = (int)presetDocumentOut.connections.size();
-  if (summaryOut.frameCount <= 0)
+    derivedSummaryField = true;
+  }
+  if (summaryOut.frameCount <= 0) {
     summaryOut.frameCount = (int)presetDocumentOut.frames.size();
-  if (summaryOut.bounds.isEmpty())
+    derivedSummaryField = true;
+  }
+  if (summaryOut.bounds.isEmpty()) {
     summaryOut.bounds = computeDocumentBounds(presetDocumentOut);
+    derivedSummaryField = true;
+  }
+
+  if (!hasSummaryObject) {
+    appendWarning(loadReport.warnings,
+                  "Patch preset summary missing; summary fields were derived from the graph payload.");
+  } else if (derivedSummaryField) {
+    appendWarning(loadReport.warnings,
+                  "Patch preset summary incomplete; missing fields were derived from the graph payload.");
+  }
 
   loadReport.migrated =
       loadReport.usedLegacyAliases ||
       loadReport.sourceSchemaVersion != loadReport.targetSchemaVersion ||
       loadReport.graphMigration.migrated;
+  loadReport.degraded = loadReport.degraded || loadReport.graphMigration.degraded;
   if (loadReportOut != nullptr)
     *loadReportOut = loadReport;
 

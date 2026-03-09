@@ -131,6 +131,14 @@ bool usesLegacyStateAliases(const juce::DynamicObject *root) {
           root->hasProperty("nodeStates"));
 }
 
+void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
+  const auto normalized = warning.trim();
+  if (normalized.isEmpty())
+    return;
+  if (!warnings.contains(normalized))
+    warnings.add(normalized);
+}
+
 TNode *findFallbackNode(TGraphDocument &document,
                         const TStatePresetNodeState &nodeState) {
   TNode *match = nullptr;
@@ -248,6 +256,26 @@ juce::Result TStatePresetIO::loadFromFile(
   loadReport.targetSchemaVersion = kStatePresetSchemaVersion;
   loadReport.usedLegacyAliases = usesLegacyStateAliases(root);
 
+  if (loadReport.usedLegacyAliases) {
+    appendWarning(loadReport.warnings,
+                  "State preset used legacy root field aliases during load.");
+  }
+
+  if (loadReport.sourceSchemaVersion < loadReport.targetSchemaVersion) {
+    appendWarning(loadReport.warnings,
+                  "State preset schema upgraded from v" +
+                      juce::String(loadReport.sourceSchemaVersion) + " to v" +
+                      juce::String(loadReport.targetSchemaVersion) + ".");
+  } else if (loadReport.sourceSchemaVersion > loadReport.targetSchemaVersion) {
+    loadReport.degraded = true;
+    appendWarning(
+        loadReport.warnings,
+        "State preset schema is newer than this build supports; using best-effort load.");
+  }
+
+  const auto summaryVar = propertyOrAlias(root, {"summary", "presetSummary"});
+  const bool hasSummaryObject = summaryVar.isObject();
+
   nodeStatesOut.clear();
   summaryOut = {};
   summaryOut.presetName =
@@ -255,8 +283,7 @@ juce::Result TStatePresetIO::loadFromFile(
   summaryOut.targetGraphName =
       propertyOrAlias(root, {"target_graph_name", "targetGraphName"})
           .toString();
-  hydrateSummaryFromJson(summaryOut,
-                         propertyOrAlias(root, {"summary", "presetSummary"}));
+  hydrateSummaryFromJson(summaryOut, summaryVar);
   if (summaryOut.presetName.isEmpty())
     summaryOut.presetName = file.getFileNameWithoutExtension();
 
@@ -270,10 +297,23 @@ juce::Result TStatePresetIO::loadFromFile(
     }
   }
 
-  if (summaryOut.nodeStateCount <= 0)
+  bool derivedSummaryField = false;
+  if (summaryOut.nodeStateCount <= 0) {
     summaryOut.nodeStateCount = (int)nodeStatesOut.size();
-  if (summaryOut.paramValueCount <= 0)
+    derivedSummaryField = true;
+  }
+  if (summaryOut.paramValueCount <= 0) {
     summaryOut.paramValueCount = countParamValues(nodeStatesOut);
+    derivedSummaryField = true;
+  }
+
+  if (!hasSummaryObject) {
+    appendWarning(loadReport.warnings,
+                  "State preset summary missing; summary fields were derived from node states.");
+  } else if (derivedSummaryField) {
+    appendWarning(loadReport.warnings,
+                  "State preset summary incomplete; missing fields were derived from node states.");
+  }
 
   loadReport.migrated =
       loadReport.usedLegacyAliases ||
@@ -289,12 +329,16 @@ juce::Result TStatePresetIO::applyToDocument(TGraphDocument &document,
                                              TStatePresetApplyReport *reportOut) {
   std::vector<TStatePresetNodeState> nodeStates;
   TStatePresetSummary summary;
-  const auto loadResult = loadFromFile(nodeStates, summary, file);
+  TStatePresetLoadReport loadReport;
+  const auto loadResult = loadFromFile(nodeStates, summary, file, &loadReport);
   if (loadResult.failed())
     return loadResult;
 
   TStatePresetApplyReport report;
   report.summary = summary;
+  report.loadReport = loadReport;
+  report.degraded = loadReport.degraded;
+  report.warnings = loadReport.warnings;
 
   for (const auto &nodeState : nodeStates) {
     auto *node = findTargetNode(document, nodeState);
@@ -311,6 +355,13 @@ juce::Result TStatePresetIO::applyToDocument(TGraphDocument &document,
 
     report.appliedNodeIds.push_back(node->nodeId);
     ++report.appliedNodeCount;
+  }
+
+  if (report.skippedNodeCount > 0) {
+    report.degraded = true;
+    appendWarning(report.warnings,
+                  "State preset skipped " + juce::String(report.skippedNodeCount) +
+                      " nodes while applying to the current document.");
   }
 
   if (report.appliedNodeCount <= 0) {

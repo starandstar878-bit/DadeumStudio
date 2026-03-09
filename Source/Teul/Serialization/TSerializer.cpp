@@ -37,6 +37,14 @@ bool hasAnyProperty(const juce::DynamicObject *object,
   return false;
 }
 
+void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
+  const auto normalized = warning.trim();
+  if (normalized.isEmpty())
+    return;
+  if (!warnings.contains(normalized))
+    warnings.add(normalized);
+}
+
 juce::Array<juce::var> migrateArray(
     const juce::var &source,
     const std::function<juce::var(const juce::var &)> &migrateItem) {
@@ -484,15 +492,43 @@ juce::var TSerializer::bookmarkToJson(const TBookmark &bookmark) {
 bool TSerializer::fromJson(TGraphDocument &doc,
                            const juce::var &json,
                            TSchemaMigrationReport *migrationReportOut) {
+  const auto *sourceRoot = json.getDynamicObject();
+
   TSchemaMigrationReport migrationReport;
   migrationReport.sourceSchemaVersion =
-      (int)propertyOrAlias(json.getDynamicObject(),
-                           {"schema_version", "schemaVersion"}, 1);
+      (int)propertyOrAlias(sourceRoot, {"schema_version", "schemaVersion"}, 1);
   migrationReport.targetSchemaVersion = currentSchemaVersion();
   migrationReport.usedLegacyAliases = usesLegacyDocumentAliases(json);
   migrationReport.migrated =
       migrationReport.usedLegacyAliases ||
       migrationReport.sourceSchemaVersion != migrationReport.targetSchemaVersion;
+
+  if (migrationReport.usedLegacyAliases) {
+    appendWarning(migrationReport.warnings,
+                  "Document used legacy field aliases during restore.");
+  }
+
+  if (migrationReport.sourceSchemaVersion < migrationReport.targetSchemaVersion) {
+    appendWarning(migrationReport.warnings,
+                  "Document schema upgraded from v" +
+                      juce::String(migrationReport.sourceSchemaVersion) + " to v" +
+                      juce::String(migrationReport.targetSchemaVersion) + ".");
+  } else if (migrationReport.sourceSchemaVersion >
+             migrationReport.targetSchemaVersion) {
+    migrationReport.degraded = true;
+    appendWarning(
+        migrationReport.warnings,
+        "Document schema is newer than this build supports; using best-effort restore.");
+  }
+
+  if (sourceRoot == nullptr)
+    return false;
+
+  if (!propertyOrAlias(sourceRoot, {"meta", "graphMeta"}).isObject()) {
+    migrationReport.degraded = true;
+    appendWarning(migrationReport.warnings,
+                  "Document meta missing; defaults were applied.");
+  }
 
   const auto migratedJson = migrateDocumentJson(json);
   if (!migratedJson.isObject())
@@ -562,6 +598,8 @@ bool TSerializer::fromJson(TGraphDocument &doc,
     for (const auto &frame : doc.frames)
       maxFrameId = juce::jmax(maxFrameId, frame.frameId);
     doc.setNextFrameId(maxFrameId + 1);
+    appendWarning(migrationReport.warnings,
+                  "Document frame id sequence was repaired from frame contents.");
   }
 
   if (doc.getNextBookmarkId() <= 0) {
@@ -569,6 +607,9 @@ bool TSerializer::fromJson(TGraphDocument &doc,
     for (const auto &bookmark : doc.bookmarks)
       maxBookmarkId = juce::jmax(maxBookmarkId, bookmark.bookmarkId);
     doc.setNextBookmarkId(maxBookmarkId + 1);
+    appendWarning(
+        migrationReport.warnings,
+        "Document bookmark id sequence was repaired from bookmark contents.");
   }
 
   if (migrationReportOut != nullptr)
