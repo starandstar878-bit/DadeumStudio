@@ -241,20 +241,21 @@
 - [x] transient recovery / compatibility warning banner is visible inside the Teul editor
 - [x] logical frame groups back the current patch preset MVP
 - [x] document-level state preset and autosave recovery MVP are implemented underneath the UI
-- [ ] preset browser, state diff UX, recovery chooser, and control source rail remain pending
+- [x] preset browser, dirty/autosave status, state diff preview, recovery preview, and conflict summary UX are implemented
+- [ ] advanced compatibility detail and control source rail remain pending
 
 ### Steps
 
 #### Step 1: Preset Library
-- [ ] **Preset Browser**: browse presets with tags, recent items, and preview metadata
-- [ ] **Node/Group Snapshot Save**: save selected frame groups or graph fragments as reusable patch presets
-- [ ] **State Diff View**: compare the current state against the selected preset before apply
+- [x] **Preset Browser**: browse presets with tags, favorites, recents, and preview metadata
+- [x] **Node/Group Snapshot Save**: save selected logical frame groups as reusable patch presets and insert them back into the canvas
+- [x] **State Diff View**: compare the current state against the selected preset before apply
 
 #### Step 2: Save / Recovery Flow
-- [ ] **Dirty State Indicator**: show modified state and the latest autosave time in the editor chrome
-- [ ] **Crash Recovery Preview**: show the autosave candidate and what will be restored after an unclean shutdown
+- [x] **Dirty State Indicator**: show modified state and the latest autosave time in the editor chrome
+- [x] **Crash Recovery Preview**: show the autosave candidate and what will be restored after an unclean shutdown
 - [x] **Recovery Warning Banner**: show a transient banner when autosave restore, degraded preset apply, or compatibility fallback happens
-- [ ] **Conflict Resolution Flow**: explain merge / overwrite / keep-local choices for import and restore operations
+- [x] **Conflict Resolution Flow**: explain overwrite intent before state apply or recovery restore and require explicit confirmation
 
 #### Step 3: External Control Source Rail UX
 - [ ] **Input / Output / Control Rail Layout**: reserve fixed rails for system I/O and control sources around the canvas
@@ -268,6 +269,11 @@
 - [x] **Migration Warning Banner**: surface degraded restore and compatibility warnings directly in the editor
 - [ ] **Deprecated / Alias Detail**: show which renamed fields, aliases, or deprecated params were used during load
 - [ ] **Recovery Severity Grade**: distinguish full restore, partial restore, and manual follow-up needed
+
+### Deferred From Preset / Recovery Core
+- [ ] **Deprecated / Alias Detail**: expand load warnings into a dedicated alias/deprecation inspector instead of banner/detail text only
+- [ ] **Recovery Severity Grade**: distinguish full restore, partial restore, and manual follow-up needed
+- [ ] **External Control Source Rail UX**: keep the rail/device-profile work as the next UI Phase 8 block after preset/recovery
 
 ---
 

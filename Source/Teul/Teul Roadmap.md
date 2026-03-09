@@ -331,8 +331,8 @@
 - [x] autosave / crash recovery MVP restores the latest Teul session snapshot
 - [x] legacy alias compatibility smoke and compatibility matrix are implemented
 - [x] migration / degraded load reports and transient warning notices are implemented
-- [ ] explicit schema migration chain across versioned payload steps
-- [ ] preset browser, state diff UX, and recovery conflict UX remain in UI Phase 8
+- [x] preset browser, dirty/autosave status, state diff preview, recovery preview, and conflict summary UX are implemented
+- [ ] explicit schema migration chain across versioned payload steps remains pending
 
 ### Scope
 - [x] **preset/state format definition**: patch preset and state preset payload formats are fixed for the current MVP path
@@ -341,6 +341,7 @@
 - [x] **autosave / crash recovery**: latest Teul autosave snapshot is persisted and restored after an unclean shutdown
 - [x] **compatibility test matrix**: representative legacy alias, schema-v1, and partial-apply matrix smoke is implemented
 - [x] **migration / degraded reporting**: load/apply paths emit degraded flags and warning lists for UI/diagnostics consumers
+- [x] **preset / recovery UX core**: preset browser, favorites/recent/tags metadata, recovery restore/discard, state diff preview, dirty status, and conflict summaries are all wired into the editor
 
 ### Deferred From Phase 8
 - Shared `PresetCore` / composite preset packaging for `Gyeol + Ieum + Teul`

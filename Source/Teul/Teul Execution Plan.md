@@ -235,8 +235,8 @@
 - [x] compatibility test matrix
 - [x] migration / degraded load reports
 - [x] transient recovery / compatibility warning banner
+- [x] preset browser / state diff / recovery preview / conflict UX core
 - [ ] explicit schema migration chain
-- [ ] preset browser / state diff / recovery conflict UX
 - [ ] external control sources / device profiles
 
 **Verification Notes (2026-03-09)**
@@ -249,9 +249,9 @@
 
 **Then UI**
 - UI `Phase 8`
-  - preset browser
-  - state diff / compare view
-  - dirty state and crash recovery preview
+  - preset browser library with favorites / recents / tags
+  - state diff preview and recovery snapshot diff preview
+  - dirty state, autosave status, and crash recovery preview
   - migration warning / degraded recovery guidance
   - control source rail and device profile UX
 
@@ -265,7 +265,7 @@
 - [x] autosave recovery smoke passes
 - [x] compatibility smoke and compatibility matrix pass
 - [ ] explicit schema migration chain is documented and exercised
-- [ ] UI Phase 8 exposes preset browsing, recovery preview, and warning detail clearly
+- [x] UI Phase 8 exposes preset browsing, state diff, recovery preview, and conflict summaries clearly
 
 ---
 
