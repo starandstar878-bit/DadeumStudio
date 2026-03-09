@@ -1756,7 +1756,10 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       !legacyDocumentMigration.migrated ||
       !legacyDocumentMigration.usedLegacyAliases ||
       legacyDocumentMigration.degraded ||
-      legacyDocumentMigration.warnings.isEmpty()) {
+      legacyDocumentMigration.warnings.isEmpty() ||
+      legacyDocumentMigration.appliedSteps.size() != 2 ||
+      !legacyDocumentMigration.appliedSteps.contains("document:v1->v2") ||
+      !legacyDocumentMigration.appliedSteps.contains("document:v2->v3")) {
     return juce::Result::fail(
         "Teul compatibility smoke legacy document restore mismatch.");
   }
@@ -1982,6 +1985,10 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       juce::String(legacyDocumentMigration.warnings.size()) + "\r\n" +
       "legacyDocumentWarnings=" +
       summarizeWarnings(legacyDocumentMigration.warnings) + "\r\n" +
+      "legacyDocumentAppliedStepCount=" +
+      juce::String(legacyDocumentMigration.appliedSteps.size()) + "\r\n" +
+      "legacyDocumentAppliedSteps=" +
+      summarizeWarnings(legacyDocumentMigration.appliedSteps) + "\r\n" +
       "legacyPatchNodes=" +
       juce::String((int)loadedLegacyPatchDocument.nodes.size()) + "\r\n" +
       "legacyPatchMigrated=" +
@@ -2063,6 +2070,10 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
                           legacyDocumentMigration.warnings.size());
   bundleRoot->setProperty("legacyDocumentWarnings",
                           stringArrayToJsonArray(legacyDocumentMigration.warnings));
+  bundleRoot->setProperty("legacyDocumentAppliedStepCount",
+                          legacyDocumentMigration.appliedSteps.size());
+  bundleRoot->setProperty("legacyDocumentAppliedSteps",
+                          stringArrayToJsonArray(legacyDocumentMigration.appliedSteps));
   bundleRoot->setProperty("legacyPatchNodeCount",
                           (int)loadedLegacyPatchDocument.nodes.size());
   bundleRoot->setProperty("legacyPatchMigrated",
@@ -2322,7 +2333,10 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
         !migrationReport.degraded && migrationReport.warnings.size() > 0 &&
         migrationReport.sourceSchemaVersion == 1 &&
         migrationReport.targetSchemaVersion ==
-            Teul::TSerializer::currentSchemaVersion();
+            Teul::TSerializer::currentSchemaVersion() &&
+        migrationReport.appliedSteps.size() == 2 &&
+        migrationReport.appliedSteps.contains("document:v1->v2") &&
+        migrationReport.appliedSteps.contains("document:v2->v3");
     caseResult.migrated = migrationReport.migrated;
     caseResult.usedLegacyAliases = migrationReport.usedLegacyAliases;
     caseResult.degraded = migrationReport.degraded;

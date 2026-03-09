@@ -45,6 +45,18 @@ void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
     warnings.add(normalized);
 }
 
+void appendMigrationStep(TSchemaMigrationReport *report,
+                         const juce::String &stepName) {
+  if (report == nullptr)
+    return;
+
+  const auto normalized = stepName.trim();
+  if (normalized.isEmpty())
+    return;
+  if (!report->appliedSteps.contains(normalized))
+    report->appliedSteps.add(normalized);
+}
+
 juce::Array<juce::var> migrateArray(
     const juce::var &source,
     const std::function<juce::var(const juce::var &)> &migrateItem) {
@@ -140,7 +152,27 @@ bool TSerializer::usesLegacyDocumentAliases(const juce::var &json) {
   return false;
 }
 
-juce::var TSerializer::migrateDocumentJson(const juce::var &json) {
+juce::var TSerializer::migrateDocumentJson(
+    const juce::var &json,
+    int sourceSchemaVersion,
+    TSchemaMigrationReport *migrationReportOut) {
+  if (sourceSchemaVersion <= 1) {
+    auto migrated = migrateDocumentV1ToV2(json);
+    appendMigrationStep(migrationReportOut, "document:v1->v2");
+    migrated = migrateDocumentV2ToV3(migrated);
+    appendMigrationStep(migrationReportOut, "document:v2->v3");
+    return migrated;
+  }
+
+  if (sourceSchemaVersion == 2) {
+    appendMigrationStep(migrationReportOut, "document:v2->v3");
+    return migrateDocumentV2ToV3(json);
+  }
+
+  return normalizeDocumentJson(json);
+}
+
+juce::var TSerializer::normalizeDocumentJson(const juce::var &json) {
   if (!json.isObject())
     return {};
 
@@ -172,7 +204,9 @@ juce::var TSerializer::migrateDocumentJson(const juce::var &json) {
   object->setProperty(
       "nodes",
       migrateArray(propertyOrAlias(source, {"nodes", "node_list"}),
-                   [](const juce::var &item) { return TSerializer::migrateNodeJson(item); }));
+                   [](const juce::var &item) {
+                     return TSerializer::migrateNodeJson(item);
+                   }));
   object->setProperty(
       "connections",
       migrateArray(propertyOrAlias(source, {"connections", "connection_list"}),
@@ -182,7 +216,115 @@ juce::var TSerializer::migrateDocumentJson(const juce::var &json) {
   object->setProperty(
       "frames",
       migrateArray(propertyOrAlias(source, {"frames", "frame_regions"}),
-                   [](const juce::var &item) { return TSerializer::migrateFrameJson(item); }));
+                   [](const juce::var &item) {
+                     return TSerializer::migrateFrameJson(item);
+                   }));
+  object->setProperty(
+      "bookmarks",
+      migrateArray(propertyOrAlias(source, {"bookmarks", "bookmark_list"}),
+                   [](const juce::var &item) {
+                     return TSerializer::migrateBookmarkJson(item);
+                   }));
+  return juce::var(object);
+}
+
+juce::var TSerializer::migrateDocumentV1ToV2(const juce::var &json) {
+  if (!json.isObject())
+    return {};
+
+  const auto *source = json.getDynamicObject();
+  auto *object = new juce::DynamicObject();
+  object->setProperty("schema_version", 2);
+  object->setProperty("next_node_id",
+                      propertyOrAlias(source, {"next_node_id", "nextNodeId"},
+                                      1));
+  object->setProperty("next_port_id",
+                      propertyOrAlias(source, {"next_port_id", "nextPortId"},
+                                      1));
+  object->setProperty(
+      "next_connection_id",
+      propertyOrAlias(source, {"next_connection_id", "next_conn_id",
+                               "nextConnectionId"},
+                      1));
+  object->setProperty("next_frame_id",
+                      propertyOrAlias(source, {"next_frame_id", "nextFrameId"},
+                                      1));
+  object->setProperty(
+      "next_bookmark_id",
+      propertyOrAlias(source, {"next_bookmark_id", "nextBookmarkId"}, 1));
+  object->setProperty(
+      "meta", migrateMetaJson(propertyOrAlias(source, {"meta", "graphMeta"})));
+  object->setProperty(
+      "nodes",
+      migrateArray(propertyOrAlias(source, {"nodes", "node_list"}),
+                   [](const juce::var &item) {
+                     return TSerializer::migrateNodeJson(item);
+                   }));
+  object->setProperty(
+      "connections",
+      migrateArray(propertyOrAlias(source, {"connections", "connection_list"}),
+                   [](const juce::var &item) {
+                     return TSerializer::migrateConnectionJson(item);
+                   }));
+  object->setProperty(
+      "frames",
+      migrateArray(propertyOrAlias(source, {"frames", "frame_regions"}),
+                   [](const juce::var &item) {
+                     return TSerializer::migrateFrameJsonV2(item);
+                   }));
+  object->setProperty(
+      "bookmarks",
+      migrateArray(propertyOrAlias(source, {"bookmarks", "bookmark_list"}),
+                   [](const juce::var &item) {
+                     return TSerializer::migrateBookmarkJson(item);
+                   }));
+  return juce::var(object);
+}
+
+juce::var TSerializer::migrateDocumentV2ToV3(const juce::var &json) {
+  if (!json.isObject())
+    return {};
+
+  const auto *source = json.getDynamicObject();
+  auto *object = new juce::DynamicObject();
+  object->setProperty("schema_version", currentSchemaVersion());
+  object->setProperty("next_node_id",
+                      propertyOrAlias(source, {"next_node_id", "nextNodeId"},
+                                      1));
+  object->setProperty("next_port_id",
+                      propertyOrAlias(source, {"next_port_id", "nextPortId"},
+                                      1));
+  object->setProperty(
+      "next_conn_id",
+      propertyOrAlias(source, {"next_conn_id", "next_connection_id",
+                               "nextConnectionId"},
+                      1));
+  object->setProperty("next_frame_id",
+                      propertyOrAlias(source, {"next_frame_id", "nextFrameId"},
+                                      1));
+  object->setProperty(
+      "next_bookmark_id",
+      propertyOrAlias(source, {"next_bookmark_id", "nextBookmarkId"}, 1));
+  object->setProperty(
+      "meta", migrateMetaJson(propertyOrAlias(source, {"meta", "graphMeta"})));
+  object->setProperty(
+      "nodes",
+      migrateArray(propertyOrAlias(source, {"nodes", "node_list"}),
+                   [](const juce::var &item) {
+                     return TSerializer::migrateNodeJson(item);
+                   }));
+  object->setProperty(
+      "connections",
+      migrateArray(propertyOrAlias(source, {"connections", "connection_list"}),
+                   [](const juce::var &item) {
+                     return TSerializer::migrateConnectionJson(item);
+                   }));
+  object->setProperty(
+      "frames",
+      migrateArray(propertyOrAlias(source, {"frames", "frame_regions"}),
+                   [](const juce::var &item) {
+                     return TSerializer::migrateFrameJson(item);
+                   }));
   object->setProperty(
       "bookmarks",
       migrateArray(propertyOrAlias(source, {"bookmarks", "bookmark_list"}),
@@ -301,6 +443,29 @@ juce::var TSerializer::migrateConnectionJson(const juce::var &json) {
   object->setProperty(
       "to",
       migrateEndpoint(propertyOrAlias(source, {"to", "target"}, juce::var())));
+  return juce::var(object);
+}
+
+juce::var TSerializer::migrateFrameJsonV2(const juce::var &json) {
+  if (!json.isObject())
+    return {};
+
+  const auto *source = json.getDynamicObject();
+  auto *object = new juce::DynamicObject();
+  object->setProperty("id", propertyOrAlias(source, {"id", "frame_id", "frameId"}, 0));
+  object->setProperty("uuid", propertyOrAlias(source, {"uuid", "frame_uuid", "frameUuid"}, juce::String()));
+  object->setProperty("title", propertyOrAlias(source, {"title", "name"}, "Frame"));
+  object->setProperty("x", propertyOrAlias(source, {"x", "pos_x", "posX"}, 0.0f));
+  object->setProperty("y", propertyOrAlias(source, {"y", "pos_y", "posY"}, 0.0f));
+  object->setProperty("width", propertyOrAlias(source, {"width"}, 360.0f));
+  object->setProperty("height", propertyOrAlias(source, {"height"}, 220.0f));
+  object->setProperty(
+      "color_argb",
+      propertyOrAlias(source, {"color_argb", "colorArgb"}, (int64_t)0x334d8bf7));
+  object->setProperty("collapsed",
+                      propertyOrAlias(source, {"collapsed", "isCollapsed"}, false));
+  object->setProperty("locked",
+                      propertyOrAlias(source, {"locked", "isLocked"}, false));
   return juce::var(object);
 }
 
@@ -530,9 +695,14 @@ bool TSerializer::fromJson(TGraphDocument &doc,
                   "Document meta missing; defaults were applied.");
   }
 
-  const auto migratedJson = migrateDocumentJson(json);
+  const auto migratedJson =
+      migrateDocumentJson(json, migrationReport.sourceSchemaVersion,
+                          &migrationReport);
   if (!migratedJson.isObject())
     return false;
+
+  migrationReport.migrated =
+      migrationReport.migrated || !migrationReport.appliedSteps.isEmpty();
 
   doc.nodes.clear();
   doc.connections.clear();
