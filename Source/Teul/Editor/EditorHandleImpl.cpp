@@ -388,7 +388,7 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   }
 
   if (diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen()) {
-    auto drawerArea = area.removeFromBottom(486).reduced(0, 2);
+    auto drawerArea = area.removeFromBottom(644).reduced(0, 2);
     diagnosticsDrawer->setBounds(drawerArea);
   }
 

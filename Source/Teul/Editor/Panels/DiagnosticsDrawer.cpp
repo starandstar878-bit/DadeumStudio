@@ -634,6 +634,183 @@ private:
   std::vector<BenchmarkTimelineEntry> entries;
 };
 
+class CompareScreen final : public juce::Component {
+public:
+  void setComparison(const DiagnosticSnapshot *selected,
+                     const DiagnosticSnapshot *other) {
+    selectedTitle = selected != nullptr ? selected->title : juce::String();
+    compareTitle = other != nullptr ? other->title : juce::String();
+    selectedStatus = selected != nullptr ? selected->statusText : juce::String();
+    compareStatus = other != nullptr ? other->statusText : juce::String();
+    selectedPassed = selected != nullptr && selected->passed;
+    comparePassed = other != nullptr && other->passed;
+    emptyMessage.clear();
+    rows.clear();
+
+    if (selected == nullptr) {
+      emptyMessage = "Select a diagnostic result to inspect comparison metrics.";
+      repaint();
+      return;
+    }
+    if (other == nullptr) {
+      emptyMessage = "Pick a comparison target to populate runtime vs export metrics.";
+      repaint();
+      return;
+    }
+
+    auto addRow = [&](const juce::String &label,
+                      const juce::String &selectedValue,
+                      const juce::String &compareValue) {
+      if (selectedValue.isEmpty() && compareValue.isEmpty())
+        return;
+
+      CompareRow row;
+      row.label = label;
+      row.selectedValue = selectedValue.isNotEmpty() ? selectedValue : "n/a";
+      row.compareValue = compareValue.isNotEmpty() ? compareValue : "n/a";
+
+      double selectedNumber = 0.0;
+      double compareNumber = 0.0;
+      const bool hasSelectedNumber = tryParseDouble(selectedValue, selectedNumber);
+      const bool hasCompareNumber = tryParseDouble(compareValue, compareNumber);
+      if (hasSelectedNumber && hasCompareNumber)
+        row.deltaValue = formatDelta(selectedNumber - compareNumber);
+      else if (selectedValue != compareValue)
+        row.deltaValue = "changed";
+      else
+        row.deltaValue = "same";
+      rows.push_back(std::move(row));
+    };
+
+    addRow("Graph", valueOrFallback(selected->summaryValues, "graphId"),
+           valueOrFallback(other->summaryValues, "graphId"));
+    addRow("Stimulus", valueOrFallback(selected->summaryValues, "stimulusId"),
+           valueOrFallback(other->summaryValues, "stimulusId"));
+    addRow("Profile", valueOrFallback(selected->summaryValues, "profileId"),
+           valueOrFallback(other->summaryValues, "profileId"));
+    addRow("Max Error", valueOrFallback(selected->summaryValues, "maxAbsoluteError"),
+           valueOrFallback(other->summaryValues, "maxAbsoluteError"));
+    addRow("RMS", valueOrFallback(selected->summaryValues, "rmsError"),
+           valueOrFallback(other->summaryValues, "rmsError"));
+    addRow("Failed Cases", valueOrFallback(selected->summaryValues, "failedCaseCount"),
+           valueOrFallback(other->summaryValues, "failedCaseCount"));
+    addRow("Iterations", valueOrFallback(selected->summaryValues, "iterationCount"),
+           valueOrFallback(other->summaryValues, "iterationCount"));
+    addRow("Compile Exit", valueOrFallback(selected->summaryValues, "compileExitCode"),
+           valueOrFallback(other->summaryValues, "compileExitCode"));
+    addRow("Export Exit", valueOrFallback(selected->summaryValues, "exportExitCode"),
+           valueOrFallback(other->summaryValues, "exportExitCode"));
+
+    repaint();
+  }
+
+  void paint(juce::Graphics &g) override {
+    const auto bounds = getLocalBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+
+    g.setColour(juce::Colour(0xff0b1220));
+    g.fillRoundedRectangle(bounds, 10.0f);
+    g.setColour(juce::Colour(0xff334155));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 10.0f, 1.0f);
+
+    auto content = getLocalBounds().reduced(10, 8);
+    if (emptyMessage.isNotEmpty()) {
+      g.setColour(juce::Colours::white.withAlpha(0.52f));
+      g.setFont(juce::FontOptions(11.0f, juce::Font::plain));
+      g.drawText(emptyMessage, content, juce::Justification::centredLeft, true);
+      return;
+    }
+
+    auto header = content.removeFromTop(24);
+    auto selectedArea = header.removeFromLeft(header.getWidth() / 2).reduced(0, 2);
+    auto compareArea = header.reduced(0, 2);
+    drawHeaderChip(g, selectedArea, selectedTitle, selectedStatus, selectedPassed);
+    drawHeaderChip(g, compareArea, compareTitle, compareStatus, comparePassed);
+
+    content.removeFromTop(6);
+    g.setColour(juce::Colours::white.withAlpha(0.28f));
+    g.drawLine(static_cast<float>(content.getX()), static_cast<float>(content.getY()),
+               static_cast<float>(content.getRight()), static_cast<float>(content.getY()));
+    content.removeFromTop(8);
+
+    if (rows.empty()) {
+      g.setColour(juce::Colours::white.withAlpha(0.52f));
+      g.setFont(juce::FontOptions(11.0f, juce::Font::plain));
+      g.drawText("The selected pair does not expose shared compare metrics.",
+                 content, juce::Justification::centredLeft, true);
+      return;
+    }
+
+    const int rowHeight = 18;
+    const int labelWidth = 96;
+    const int deltaWidth = 88;
+    for (const auto &row : rows) {
+      if (content.getHeight() < rowHeight)
+        break;
+      auto rowArea = content.removeFromTop(rowHeight);
+      auto deltaArea = rowArea.removeFromRight(deltaWidth);
+      auto compareValueArea = rowArea.removeFromRight((rowArea.getWidth() - labelWidth) / 2);
+      auto selectedValueArea = rowArea;
+      auto labelArea = selectedValueArea.removeFromLeft(labelWidth);
+
+      g.setColour(juce::Colours::white.withAlpha(0.48f));
+      g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+      g.drawText(row.label, labelArea, juce::Justification::centredLeft, false);
+
+      g.setColour(juce::Colours::white.withAlpha(0.82f));
+      g.setFont(juce::FontOptions(10.0f, juce::Font::plain));
+      g.drawText(row.selectedValue, selectedValueArea, juce::Justification::centredLeft, false);
+      g.drawText(row.compareValue, compareValueArea, juce::Justification::centredLeft, false);
+
+      const auto deltaColour = row.deltaValue.startsWithChar('+')
+                                   ? juce::Colour(0xfff59e0b)
+                                   : (row.deltaValue == "same" ? juce::Colour(0xff22c55e)
+                                                               : juce::Colours::white.withAlpha(0.58f));
+      g.setColour(deltaColour);
+      g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+      g.drawText(row.deltaValue, deltaArea, juce::Justification::centredRight, false);
+    }
+  }
+
+private:
+  struct CompareRow {
+    juce::String label;
+    juce::String selectedValue;
+    juce::String compareValue;
+    juce::String deltaValue;
+  };
+
+  static void drawHeaderChip(juce::Graphics &g,
+                             juce::Rectangle<int> area,
+                             const juce::String &title,
+                             const juce::String &status,
+                             bool passed) {
+    const auto accent = passed ? juce::Colour(0xff22c55e) : juce::Colour(0xffef4444);
+    g.setColour(accent.withAlpha(0.14f));
+    g.fillRoundedRectangle(area.toFloat(), 8.0f);
+    g.setColour(accent.withAlpha(0.88f));
+    g.drawRoundedRectangle(area.toFloat(), 8.0f, 1.0f);
+
+    auto textArea = area.reduced(8, 3);
+    auto statusArea = textArea.removeFromRight(58);
+    g.setColour(juce::Colours::white.withAlpha(0.92f));
+    g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+    g.drawText(title, textArea, juce::Justification::centredLeft, true);
+    g.setColour(accent.withAlpha(0.94f));
+    g.drawText(status, statusArea, juce::Justification::centredRight, false);
+  }
+
+  juce::String selectedTitle;
+  juce::String compareTitle;
+  juce::String selectedStatus;
+  juce::String compareStatus;
+  juce::String emptyMessage;
+  bool selectedPassed = false;
+  bool comparePassed = false;
+  std::vector<CompareRow> rows;
+};
+
 class DiagnosticCard final : public juce::Component {
 public:
   DiagnosticCard() {
@@ -767,6 +944,8 @@ public:
     addAndMakeVisible(listViewport);
     addAndMakeVisible(detailLabel);
     addAndMakeVisible(diffLabel);
+    addAndMakeVisible(compareScreenLabel);
+    addAndMakeVisible(compareScreen);
     addAndMakeVisible(timelineLabel);
     addAndMakeVisible(benchmarkTimeline);
     addAndMakeVisible(detailEditor);
@@ -837,11 +1016,14 @@ public:
 
     detailLabel.setText("Selected Report", juce::dontSendNotification);
     diffLabel.setText("Diff View", juce::dontSendNotification);
+    compareScreenLabel.setText("Compare Screen", juce::dontSendNotification);
     timelineLabel.setText("Benchmark Timeline", juce::dontSendNotification);
     detailLabel.setColour(juce::Label::textColourId,
                           juce::Colours::white.withAlpha(0.72f));
     diffLabel.setColour(juce::Label::textColourId,
                         juce::Colours::white.withAlpha(0.72f));
+    compareScreenLabel.setColour(juce::Label::textColourId,
+                                 juce::Colours::white.withAlpha(0.72f));
     timelineLabel.setColour(juce::Label::textColourId,
                             juce::Colours::white.withAlpha(0.72f));
 
@@ -1012,8 +1194,13 @@ public:
     benchmarkTimeline.setBounds(area.removeFromTop(98));
 
     area.removeFromTop(8);
-    auto listArea = area.removeFromTop(juce::roundToInt(area.getHeight() * 0.30f));
+    auto listArea = area.removeFromTop(juce::roundToInt(area.getHeight() * 0.24f));
     listViewport.setBounds(listArea);
+
+    area.removeFromTop(8);
+    compareScreenLabel.setBounds(area.removeFromTop(18));
+    area.removeFromTop(4);
+    compareScreen.setBounds(area.removeFromTop(132));
 
     area.removeFromTop(8);
     auto bottomArea = area;
@@ -1265,6 +1452,7 @@ private:
         selectedSnapshotIndex >= static_cast<int>(snapshots.size())) {
       detailEditor.setText("No diagnostic selected.", false);
       diffEditor.setText("No diagnostic selected.", false);
+      compareScreen.setComparison(nullptr, nullptr);
       return;
     }
 
@@ -1279,6 +1467,7 @@ private:
         compareSnapshot = &snapshots[static_cast<std::size_t>(compareIndex)];
     }
 
+    compareScreen.setComparison(&selected, compareSnapshot);
     diffEditor.setText(buildDiffText(selected, compareSnapshot), false);
   }
 
@@ -1334,7 +1523,9 @@ private:
   juce::Label emptyStateLabel;
   juce::Label detailLabel;
   juce::Label diffLabel;
+  juce::Label compareScreenLabel;
   juce::Label timelineLabel;
+  CompareScreen compareScreen;
   BenchmarkTimeline benchmarkTimeline;
   juce::TextEditor detailEditor;
   juce::TextEditor diffEditor;
