@@ -20,6 +20,7 @@
 #include "Teul/Serialization/TPatchPresetIO.h"
 #include "Teul/Serialization/TStatePresetIO.h"
 #include "Teul/Serialization/TFileIo.h"
+#include "Teul/Serialization/TSerializer.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
 #include <algorithm>
@@ -1520,6 +1521,451 @@ juce::Result runTeulPhase8AutosaveRecoverySmoke(const juce::StringArray &args) {
   return juce::Result::ok();
 }
 
+
+juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
+  const auto outputArg = argValue(args, "--output-dir=");
+  juce::File outputDirectory;
+  if (outputArg.isNotEmpty()) {
+    outputDirectory = juce::File(outputArg);
+  } else {
+    outputDirectory =
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulCompatibilitySmoke_" +
+                          juce::String(juce::Time::currentTimeMillis()));
+  }
+
+  if (!outputDirectory.createDirectory() && !outputDirectory.isDirectory()) {
+    return juce::Result::fail(
+        "Teul compatibility smoke output directory could not be created.");
+  }
+
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  const auto assetSource = outputDirectory.getChildFile("CompatibilitySmokeImpulse.wav");
+  if (!assetSource.replaceWithText("teul compatibility smoke asset", false,
+                                   false, "\r\n")) {
+    return juce::Result::fail(
+        "Failed to create compatibility smoke asset file.");
+  }
+
+  auto sourceDocument = makeTeulPhase5SmokeDocument(*registry, assetSource);
+  sourceDocument.meta.name = "Compatibility Smoke";
+  if (sourceDocument.nodes.size() < 3) {
+    return juce::Result::fail(
+        "Teul compatibility smoke graph does not contain enough nodes.");
+  }
+
+  Teul::TFrameRegion frame;
+  frame.frameId = sourceDocument.allocFrameId();
+  frame.frameUuid = juce::Uuid().toString();
+  frame.title = "Compatibility Patch";
+  frame.logicalGroup = true;
+  frame.membershipExplicit = true;
+  frame.colorArgb = 0x334d8bf7;
+
+  juce::Rectangle<float> memberBounds;
+  bool hasMemberBounds = false;
+  for (int index = 0; index < 3; ++index) {
+    const auto &node = sourceDocument.nodes[(size_t)index];
+    const juce::Rectangle<float> nodeRect(node.x, node.y, 160.0f, 90.0f);
+    memberBounds = hasMemberBounds ? memberBounds.getUnion(nodeRect) : nodeRect;
+    hasMemberBounds = true;
+  }
+  if (!hasMemberBounds)
+    return juce::Result::fail("Teul compatibility smoke could not compute frame bounds.");
+  memberBounds = memberBounds.expanded(24.0f, 24.0f);
+  frame.x = memberBounds.getX();
+  frame.y = memberBounds.getY();
+  frame.width = memberBounds.getWidth();
+  frame.height = memberBounds.getHeight();
+  sourceDocument.frames.push_back(frame);
+  for (int index = 0; index < 3; ++index) {
+    sourceDocument.addNodeToFrameExclusive(sourceDocument.nodes[(size_t)index].nodeId,
+                                           frame.frameId);
+  }
+
+  auto makeLegacyGraphJson = [](const Teul::TGraphDocument &document) {
+    const auto current = Teul::TSerializer::toJson(document);
+    const auto *root = current.getDynamicObject();
+    auto *legacyRoot = new juce::DynamicObject();
+    legacyRoot->setProperty("schemaVersion", 1);
+    legacyRoot->setProperty("nextNodeId", root->getProperty("next_node_id"));
+    legacyRoot->setProperty("nextPortId", root->getProperty("next_port_id"));
+    legacyRoot->setProperty("nextConnectionId", root->getProperty("next_conn_id"));
+    legacyRoot->setProperty("nextFrameId", root->getProperty("next_frame_id"));
+    legacyRoot->setProperty("nextBookmarkId",
+                            root->getProperty("next_bookmark_id"));
+
+    auto *legacyMeta = new juce::DynamicObject();
+    if (auto *meta = root->getProperty("meta").getDynamicObject()) {
+      legacyMeta->setProperty("name", meta->getProperty("name"));
+      legacyMeta->setProperty("canvasOffsetX",
+                              meta->getProperty("canvas_offset_x"));
+      legacyMeta->setProperty("canvasOffsetY",
+                              meta->getProperty("canvas_offset_y"));
+      legacyMeta->setProperty("canvasZoom", meta->getProperty("canvas_zoom"));
+      legacyMeta->setProperty("sampleRate", meta->getProperty("sample_rate"));
+      legacyMeta->setProperty("blockSize", meta->getProperty("block_size"));
+    }
+    legacyRoot->setProperty("graphMeta", legacyMeta);
+
+    juce::Array<juce::var> legacyNodes;
+    if (auto *nodes = root->getProperty("nodes").getArray()) {
+      for (const auto &nodeVar : *nodes) {
+        auto *legacyNode = new juce::DynamicObject();
+        if (auto *node = nodeVar.getDynamicObject()) {
+          legacyNode->setProperty("nodeId", node->getProperty("id"));
+          legacyNode->setProperty("typeKey", node->getProperty("type"));
+          legacyNode->setProperty("posX", node->getProperty("x"));
+          legacyNode->setProperty("posY", node->getProperty("y"));
+          legacyNode->setProperty("collapsed",
+                                  node->getProperty("collapsed"));
+          legacyNode->setProperty("isBypassed",
+                                  node->getProperty("bypassed"));
+          legacyNode->setProperty("label", node->getProperty("label"));
+          legacyNode->setProperty("colorTag",
+                                  node->getProperty("color_tag"));
+          legacyNode->setProperty("paramValues",
+                                  node->getProperty("params"));
+
+          juce::Array<juce::var> legacyPorts;
+          if (auto *ports = node->getProperty("ports").getArray()) {
+            for (const auto &portVar : *ports) {
+              auto *legacyPort = new juce::DynamicObject();
+              if (auto *port = portVar.getDynamicObject()) {
+                legacyPort->setProperty("portId", port->getProperty("id"));
+                legacyPort->setProperty("portDirection",
+                                        port->getProperty("direction"));
+                legacyPort->setProperty("dataType", port->getProperty("type"));
+                legacyPort->setProperty("portName", port->getProperty("name"));
+                legacyPort->setProperty("channelIndex",
+                                        port->getProperty("channel_index"));
+              }
+              legacyPorts.add(juce::var(legacyPort));
+            }
+          }
+          legacyNode->setProperty("port_list", legacyPorts);
+        }
+        legacyNodes.add(juce::var(legacyNode));
+      }
+    }
+    legacyRoot->setProperty("node_list", legacyNodes);
+
+    juce::Array<juce::var> legacyConnections;
+    if (auto *connections = root->getProperty("connections").getArray()) {
+      for (const auto &connectionVar : *connections) {
+        auto *legacyConnection = new juce::DynamicObject();
+        if (auto *connection = connectionVar.getDynamicObject()) {
+          legacyConnection->setProperty("connectionId",
+                                        connection->getProperty("id"));
+          legacyConnection->setProperty("source",
+                                        connection->getProperty("from"));
+          legacyConnection->setProperty("target",
+                                        connection->getProperty("to"));
+        }
+        legacyConnections.add(juce::var(legacyConnection));
+      }
+    }
+    legacyRoot->setProperty("connection_list", legacyConnections);
+
+    juce::Array<juce::var> legacyFrames;
+    if (auto *frames = root->getProperty("frames").getArray()) {
+      for (const auto &frameVar : *frames) {
+        auto *legacyFrame = new juce::DynamicObject();
+        if (auto *frameObject = frameVar.getDynamicObject()) {
+          legacyFrame->setProperty("frameId", frameObject->getProperty("id"));
+          legacyFrame->setProperty("frameUuid",
+                                   frameObject->getProperty("uuid"));
+          legacyFrame->setProperty("title", frameObject->getProperty("title"));
+          legacyFrame->setProperty("posX", frameObject->getProperty("x"));
+          legacyFrame->setProperty("posY", frameObject->getProperty("y"));
+          legacyFrame->setProperty("width", frameObject->getProperty("width"));
+          legacyFrame->setProperty("height",
+                                   frameObject->getProperty("height"));
+          legacyFrame->setProperty("colorArgb",
+                                   frameObject->getProperty("color_argb"));
+          legacyFrame->setProperty("isCollapsed",
+                                   frameObject->getProperty("collapsed"));
+          legacyFrame->setProperty("isLocked",
+                                   frameObject->getProperty("locked"));
+          legacyFrame->setProperty("logicalGroup",
+                                   frameObject->getProperty("logical_group"));
+          legacyFrame->setProperty(
+              "membershipExplicit",
+              frameObject->getProperty("membership_explicit"));
+          legacyFrame->setProperty("memberNodeIds",
+                                   frameObject->getProperty("member_node_ids"));
+        }
+        legacyFrames.add(juce::var(legacyFrame));
+      }
+    }
+    legacyRoot->setProperty("frame_regions", legacyFrames);
+
+    juce::Array<juce::var> legacyBookmarks;
+    if (auto *bookmarks = root->getProperty("bookmarks").getArray()) {
+      for (const auto &bookmarkVar : *bookmarks) {
+        auto *legacyBookmark = new juce::DynamicObject();
+        if (auto *bookmark = bookmarkVar.getDynamicObject()) {
+          legacyBookmark->setProperty("bookmarkId",
+                                      bookmark->getProperty("id"));
+          legacyBookmark->setProperty("name", bookmark->getProperty("name"));
+          legacyBookmark->setProperty("focusX",
+                                      bookmark->getProperty("focus_x"));
+          legacyBookmark->setProperty("focusY",
+                                      bookmark->getProperty("focus_y"));
+          legacyBookmark->setProperty("zoom", bookmark->getProperty("zoom"));
+          legacyBookmark->setProperty("colorTag",
+                                      bookmark->getProperty("color_tag"));
+        }
+        legacyBookmarks.add(juce::var(legacyBookmark));
+      }
+    }
+    legacyRoot->setProperty("bookmark_list", legacyBookmarks);
+    return juce::var(legacyRoot);
+  };
+
+  const auto legacyDocumentJson = makeLegacyGraphJson(sourceDocument);
+  Teul::TGraphDocument restoredLegacyDocument;
+  if (!Teul::TSerializer::fromJson(restoredLegacyDocument, legacyDocumentJson)) {
+    return juce::Result::fail(
+        "Teul compatibility smoke failed to restore the legacy document payload.");
+  }
+  auto *legacyCarrierNode = findTeulNodeByLabel(restoredLegacyDocument, "Carrier");
+  if (legacyCarrierNode == nullptr ||
+      restoredLegacyDocument.nodes.size() != sourceDocument.nodes.size() ||
+      restoredLegacyDocument.connections.size() !=
+          sourceDocument.connections.size() ||
+      restoredLegacyDocument.frames.size() != sourceDocument.frames.size()) {
+    return juce::Result::fail(
+        "Teul compatibility smoke legacy document restore mismatch.");
+  }
+
+  const auto currentPatchFile = outputDirectory.getChildFile("current_patch")
+                                    .withFileExtension(
+                                        Teul::TPatchPresetIO::fileExtension());
+  Teul::TPatchPresetSummary currentPatchSummary;
+  const auto patchSaveResult = Teul::TPatchPresetIO::saveFrameToFile(
+      sourceDocument, frame.frameId, currentPatchFile, &currentPatchSummary);
+  if (patchSaveResult.failed())
+    return patchSaveResult;
+
+  Teul::TGraphDocument currentPatchDocument;
+  Teul::TPatchPresetSummary currentPatchLoadSummary;
+  const auto currentPatchLoadResult = Teul::TPatchPresetIO::loadFromFile(
+      currentPatchDocument, currentPatchLoadSummary, currentPatchFile);
+  if (currentPatchLoadResult.failed())
+    return currentPatchLoadResult;
+
+  const auto currentPatchJson = juce::JSON::parse(currentPatchFile);
+  if (!currentPatchJson.isObject()) {
+    return juce::Result::fail(
+        "Teul compatibility smoke could not parse the current patch preset.");
+  }
+  const auto *currentPatchRoot = currentPatchJson.getDynamicObject();
+  auto *legacyPatchRoot = new juce::DynamicObject();
+  legacyPatchRoot->setProperty("format", "teul.patch_preset");
+  legacyPatchRoot->setProperty("presetName",
+                               currentPatchRoot->getProperty("preset_name"));
+  legacyPatchRoot->setProperty(
+      "sourceFrameUuid", currentPatchRoot->getProperty("source_frame_uuid"));
+  auto *legacyPatchSummary = new juce::DynamicObject();
+  legacyPatchSummary->setProperty("presetName", currentPatchSummary.presetName);
+  legacyPatchSummary->setProperty("sourceFrameUuid",
+                                  currentPatchSummary.sourceFrameUuid);
+  legacyPatchSummary->setProperty("nodeCount", currentPatchSummary.nodeCount);
+  legacyPatchSummary->setProperty("connectionCount",
+                                  currentPatchSummary.connectionCount);
+  legacyPatchSummary->setProperty("frameCount", currentPatchSummary.frameCount);
+  legacyPatchSummary->setProperty("boundsX",
+                                  currentPatchSummary.bounds.getX());
+  legacyPatchSummary->setProperty("boundsY",
+                                  currentPatchSummary.bounds.getY());
+  legacyPatchSummary->setProperty("boundsWidth",
+                                  currentPatchSummary.bounds.getWidth());
+  legacyPatchSummary->setProperty("boundsHeight",
+                                  currentPatchSummary.bounds.getHeight());
+  legacyPatchRoot->setProperty("presetSummary", legacyPatchSummary);
+  legacyPatchRoot->setProperty("graphPayload",
+                               makeLegacyGraphJson(currentPatchDocument));
+
+  const auto legacyPatchFile = outputDirectory.getChildFile("legacy_patch")
+                                   .withFileExtension(
+                                       Teul::TPatchPresetIO::fileExtension());
+  if (!writeJsonArtifact(legacyPatchFile, juce::var(legacyPatchRoot))) {
+    return juce::Result::fail(
+        "Teul compatibility smoke could not write the legacy patch preset.");
+  }
+
+  Teul::TGraphDocument loadedLegacyPatchDocument;
+  Teul::TPatchPresetSummary loadedLegacyPatchSummary;
+  const auto patchLoadResult = Teul::TPatchPresetIO::loadFromFile(
+      loadedLegacyPatchDocument, loadedLegacyPatchSummary, legacyPatchFile);
+  if (patchLoadResult.failed())
+    return patchLoadResult;
+
+  Teul::TGraphDocument insertedPatchDocument;
+  std::vector<Teul::NodeId> insertedNodeIds;
+  int insertedFrameId = 0;
+  const auto patchInsertResult = Teul::TPatchPresetIO::insertFromFile(
+      insertedPatchDocument, legacyPatchFile, {120.0f, 120.0f},
+      &insertedNodeIds, &insertedFrameId, nullptr);
+  if (patchInsertResult.failed())
+    return patchInsertResult;
+
+  if ((int)loadedLegacyPatchDocument.nodes.size() !=
+          currentPatchSummary.nodeCount ||
+      (int)insertedNodeIds.size() != currentPatchSummary.nodeCount ||
+      insertedFrameId == 0) {
+    return juce::Result::fail(
+        "Teul compatibility smoke legacy patch preset restore mismatch.");
+  }
+
+  const auto currentStateFile = outputDirectory.getChildFile("current_state")
+                                    .withFileExtension(
+                                        Teul::TStatePresetIO::fileExtension());
+  Teul::TStatePresetSummary currentStateSummary;
+  const auto stateSaveResult = Teul::TStatePresetIO::saveDocumentToFile(
+      sourceDocument, currentStateFile, &currentStateSummary);
+  if (stateSaveResult.failed())
+    return stateSaveResult;
+
+  const auto currentStateJson = juce::JSON::parse(currentStateFile);
+  if (!currentStateJson.isObject()) {
+    return juce::Result::fail(
+        "Teul compatibility smoke could not parse the current state preset.");
+  }
+  const auto *currentStateRoot = currentStateJson.getDynamicObject();
+  auto *legacyStateRoot = new juce::DynamicObject();
+  legacyStateRoot->setProperty("format", "teul.state_preset");
+  legacyStateRoot->setProperty("presetName",
+                               currentStateRoot->getProperty("preset_name"));
+  legacyStateRoot->setProperty(
+      "targetGraphName", currentStateRoot->getProperty("target_graph_name"));
+  auto *legacyStateSummary = new juce::DynamicObject();
+  legacyStateSummary->setProperty("presetName", currentStateSummary.presetName);
+  legacyStateSummary->setProperty("targetGraphName",
+                                  currentStateSummary.targetGraphName);
+  legacyStateSummary->setProperty("nodeStateCount",
+                                  currentStateSummary.nodeStateCount);
+  legacyStateSummary->setProperty("paramValueCount",
+                                  currentStateSummary.paramValueCount);
+  legacyStateRoot->setProperty("presetSummary", legacyStateSummary);
+
+  juce::Array<juce::var> legacyNodeStates;
+  if (auto *nodeStates = currentStateRoot->getProperty("node_states").getArray()) {
+    for (const auto &nodeStateVar : *nodeStates) {
+      auto *legacyNodeState = new juce::DynamicObject();
+      if (auto *nodeState = nodeStateVar.getDynamicObject()) {
+        legacyNodeState->setProperty("nodeId", nodeState->getProperty("node_id"));
+        legacyNodeState->setProperty("type", nodeState->getProperty("type_key"));
+        legacyNodeState->setProperty("label", nodeState->getProperty("label"));
+        legacyNodeState->setProperty("isBypassed",
+                                     nodeState->getProperty("bypassed"));
+        legacyNodeState->setProperty("paramValues",
+                                     nodeState->getProperty("params"));
+      }
+      legacyNodeStates.add(juce::var(legacyNodeState));
+    }
+  }
+  legacyStateRoot->setProperty("nodeStates", legacyNodeStates);
+
+  const auto legacyStateFile = outputDirectory.getChildFile("legacy_state")
+                                   .withFileExtension(
+                                       Teul::TStatePresetIO::fileExtension());
+  if (!writeJsonArtifact(legacyStateFile, juce::var(legacyStateRoot))) {
+    return juce::Result::fail(
+        "Teul compatibility smoke could not write the legacy state preset.");
+  }
+
+  auto mutatedDocument = sourceDocument;
+  auto *mutatedCarrierNode = findTeulNodeByLabel(mutatedDocument, "Carrier");
+  auto *mutatedAmpNode = findTeulNodeByLabel(mutatedDocument, "Amp");
+  if (mutatedCarrierNode == nullptr || mutatedAmpNode == nullptr) {
+    return juce::Result::fail(
+        "Teul compatibility smoke could not resolve mutated document nodes.");
+  }
+
+  const auto expectedFrequency =
+      (double)findTeulNodeByLabel(sourceDocument, "Carrier")->params["frequency"];
+  const auto expectedAmpGain =
+      (double)findTeulNodeByLabel(sourceDocument, "Amp")->params["gain"];
+  const auto expectedAmpBypassed =
+      findTeulNodeByLabel(sourceDocument, "Amp")->bypassed;
+
+  mutatedCarrierNode->params["frequency"] = 91.0;
+  mutatedAmpNode->params["gain"] = 0.18;
+  mutatedAmpNode->bypassed = !expectedAmpBypassed;
+
+  Teul::TStatePresetApplyReport legacyStateApplyReport;
+  const auto stateApplyResult = Teul::TStatePresetIO::applyToDocument(
+      mutatedDocument, legacyStateFile, &legacyStateApplyReport);
+  if (stateApplyResult.failed())
+    return stateApplyResult;
+
+  mutatedCarrierNode = findTeulNodeByLabel(mutatedDocument, "Carrier");
+  mutatedAmpNode = findTeulNodeByLabel(mutatedDocument, "Amp");
+  if (mutatedCarrierNode == nullptr || mutatedAmpNode == nullptr ||
+      std::abs((double)mutatedCarrierNode->params["frequency"] -
+               expectedFrequency) > 1.0e-9 ||
+      std::abs((double)mutatedAmpNode->params["gain"] - expectedAmpGain) >
+          1.0e-9 ||
+      mutatedAmpNode->bypassed != expectedAmpBypassed) {
+    return juce::Result::fail(
+        "Teul compatibility smoke legacy state preset apply mismatch.");
+  }
+
+  const auto summaryFile =
+      outputDirectory.getChildFile("compatibility-summary.txt");
+  const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
+  const auto summaryText =
+      juce::String("legacyDocumentNodes=") +
+      juce::String((int)restoredLegacyDocument.nodes.size()) + "\r\n" +
+      "legacyPatchNodes=" +
+      juce::String((int)loadedLegacyPatchDocument.nodes.size()) + "\r\n" +
+      "legacyStateAppliedNodes=" +
+      juce::String(legacyStateApplyReport.appliedNodeCount) + "\r\n" +
+      "legacyPatchFile=" + legacyPatchFile.getFullPathName() + "\r\n" +
+      "legacyStateFile=" + legacyStateFile.getFullPathName() + "\r\n" +
+      "passed=true\r\n";
+  if (!summaryFile.replaceWithText(summaryText, false, false, "\r\n")) {
+    return juce::Result::fail(
+        "Teul compatibility smoke could not write its summary file.");
+  }
+
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("legacyPatchPreset", outputDirectory,
+                                  legacyPatchFile));
+  files.add(makeArtifactFileEntry("legacyStatePreset", outputDirectory,
+                                  legacyStateFile));
+  files.add(makeArtifactFileEntry("summary", outputDirectory, summaryFile));
+  auto *bundleRoot = new juce::DynamicObject();
+  bundleRoot->setProperty("kind", "teul-verification-artifact-bundle");
+  bundleRoot->setProperty("scope", "compatibility-smoke");
+  bundleRoot->setProperty("passed", true);
+  bundleRoot->setProperty("artifactDirectory",
+                          outputDirectory.getFullPathName());
+  bundleRoot->setProperty("legacyDocumentNodeCount",
+                          (int)restoredLegacyDocument.nodes.size());
+  bundleRoot->setProperty("legacyPatchNodeCount",
+                          (int)loadedLegacyPatchDocument.nodes.size());
+  bundleRoot->setProperty("legacyStateAppliedNodeCount",
+                          legacyStateApplyReport.appliedNodeCount);
+  bundleRoot->setProperty("files", juce::var(files));
+  if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
+    return juce::Result::fail(
+        "Teul compatibility smoke could not write its artifact bundle.");
+  }
+
+  std::cout << "Teul Phase8 compatibility smoke directory: "
+            << outputDirectory.getFullPathName() << std::endl;
+  std::cout << summaryText << std::endl;
+  std::cout << "Teul Phase8 compatibility smoke checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
+
 juce::Result runTeulPhase7BenchmarkGate(const juce::StringArray &args) {
   auto registry = Teul::makeDefaultNodeRegistry();
   if (!registry)
@@ -1980,6 +2426,20 @@ public:
       const auto smokeResult = runTeulPhase8AutosaveRecoverySmoke(args);
       if (smokeResult.failed()) {
         std::cerr << "Teul Phase8 autosave recovery smoke failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
+    if (hasArg(args, "--teul-phase8-compatibility-smoke")) {
+      const auto smokeResult = runTeulPhase8CompatibilitySmoke(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase8 compatibility smoke failed: "
                   << smokeResult.getErrorMessage() << std::endl;
         setApplicationReturnValue(1);
       } else {

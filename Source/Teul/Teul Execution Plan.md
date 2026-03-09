@@ -231,6 +231,7 @@
 - [x] frame group -> patch preset save/load/insert MVP
 - [x] document-level state preset save/apply MVP
 - [x] autosave / crash recovery MVP
+- [x] legacy alias compatibility for document / patch preset / state preset
 - [ ] schema migration chain
 - [ ] compatibility test matrix
 
@@ -238,6 +239,7 @@
 - [x] `Tools/TeulVerification/teul_patch_preset_smoke.bat` passed.
 - [x] `Tools/TeulVerification/teul_state_preset_smoke.bat` passed.
 - [x] `Tools/TeulVerification/teul_autosave_recovery_smoke.bat` passed.
+- [x] `Tools/TeulVerification/teul_compatibility_smoke.bat` passed on legacy document / patch preset / state preset aliases.
 
 ### External Control Sources / Device Profiles
 

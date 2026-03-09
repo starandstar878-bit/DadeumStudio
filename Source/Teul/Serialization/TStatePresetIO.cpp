@@ -3,6 +3,23 @@
 namespace Teul {
 namespace {
 
+constexpr int kStatePresetSchemaVersion = 2;
+
+juce::var propertyOrAlias(const juce::DynamicObject *object,
+                          std::initializer_list<const char *> keys,
+                          const juce::var &fallback = juce::var()) {
+  if (object == nullptr)
+    return fallback;
+
+  for (const auto *key : keys) {
+    const juce::Identifier id(key);
+    if (object->hasProperty(id))
+      return object->getProperty(id);
+  }
+
+  return fallback;
+}
+
 juce::File withStatePresetExtension(const juce::File &file) {
   const auto extension = TStatePresetIO::fileExtension();
   if (file.hasFileExtension(extension))
@@ -52,14 +69,20 @@ bool jsonToNodeState(TStatePresetNodeState &nodeState, const juce::var &json) {
   if (!json.isObject())
     return false;
 
-  nodeState.nodeId = (NodeId)(int64_t)json.getProperty("node_id", 0);
-  nodeState.typeKey = json.getProperty("type_key", "").toString();
-  nodeState.label = json.getProperty("label", "").toString();
-  nodeState.bypassed = (bool)json.getProperty("bypassed", false);
+  const auto *object = json.getDynamicObject();
+  nodeState.nodeId =
+      (NodeId)(int64_t)propertyOrAlias(object, {"node_id", "nodeId"}, 0);
+  nodeState.typeKey =
+      propertyOrAlias(object, {"type_key", "typeKey", "type"}).toString();
+  nodeState.label = propertyOrAlias(object, {"label", "name"}).toString();
+  nodeState.bypassed =
+      (bool)propertyOrAlias(object, {"bypassed", "isBypassed"}, false);
   nodeState.params.clear();
 
   if (auto *paramsObject =
-          json.getProperty("params", juce::var()).getDynamicObject()) {
+          propertyOrAlias(object, {"params", "paramValues", "param_values"},
+                          juce::var())
+              .getDynamicObject()) {
     for (const auto &[key, value] : paramsObject->getProperties())
       nodeState.params[key.toString()] = value;
   }
@@ -79,15 +102,23 @@ juce::var summaryToJson(const TStatePresetSummary &summary) {
 void hydrateSummaryFromJson(TStatePresetSummary &summary,
                             const juce::var &summaryVar) {
   if (auto *object = summaryVar.getDynamicObject()) {
-    summary.presetName = object->getProperty("preset_name").toString();
+    summary.presetName =
+        propertyOrAlias(object, {"preset_name", "presetName"}).toString();
     summary.targetGraphName =
-        object->getProperty("target_graph_name").toString();
-    summary.nodeStateCount = object->hasProperty("node_state_count")
-                                 ? (int)object->getProperty("node_state_count")
-                                 : 0;
-    summary.paramValueCount = object->hasProperty("param_value_count")
-                                  ? (int)object->getProperty("param_value_count")
-                                  : 0;
+        propertyOrAlias(object, {"target_graph_name", "targetGraphName"})
+            .toString();
+    summary.nodeStateCount =
+        object->hasProperty("node_state_count")
+            ? (int)object->getProperty("node_state_count")
+            : (object->hasProperty("nodeStateCount")
+                   ? (int)object->getProperty("nodeStateCount")
+                   : 0);
+    summary.paramValueCount =
+        object->hasProperty("param_value_count")
+            ? (int)object->getProperty("param_value_count")
+            : (object->hasProperty("paramValueCount")
+                   ? (int)object->getProperty("paramValueCount")
+                   : 0);
   }
 }
 
@@ -155,7 +186,7 @@ juce::Result TStatePresetIO::saveDocumentToFile(const TGraphDocument &document,
 
   auto *root = new juce::DynamicObject();
   root->setProperty("format", "teul.state_preset");
-  root->setProperty("schema_version", 1);
+  root->setProperty("schema_version", kStatePresetSchemaVersion);
   root->setProperty("preset_name", summary.presetName);
   root->setProperty("target_graph_name", summary.targetGraphName);
   root->setProperty("summary", summaryToJson(summary));
@@ -195,22 +226,26 @@ juce::Result TStatePresetIO::loadFromFile(
   if (root == nullptr)
     return juce::Result::fail("State preset load failed: invalid preset root.");
 
-  if (root->getProperty("format").toString() != "teul.state_preset") {
+  if (propertyOrAlias(root, {"format"}).toString() != "teul.state_preset") {
     return juce::Result::fail(
         "State preset load failed: unsupported preset format.");
   }
 
   nodeStatesOut.clear();
   summaryOut = {};
-  summaryOut.presetName = root->getProperty("preset_name").toString();
-  summaryOut.targetGraphName = root->getProperty("target_graph_name").toString();
-  hydrateSummaryFromJson(summaryOut, root->getProperty("summary"));
+  summaryOut.presetName =
+      propertyOrAlias(root, {"preset_name", "presetName"}).toString();
+  summaryOut.targetGraphName =
+      propertyOrAlias(root, {"target_graph_name", "targetGraphName"})
+          .toString();
+  hydrateSummaryFromJson(summaryOut,
+                         propertyOrAlias(root, {"summary", "presetSummary"}));
   if (summaryOut.presetName.isEmpty())
     summaryOut.presetName = file.getFileNameWithoutExtension();
 
-  if (auto *nodeStatesArray = root->hasProperty("node_states")
-                                  ? root->getProperty("node_states").getArray()
-                                  : nullptr) {
+  if (auto *nodeStatesArray =
+          propertyOrAlias(root, {"node_states", "nodeStates"}, juce::var())
+              .getArray()) {
     for (const auto &nodeStateVar : *nodeStatesArray) {
       TStatePresetNodeState nodeState;
       if (jsonToNodeState(nodeState, nodeStateVar))

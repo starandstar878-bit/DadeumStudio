@@ -11,6 +11,23 @@ namespace {
 constexpr float kNodeWidth = 160.0f;
 constexpr float kNodeHeight = 90.0f;
 
+constexpr int kPatchPresetSchemaVersion = 2;
+
+juce::var propertyOrAlias(const juce::DynamicObject *object,
+                          std::initializer_list<const char *> keys,
+                          const juce::var &fallback = juce::var()) {
+  if (object == nullptr)
+    return fallback;
+
+  for (const auto *key : keys) {
+    const juce::Identifier id(key);
+    if (object->hasProperty(id))
+      return object->getProperty(id);
+  }
+
+  return fallback;
+}
+
 juce::Rectangle<float> nodeRectForPreset(const TNode &node) {
   return {node.x, node.y, kNodeWidth, kNodeHeight};
 }
@@ -128,22 +145,28 @@ juce::var summaryToJson(const TPatchPresetSummary &summary) {
 void hydrateSummaryFromJson(TPatchPresetSummary &summary,
                             const juce::var &summaryVar) {
   if (auto *object = summaryVar.getDynamicObject()) {
-    const auto readInt = [&](const juce::Identifier &key) {
-      const auto value = object->getProperty(key);
+    const auto readInt = [&](std::initializer_list<const char *> keys) {
+      const auto value = propertyOrAlias(object, keys);
       return value.isVoid() ? 0 : (int)value;
     };
-    const auto readFloat = [&](const juce::Identifier &key) {
-      const auto value = object->getProperty(key);
+    const auto readFloat = [&](std::initializer_list<const char *> keys) {
+      const auto value = propertyOrAlias(object, keys);
       return value.isVoid() ? 0.0f : (float)value;
     };
 
-    summary.presetName = object->getProperty("preset_name").toString();
-    summary.sourceFrameUuid = object->getProperty("source_frame_uuid").toString();
-    summary.nodeCount = readInt("node_count");
-    summary.connectionCount = readInt("connection_count");
-    summary.frameCount = readInt("frame_count");
-    summary.bounds = {readFloat("bounds_x"), readFloat("bounds_y"),
-                      readFloat("bounds_width"), readFloat("bounds_height")};
+    summary.presetName =
+        propertyOrAlias(object, {"preset_name", "presetName"}).toString();
+    summary.sourceFrameUuid =
+        propertyOrAlias(object, {"source_frame_uuid", "sourceFrameUuid"})
+            .toString();
+    summary.nodeCount = readInt({"node_count", "nodeCount"});
+    summary.connectionCount =
+        readInt({"connection_count", "connectionCount"});
+    summary.frameCount = readInt({"frame_count", "frameCount"});
+    summary.bounds = {readFloat({"bounds_x", "boundsX"}),
+                      readFloat({"bounds_y", "boundsY"}),
+                      readFloat({"bounds_width", "boundsWidth"}),
+                      readFloat({"bounds_height", "boundsHeight"})};
   }
 }
 
@@ -225,7 +248,7 @@ juce::Result TPatchPresetIO::saveFrameToFile(const TGraphDocument &document,
 
   auto *root = new juce::DynamicObject();
   root->setProperty("format", "teul.patch_preset");
-  root->setProperty("schema_version", 1);
+  root->setProperty("schema_version", kPatchPresetSchemaVersion);
   root->setProperty("preset_name", summary.presetName);
   root->setProperty("source_frame_uuid", summary.sourceFrameUuid);
   root->setProperty("saved_at", juce::Time::getCurrentTime().toISO8601(true));
@@ -263,20 +286,25 @@ juce::Result TPatchPresetIO::loadFromFile(TGraphDocument &presetDocumentOut,
   if (root == nullptr)
     return juce::Result::fail("Patch preset load failed: invalid preset root.");
 
-  if (root->getProperty("format").toString() != "teul.patch_preset") {
+  if (propertyOrAlias(root, {"format"}).toString() != "teul.patch_preset") {
     return juce::Result::fail(
         "Patch preset load failed: unsupported preset format.");
   }
 
   summaryOut = {};
-  summaryOut.presetName = root->getProperty("preset_name").toString();
-  summaryOut.sourceFrameUuid = root->getProperty("source_frame_uuid").toString();
-  hydrateSummaryFromJson(summaryOut, root->getProperty("summary"));
+  summaryOut.presetName =
+      propertyOrAlias(root, {"preset_name", "presetName"}).toString();
+  summaryOut.sourceFrameUuid =
+      propertyOrAlias(root, {"source_frame_uuid", "sourceFrameUuid"})
+          .toString();
+  hydrateSummaryFromJson(summaryOut,
+                         propertyOrAlias(root, {"summary", "presetSummary"}));
   if (summaryOut.presetName.isEmpty())
     summaryOut.presetName = file.getFileNameWithoutExtension();
 
   presetDocumentOut = TGraphDocument();
-  const auto graphVar = root->getProperty("graph");
+  const auto graphVar =
+      propertyOrAlias(root, {"graph", "graphPayload", "graph_json"});
   if (!TSerializer::fromJson(presetDocumentOut, graphVar)) {
     return juce::Result::fail(
         "Patch preset load failed: graph payload could not be restored.");
