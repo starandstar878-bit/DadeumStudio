@@ -29,9 +29,11 @@ public:
     addAndMakeVisible(kindValueLabel);
     addAndMakeVisible(pathValueLabel);
     addAndMakeVisible(summaryValueLabel);
+    addAndMakeVisible(conflictLabel);
     addAndMakeVisible(statusLabel);
     addAndMakeVisible(primaryActionButton);
     addAndMakeVisible(secondaryActionButton);
+    addAndMakeVisible(cancelConflictButton);
     addAndMakeVisible(revealButton);
     addAndMakeVisible(sessionPreviewEditor);
     addAndMakeVisible(selectionPreviewEditor);
@@ -90,11 +92,20 @@ public:
     configureLabel(summaryValueLabel, 12.0f, juce::Justification::centredLeft,
                    0.78f);
     summaryValueLabel.setMinimumHorizontalScale(0.7f);
+    configureLabel(conflictLabel, 11.0f, juce::Justification::centredLeft,
+                   0.86f, true);
+    conflictLabel.setColour(juce::Label::textColourId,
+                            juce::Colour(0xfffcd34d));
+    conflictLabel.setVisible(false);
     configureLabel(statusLabel, 11.0f, juce::Justification::centredLeft,
                    0.78f);
 
     primaryActionButton.onClick = [this] { performPrimaryAction(); };
     secondaryActionButton.onClick = [this] { performSecondaryAction(); };
+    cancelConflictButton.setButtonText("Cancel");
+    cancelConflictButton.onClick = [this] {
+      cancelConflictArm("Conflict confirmation cleared.");
+    };
     revealButton.setButtonText("Reveal");
     revealButton.onClick = [this] { revealSelectedPreset(); };
 
@@ -244,6 +255,17 @@ public:
       area.removeFromTop(8);
     } else {
       selectionPreviewEditor.setBounds({});
+    }
+
+    if (isConflictArmed()) {
+      auto conflictArea = area.removeFromTop(28);
+      cancelConflictButton.setBounds(conflictArea.removeFromRight(84));
+      conflictArea.removeFromRight(8);
+      conflictLabel.setBounds(conflictArea);
+      area.removeFromTop(8);
+    } else {
+      conflictLabel.setBounds({});
+      cancelConflictButton.setBounds({});
     }
 
     auto actions = area.removeFromTop(28);
@@ -399,6 +421,7 @@ private:
       summaryValueLabel.setText("Create or save presets, then refresh to browse.",
                                 juce::dontSendNotification);
       statusLabel.setText("No preset selected", juce::dontSendNotification);
+      cancelConflictArm({});
       selectionPreviewEditor.setVisible(false);
       selectionPreviewEditor.setText({}, false);
       detailEditor.setText(
@@ -408,6 +431,7 @@ private:
           "- Future providers can add composite or multi-domain presets.",
           false);
       updateActionButtons();
+      refreshDetailPanel();
       return;
     }
 
@@ -449,6 +473,10 @@ private:
       if (previewDetail.isNotEmpty())
         previewDetail << "\r\n";
       previewDetail << conflictDetailText(*selectedEntry);
+      if (pendingConflictEntryId == selectedEntry->entryId) {
+        previewDetail << "\r\n\r\nConfirm or cancel before continuing.";
+        previewSummary = "Conflict Armed";
+      }
       previewWarning = true;
     }
 
@@ -462,7 +490,15 @@ private:
     selectionPreviewEditor.setVisible(previewSummary.isNotEmpty() ||
                                       previewDetail.isNotEmpty());
 
+    conflictLabel.setVisible(isConflictArmed());
     detailEditor.setText(selectedEntry->detailText, false);
+    if (isConflictArmed()) {
+      conflictLabel.setText(
+          "Unsaved session conflict is armed for this preset action.",
+          juce::dontSendNotification);
+      statusLabel.setText("Confirm with the primary action or cancel.",
+                          juce::dontSendNotification);
+    }
     updateActionButtons();
     resized();
   }
@@ -547,7 +583,14 @@ private:
             : "More");
     primaryActionButton.setEnabled(allowPrimary);
     secondaryActionButton.setEnabled(allowSecondary);
+    cancelConflictButton.setEnabled(isConflictArmed());
+    cancelConflictButton.setVisible(isConflictArmed());
     revealButton.setEnabled(hasEntry && selectedEntry->file.exists());
+  }
+
+  bool isConflictArmed() const {
+    return selectedEntry != nullptr &&
+           pendingConflictEntryId == selectedEntry->entryId;
   }
 
   std::function<void()> layoutChangedCallback;
@@ -571,9 +614,11 @@ private:
   juce::Label kindValueLabel;
   juce::Label pathValueLabel;
   juce::Label summaryValueLabel;
+  juce::Label conflictLabel;
   juce::Label statusLabel;
   juce::TextButton primaryActionButton;
   juce::TextButton secondaryActionButton;
+  juce::TextButton cancelConflictButton;
   juce::TextButton revealButton;
   juce::TextEditor sessionPreviewEditor;
   juce::TextEditor selectionPreviewEditor;
@@ -596,6 +641,13 @@ private:
   void clearConflictArmIfSelectionChanged() {
     if (selectedEntry == nullptr || pendingConflictEntryId != selectedEntry->entryId)
       pendingConflictEntryId.clear();
+  }
+
+  void cancelConflictArm(const juce::String &statusText) {
+    pendingConflictEntryId.clear();
+    if (statusText.isNotEmpty())
+      statusLabel.setText(statusText, juce::dontSendNotification);
+    refreshDetailPanel();
   }
 };
 
