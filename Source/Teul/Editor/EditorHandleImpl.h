@@ -35,6 +35,8 @@ private:
   void handleSelectionChanged(const std::vector<NodeId> &selectedNodeIds);
   void openProperties(NodeId nodeId);
   void inspectNodeWithReveal(NodeId nodeId);
+  bool focusDiagnosticTarget(const juce::String &graphId,
+                             const juce::String &query);
   void refreshRuntimeUi(bool forceMessage = false);
   void syncRuntimeViewButtons();
   void pushRuntimeMessage(const juce::String &text,

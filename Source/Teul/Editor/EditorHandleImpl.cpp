@@ -221,6 +221,10 @@ EditorHandle::Impl::Impl(
 
   diagnosticsDrawer = DiagnosticsDrawer::create();
   diagnosticsDrawer->setLayoutChangedCallback([this] { owner.resized(); });
+  diagnosticsDrawer->setFocusRequestHandler(
+      [this](const juce::String &graphId, const juce::String &query) {
+        return focusDiagnosticTarget(graphId, query);
+      });
   owner.addAndMakeVisible(*diagnosticsDrawer);
   diagnosticsDrawer->setVisible(false);
 
@@ -331,8 +335,10 @@ EditorHandle::Impl::~Impl() {
     propertiesPanel->setParamProvider(nullptr);
   }
 
-  if (diagnosticsDrawer != nullptr)
+  if (diagnosticsDrawer != nullptr) {
+    diagnosticsDrawer->setFocusRequestHandler({});
     diagnosticsDrawer->setLayoutChangedCallback({});
+  }
 
   if (audioDeviceManager != nullptr)
     audioDeviceManager->removeAudioCallback(&runtime);
@@ -464,6 +470,15 @@ void EditorHandle::Impl::inspectNodeWithReveal(NodeId nodeId) {
 
   if (!wasOpen && canvas != nullptr)
     canvas->ensureNodeVisible(nodeId, 28.0f);
+}
+
+bool EditorHandle::Impl::focusDiagnosticTarget(const juce::String &graphId,
+                                               const juce::String &query) {
+  juce::ignoreUnused(graphId);
+  if (canvas == nullptr)
+    return false;
+
+  return canvas->focusNodeByQuery(query);
 }
 
 void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {

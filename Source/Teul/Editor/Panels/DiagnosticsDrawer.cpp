@@ -634,6 +634,29 @@ private:
   std::vector<BenchmarkTimelineEntry> entries;
 };
 
+juce::String extractLocationTypeHint(const juce::String &text) {
+  const auto typeIndex = text.indexOfIgnoreCase(0, "type=");
+  if (typeIndex < 0)
+    return {};
+
+  const auto valueStart = typeIndex + 5;
+  int valueEnd = text.indexOfAnyOf(",]\r\n", valueStart);
+  if (valueEnd < 0)
+    valueEnd = text.length();
+  return text.substring(valueStart, valueEnd).trim().unquoted();
+}
+
+juce::String buildFocusQuery(const DiagnosticSnapshot &snapshot) {
+  auto query = extractLocationTypeHint(snapshot.detailText);
+  if (query.isNotEmpty())
+    return query;
+
+  query = valueOrFallback(snapshot.summaryValues, "nodeTypeKey");
+  return query.trim();
+}
+
+
+
 class CompareScreen final : public juce::Component {
 public:
   void setComparison(const DiagnosticSnapshot *selected,
@@ -943,6 +966,7 @@ public:
     addAndMakeVisible(copyCompareButton);
     addAndMakeVisible(openSelectedArtifactButton);
     addAndMakeVisible(openBundleButton);
+    addAndMakeVisible(focusJumpButton);
     addAndMakeVisible(refreshButton);
     addAndMakeVisible(closeButton);
     addAndMakeVisible(listViewport);
@@ -1006,10 +1030,12 @@ public:
     copyCompareButton.setButtonText("Copy Compare");
     openSelectedArtifactButton.setButtonText("Open Artifact");
     openBundleButton.setButtonText("Open Bundle");
+    focusJumpButton.setButtonText("Focus Node");
     copySummaryButton.onClick = [this] { copySelectedSummary(); };
     copyCompareButton.onClick = [this] { copyCompareSummary(); };
     openSelectedArtifactButton.onClick = [this] { revealSelectedArtifact(); };
     openBundleButton.onClick = [this] { revealSelectedBundle(); };
+    focusJumpButton.onClick = [this] { triggerFocusJump(); };
 
     refreshButton.setButtonText("Refresh");
     closeButton.setButtonText("Hide");
@@ -1050,6 +1076,12 @@ public:
 
   void setLayoutChangedCallback(std::function<void()> callback) override {
     onLayoutChanged = std::move(callback);
+  }
+
+  void setFocusRequestHandler(
+      std::function<bool(const juce::String &, const juce::String &)> handler) override {
+    focusRequestHandler = std::move(handler);
+    updateShareButtons();
   }
 
   bool isDrawerOpen() const noexcept override { return isVisible(); }
@@ -1200,7 +1232,7 @@ public:
 
     area.removeFromTop(4);
     auto actionStatusArea = area.removeFromTop(24);
-    auto shareButtons = actionStatusArea.removeFromRight(430);
+    auto shareButtons = actionStatusArea.removeFromRight(536);
     copySummaryButton.setBounds(shareButtons.removeFromLeft(102));
     shareButtons.removeFromLeft(4);
     copyCompareButton.setBounds(shareButtons.removeFromLeft(102));
@@ -1208,6 +1240,8 @@ public:
     openSelectedArtifactButton.setBounds(shareButtons.removeFromLeft(106));
     shareButtons.removeFromLeft(4);
     openBundleButton.setBounds(shareButtons.removeFromLeft(102));
+    shareButtons.removeFromLeft(4);
+    focusJumpButton.setBounds(shareButtons.removeFromLeft(108));
     actionStatusLabel.setBounds(actionStatusArea);
 
     area.removeFromTop(8);
@@ -1329,6 +1363,9 @@ private:
     const auto bundleFile = getSelectedBundleFile();
     openBundleButton.setEnabled(bundleFile.existsAsFile());
     copyCompareButton.setEnabled(selected != nullptr && getCompareSnapshot() != nullptr);
+    focusJumpButton.setEnabled(selected != nullptr &&
+                               focusRequestHandler != nullptr &&
+                               buildFocusQuery(*selected).isNotEmpty());
   }
 
   void copySelectedSummary() {
@@ -1351,6 +1388,23 @@ private:
     if (!bundleFile.existsAsFile())
       return;
     bundleFile.revealToUser();
+  }
+
+  void triggerFocusJump() {
+    const auto *selected = getSelectedSnapshot();
+    if (selected == nullptr || focusRequestHandler == nullptr)
+      return;
+
+    const auto graphId = valueOrFallback(selected->summaryValues, "graphId");
+    const auto query = buildFocusQuery(*selected);
+    if (query.isEmpty())
+      return;
+
+    const bool focused = focusRequestHandler(graphId, query);
+    actionStatusLabel.setText(
+        focused ? ("Focus jump: " + query)
+                : ("Focus jump failed: " + query),
+        juce::dontSendNotification);
   }
 
   void startActionProcess(const juce::String &actionName,
@@ -1633,6 +1687,7 @@ private:
   juce::TextButton copyCompareButton;
   juce::TextButton openSelectedArtifactButton;
   juce::TextButton openBundleButton;
+  juce::TextButton focusJumpButton;
   juce::TextButton refreshButton;
   juce::TextButton closeButton;
   juce::Viewport listViewport;
@@ -1653,6 +1708,7 @@ private:
   juce::String runningActionName;
   juce::String runningActionCommand;
   std::function<void()> onLayoutChanged;
+  std::function<bool(const juce::String &, const juce::String &)> focusRequestHandler;
   std::vector<DiagnosticSnapshot> snapshots;
   std::vector<int> visibleSnapshotIndices;
   std::vector<std::unique_ptr<juce::Label>> sectionLabels;

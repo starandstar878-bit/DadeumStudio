@@ -11,6 +11,8 @@ public:
   ~DiagnosticsDrawer() override = default;
 
   virtual void setLayoutChangedCallback(std::function<void()> callback) = 0;
+  virtual void setFocusRequestHandler(
+      std::function<bool(const juce::String &, const juce::String &)> handler) = 0;
   virtual bool isDrawerOpen() const noexcept = 0;
   virtual void setDrawerOpen(bool shouldOpen) = 0;
   virtual void refreshArtifacts(bool force = false) = 0;
