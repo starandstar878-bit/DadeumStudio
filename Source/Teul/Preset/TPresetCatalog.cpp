@@ -579,6 +579,23 @@ void TPresetCatalog::markUsed(const juce::String &entryId) {
   saveLibraryState();
 }
 
+void TPresetCatalog::setTags(const juce::String &entryId,
+                              const juce::StringArray &tags) {
+  if (entryId.isEmpty())
+    return;
+
+  juce::StringArray normalized;
+  for (const auto &tag : tags) {
+    const auto trimmed = tag.trim();
+    if (trimmed.isNotEmpty() && !normalized.contains(trimmed))
+      normalized.add(trimmed);
+  }
+
+  auto &state = libraryState[entryId];
+  state.tags = normalized;
+  saveLibraryState();
+}
+
 void TPresetCatalog::loadLibraryState() {
   libraryState = loadLibraryStateMap(stateFile);
 }

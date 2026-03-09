@@ -30,6 +30,8 @@ public:
     addAndMakeVisible(kindValueLabel);
     addAndMakeVisible(pathValueLabel);
     addAndMakeVisible(summaryValueLabel);
+    addAndMakeVisible(tagsEditor);
+    addAndMakeVisible(saveTagsButton);
     addAndMakeVisible(conflictLabel);
     addAndMakeVisible(statusLabel);
     addAndMakeVisible(primaryActionButton);
@@ -66,9 +68,22 @@ public:
                            juce::Colour(0xff334155));
     searchEditor.addListener(this);
     searchEditor.addKeyListener(this);
+    tagsEditor.addKeyListener(this);
 
     refreshButton.setButtonText("Refresh");
     refreshButton.onClick = [this] { refreshEntries(true); };
+
+    tagsEditor.setTextToShowWhenEmpty("tags, comma, separated",
+                                      juce::Colours::grey);
+    tagsEditor.setColour(juce::TextEditor::backgroundColourId,
+                         juce::Colour(0xff111827));
+    tagsEditor.setColour(juce::TextEditor::textColourId,
+                         juce::Colours::white.withAlpha(0.95f));
+    tagsEditor.setColour(juce::TextEditor::outlineColourId,
+                         juce::Colour(0xff334155));
+    tagsEditor.setEscapeAndReturnKeysConsumed(false);
+    saveTagsButton.setButtonText("Save Tags");
+    saveTagsButton.onClick = [this] { saveTags(); };
 
     listBox.setModel(this);
     listBox.setRowHeight(50);
@@ -244,12 +259,16 @@ public:
       sessionPreviewEditor.setBounds({});
     }
 
-    auto infoArea = area.removeFromTop(84);
+    auto infoArea = area.removeFromTop(110);
     kindValueLabel.setBounds(infoArea.removeFromTop(22));
     infoArea.removeFromTop(2);
     pathValueLabel.setBounds(infoArea.removeFromTop(20));
     infoArea.removeFromTop(2);
     summaryValueLabel.setBounds(infoArea.removeFromTop(40));
+    infoArea.removeFromTop(6);
+    saveTagsButton.setBounds(infoArea.removeFromRight(90));
+    infoArea.removeFromRight(8);
+    tagsEditor.setBounds(infoArea.removeFromTop(20));
 
     area.removeFromTop(8);
 
@@ -355,12 +374,17 @@ private:
     refreshDetailPanel();
   }
 
-  void textEditorTextChanged(juce::TextEditor &) override {
-    rebuildVisibleEntries();
+  void textEditorTextChanged(juce::TextEditor &editor) override {
+    if (&editor == &searchEditor)
+      rebuildVisibleEntries();
   }
 
-  bool keyPressed(const juce::KeyPress &key, juce::Component *) override {
+  bool keyPressed(const juce::KeyPress &key, juce::Component *originatingComponent) override {
     if (key == juce::KeyPress::returnKey) {
+      if (originatingComponent == &tagsEditor) {
+        saveTags();
+        return true;
+      }
       performPrimaryAction();
       return true;
     }
@@ -436,6 +460,7 @@ private:
       pendingConflictEntryId.clear();
       conflictLabel.setVisible(false);
       cancelConflictButton.setVisible(false);
+      tagsEditor.setText({}, false);
       selectionPreviewEditor.setVisible(false);
       selectionPreviewEditor.setText({}, false);
       detailEditor.setText(
@@ -445,7 +470,7 @@ private:
           "- Future providers can add composite or multi-domain presets.",
           false);
       updateActionButtons();
-      refreshDetailPanel();
+      resized();
       return;
     }
 
@@ -464,6 +489,7 @@ private:
                                   ? selectedEntry->summaryText
                                   : "No summary available",
                               juce::dontSendNotification);
+    tagsEditor.setText(selectedEntry->tags.joinIntoString(", "), false);
 
     if (selectedEntry->warningText.isNotEmpty()) {
       statusLabel.setText(selectedEntry->warningText, juce::dontSendNotification);
@@ -598,6 +624,7 @@ private:
             : "More");
     favoriteButton.setButtonText(
         hasEntry && selectedEntry->favorite ? "Unfavorite" : "Favorite");
+    saveTagsButton.setEnabled(hasEntry);
     primaryActionButton.setEnabled(allowPrimary);
     secondaryActionButton.setEnabled(allowSecondary);
     cancelConflictButton.setEnabled(isConflictArmed());
@@ -624,6 +651,22 @@ private:
     rebuildVisibleEntries(selectedEntryId);
   }
 
+  void saveTags() {
+    if (selectedEntry == nullptr)
+      return;
+
+    juce::StringArray tags;
+    tags.addTokens(tagsEditor.getText(), ",", {});
+    tags.trim();
+    tags.removeEmptyStrings();
+    catalog->setTags(selectedEntry->entryId, tags);
+    statusLabel.setText(tags.isEmpty() ? "Preset tags cleared."
+                                       : "Preset tags saved.",
+                        juce::dontSendNotification);
+    refreshEntries(true);
+    rebuildVisibleEntries(selectedEntry->entryId);
+  }
+
   std::function<void()> layoutChangedCallback;
   PrimaryActionHandler primaryActionHandler;
   SecondaryActionHandler secondaryActionHandler;
@@ -640,6 +683,7 @@ private:
   juce::Label titleLabel;
   juce::ComboBox filterBox;
   juce::TextEditor searchEditor;
+  juce::TextEditor tagsEditor;
   juce::TextButton refreshButton;
   juce::ListBox listBox;
   juce::Label kindValueLabel;
@@ -651,6 +695,7 @@ private:
   juce::TextButton secondaryActionButton;
   juce::TextButton cancelConflictButton;
   juce::TextButton favoriteButton;
+  juce::TextButton saveTagsButton;
   juce::TextButton revealButton;
   juce::TextEditor sessionPreviewEditor;
   juce::TextEditor selectionPreviewEditor;
