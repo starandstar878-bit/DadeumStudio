@@ -332,11 +332,12 @@
 - [x] legacy alias compatibility smoke and compatibility matrix are implemented
 - [x] migration / degraded load reports and transient warning notices are implemented
 - [x] preset browser, dirty/autosave status, state diff preview, recovery preview, and conflict summary UX are implemented
-- [ ] explicit schema migration chain across versioned payload steps remains pending
+- [x] explicit schema migration chain across document / patch preset / state preset payload steps is implemented
+- [ ] external control sources / device profiles remain as the next main Phase 8 block
 
 ### Scope
 - [x] **preset/state format definition**: patch preset and state preset payload formats are fixed for the current MVP path
-- [ ] **explicit schema migration chain**: move beyond alias normalization to explicit version-to-version migration steps
+- [x] **explicit schema migration chain**: explicit document / patch preset / state preset version-to-version migration steps are implemented and exercised
 - [x] **compatibility alias policy**: document / patch preset / state preset legacy aliases restore with warning reports
 - [x] **autosave / crash recovery**: latest Teul autosave snapshot is persisted and restored after an unclean shutdown
 - [x] **compatibility test matrix**: representative legacy alias, schema-v1, and partial-apply matrix smoke is implemented
@@ -345,7 +346,7 @@
 
 ### Deferred From Phase 8
 - Shared `PresetCore` / composite preset packaging for `Gyeol + Ieum + Teul`
-- Explicit multi-step migration chains for future schema versions beyond the current alias-normalization path
+- Additional migration steps for future schema versions beyond the current `document:v1->v2->v3`, `patch:v1->v2`, and `state:v1->v2` paths
 
 ---
 

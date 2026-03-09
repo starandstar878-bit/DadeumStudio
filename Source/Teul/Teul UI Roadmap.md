@@ -242,7 +242,8 @@
 - [x] logical frame groups back the current patch preset MVP
 - [x] document-level state preset and autosave recovery MVP are implemented underneath the UI
 - [x] preset browser, dirty/autosave status, state diff preview, recovery preview, and conflict summary UX are implemented
-- [ ] advanced compatibility detail and control source rail remain pending
+- [x] preset / recovery core is complete for the current Phase 8 scope
+- [ ] external control source rail and device profile UX are the next main UI Phase 8 block
 
 ### Steps
 
@@ -273,7 +274,7 @@
 ### Deferred From Preset / Recovery Core
 - [ ] **Deprecated / Alias Detail**: expand load warnings into a dedicated alias/deprecation inspector instead of banner/detail text only
 - [ ] **Recovery Severity Grade**: distinguish full restore, partial restore, and manual follow-up needed
-- [ ] **External Control Source Rail UX**: keep the rail/device-profile work as the next UI Phase 8 block after preset/recovery
+- [ ] **Advanced Compatibility Detail**: keep alias/deprecation drill-down and severity grading as deferred follow-up after the rail/device-profile block
 
 ---
 

@@ -236,7 +236,7 @@
 - [x] migration / degraded load reports
 - [x] transient recovery / compatibility warning banner
 - [x] preset browser / state diff / recovery preview / conflict UX core
-- [ ] explicit schema migration chain
+- [x] explicit schema migration chain
 - [ ] external control sources / device profiles
 
 **Verification Notes (2026-03-09)**
@@ -245,6 +245,7 @@
 - [x] `Tools/TeulVerification/teul_autosave_recovery_smoke.bat` passed.
 - [x] `Tools/TeulVerification/teul_compatibility_smoke.bat` passed on legacy document / patch preset / state preset aliases.
 - [x] `Tools/TeulVerification/teul_compatibility_matrix.bat` passed on the representative compatibility matrix.
+- [x] compatibility smoke and matrix now verify explicit document / patch preset / state preset migration steps.
 - [x] `build_check.bat` passed after the transient recovery warning banner integration.
 
 **Then UI**
@@ -257,14 +258,14 @@
 
 **Why This Stage Matters**
 - Verification infrastructure is in place, so the next risk is losing work or restoring the wrong state.
-- The current MVP path already persists presets and recovery snapshots; the remaining work is hardening migration semantics and making those states understandable in the UI.
+- The current MVP path already persists presets and recovery snapshots, and the migration chain is now explicit; the remaining major work in Milestone 3 is external control/device profile UX.
 
 **Gate**
 - [x] patch preset save/load/insert smoke passes
 - [x] state preset save/apply smoke passes
 - [x] autosave recovery smoke passes
 - [x] compatibility smoke and compatibility matrix pass
-- [ ] explicit schema migration chain is documented and exercised
+- [x] explicit schema migration chain is documented and exercised
 - [x] UI Phase 8 exposes preset browsing, state diff, recovery preview, and conflict summaries clearly
 
 ---
