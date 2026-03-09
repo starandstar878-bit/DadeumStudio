@@ -18,6 +18,7 @@ struct DiagnosticSnapshot {
   juce::String detailText;
   juce::String summaryText;
   juce::String contextText;
+  std::map<juce::String, juce::String> summaryValues;
   DiagnosticCategory category = DiagnosticCategory::Verification;
   DiagnosticSeverity severity = DiagnosticSeverity::Missing;
   bool passed = false;
@@ -28,6 +29,8 @@ constexpr int filterAll = 1;
 constexpr int filterFailures = 2;
 constexpr int filterPassing = 3;
 constexpr int filterMissing = 4;
+constexpr int compareNone = 1;
+constexpr int compareBaseId = 100;
 
 juce::String normalizeLineEndings(const juce::String &text) {
   return text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\r\n");
@@ -117,6 +120,24 @@ juce::String formatMetric(const juce::String &label, const juce::String &value) 
   if (value.isEmpty())
     return {};
   return label + " " + value;
+}
+
+bool tryParseDouble(const juce::String &text, double &valueOut) {
+  const auto trimmed = text.trim();
+  if (trimmed.isEmpty())
+    return false;
+
+  if (!(trimmed.containsOnly("0123456789.-+") || trimmed.containsChar('e') ||
+        trimmed.containsChar('E')))
+    return false;
+
+  valueOut = trimmed.getDoubleValue();
+  return true;
+}
+
+juce::String formatDelta(double delta, int decimals = 6) {
+  const auto prefix = delta > 0.0 ? "+" : "";
+  return prefix + juce::String(delta, decimals);
 }
 
 juce::String buildSummaryText(const std::map<juce::String, juce::String> &values,
@@ -229,19 +250,20 @@ DiagnosticSnapshot loadSummarySnapshot(const juce::String &title,
                           "Status: MISSING\r\n"
                           "Artifact file not found: " + summaryFile.getFullPathName();
     snapshot.contextText = summaryFile.getParentDirectory().getFileName();
+    snapshot.summaryValues["passed"] = "false";
     return snapshot;
   }
 
   snapshot.available = true;
   const auto text = normalizeLineEndings(summaryFile.loadFileAsString());
-  const auto values = parseSummary(text);
-  snapshot.passed = valueOrFallback(values, "passed") == "true";
+  snapshot.summaryValues = parseSummary(text);
+  snapshot.passed = valueOrFallback(snapshot.summaryValues, "passed") == "true";
   snapshot.severity = snapshot.passed ? DiagnosticSeverity::Passing
                                       : DiagnosticSeverity::Failure;
   snapshot.statusText = snapshot.passed ? "PASS" : "FAIL";
-  snapshot.artifactDirectory = valueOrFallback(values, "artifactDirectory",
+  snapshot.artifactDirectory = valueOrFallback(snapshot.summaryValues, "artifactDirectory",
                                                summaryFile.getParentDirectory().getFullPathName());
-  snapshot.summaryText = buildSummaryText(values, snapshot);
+  snapshot.summaryText = buildSummaryText(snapshot.summaryValues, snapshot);
   snapshot.contextText = buildContextText(snapshot);
   snapshot.detailText = title + "\r\n"
                         "Status: " + snapshot.statusText + "\r\n"
@@ -260,6 +282,7 @@ DiagnosticSnapshot loadCompileSnapshot() {
   if (directory.getFullPathName().isEmpty()) {
     snapshot.summaryText = "No artifacts yet";
     snapshot.detailText = "Artifact file not found: Builds/TeulCompileSmoke_*/artifact-bundle.json";
+    snapshot.summaryValues["passed"] = "false";
     return snapshot;
   }
 
@@ -268,6 +291,7 @@ DiagnosticSnapshot loadCompileSnapshot() {
     snapshot.summaryText = "No artifacts yet";
     snapshot.detailText = "Artifact file not found: Builds/TeulCompileSmoke_*/artifact-bundle.json";
     snapshot.contextText = directory.getFileName();
+    snapshot.summaryValues["passed"] = "false";
     return snapshot;
   }
 
@@ -279,6 +303,8 @@ DiagnosticSnapshot loadCompileSnapshot() {
     snapshot.summaryText = "Artifact bundle parse failed";
     snapshot.detailText = "Failed to parse compile smoke artifact bundle.";
     snapshot.contextText = directory.getFileName();
+    snapshot.summaryValues["passed"] = "false";
+    snapshot.summaryValues["failureReason"] = "Artifact bundle parse failed";
     return snapshot;
   }
 
@@ -288,12 +314,17 @@ DiagnosticSnapshot loadCompileSnapshot() {
                                       : DiagnosticSeverity::Failure;
   snapshot.statusText = snapshot.passed ? "PASS" : "FAIL";
   snapshot.artifactDirectory = object->getProperty("artifactDirectory").toString();
+  snapshot.summaryValues["passed"] = snapshot.passed ? "true" : "false";
+  snapshot.summaryValues["runtimeClassName"] = object->getProperty("runtimeClassName").toString();
+  snapshot.summaryValues["exportExitCode"] = object->getProperty("exportExitCode").toString();
+  snapshot.summaryValues["compileExitCode"] = object->getProperty("compileExitCode").toString();
+  snapshot.summaryValues["failureReason"] = object->getProperty("failureReason").toString().trim();
 
   juce::StringArray parts;
-  parts.add("runtime " + object->getProperty("runtimeClassName").toString());
-  parts.add("export " + object->getProperty("exportExitCode").toString());
-  parts.add("compile " + object->getProperty("compileExitCode").toString());
-  const auto failureReason = object->getProperty("failureReason").toString().trim();
+  parts.add("runtime " + snapshot.summaryValues["runtimeClassName"]);
+  parts.add("export " + snapshot.summaryValues["exportExitCode"]);
+  parts.add("compile " + snapshot.summaryValues["compileExitCode"]);
+  const auto failureReason = snapshot.summaryValues["failureReason"];
   if (!snapshot.passed && failureReason.isNotEmpty())
     parts.add(failureReason);
   snapshot.summaryText = joinParts(parts);
@@ -364,6 +395,80 @@ juce::String buildSummaryLine(const std::vector<DiagnosticSnapshot> &snapshots,
   parts.add("Fail " + juce::String(failCount));
   parts.add("Missing " + juce::String(missingCount));
   return joinParts(parts);
+}
+
+juce::String compareStatusText(const DiagnosticSnapshot &selected,
+                               const DiagnosticSnapshot &other) {
+  juce::String text;
+  text << "Compare: " << selected.title << " vs " << other.title << "\r\n";
+  text << "Status: " << selected.statusText << " vs " << other.statusText;
+  if (selected.passed != other.passed)
+    text << "\r\nResult changed";
+  return text;
+}
+
+juce::String buildDiffText(const DiagnosticSnapshot &selected,
+                           const DiagnosticSnapshot *other) {
+  if (other == nullptr) {
+    return "Select a comparison target to see report deltas.\r\n\r\n"
+           "Recommended comparisons:\r\n"
+           "- Golden Audio vs Compiled Parity\r\n"
+           "- Parity Smoke vs Parity Matrix\r\n"
+           "- Stress Soak vs Benchmark Gate";
+  }
+
+  juce::StringArray lines;
+  lines.add(compareStatusText(selected, *other));
+  lines.add("Artifact: " + selected.contextText + " vs " + other->contextText);
+
+  const std::pair<const char *, const char *> metrics[] = {
+      {"passedCaseCount", "passed cases"},
+      {"failedCaseCount", "failed cases"},
+      {"totalCaseCount", "total cases"},
+      {"iterationCount", "iterations"},
+      {"totalSamples", "samples"},
+      {"maxAbsoluteError", "max abs error"},
+      {"rmsError", "rms error"},
+      {"firstMismatchChannel", "first mismatch channel"},
+      {"firstMismatchSample", "first mismatch sample"},
+      {"compileExitCode", "compile exit"},
+      {"exportExitCode", "export exit"}};
+
+  bool addedMetric = false;
+  lines.add("\r\nMetric Diff:");
+  for (const auto &[keyChars, labelChars] : metrics) {
+    const juce::String key(keyChars);
+    const auto selectedValue = valueOrFallback(selected.summaryValues, key);
+    const auto otherValue = valueOrFallback(other->summaryValues, key);
+    if (selectedValue.isEmpty() && otherValue.isEmpty())
+      continue;
+
+    double selectedNumber = 0.0;
+    double otherNumber = 0.0;
+    const bool selectedIsNumber = tryParseDouble(selectedValue, selectedNumber);
+    const bool otherIsNumber = tryParseDouble(otherValue, otherNumber);
+
+    juce::String line = "- " + juce::String(labelChars) + ": " +
+                        (selectedValue.isNotEmpty() ? selectedValue : "n/a") +
+                        " vs " + (otherValue.isNotEmpty() ? otherValue : "n/a");
+    if (selectedIsNumber && otherIsNumber)
+      line << "  (delta " << formatDelta(selectedNumber - otherNumber) << ")";
+    lines.add(line);
+    addedMetric = true;
+  }
+
+  if (!addedMetric)
+    lines.add("- No shared numeric metrics in the selected pair.");
+
+  const auto selectedFailure = valueOrFallback(selected.summaryValues, "failureReason");
+  const auto otherFailure = valueOrFallback(other->summaryValues, "failureReason");
+  if (selectedFailure.isNotEmpty() || otherFailure.isNotEmpty()) {
+    lines.add("\r\nFailure Reason:");
+    lines.add("- selected: " + (selectedFailure.isNotEmpty() ? selectedFailure : "none"));
+    lines.add("- compare: " + (otherFailure.isNotEmpty() ? otherFailure : "none"));
+  }
+
+  return lines.joinIntoString("\r\n");
 }
 
 class DiagnosticCard final : public juce::Component {
@@ -486,10 +591,15 @@ public:
     addAndMakeVisible(summaryLabel);
     addAndMakeVisible(filterLabel);
     addAndMakeVisible(filterBox);
+    addAndMakeVisible(compareLabel);
+    addAndMakeVisible(compareBox);
     addAndMakeVisible(refreshButton);
     addAndMakeVisible(closeButton);
     addAndMakeVisible(listViewport);
+    addAndMakeVisible(detailLabel);
+    addAndMakeVisible(diffLabel);
     addAndMakeVisible(detailEditor);
+    addAndMakeVisible(diffEditor);
 
     titleLabel.setText("Diagnostics Drawer", juce::dontSendNotification);
     titleLabel.setJustificationType(juce::Justification::centredLeft);
@@ -506,6 +616,10 @@ public:
     filterLabel.setColour(juce::Label::textColourId,
                           juce::Colours::white.withAlpha(0.62f));
     filterLabel.setJustificationType(juce::Justification::centredLeft);
+    compareLabel.setText("Compare", juce::dontSendNotification);
+    compareLabel.setColour(juce::Label::textColourId,
+                           juce::Colours::white.withAlpha(0.62f));
+    compareLabel.setJustificationType(juce::Justification::centredLeft);
 
     filterBox.addItem("All", filterAll);
     filterBox.addItem("Failures", filterFailures);
@@ -513,6 +627,10 @@ public:
     filterBox.addItem("Missing", filterMissing);
     filterBox.setSelectedId(filterAll, juce::dontSendNotification);
     filterBox.onChange = [this] { rebuildVisibleEntries(); };
+
+    compareBox.addItem("No compare", compareNone);
+    compareBox.setSelectedId(compareNone, juce::dontSendNotification);
+    compareBox.onChange = [this] { refreshDetailPanels(); };
 
     refreshButton.setButtonText("Refresh");
     closeButton.setButtonText("Hide");
@@ -530,16 +648,15 @@ public:
                               juce::Colours::white.withAlpha(0.48f));
     listContent.addAndMakeVisible(emptyStateLabel);
 
-    detailEditor.setMultiLine(true);
-    detailEditor.setReadOnly(true);
-    detailEditor.setScrollbarsShown(true);
-    detailEditor.setColour(juce::TextEditor::backgroundColourId,
-                           juce::Colour(0xff0f172a));
-    detailEditor.setColour(juce::TextEditor::textColourId,
-                           juce::Colours::white.withAlpha(0.88f));
-    detailEditor.setColour(juce::TextEditor::outlineColourId,
-                           juce::Colour(0xff334155));
-    detailEditor.setFont(juce::FontOptions(12.0f, juce::Font::plain));
+    detailLabel.setText("Selected Report", juce::dontSendNotification);
+    diffLabel.setText("Diff View", juce::dontSendNotification);
+    detailLabel.setColour(juce::Label::textColourId,
+                          juce::Colours::white.withAlpha(0.72f));
+    diffLabel.setColour(juce::Label::textColourId,
+                        juce::Colours::white.withAlpha(0.72f));
+
+    configureReadOnlyEditor(detailEditor);
+    configureReadOnlyEditor(diffEditor);
 
     setVisible(false);
   }
@@ -676,18 +793,47 @@ public:
     filterLabel.setBounds(controlArea.removeFromLeft(56));
     controlArea.removeFromLeft(6);
     filterBox.setBounds(controlArea.removeFromLeft(132));
+    controlArea.removeFromLeft(12);
+    compareLabel.setBounds(controlArea.removeFromLeft(56));
+    controlArea.removeFromLeft(6);
+    compareBox.setBounds(controlArea.removeFromLeft(220));
 
     area.removeFromTop(8);
-    auto listArea = area.removeFromTop(juce::roundToInt(area.getHeight() * 0.48f));
+    auto listArea = area.removeFromTop(juce::roundToInt(area.getHeight() * 0.42f));
     listViewport.setBounds(listArea);
 
     area.removeFromTop(8);
-    detailEditor.setBounds(area);
+    auto bottomArea = area;
+    auto left = bottomArea.removeFromLeft(bottomArea.getWidth() / 2);
+    left.removeFromRight(4);
+    bottomArea.removeFromLeft(4);
+
+    detailLabel.setBounds(left.removeFromTop(18));
+    left.removeFromTop(4);
+    detailEditor.setBounds(left);
+
+    diffLabel.setBounds(bottomArea.removeFromTop(18));
+    bottomArea.removeFromTop(4);
+    diffEditor.setBounds(bottomArea);
+
     layoutVisibleEntries();
   }
 
 private:
   void timerCallback() override { refreshArtifacts(false); }
+
+  static void configureReadOnlyEditor(juce::TextEditor &editor) {
+    editor.setMultiLine(true);
+    editor.setReadOnly(true);
+    editor.setScrollbarsShown(true);
+    editor.setColour(juce::TextEditor::backgroundColourId,
+                     juce::Colour(0xff0f172a));
+    editor.setColour(juce::TextEditor::textColourId,
+                     juce::Colours::white.withAlpha(0.88f));
+    editor.setColour(juce::TextEditor::outlineColourId,
+                     juce::Colour(0xff334155));
+    editor.setFont(juce::FontOptions(12.0f, juce::Font::plain));
+  }
 
   std::vector<int> filteredSnapshotIndices() const {
     std::vector<int> indices;
@@ -714,6 +860,8 @@ private:
     if (visibleSnapshotIndices.empty()) {
       selectedSnapshotIndex = -1;
       detailEditor.setText("No diagnostics match the current filter.", false);
+      diffEditor.setText("No diagnostics match the current filter.", false);
+      rebuildCompareOptions();
       layoutVisibleEntries();
       return;
     }
@@ -760,8 +908,8 @@ private:
       cards.push_back(std::move(card));
     }
 
-    if (selectedSnapshotIndex >= 0)
-      detailEditor.setText(snapshots[static_cast<std::size_t>(selectedSnapshotIndex)].detailText, false);
+    rebuildCompareOptions();
+    refreshDetailPanels();
     layoutVisibleEntries();
   }
 
@@ -796,17 +944,72 @@ private:
     listContent.setSize(width, y);
   }
 
+  void rebuildCompareOptions() {
+    const auto previousSelection = compareBox.getSelectedId();
+    compareBox.clear(juce::dontSendNotification);
+    compareBox.addItem("No compare", compareNone);
+
+    if (selectedSnapshotIndex < 0 ||
+        selectedSnapshotIndex >= static_cast<int>(snapshots.size())) {
+      compareBox.setSelectedId(compareNone, juce::dontSendNotification);
+      return;
+    }
+
+    const auto selectedCategory =
+        snapshots[static_cast<std::size_t>(selectedSnapshotIndex)].category;
+    int preferredSelection = compareNone;
+    for (int index = 0; index < static_cast<int>(snapshots.size()); ++index) {
+      if (index == selectedSnapshotIndex)
+        continue;
+
+      const auto itemId = compareBaseId + index;
+      juce::String label = snapshots[static_cast<std::size_t>(index)].title +
+                           " [" + categoryTitle(snapshots[static_cast<std::size_t>(index)].category) + "]";
+      compareBox.addItem(label, itemId);
+      if (itemId == previousSelection)
+        preferredSelection = itemId;
+      else if (preferredSelection == compareNone &&
+               snapshots[static_cast<std::size_t>(index)].category == selectedCategory)
+        preferredSelection = itemId;
+    }
+
+    compareBox.setSelectedId(preferredSelection, juce::dontSendNotification);
+  }
+
+  void refreshDetailPanels() {
+    if (selectedSnapshotIndex < 0 ||
+        selectedSnapshotIndex >= static_cast<int>(snapshots.size())) {
+      detailEditor.setText("No diagnostic selected.", false);
+      diffEditor.setText("No diagnostic selected.", false);
+      return;
+    }
+
+    const auto &selected = snapshots[static_cast<std::size_t>(selectedSnapshotIndex)];
+    detailEditor.setText(selected.detailText, false);
+
+    DiagnosticSnapshot *compareSnapshot = nullptr;
+    const auto compareId = compareBox.getSelectedId();
+    if (compareId >= compareBaseId) {
+      const auto compareIndex = compareId - compareBaseId;
+      if (compareIndex >= 0 && compareIndex < static_cast<int>(snapshots.size()))
+        compareSnapshot = &snapshots[static_cast<std::size_t>(compareIndex)];
+    }
+
+    diffEditor.setText(buildDiffText(selected, compareSnapshot), false);
+  }
+
   void selectSnapshot(int snapshotIndex) {
     if (snapshotIndex < 0 || snapshotIndex >= static_cast<int>(snapshots.size()))
       return;
 
     selectedSnapshotIndex = snapshotIndex;
-    detailEditor.setText(snapshots[static_cast<std::size_t>(snapshotIndex)].detailText, false);
     for (std::size_t index = 0; index < cards.size(); ++index) {
       const auto visibleSnapshotIndex = visibleSnapshotIndices[index];
       cards[index]->setSnapshot(snapshots[static_cast<std::size_t>(visibleSnapshotIndex)],
                                 visibleSnapshotIndex == selectedSnapshotIndex);
     }
+    rebuildCompareOptions();
+    refreshDetailPanels();
   }
 
   void revealArtifact(int snapshotIndex) {
@@ -832,12 +1035,17 @@ private:
   juce::Label summaryLabel;
   juce::Label filterLabel;
   juce::ComboBox filterBox;
+  juce::Label compareLabel;
+  juce::ComboBox compareBox;
   juce::TextButton refreshButton;
   juce::TextButton closeButton;
   juce::Viewport listViewport;
   juce::Component listContent;
   juce::Label emptyStateLabel;
+  juce::Label detailLabel;
+  juce::Label diffLabel;
   juce::TextEditor detailEditor;
+  juce::TextEditor diffEditor;
   juce::Colour overallAccent = juce::Colour(0xff22c55e);
   juce::Time lastRefreshTime;
   std::function<void()> onLayoutChanged;
