@@ -319,6 +319,7 @@ private:
     selectedEntry = (selectedRow >= 0 && selectedRow < (int)visibleEntries.size())
                         ? visibleEntries[(size_t)selectedRow].entry
                         : nullptr;
+    clearConflictArmIfSelectionChanged();
     refreshDetailPanel();
   }
 
@@ -343,6 +344,8 @@ private:
     }
 
     listBox.updateContent();
+    if (preferredEntryId.isEmpty())
+      pendingConflictEntryId.clear();
 
     int rowToSelect = -1;
     if (preferredEntryId.isNotEmpty()) {
@@ -440,6 +443,15 @@ private:
       entryPreviewHandler(*selectedEntry, previewSummary, previewDetail,
                           previewWarning);
 
+    if (requiresConflictConfirmation(*selectedEntry)) {
+      if (previewSummary.isEmpty())
+        previewSummary = "Conflict Resolution";
+      if (previewDetail.isNotEmpty())
+        previewDetail << "\r\n";
+      previewDetail << conflictDetailText(*selectedEntry);
+      previewWarning = true;
+    }
+
     selectionPreviewEditor.setText(
         previewSummary.isNotEmpty() ? previewSummary + "\r\n" + previewDetail
                                     : previewDetail,
@@ -468,6 +480,17 @@ private:
     if (selectedEntry == nullptr || primaryActionHandler == nullptr)
       return;
 
+    if (requiresConflictConfirmation(*selectedEntry) &&
+        pendingConflictEntryId != selectedEntry->entryId) {
+      pendingConflictEntryId = selectedEntry->entryId;
+      statusLabel.setText(
+          selectedEntry->primaryActionLabel +
+              " is armed. Review the conflict preview and press again to continue.",
+          juce::dontSendNotification);
+      updateActionButtons();
+      return;
+    }
+
     const auto selectedEntryId = selectedEntry->entryId;
     const auto result = primaryActionHandler(*selectedEntry);
     if (result.failed()) {
@@ -475,6 +498,7 @@ private:
       return;
     }
 
+    pendingConflictEntryId.clear();
     refreshEntries(true);
     rebuildVisibleEntries(selectedEntryId);
   }
@@ -491,6 +515,7 @@ private:
       return;
     }
 
+    pendingConflictEntryId.clear();
     refreshEntries(true);
     rebuildVisibleEntries(selectedEntryId);
   }
@@ -510,8 +535,12 @@ private:
     const bool allowSecondary =
         hasEntry && selectedEntry->secondaryActionLabel.isNotEmpty() &&
         secondaryActionHandler != nullptr;
+    const bool armed =
+        hasEntry && pendingConflictEntryId == selectedEntry->entryId;
     primaryActionButton.setButtonText(
-        hasEntry ? selectedEntry->primaryActionLabel : "Run");
+        hasEntry ? (armed ? selectedEntry->primaryActionLabel + " Anyway"
+                          : selectedEntry->primaryActionLabel)
+                 : "Run");
     secondaryActionButton.setButtonText(
         hasEntry && selectedEntry->secondaryActionLabel.isNotEmpty()
             ? selectedEntry->secondaryActionLabel
@@ -529,6 +558,7 @@ private:
   juce::String sessionPreviewSummary;
   juce::String sessionPreviewDetail;
   bool sessionPreviewWarning = false;
+  juce::String pendingConflictEntryId;
   std::vector<VisibleEntry> visibleEntries;
   const TPresetEntry *selectedEntry = nullptr;
   bool browserOpen = false;
@@ -548,6 +578,25 @@ private:
   juce::TextEditor sessionPreviewEditor;
   juce::TextEditor selectionPreviewEditor;
   juce::TextEditor detailEditor;
+
+  bool requiresConflictConfirmation(const TPresetEntry &entry) const {
+    if (!sessionPreviewWarning)
+      return false;
+    return entry.presetKind == "teul.state" || entry.presetKind == "teul.recovery";
+  }
+
+  juce::String conflictDetailText(const TPresetEntry &entry) const {
+    if (entry.presetKind == "teul.recovery")
+      return "Current document has unsaved changes. Restoring the recovery snapshot will replace the current Teul graph.";
+    if (entry.presetKind == "teul.state")
+      return "Current document has unsaved changes. Applying this state preset will overwrite matching node values and bypass states.";
+    return {};
+  }
+
+  void clearConflictArmIfSelectionChanged() {
+    if (selectedEntry == nullptr || pendingConflictEntryId != selectedEntry->entryId)
+      pendingConflictEntryId.clear();
+  }
 };
 
 } // namespace
