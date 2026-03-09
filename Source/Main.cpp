@@ -17,6 +17,7 @@
 #include "Teul/Verification/TVerificationGoldenAudio.h"
 #include "Teul/Verification/TVerificationCompiledParity.h"
 #include "Teul/Verification/TVerificationStress.h"
+#include "Teul/Serialization/TPatchPresetIO.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
 #include <algorithm>
@@ -1029,6 +1030,162 @@ juce::Result runTeulPhase7CompiledRuntimeParity(const juce::StringArray &args) {
             << std::endl;
   return juce::Result::ok();
 }
+juce::Result runTeulPhase8PatchPresetSmoke(const juce::StringArray &args) {
+  const auto outputArg = argValue(args, "--output-dir=");
+  juce::File outputDirectory;
+  if (outputArg.isNotEmpty()) {
+    outputDirectory = juce::File(outputArg);
+  } else {
+    outputDirectory =
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulPatchPresetSmoke_" +
+                          juce::String(juce::Time::currentTimeMillis()));
+  }
+
+  if (!outputDirectory.createDirectory() && !outputDirectory.isDirectory()) {
+    return juce::Result::fail(
+        "Teul patch preset smoke output directory could not be created.");
+  }
+
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  const auto assetSource = outputDirectory.getChildFile("PatchPresetSmokeImpulse.wav");
+  if (!assetSource.replaceWithText("teul patch preset smoke asset", false,
+                                   false, "\r\n")) {
+    return juce::Result::fail(
+        "Failed to create patch preset smoke asset file.");
+  }
+
+  auto sourceDocument = makeTeulPhase5SmokeDocument(*registry, assetSource);
+  if (sourceDocument.nodes.size() < 3) {
+    return juce::Result::fail(
+        "Teul patch preset smoke graph does not contain enough nodes.");
+  }
+
+  Teul::TFrameRegion frame;
+  frame.frameId = sourceDocument.allocFrameId();
+  frame.frameUuid = juce::Uuid().toString();
+  frame.title = "Smoke Patch Preset";
+  frame.logicalGroup = true;
+  frame.membershipExplicit = true;
+  frame.colorArgb = 0x334d8bf7;
+
+  juce::Rectangle<float> memberBounds;
+  bool hasMemberBounds = false;
+  const int memberCount = juce::jmin(3, (int)sourceDocument.nodes.size());
+  for (int index = 0; index < memberCount; ++index) {
+    const auto &node = sourceDocument.nodes[(size_t)index];
+    const juce::Rectangle<float> nodeRect(node.x, node.y, 160.0f, 90.0f);
+    memberBounds = hasMemberBounds ? memberBounds.getUnion(nodeRect) : nodeRect;
+    hasMemberBounds = true;
+  }
+  if (!hasMemberBounds) {
+    return juce::Result::fail(
+        "Teul patch preset smoke group could not capture members.");
+  }
+  memberBounds = memberBounds.expanded(24.0f, 24.0f);
+  frame.x = memberBounds.getX();
+  frame.y = memberBounds.getY();
+  frame.width = memberBounds.getWidth();
+  frame.height = memberBounds.getHeight();
+  sourceDocument.frames.push_back(frame);
+  for (int index = 0; index < memberCount; ++index) {
+    sourceDocument.addNodeToFrameExclusive(
+        sourceDocument.nodes[(size_t)index].nodeId, frame.frameId);
+  }
+
+  const auto presetFile = outputDirectory.getChildFile("smoke_patch_preset")
+                              .withFileExtension(
+                                  Teul::TPatchPresetIO::fileExtension());
+  Teul::TPatchPresetSummary savedSummary;
+  const auto saveResult = Teul::TPatchPresetIO::saveFrameToFile(
+      sourceDocument, frame.frameId, presetFile, &savedSummary);
+  if (saveResult.failed())
+    return saveResult;
+
+  Teul::TGraphDocument loadedPresetDocument;
+  Teul::TPatchPresetSummary loadedSummary;
+  const auto loadResult = Teul::TPatchPresetIO::loadFromFile(
+      loadedPresetDocument, loadedSummary, presetFile);
+  if (loadResult.failed())
+    return loadResult;
+
+  if ((int)loadedPresetDocument.nodes.size() != savedSummary.nodeCount ||
+      (int)loadedPresetDocument.connections.size() !=
+          savedSummary.connectionCount ||
+      loadedPresetDocument.frames.size() != 1) {
+    return juce::Result::fail(
+        "Teul patch preset smoke load changed the saved preset topology.");
+  }
+
+  Teul::TGraphDocument insertedDocument;
+  std::vector<Teul::NodeId> insertedNodeIds;
+  int insertedFrameId = 0;
+  Teul::TPatchPresetSummary insertedSummary;
+  const auto insertResult = Teul::TPatchPresetIO::insertFromFile(
+      insertedDocument, presetFile, {120.0f, 160.0f}, &insertedNodeIds,
+      &insertedFrameId, &insertedSummary);
+  if (insertResult.failed())
+    return insertResult;
+
+  if ((int)insertedNodeIds.size() != savedSummary.nodeCount ||
+      (int)insertedDocument.connections.size() != savedSummary.connectionCount ||
+      insertedFrameId == 0 || insertedDocument.frames.size() != 1) {
+    return juce::Result::fail(
+        "Teul patch preset smoke insert produced an unexpected graph shape.");
+  }
+
+  const auto *insertedFrame = insertedDocument.findFrame(insertedFrameId);
+  if (insertedFrame == nullptr ||
+      (int)insertedFrame->memberNodeIds.size() != savedSummary.nodeCount) {
+    return juce::Result::fail(
+        "Inserted patch preset group did not restore logical membership.");
+  }
+
+  const auto summaryFile = outputDirectory.getChildFile("patch-preset-summary.txt");
+  const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
+  const auto summaryText =
+      juce::String("preset=") + savedSummary.presetName + "\r\n" +
+      "savedNodes=" + juce::String(savedSummary.nodeCount) + "\r\n" +
+      "savedConnections=" + juce::String(savedSummary.connectionCount) +
+      "\r\n" +
+      "insertedNodes=" + juce::String((int)insertedNodeIds.size()) + "\r\n" +
+      "insertedFrameId=" + juce::String(insertedFrameId) + "\r\n" +
+      "presetFile=" + presetFile.getFullPathName() + "\r\n" +
+      "passed=true\r\n";
+  if (!summaryFile.replaceWithText(summaryText, false, false, "\r\n")) {
+    return juce::Result::fail(
+        "Teul patch preset smoke could not write its summary file.");
+  }
+
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("patchPreset", outputDirectory, presetFile));
+  files.add(makeArtifactFileEntry("summary", outputDirectory, summaryFile));
+  auto *bundleRoot = new juce::DynamicObject();
+  bundleRoot->setProperty("kind", "teul-verification-artifact-bundle");
+  bundleRoot->setProperty("scope", "patch-preset-smoke");
+  bundleRoot->setProperty("passed", true);
+  bundleRoot->setProperty("artifactDirectory", outputDirectory.getFullPathName());
+  bundleRoot->setProperty("presetName", savedSummary.presetName);
+  bundleRoot->setProperty("savedNodeCount", savedSummary.nodeCount);
+  bundleRoot->setProperty("savedConnectionCount", savedSummary.connectionCount);
+  bundleRoot->setProperty("insertedNodeCount", (int)insertedNodeIds.size());
+  bundleRoot->setProperty("files", juce::var(files));
+  if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
+    return juce::Result::fail(
+        "Teul patch preset smoke could not write its artifact bundle.");
+  }
+
+  std::cout << "Teul Phase8 patch preset smoke directory: "
+            << outputDirectory.getFullPathName() << std::endl;
+  std::cout << summaryText << std::endl;
+  std::cout << "Teul Phase8 patch preset smoke checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
+
 juce::Result runTeulPhase7BenchmarkGate(const juce::StringArray &args) {
   auto registry = Teul::makeDefaultNodeRegistry();
   if (!registry)
@@ -1447,6 +1604,20 @@ public:
       const auto smokeResult = runTeulPhase7StressSoak(args);
       if (smokeResult.failed()) {
         std::cerr << "Teul Phase7 stress/soak failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
+    if (hasArg(args, "--teul-phase8-patch-preset-smoke")) {
+      const auto smokeResult = runTeulPhase8PatchPresetSmoke(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase8 patch preset smoke failed: "
                   << smokeResult.getErrorMessage() << std::endl;
         setApplicationReturnValue(1);
       } else {

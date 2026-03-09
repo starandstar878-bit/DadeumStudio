@@ -7,6 +7,7 @@
 #include "Teul/Model/TGraphDocument.h"
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
 
+#include <algorithm>
 #include <map>
 #include <set>
 
@@ -134,6 +135,10 @@ public:
     addAndMakeVisible(closeButton);
     addAndMakeVisible(paramViewport);
     addAndMakeVisible(frameSummaryBox);
+    addAndMakeVisible(frameCaptureButton);
+    addAndMakeVisible(frameReleaseButton);
+    addAndMakeVisible(frameFitButton);
+    addAndMakeVisible(frameSavePresetButton);
 
     headerLabel.setText("Node Properties", juce::dontSendNotification);
     headerLabel.setJustificationType(juce::Justification::centredLeft);
@@ -179,6 +184,30 @@ public:
     frameSummaryBox.setColour(juce::TextEditor::textColourId,
                               juce::Colours::white.withAlpha(0.78f));
     frameSummaryBox.setVisible(false);
+
+    frameCaptureButton.setButtonText("Capture Sel");
+    frameReleaseButton.setButtonText("Release Sel");
+    frameFitButton.setButtonText("Fit Members");
+    frameSavePresetButton.setButtonText("Save Preset");
+
+    frameCaptureButton.onClick = [this] {
+      if (inspectedFrameId != 0 &&
+          canvas.captureSelectedNodesIntoFrame(inspectedFrameId))
+        rebuildFromDocument();
+    };
+    frameReleaseButton.onClick = [this] {
+      if (inspectedFrameId != 0 &&
+          canvas.releaseSelectedNodesFromFrame(inspectedFrameId))
+        rebuildFromDocument();
+    };
+    frameFitButton.onClick = [this] {
+      if (inspectedFrameId != 0 && canvas.fitFrameToMembers(inspectedFrameId))
+        rebuildFromDocument();
+    };
+    frameSavePresetButton.onClick = [this] {
+      if (inspectedFrameId != 0)
+        canvas.saveFrameAsPatchPreset(inspectedFrameId);
+    };
 
     applyButton.onClick = [this] { applyChanges(); };
     closeButton.onClick = [this] { hidePanel(); };
@@ -364,8 +393,36 @@ public:
       paramViewport.setBounds(0, 0, 0, 0);
       paramViewport.setVisible(false);
       frameSummaryBox.setVisible(true);
+
+      auto actions = params.removeFromTop(56);
+      auto topRow = actions.removeFromTop(24);
+      const int topWidth = juce::jmax(80, (topRow.getWidth() - 8) / 2);
+      frameCaptureButton.setVisible(true);
+      frameCaptureButton.setBounds(topRow.removeFromLeft(topWidth));
+      topRow.removeFromLeft(8);
+      frameReleaseButton.setVisible(true);
+      frameReleaseButton.setBounds(topRow);
+
+      actions.removeFromTop(8);
+      auto bottomRow = actions.removeFromTop(24);
+      const int bottomWidth = juce::jmax(80, (bottomRow.getWidth() - 8) / 2);
+      frameFitButton.setVisible(true);
+      frameFitButton.setBounds(bottomRow.removeFromLeft(bottomWidth));
+      bottomRow.removeFromLeft(8);
+      frameSavePresetButton.setVisible(true);
+      frameSavePresetButton.setBounds(bottomRow);
+
+      params.removeFromTop(8);
       frameSummaryBox.setBounds(params);
     } else {
+      frameCaptureButton.setVisible(false);
+      frameReleaseButton.setVisible(false);
+      frameFitButton.setVisible(false);
+      frameSavePresetButton.setVisible(false);
+      frameCaptureButton.setBounds(0, 0, 0, 0);
+      frameReleaseButton.setBounds(0, 0, 0, 0);
+      frameFitButton.setBounds(0, 0, 0, 0);
+      frameSavePresetButton.setBounds(0, 0, 0, 0);
       frameSummaryBox.setBounds(0, 0, 0, 0);
       frameSummaryBox.setVisible(false);
       paramViewport.setVisible(true);
@@ -453,6 +510,17 @@ private:
       collapsedToggle.setButtonText("Collapsed");
       collapsedToggle.setToggleState(frame->collapsed, juce::dontSendNotification);
       frameSummaryBox.setText(frameSummaryText(*frame), juce::dontSendNotification);
+
+      const bool hasSelectedNodes = !canvas.getSelectedNodeIds().empty();
+      const bool hasSelectedMembers = std::any_of(
+          canvas.getSelectedNodeIds().begin(), canvas.getSelectedNodeIds().end(),
+          [&](NodeId nodeId) { return frame->containsNode(nodeId); });
+      frameCaptureButton.setEnabled(hasSelectedNodes);
+      frameReleaseButton.setEnabled(hasSelectedMembers);
+      frameFitButton.setEnabled(frame->membershipExplicit &&
+                                !frame->memberNodeIds.empty());
+      frameSavePresetButton.setEnabled(!frame->memberNodeIds.empty());
+
       resized();
       repaint();
       return;
@@ -825,6 +893,10 @@ private:
   juce::TextButton closeButton;
   juce::Viewport paramViewport;
   juce::TextEditor frameSummaryBox;
+  juce::TextButton frameCaptureButton;
+  juce::TextButton frameReleaseButton;
+  juce::TextButton frameFitButton;
+  juce::TextButton frameSavePresetButton;
   std::unique_ptr<juce::Component> paramsContent;
   std::vector<std::unique_ptr<ParamEditor>> paramEditors;
   std::map<juce::String, TTeulExposedParam> runtimeParamsById;

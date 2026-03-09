@@ -161,6 +161,12 @@ public:
   void requestNodeContextMenu(NodeId nodeId, juce::Point<float> pointView,
                               juce::Point<float> pointScreen);
 
+  bool captureSelectedNodesIntoFrame(int frameId);
+  bool releaseSelectedNodesFromFrame(int frameId);
+  bool fitFrameToMembers(int frameId);
+  void saveFrameAsPatchPreset(int frameId);
+  void insertPatchPresetAt(juce::Point<float> pointView);
+
   bool isNodeSelected(NodeId nodeId) const;
   bool isNodeMoveLocked(NodeId nodeId) const;
 
@@ -236,6 +242,7 @@ private:
   void clearFrameSelection();
   void setNodeSelection(NodeId nodeId, bool selected);
   void selectOnlyNode(NodeId nodeId);
+  void selectOnlyNodes(const std::vector<NodeId> &nodeIds);
   void selectOnlyFrame(int frameId);
   void syncNodeSelectionToComponents();
   std::vector<NodeId> collectMarqueeSelection() const;

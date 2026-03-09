@@ -65,4 +65,6 @@ Thumbs.db
 Builds/DebugScreenshots/
 Builds/TeulVerification/
 Builds/TeulCompileSmoke*/
-Builds/Phase5SmokeImpulse.wav
+Builds/Phase5SmokeImpulse.wav
+Builds/TeulPatchPresets/
+Builds/TeulPatchPresetSmoke_*/

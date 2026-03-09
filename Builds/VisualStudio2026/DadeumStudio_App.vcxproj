@@ -201,6 +201,7 @@
     <ClCompile Include="..\..\Source\Teul\Verification\TVerificationCompiledParity.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Serialization\TFileIo.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Serialization\TPatchPresetIO.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\EditorHandle.cpp">
       <ObjectFileName>$(IntDir)Teul\EditorHandle.obj</ObjectFileName>
@@ -2978,6 +2979,7 @@
     <ClInclude Include="..\..\Source\Teul\Verification\TVerificationGoldenAudio.h"/>
     <ClInclude Include="..\..\Source\Teul\Verification\TVerificationCompiledParity.h"/>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h"/>
+    <ClInclude Include="..\..\Source\Teul\Serialization\TPatchPresetIO.h"/>
     <ClInclude Include="..\..\Source\Teul\Export\TExport.h"/>
     <ClInclude Include="..\..\Source\Teul\Teul.h"/>
     <ClInclude Include="..\..\Source\AppServices.h"/>

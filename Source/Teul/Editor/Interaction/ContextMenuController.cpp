@@ -3,11 +3,183 @@
 #include "Teul/Editor/Search/SearchController.h"
 #include "Teul/History/TCommands.h"
 #include "Teul/Registry/TNodeRegistry.h"
+#include "Teul/Serialization/TPatchPresetIO.h"
 
 #include <algorithm>
 #include <set>
 
 namespace Teul {
+
+namespace {
+
+juce::String sanitizePatchPresetName(const juce::String &rawName) {
+  juce::String text = rawName.trim();
+  if (text.isEmpty())
+    text = "PatchPreset";
+
+  for (const auto character : {'<', '>', ':', '"', '/', '\\', '|', '?', '*'})
+    text = text.replaceCharacter(character, '_');
+
+  return text;
+}
+
+} // namespace
+
+bool TGraphCanvas::captureSelectedNodesIntoFrame(int frameId) {
+  auto *frame = document.findFrame(frameId);
+  if (frame == nullptr || selectedNodeIds.empty())
+    return false;
+
+  bool changed = false;
+  for (const auto nodeId : selectedNodeIds) {
+    if (document.findNode(nodeId) == nullptr)
+      continue;
+    if (frame->containsNode(nodeId))
+      continue;
+
+    document.addNodeToFrameExclusive(nodeId, frameId);
+    changed = true;
+  }
+
+  if (!changed)
+    return false;
+
+  fitFrameToMembers(frameId);
+  document.touch(false);
+  updateChildPositions();
+  repaint();
+  pushStatusHint("Selected nodes captured into frame group.");
+  return true;
+}
+
+bool TGraphCanvas::releaseSelectedNodesFromFrame(int frameId) {
+  auto *frame = document.findFrame(frameId);
+  if (frame == nullptr || selectedNodeIds.empty())
+    return false;
+
+  bool changed = false;
+  for (const auto nodeId : selectedNodeIds) {
+    if (!frame->containsNode(nodeId))
+      continue;
+
+    document.removeNodeFromFrame(nodeId, frameId);
+    changed = true;
+  }
+
+  if (!changed)
+    return false;
+
+  if (!frame->memberNodeIds.empty())
+    fitFrameToMembers(frameId);
+
+  document.touch(false);
+  updateChildPositions();
+  repaint();
+  pushStatusHint("Selected nodes released from frame group.");
+  return true;
+}
+
+bool TGraphCanvas::fitFrameToMembers(int frameId) {
+  auto *frame = document.findFrame(frameId);
+  if (frame == nullptr || !frame->membershipExplicit || frame->memberNodeIds.empty())
+    return false;
+
+  const auto bounds = getFrameMemberBoundsWorld(*frame);
+  frame->x = bounds.getX();
+  frame->y = bounds.getY();
+  frame->width = bounds.getWidth();
+  frame->height = bounds.getHeight();
+  document.touch(false);
+  updateChildPositions();
+  repaint();
+  pushStatusHint("Frame resized to current group members.");
+  return true;
+}
+
+void TGraphCanvas::saveFrameAsPatchPreset(int frameId) {
+  const auto *frame = document.findFrame(frameId);
+  if (frame == nullptr)
+    return;
+
+  auto startDirectory = TPatchPresetIO::defaultPresetDirectory();
+  juce::ignoreUnused(startDirectory.createDirectory());
+  const auto startFile = startDirectory
+                             .getChildFile(sanitizePatchPresetName(frame->title))
+                             .withFileExtension(TPatchPresetIO::fileExtension());
+  const auto wildcard = "*" + TPatchPresetIO::fileExtension();
+  auto chooser = std::make_shared<juce::FileChooser>(
+      "Save Patch Preset", startFile, wildcard);
+  auto safeThis = juce::Component::SafePointer<TGraphCanvas>(this);
+  chooser->launchAsync(
+      juce::FileBrowserComponent::saveMode |
+          juce::FileBrowserComponent::canSelectFiles,
+      [safeThis, chooser, frameId](const juce::FileChooser &fileChooser) {
+        juce::ignoreUnused(chooser);
+        if (safeThis == nullptr)
+          return;
+
+        auto &self = *safeThis;
+        auto selectedFile = fileChooser.getResult();
+        if (selectedFile == juce::File())
+          return;
+
+        if (!selectedFile.hasFileExtension(TPatchPresetIO::fileExtension())) {
+          selectedFile =
+              selectedFile.withFileExtension(TPatchPresetIO::fileExtension());
+        }
+
+        TPatchPresetSummary summary;
+        const auto saveResult =
+            TPatchPresetIO::saveFrameToFile(self.document, frameId, selectedFile,
+                                            &summary);
+        if (saveResult.failed()) {
+          self.pushStatusHint("Patch preset save failed.");
+          return;
+        }
+
+        self.pushStatusHint("Patch preset saved: " + summary.presetName + ".");
+      });
+}
+
+void TGraphCanvas::insertPatchPresetAt(juce::Point<float> pointView) {
+  auto startDirectory = TPatchPresetIO::defaultPresetDirectory();
+  juce::ignoreUnused(startDirectory.createDirectory());
+  const auto wildcard = "*" + TPatchPresetIO::fileExtension();
+  auto chooser = std::make_shared<juce::FileChooser>(
+      "Insert Patch Preset", startDirectory, wildcard);
+  auto safeThis = juce::Component::SafePointer<TGraphCanvas>(this);
+  chooser->launchAsync(
+      juce::FileBrowserComponent::openMode |
+          juce::FileBrowserComponent::canSelectFiles,
+      [safeThis, chooser, pointView](const juce::FileChooser &fileChooser) {
+        juce::ignoreUnused(chooser);
+        if (safeThis == nullptr)
+          return;
+
+        auto &self = *safeThis;
+        const auto selectedFile = fileChooser.getResult();
+        if (selectedFile == juce::File())
+          return;
+
+        std::vector<NodeId> insertedNodeIds;
+        int insertedFrameId = 0;
+        TPatchPresetSummary summary;
+        const auto insertResult = TPatchPresetIO::insertFromFile(
+            self.document, selectedFile, self.viewToWorld(pointView),
+            &insertedNodeIds, &insertedFrameId, &summary);
+        if (insertResult.failed()) {
+          self.pushStatusHint("Patch preset insert failed.");
+          return;
+        }
+
+        self.document.touch(false);
+        self.rebuildNodeComponents();
+        self.selectOnlyNodes(insertedNodeIds);
+        if (!insertedNodeIds.empty())
+          self.ensureNodeVisible(insertedNodeIds.front());
+        self.pushStatusHint("Patch preset inserted: " + summary.presetName + ".");
+      });
+}
 
 void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
                                          juce::Point<float> pointScreen) {
@@ -33,7 +205,8 @@ void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
   menu.addSubMenu("Add Node", addMenu);
   menu.addSeparator();
   menu.addItem(20, "Create Frame Here");
-  menu.addItem(21, "Add Bookmark Here");
+  menu.addItem(21, "Insert Patch Preset...");
+  menu.addItem(22, "Add Bookmark Here");
 
   if (!document.bookmarks.empty()) {
     juce::PopupMenu bookmarks;
@@ -74,6 +247,7 @@ void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
           frame.logicalGroup = true;
           frame.membershipExplicit = true;
 
+          std::vector<NodeId> initialMembers;
           if (!self.selectedNodeIds.empty()) {
             juce::Rectangle<float> memberBounds;
             bool hasBounds = false;
@@ -83,7 +257,7 @@ void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
               if (node == nullptr)
                 continue;
 
-              frame.addMember(nodeId);
+              initialMembers.push_back(nodeId);
               const juce::Rectangle<float> nodeRect(node->x, node->y, 160.0f,
                                                     90.0f);
               memberBounds = hasBounds ? memberBounds.getUnion(nodeRect)
@@ -109,16 +283,23 @@ void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
           }
 
           self.document.frames.push_back(frame);
+          for (const auto nodeId : initialMembers)
+            self.document.addNodeToFrameExclusive(nodeId, frame.frameId);
           self.document.touch(false);
           self.updateChildPositions();
           self.repaint();
-          self.pushStatusHint(frame.memberNodeIds.empty()
+          self.pushStatusHint(initialMembers.empty()
                                   ? "Frame created. Use the frame menu to capture members."
                                   : "Frame group created from selection.");
           return;
         }
 
         if (result == 21) {
+          self.insertPatchPresetAt(pointView);
+          return;
+        }
+
+        if (result == 22) {
           TBookmark bookmark;
           bookmark.bookmarkId = self.document.allocBookmarkId();
           bookmark.name = "Bookmark " + juce::String(bookmark.bookmarkId);
@@ -439,6 +620,7 @@ void TGraphCanvas::showFrameContextMenu(int frameId,
   menu.addItem(4, "Capture Selected Nodes", canCaptureSelection);
   menu.addItem(5, "Release Selected Nodes", canReleaseSelection);
   menu.addItem(6, "Fit To Members", canFitToMembers);
+  menu.addItem(7, "Save Frame as Patch Preset...");
 
   juce::PopupMenu colorMenu;
   colorMenu.addItem(100, "Blue");
@@ -487,63 +669,19 @@ void TGraphCanvas::showFrameContextMenu(int frameId,
           return;
         }
         if (result == 4) {
-          bool changed = false;
-          for (const auto nodeId : self.selectedNodeIds) {
-            if (it->containsNode(nodeId))
-              continue;
-            it->membershipExplicit = true;
-            it->addMember(nodeId);
-            changed = true;
-          }
-          if (changed) {
-            const auto bounds = self.getFrameMemberBoundsWorld(*it);
-            it->x = bounds.getX();
-            it->y = bounds.getY();
-            it->width = bounds.getWidth();
-            it->height = bounds.getHeight();
-            self.document.touch(false);
-            self.updateChildPositions();
-            self.repaint();
-            self.pushStatusHint("Selected nodes captured into frame group.");
-          }
+          self.captureSelectedNodesIntoFrame(frameId);
           return;
         }
         if (result == 5) {
-          bool changed = false;
-          for (const auto nodeId : self.selectedNodeIds) {
-            if (!it->containsNode(nodeId))
-              continue;
-            it->membershipExplicit = true;
-            it->removeMember(nodeId);
-            changed = true;
-          }
-          if (changed) {
-            if (!it->memberNodeIds.empty()) {
-              const auto bounds = self.getFrameMemberBoundsWorld(*it);
-              it->x = bounds.getX();
-              it->y = bounds.getY();
-              it->width = bounds.getWidth();
-              it->height = bounds.getHeight();
-            }
-            self.document.touch(false);
-            self.updateChildPositions();
-            self.repaint();
-            self.pushStatusHint("Selected nodes released from frame group.");
-          }
+          self.releaseSelectedNodesFromFrame(frameId);
           return;
         }
         if (result == 6) {
-          if (it->membershipExplicit && !it->memberNodeIds.empty()) {
-            const auto bounds = self.getFrameMemberBoundsWorld(*it);
-            it->x = bounds.getX();
-            it->y = bounds.getY();
-            it->width = bounds.getWidth();
-            it->height = bounds.getHeight();
-            self.document.touch(false);
-            self.updateChildPositions();
-            self.repaint();
-            self.pushStatusHint("Frame resized to current group members.");
-          }
+          self.fitFrameToMembers(frameId);
+          return;
+        }
+        if (result == 7) {
+          self.saveFrameAsPatchPreset(frameId);
           return;
         }
         if (result >= 100 && result <= 103) {

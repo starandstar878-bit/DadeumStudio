@@ -140,6 +140,22 @@ struct TGraphDocument {
     }
   }
 
+  void addNodeToFrameExclusive(NodeId nodeId, int frameId) {
+    for (auto &frame : frames) {
+      if (frame.frameId == frameId)
+        continue;
+      if (!frame.logicalGroup)
+        continue;
+      if (!frame.containsNode(nodeId))
+        continue;
+
+      frame.membershipExplicit = true;
+      frame.removeMember(nodeId);
+    }
+
+    addNodeToFrame(nodeId, frameId);
+  }
+
   void removeNodeFromFrame(NodeId nodeId, int frameId) {
     if (auto *frame = findFrame(frameId)) {
       frame->membershipExplicit = true;

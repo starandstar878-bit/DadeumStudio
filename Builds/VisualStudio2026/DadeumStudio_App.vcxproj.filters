@@ -913,6 +913,9 @@
     <ClCompile Include="..\..\Source\Teul\Serialization\TFileIo.cpp">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Serialization\TPatchPresetIO.cpp">
+      <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp">
       <Filter>DadeumStudio\Source\Teul\Export</Filter>
     </ClCompile>
@@ -3985,6 +3988,9 @@
       <Filter>DadeumStudio\Source\Teul\Verification</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h">
+      <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Teul\Serialization\TPatchPresetIO.h">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Export\TExport.h">

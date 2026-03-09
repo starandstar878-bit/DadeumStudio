@@ -53,6 +53,20 @@ void TGraphCanvas::selectOnlyNode(NodeId nodeId) {
   syncNodeSelectionToComponents();
 }
 
+void TGraphCanvas::selectOnlyNodes(const std::vector<NodeId> &nodeIds) {
+  clearFrameSelection();
+  selectedNodeIds.clear();
+  for (const auto nodeId : nodeIds) {
+    if (document.findNode(nodeId) == nullptr)
+      continue;
+    if (std::find(selectedNodeIds.begin(), selectedNodeIds.end(), nodeId) !=
+        selectedNodeIds.end())
+      continue;
+    selectedNodeIds.push_back(nodeId);
+  }
+  syncNodeSelectionToComponents();
+}
+
 void TGraphCanvas::selectOnlyFrame(int frameId) {
   if (frameId <= 0) {
     clearFrameSelection();
