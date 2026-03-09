@@ -25,6 +25,16 @@ struct DiagnosticSnapshot {
   bool available = false;
 };
 
+struct BenchmarkTimelineEntry {
+  juce::String timestampUtc;
+  bool passed = false;
+  int failedCaseCount = 0;
+  int iterationCount = 0;
+  double peakCpuLoadPercent = 0.0;
+  double peakMaxProcessMilliseconds = 0.0;
+  double peakMaxBuildMilliseconds = 0.0;
+};
+
 constexpr int filterAll = 1;
 constexpr int filterFailures = 2;
 constexpr int filterPassing = 3;
@@ -234,6 +244,44 @@ juce::File findLatestCompileSmokeDirectory() {
     }
   }
   return latest;
+}
+
+std::vector<BenchmarkTimelineEntry> loadBenchmarkTimelineEntries() {
+  std::vector<BenchmarkTimelineEntry> entries;
+  const auto historyFile = juce::File::getCurrentWorkingDirectory()
+                               .getChildFile("Builds")
+                               .getChildFile("TeulVerification")
+                               .getChildFile("Benchmark")
+                               .getChildFile("representative_benchmark_primary-history.json");
+  if (!historyFile.existsAsFile())
+    return entries;
+
+  const auto parsed = juce::JSON::parse(historyFile);
+  if (!parsed.isObject())
+    return entries;
+
+  const auto *root = parsed.getDynamicObject();
+  const auto values = root->getProperty("entries");
+  if (!values.isArray())
+    return entries;
+
+  for (const auto &entryValue : *values.getArray()) {
+    if (!entryValue.isObject())
+      continue;
+
+    const auto *entryObject = entryValue.getDynamicObject();
+    BenchmarkTimelineEntry entry;
+    entry.timestampUtc = entryObject->getProperty("timestampUtc").toString();
+    entry.passed = static_cast<bool>(entryObject->getProperty("passed"));
+    entry.failedCaseCount = static_cast<int>(entryObject->getProperty("failedCaseCount"));
+    entry.iterationCount = static_cast<int>(entryObject->getProperty("iterationCount"));
+    entry.peakCpuLoadPercent = static_cast<double>(entryObject->getProperty("peakCpuLoadPercent"));
+    entry.peakMaxProcessMilliseconds = static_cast<double>(entryObject->getProperty("peakMaxProcessMilliseconds"));
+    entry.peakMaxBuildMilliseconds = static_cast<double>(entryObject->getProperty("peakMaxBuildMilliseconds"));
+    entries.push_back(std::move(entry));
+  }
+
+  return entries;
 }
 
 DiagnosticSnapshot loadSummarySnapshot(const juce::String &title,
@@ -471,6 +519,121 @@ juce::String buildDiffText(const DiagnosticSnapshot &selected,
   return lines.joinIntoString("\r\n");
 }
 
+
+class BenchmarkTimeline final : public juce::Component {
+public:
+  void setEntries(std::vector<BenchmarkTimelineEntry> newEntries) {
+    entries = std::move(newEntries);
+    repaint();
+  }
+
+  void paint(juce::Graphics &g) override {
+    const auto bounds = getLocalBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+
+    g.setColour(juce::Colour(0xff0b1220));
+    g.fillRoundedRectangle(bounds, 10.0f);
+    g.setColour(juce::Colour(0xff334155));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 10.0f, 1.0f);
+
+    auto content = bounds.reduced(10.0f, 8.0f);
+    if (entries.empty()) {
+      g.setColour(juce::Colours::white.withAlpha(0.48f));
+      g.setFont(juce::FontOptions(11.0f, juce::Font::plain));
+      g.drawText("Run Benchmark Gate a few times to build recent history.",
+                 content.toNearestInt(), juce::Justification::centredLeft, false);
+      return;
+    }
+
+    g.setColour(juce::Colours::white.withAlpha(0.70f));
+    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+    g.drawText("Recent Benchmark History", content.removeFromTop(16).toNearestInt(),
+               juce::Justification::centredLeft, false);
+    content.removeFromTop(4.0f);
+
+    struct LaneSpec {
+      juce::String label;
+      juce::Colour colour;
+      std::function<double(const BenchmarkTimelineEntry &)> value;
+    };
+    const std::array<LaneSpec, 3> lanes = {{{
+        "CPU %", juce::Colour(0xff60a5fa),
+        [](const BenchmarkTimelineEntry &entry) { return entry.peakCpuLoadPercent; }},
+        {"Process ms", juce::Colour(0xfff59e0b),
+         [](const BenchmarkTimelineEntry &entry) {
+           return entry.peakMaxProcessMilliseconds;
+         }},
+        {"Build ms", juce::Colour(0xffa78bfa),
+         [](const BenchmarkTimelineEntry &entry) {
+           return entry.peakMaxBuildMilliseconds;
+         }}}};
+
+    const float laneGap = 6.0f;
+    const float laneHeight = (content.getHeight() - laneGap * 2.0f) / 3.0f;
+    for (int laneIndex = 0; laneIndex < static_cast<int>(lanes.size()); ++laneIndex) {
+      auto lane = content.removeFromTop(laneHeight);
+      if (laneIndex + 1 < static_cast<int>(lanes.size()))
+        content.removeFromTop(laneGap);
+
+      g.setColour(juce::Colours::white.withAlpha(0.46f));
+      g.setFont(juce::FontOptions(10.0f, juce::Font::plain));
+      g.drawText(lanes[static_cast<std::size_t>(laneIndex)].label,
+                 lane.removeFromLeft(72.0f).toNearestInt(),
+                 juce::Justification::centredLeft, false);
+
+      const auto chart = lane.reduced(4.0f, 2.0f);
+      g.setColour(juce::Colours::white.withAlpha(0.08f));
+      g.drawRect(chart.toNearestInt());
+
+      double maxValue = 0.0;
+      for (const auto &entry : entries)
+        maxValue = juce::jmax(maxValue,
+                              lanes[static_cast<std::size_t>(laneIndex)].value(entry));
+      if (maxValue <= 0.0)
+        maxValue = 1.0;
+      maxValue *= 1.08;
+
+      juce::Path path;
+      for (std::size_t index = 0; index < entries.size(); ++index) {
+        const auto proportion = entries.size() > 1
+                                    ? static_cast<float>(index) /
+                                          static_cast<float>(entries.size() - 1)
+                                    : 0.0f;
+        const auto x = chart.getX() + chart.getWidth() * proportion;
+        const auto value = lanes[static_cast<std::size_t>(laneIndex)].value(entries[index]);
+        const auto normalized = static_cast<float>(value / maxValue);
+        const auto y = chart.getBottom() -
+                       chart.getHeight() * juce::jlimit(0.0f, 1.0f, normalized);
+        if (index == 0)
+          path.startNewSubPath(x, y);
+        else
+          path.lineTo(x, y);
+
+        const auto markerColour = entries[index].passed ? juce::Colour(0xff22c55e)
+                                                        : juce::Colour(0xffef4444);
+        g.setColour(markerColour.withAlpha(0.92f));
+        g.fillEllipse(x - 1.75f, y - 1.75f, 3.5f, 3.5f);
+      }
+
+      g.setColour(lanes[static_cast<std::size_t>(laneIndex)].colour.withAlpha(0.92f));
+      g.strokePath(path, juce::PathStrokeType(1.8f));
+
+      const auto latestValue =
+          lanes[static_cast<std::size_t>(laneIndex)].value(entries.back());
+      g.setColour(lanes[static_cast<std::size_t>(laneIndex)].colour.withAlpha(0.88f));
+      g.drawText(juce::String(latestValue, 3),
+                 juce::Rectangle<int>(juce::roundToInt(chart.getRight()) - 56,
+                                      juce::roundToInt(chart.getY()), 56,
+                                      juce::roundToInt(chart.getHeight())),
+                 juce::Justification::centredRight, false);
+    }
+  }
+
+private:
+  std::vector<BenchmarkTimelineEntry> entries;
+};
+
 class DiagnosticCard final : public juce::Component {
 public:
   DiagnosticCard() {
@@ -604,6 +767,8 @@ public:
     addAndMakeVisible(listViewport);
     addAndMakeVisible(detailLabel);
     addAndMakeVisible(diffLabel);
+    addAndMakeVisible(timelineLabel);
+    addAndMakeVisible(benchmarkTimeline);
     addAndMakeVisible(detailEditor);
     addAndMakeVisible(diffEditor);
 
@@ -672,10 +837,13 @@ public:
 
     detailLabel.setText("Selected Report", juce::dontSendNotification);
     diffLabel.setText("Diff View", juce::dontSendNotification);
+    timelineLabel.setText("Benchmark Timeline", juce::dontSendNotification);
     detailLabel.setColour(juce::Label::textColourId,
                           juce::Colours::white.withAlpha(0.72f));
     diffLabel.setColour(juce::Label::textColourId,
                         juce::Colours::white.withAlpha(0.72f));
+    timelineLabel.setColour(juce::Label::textColourId,
+                            juce::Colours::white.withAlpha(0.72f));
 
     configureReadOnlyEditor(detailEditor);
     configureReadOnlyEditor(diffEditor);
@@ -783,6 +951,7 @@ public:
         overallAccent = juce::Colour(0xff94a3b8);
     }
 
+    benchmarkTimeline.setEntries(loadBenchmarkTimelineEntries());
     rebuildVisibleEntries();
     lastRefreshTime = now;
     repaint();
@@ -838,7 +1007,12 @@ public:
     actionStatusLabel.setBounds(actionStatusArea);
 
     area.removeFromTop(8);
-    auto listArea = area.removeFromTop(juce::roundToInt(area.getHeight() * 0.38f));
+    timelineLabel.setBounds(area.removeFromTop(18));
+    area.removeFromTop(4);
+    benchmarkTimeline.setBounds(area.removeFromTop(98));
+
+    area.removeFromTop(8);
+    auto listArea = area.removeFromTop(juce::roundToInt(area.getHeight() * 0.30f));
     listViewport.setBounds(listArea);
 
     area.removeFromTop(8);
@@ -1160,6 +1334,8 @@ private:
   juce::Label emptyStateLabel;
   juce::Label detailLabel;
   juce::Label diffLabel;
+  juce::Label timelineLabel;
+  BenchmarkTimeline benchmarkTimeline;
   juce::TextEditor detailEditor;
   juce::TextEditor diffEditor;
   juce::Colour overallAccent = juce::Colour(0xff22c55e);

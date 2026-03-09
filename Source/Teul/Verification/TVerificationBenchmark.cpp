@@ -132,6 +132,85 @@ juce::File makeCaseArtifactDirectory(const juce::File &suiteDirectory,
                                      sanitizePathFragment(stimulus.stimulusId) + "_" +
                                      sanitizePathFragment(profile.profileId));
 }
+juce::File makeSuiteHistoryFile(const juce::String &suiteId) {
+  const auto sanitized = sanitizePathFragment(suiteId);
+  return juce::File::getCurrentWorkingDirectory()
+      .getChildFile("Builds")
+      .getChildFile("TeulVerification")
+      .getChildFile("Benchmark")
+      .getChildFile(sanitized + "-history.json");
+}
+juce::var buildBenchmarkHistoryEntry(const TVerificationBenchmarkSuiteReport &report) {
+  double peakCpuLoadPercent = 0.0;
+  double peakProcessMilliseconds = 0.0;
+  double peakBuildMilliseconds = 0.0;
+  juce::Array<juce::var> cases;
+  for (const auto &caseReport : report.caseReports) {
+    peakCpuLoadPercent = juce::jmax(
+        peakCpuLoadPercent,
+        static_cast<double>(caseReport.worstRuntimeStats.cpuLoadPercent));
+    peakProcessMilliseconds = juce::jmax(
+        peakProcessMilliseconds,
+        caseReport.worstRuntimeStats.maxProcessMilliseconds);
+    peakBuildMilliseconds = juce::jmax(
+        peakBuildMilliseconds,
+        caseReport.worstRuntimeStats.maxBuildMilliseconds);
+
+    auto *caseObject = new juce::DynamicObject();
+    caseObject->setProperty("graphId", caseReport.graphId);
+    caseObject->setProperty("stimulusId", caseReport.stimulusId);
+    caseObject->setProperty("profileId", caseReport.profileId);
+    caseObject->setProperty("passed", caseReport.passed);
+    caseObject->setProperty("worstCpuLoadPercent",
+                            caseReport.worstRuntimeStats.cpuLoadPercent);
+    caseObject->setProperty("worstMaxProcessMilliseconds",
+                            caseReport.worstRuntimeStats.maxProcessMilliseconds);
+    caseObject->setProperty("worstMaxBuildMilliseconds",
+                            caseReport.worstRuntimeStats.maxBuildMilliseconds);
+    if (caseReport.failureReason.isNotEmpty())
+      caseObject->setProperty("failureReason", caseReport.failureReason);
+    cases.add(juce::var(caseObject));
+  }
+
+  auto *entry = new juce::DynamicObject();
+  entry->setProperty("timestampUtc",
+                     juce::Time::getCurrentTime().toISO8601(true));
+  entry->setProperty("suiteId", report.suiteId);
+  entry->setProperty("passed", report.passed);
+  entry->setProperty("failedCaseCount", report.failedCaseCount);
+  entry->setProperty("iterationCount", report.iterationCount);
+  entry->setProperty("peakCpuLoadPercent", peakCpuLoadPercent);
+  entry->setProperty("peakMaxProcessMilliseconds", peakProcessMilliseconds);
+  entry->setProperty("peakMaxBuildMilliseconds", peakBuildMilliseconds);
+  entry->setProperty("cases", juce::var(cases));
+  return juce::var(entry);
+}
+void appendBenchmarkHistory(const TVerificationBenchmarkSuiteReport &report) {
+  const auto historyFile = makeSuiteHistoryFile(report.suiteId);
+  juce::ignoreUnused(historyFile.getParentDirectory().createDirectory());
+
+  juce::Array<juce::var> entries;
+  if (historyFile.existsAsFile()) {
+    const auto parsed = juce::JSON::parse(historyFile);
+    if (parsed.isObject()) {
+      if (const auto *object = parsed.getDynamicObject()) {
+        const auto existingEntries = object->getProperty("entries");
+        if (existingEntries.isArray())
+          entries = *existingEntries.getArray();
+      }
+    }
+  }
+
+  entries.add(buildBenchmarkHistoryEntry(report));
+  while (entries.size() > 24)
+    entries.remove(0);
+
+  auto *root = new juce::DynamicObject();
+  root->setProperty("kind", "teul-benchmark-history");
+  root->setProperty("suiteId", report.suiteId);
+  root->setProperty("entries", juce::var(entries));
+  writeJsonArtifact(historyFile, juce::var(root));
+}
 const TVerificationGraphFixture *findFixtureById(
     const std::vector<TVerificationGraphFixture> &fixtures,
     const juce::String &fixtureId) {
@@ -275,6 +354,9 @@ juce::var makeBenchmarkSuiteArtifactBundle(const juce::File &artifactDirectory,
   files.add(makeArtifactFileEntry("benchmarkSummary",
                                   artifactDirectory,
                                   artifactDirectory.getChildFile("benchmark-summary.txt")));
+  files.add(makeArtifactFileEntry("benchmarkHistory",
+                                  artifactDirectory,
+                                  makeSuiteHistoryFile(report.suiteId)));
   juce::Array<juce::var> cases;
   for (const auto &caseReport : report.caseReports) {
     auto *entry = new juce::DynamicObject();
@@ -316,6 +398,7 @@ void finalizeBenchmarkSuiteArtifacts(const juce::File &artifactDirectory,
   juce::ignoreUnused(artifactDirectory.createDirectory());
   writeTextArtifact(artifactDirectory.getChildFile("benchmark-summary.txt"),
                     buildBenchmarkSuiteSummaryText(report));
+  appendBenchmarkHistory(report);
   writeJsonArtifact(artifactDirectory.getChildFile("artifact-bundle.json"),
                     makeBenchmarkSuiteArtifactBundle(artifactDirectory, report));
 }
