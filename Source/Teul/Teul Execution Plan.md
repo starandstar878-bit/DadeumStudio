@@ -272,6 +272,45 @@
 
 ### External Control Sources / Device Profiles
 
+**UI Layout Draft**
+- Left `Input Rail`: target width `12% - 14%` of the editor.
+- Right `Output Rail`: target width `12% - 14%` of the editor.
+- Bottom `Control Rail`: target height `14% - 18%` of the editor.
+- Center canvas keeps the remaining space and remains the primary DSP editing area.
+- Rails must be collapsible so the canvas can reclaim space during heavy graph editing.
+
+**Visual Language**
+- General node ports stay as small neutral sockets for internal graph wiring.
+- Rail ports must look like hardware boundary connectors rather than normal node pins.
+- Default state should show rails as `jack/socket` style endpoints; dragging should reuse the existing cable rendering language.
+- Cable thickness should stay mostly consistent; differentiation should come from port silhouette, slot background, and connector cap/stub rather than heavy line-weight changes.
+
+**Per-Rail Port Shape Rules**
+- `Input Rail` / `Output Rail`: capsule or half-jack connectors with stronger frame/border treatment.
+- `Control Rail`: source cards with small `pill` ports for `Value`, `Gate`, and `Trigger`.
+- `Expression` sources should default to a single `Value` port.
+- `Footswitch` sources should default to `Gate` + `Trigger` ports.
+- Stereo audio endpoints should read as grouped `L/R` connectors rather than two unrelated dots.
+
+**Color Direction**
+- Rail backgrounds should be one tone denser than the canvas so they read as system panels.
+- Audio I/O accents: teal / cyan family.
+- Continuous control accents (`Value`): warm yellow / amber family.
+- Gate / trigger accents: orange / red family.
+- MIDI-oriented accents: mint / lime family.
+- Rail connectors should keep stronger borders and slightly lower fill saturation than internal node ports.
+
+**Planned Resource Usage**
+- Prefer code-drawn rails, ports, and cables for DPI scaling, zooming, and state transitions.
+- Add small reusable icon resources for `Input`, `Output`, `Expression`, `Footswitch`, `MIDI`, `Missing`, `Learn`, and `Auto` badges.
+- Avoid bitmap-driven cables or large decorative panel backgrounds.
+- If image assets are introduced, keep them limited to icons, badges, and mini-glyphs rather than core interaction geometry.
+
+**Step 2 Target**
+- Render the three rails with placeholder data from the new document model.
+- Show at least `EXP 1`, `FS 1`, and one audio in/out endpoint in the control draft.
+- Validate spacing, card density, and port readability with screenshots before device detection or learn mode is connected.
+
 목표:
 - 외부 MIDI foot controller, expression pedal, switch 입력을 그래프의 시스템 경계로 다루고, preset/state 복원 흐름과 함께 안정적으로 저장·재연결한다.
 
