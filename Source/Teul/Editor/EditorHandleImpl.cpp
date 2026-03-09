@@ -235,6 +235,8 @@ EditorHandle::Impl::Impl(
       [this](const std::vector<NodeId> &selectedNodeIds) {
         handleSelectionChanged(selectedNodeIds);
       });
+  canvas->setFrameSelectionChangedHandler(
+      [this](int frameId) { handleFrameSelectionChanged(frameId); });
 
   owner.addAndMakeVisible(toggleLibraryButton);
   owner.addAndMakeVisible(quickAddButton);
@@ -324,6 +326,7 @@ EditorHandle::Impl::~Impl() {
 
   if (canvas != nullptr) {
     canvas->setNodeSelectionChangedHandler({});
+    canvas->setFrameSelectionChangedHandler({});
     canvas->setNodePropertiesRequestHandler({});
     canvas->setConnectionLevelProvider({});
     canvas->setPortLevelProvider({});
@@ -453,6 +456,19 @@ void EditorHandle::Impl::handleSelectionChanged(
   if (selectedNodeIds.size() == 1)
     inspectNodeWithReveal(selectedNodeIds.front());
   else
+    propertiesPanel->hidePanel();
+}
+
+void EditorHandle::Impl::handleFrameSelectionChanged(int frameId) {
+  if (propertiesPanel == nullptr)
+    return;
+
+  if (frameId > 0) {
+    propertiesPanel->inspectFrame(frameId);
+    return;
+  }
+
+  if (canvas == nullptr || canvas->getSelectedNodeIds().empty())
     propertiesPanel->hidePanel();
 }
 

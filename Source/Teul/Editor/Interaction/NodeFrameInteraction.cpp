@@ -189,6 +189,8 @@ void TGraphCanvas::requestNodeMouseDown(NodeId nodeId,
   if (!event.mods.isLeftButtonDown())
     return;
 
+  clearFrameSelection();
+
   const bool toggle = event.mods.isCtrlDown() || event.mods.isCommandDown();
   const bool additive = event.mods.isShiftDown();
 

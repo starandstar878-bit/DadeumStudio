@@ -407,6 +407,11 @@ void TGraphCanvas::drawFrames(juce::Graphics &g) {
     g.setColour(base.withMultipliedAlpha(0.95f));
     g.drawRoundedRectangle(rect, 8.0f, 1.0f);
 
+    if (frame.frameId == selectedFrameId) {
+      g.setColour(base.brighter(0.55f).withAlpha(0.98f));
+      g.drawRoundedRectangle(rect.expanded(1.0f), 9.0f, 2.0f);
+    }
+
     auto titleRect = rect.removeFromTop(26.0f);
     g.setColour(base.brighter(0.2f).withAlpha(0.55f));
     g.fillRoundedRectangle(titleRect, 7.0f);

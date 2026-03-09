@@ -54,6 +54,55 @@ static int colorTagToId(const juce::String &tagRaw) {
   return 1;
 }
 
+static juce::uint32 frameColorFromId(int id) {
+  switch (id) {
+  case 2:
+    return 0x33ef4444;
+  case 3:
+    return 0x33f59e0b;
+  case 4:
+    return 0x3322c55e;
+  case 5:
+    return 0x334d8bf7;
+  default:
+    return 0x334d8bf7;
+  }
+}
+
+static int frameColorToId(juce::uint32 colorArgb) {
+  switch (colorArgb) {
+  case 0x33ef4444:
+    return 2;
+  case 0x33f59e0b:
+    return 3;
+  case 0x3322c55e:
+    return 4;
+  case 0x334d8bf7:
+  default:
+    return 5;
+  }
+}
+
+static juce::String frameTypeSummary(const TFrameRegion &frame) {
+  return juce::String::formatted(
+      "%s / %s / %d members",
+      frame.logicalGroup ? "Logical Frame Group" : "Visual Frame",
+      frame.membershipExplicit ? "explicit membership"
+                               : "bounds membership",
+      (int)frame.memberNodeIds.size());
+}
+
+static juce::String frameSummaryText(const TFrameRegion &frame) {
+  return "UUID: " + frame.frameUuid + "\nMembers: " +
+         juce::String((int)frame.memberNodeIds.size()) + "\nMembership: " +
+         (frame.membershipExplicit ? "Explicit list" : "Bounds-derived") +
+         "\nLocked: " + (frame.locked ? "Yes" : "No") +
+         "\nCollapsed: " + (frame.collapsed ? "Yes" : "No") +
+         "\nBounds: " +
+         juce::String::formatted("%.0f, %.0f / %.0f x %.0f", frame.x, frame.y,
+                                 frame.width, frame.height);
+}
+
 static bool shouldShowIeumBindingLine(const TParamSpec &spec,
                                       const juce::String &text) {
   return text.isNotEmpty() &&
@@ -84,6 +133,7 @@ public:
     addAndMakeVisible(applyButton);
     addAndMakeVisible(closeButton);
     addAndMakeVisible(paramViewport);
+    addAndMakeVisible(frameSummaryBox);
 
     headerLabel.setText("Node Properties", juce::dontSendNotification);
     headerLabel.setJustificationType(juce::Justification::centredLeft);
@@ -118,6 +168,17 @@ public:
     paramsContent = std::make_unique<juce::Component>();
     paramViewport.setViewedComponent(paramsContent.get(), false);
     paramViewport.setScrollBarsShown(true, false);
+
+    frameSummaryBox.setMultiLine(true);
+    frameSummaryBox.setReadOnly(true);
+    frameSummaryBox.setScrollbarsShown(true);
+    frameSummaryBox.setColour(juce::TextEditor::backgroundColourId,
+                              juce::Colour(0x66111827));
+    frameSummaryBox.setColour(juce::TextEditor::outlineColourId,
+                              juce::Colour(0xff324154));
+    frameSummaryBox.setColour(juce::TextEditor::textColourId,
+                              juce::Colours::white.withAlpha(0.78f));
+    frameSummaryBox.setVisible(false);
 
     applyButton.onClick = [this] { applyChanges(); };
     closeButton.onClick = [this] { hidePanel(); };
@@ -161,11 +222,22 @@ public:
   }
 
   bool isPanelOpen() const noexcept {
-    return isVisible() && inspectedNodeId != kInvalidNodeId;
+    return isVisible() &&
+           (inspectedNodeId != kInvalidNodeId || inspectedFrameId != 0);
   }
 
   void inspectNode(NodeId nodeId) {
+    inspectedFrameId = 0;
     inspectedNodeId = nodeId;
+    rebuildFromDocument();
+    setVisible(true);
+    if (onLayoutChanged)
+      onLayoutChanged();
+  }
+
+  void inspectFrame(int frameId) {
+    inspectedNodeId = kInvalidNodeId;
+    inspectedFrameId = frameId;
     rebuildFromDocument();
     setVisible(true);
     if (onLayoutChanged)
@@ -176,7 +248,12 @@ public:
     if (!isPanelOpen())
       return;
 
-    if (document.findNode(inspectedNodeId) == nullptr) {
+    if (inspectedFrameId != 0) {
+      if (document.findFrame(inspectedFrameId) == nullptr) {
+        hidePanel();
+        return;
+      }
+    } else if (document.findNode(inspectedNodeId) == nullptr) {
       hidePanel();
       return;
     }
@@ -190,11 +267,14 @@ public:
   }
 
   void hidePanel() {
-    if (!isVisible() && inspectedNodeId == kInvalidNodeId)
+    if (!isVisible() && inspectedNodeId == kInvalidNodeId &&
+        inspectedFrameId == 0)
       return;
 
     inspectedNodeId = kInvalidNodeId;
+    inspectedFrameId = 0;
     clearParamEditors();
+    frameSummaryBox.clear();
     setVisible(false);
     if (onLayoutChanged)
       onLayoutChanged();
@@ -247,8 +327,11 @@ public:
 
     drawSection(overview, "Overview", juce::Colour(0xff60a5fa), {});
     drawSection(state, "State", juce::Colour(0xfff59e0b), {});
-    drawSection(params, "Parameters", juce::Colour(0xff22c55e),
-                "Runtime and binding metadata appear only when relevant.");
+    drawSection(params, isInspectingFrame() ? "Group" : "Parameters",
+                juce::Colour(0xff22c55e),
+                isInspectingFrame()
+                    ? "Stored membership and identity metadata for this frame group."
+                    : "Runtime and binding metadata appear only when relevant.");
   }
   void resized() override {
     auto area = getLocalBounds().reduced(12);
@@ -277,10 +360,22 @@ public:
     area.removeFromTop(12);
     auto params = area;
     params.removeFromTop(34);
-    paramViewport.setBounds(params);
-    layoutParamEditors();
+    if (isInspectingFrame()) {
+      paramViewport.setBounds(0, 0, 0, 0);
+      paramViewport.setVisible(false);
+      frameSummaryBox.setVisible(true);
+      frameSummaryBox.setBounds(params);
+    } else {
+      frameSummaryBox.setBounds(0, 0, 0, 0);
+      frameSummaryBox.setVisible(false);
+      paramViewport.setVisible(true);
+      paramViewport.setBounds(params);
+      layoutParamEditors();
+    }
   }
 private:
+  bool isInspectingFrame() const noexcept { return inspectedFrameId != 0; }
+
   struct ParamEditor {
     TParamSpec spec;
     juce::String paramId;
@@ -340,6 +435,29 @@ private:
   }
 
   void rebuildFromDocument() {
+    if (isInspectingFrame()) {
+      const TFrameRegion *frame = document.findFrame(inspectedFrameId);
+      if (frame == nullptr) {
+        hidePanel();
+        return;
+      }
+
+      clearParamEditors();
+      headerLabel.setText(frame->title, juce::dontSendNotification);
+      typeLabel.setText(frameTypeSummary(*frame), juce::dontSendNotification);
+      nameEditor.setText(frame->title, juce::dontSendNotification);
+      colorBox.setSelectedId(frameColorToId(frame->colorArgb),
+                             juce::dontSendNotification);
+      bypassToggle.setButtonText("Locked");
+      bypassToggle.setToggleState(frame->locked, juce::dontSendNotification);
+      collapsedToggle.setButtonText("Collapsed");
+      collapsedToggle.setToggleState(frame->collapsed, juce::dontSendNotification);
+      frameSummaryBox.setText(frameSummaryText(*frame), juce::dontSendNotification);
+      resized();
+      repaint();
+      return;
+    }
+
     const TNode *node = document.findNode(inspectedNodeId);
     if (node == nullptr) {
       hidePanel();
@@ -357,7 +475,9 @@ private:
     nameEditor.setText(node->label, juce::dontSendNotification);
     colorBox.setSelectedId(colorTagToId(node->colorTag),
                            juce::dontSendNotification);
+    bypassToggle.setButtonText("Bypassed");
     bypassToggle.setToggleState(node->bypassed, juce::dontSendNotification);
+    collapsedToggle.setButtonText("Collapsed");
     collapsedToggle.setToggleState(node->collapsed, juce::dontSendNotification);
 
     rebuildParamEditors(*node, desc);
@@ -584,6 +704,50 @@ private:
     repaint();
   }
   void applyChanges() {
+    if (isInspectingFrame()) {
+      TFrameRegion *frame = document.findFrame(inspectedFrameId);
+      if (frame == nullptr)
+        return;
+
+      bool documentDirty = false;
+      bool layoutDirty = false;
+
+      const juce::String nextTitle = nameEditor.getText().trim();
+      if (frame->title != nextTitle) {
+        frame->title = nextTitle;
+        documentDirty = true;
+      }
+
+      const auto nextColor = frameColorFromId(colorBox.getSelectedId());
+      if (frame->colorArgb != nextColor) {
+        frame->colorArgb = nextColor;
+        documentDirty = true;
+      }
+
+      const bool nextLocked = bypassToggle.getToggleState();
+      if (frame->locked != nextLocked) {
+        frame->locked = nextLocked;
+        documentDirty = true;
+      }
+
+      const bool nextCollapsed = collapsedToggle.getToggleState();
+      if (frame->collapsed != nextCollapsed) {
+        frame->collapsed = nextCollapsed;
+        documentDirty = true;
+        layoutDirty = true;
+      }
+
+      if (documentDirty)
+        document.touch(false);
+
+      if (layoutDirty)
+        canvas.updateChildPositions();
+
+      canvas.repaint();
+      rebuildFromDocument();
+      return;
+    }
+
     TNode *node = document.findNode(inspectedNodeId);
     if (node == nullptr)
       return;
@@ -650,6 +814,7 @@ private:
   std::function<void()> onLayoutChanged;
 
   NodeId inspectedNodeId = kInvalidNodeId;
+  int inspectedFrameId = 0;
   juce::Label headerLabel;
   juce::Label typeLabel;
   juce::TextEditor nameEditor;
@@ -659,6 +824,7 @@ private:
   juce::TextButton applyButton;
   juce::TextButton closeButton;
   juce::Viewport paramViewport;
+  juce::TextEditor frameSummaryBox;
   std::unique_ptr<juce::Component> paramsContent;
   std::vector<std::unique_ptr<ParamEditor>> paramEditors;
   std::map<juce::String, TTeulExposedParam> runtimeParamsById;

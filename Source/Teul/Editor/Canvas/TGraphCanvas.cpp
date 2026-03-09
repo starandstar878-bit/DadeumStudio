@@ -112,6 +112,11 @@ void TGraphCanvas::setNodeSelectionChangedHandler(
   nodeSelectionChangedHandler = std::move(handler);
 }
 
+void TGraphCanvas::setFrameSelectionChangedHandler(
+    FrameSelectionChangedHandler handler) {
+  frameSelectionChangedHandler = std::move(handler);
+}
+
 juce::Point<float> TGraphCanvas::getViewCenter() const {
   return {getWidth() * 0.5f, getHeight() * 0.5f};
 }
@@ -225,6 +230,7 @@ void TGraphCanvas::mouseDown(const juce::MouseEvent &event) {
   if (event.mods.isRightButtonDown()) {
     const int frameId = hitTestFrame(event.position);
     if (frameId != 0) {
+      selectOnlyFrame(frameId);
       showFrameContextMenu(
           frameId, event.position,
           localPointToGlobal(event.position.roundToInt()).toFloat());
@@ -278,8 +284,10 @@ void TGraphCanvas::mouseDown(const juce::MouseEvent &event) {
     }
 
     const int frameId = hitTestFrame(event.position);
-    if (frameId != 0 && isPointInFrameTitle(frameId, event.position)) {
-      startFrameDrag(frameId, event.position);
+    if (frameId != 0) {
+      selectOnlyFrame(frameId);
+      if (isPointInFrameTitle(frameId, event.position))
+        startFrameDrag(frameId, event.position);
       return;
     }
   }
@@ -297,6 +305,7 @@ void TGraphCanvas::mouseDown(const juce::MouseEvent &event) {
   }
 
   if (event.mods.isLeftButtonDown()) {
+    clearFrameSelection();
     marqueeState.active = true;
     marqueeState.additive = event.mods.isShiftDown() || event.mods.isCtrlDown() ||
                             event.mods.isCommandDown();

@@ -22,6 +22,17 @@ void TGraphCanvas::clearNodeSelection() {
   syncNodeSelectionToComponents();
 }
 
+void TGraphCanvas::clearFrameSelection() {
+  if (selectedFrameId == 0)
+    return;
+
+  selectedFrameId = 0;
+  auto handler = frameSelectionChangedHandler;
+  if (handler != nullptr)
+    handler(0);
+  repaint();
+}
+
 void TGraphCanvas::setNodeSelection(NodeId nodeId, bool selected) {
   auto it = std::find(selectedNodeIds.begin(), selectedNodeIds.end(), nodeId);
 
@@ -40,6 +51,19 @@ void TGraphCanvas::selectOnlyNode(NodeId nodeId) {
   selectedNodeIds.clear();
   selectedNodeIds.push_back(nodeId);
   syncNodeSelectionToComponents();
+}
+
+void TGraphCanvas::selectOnlyFrame(int frameId) {
+  if (frameId <= 0) {
+    clearFrameSelection();
+    return;
+  }
+
+  selectedFrameId = frameId;
+  auto handler = frameSelectionChangedHandler;
+  if (handler != nullptr)
+    handler(frameId);
+  repaint();
 }
 
 void TGraphCanvas::syncNodeSelectionToComponents() {

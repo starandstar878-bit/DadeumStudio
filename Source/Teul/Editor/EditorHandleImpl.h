@@ -33,6 +33,7 @@ private:
   void timerCallback() override;
   void rebuildAll(bool rebuildRuntime);
   void handleSelectionChanged(const std::vector<NodeId> &selectedNodeIds);
+  void handleFrameSelectionChanged(int frameId);
   void openProperties(NodeId nodeId);
   void inspectNodeWithReveal(NodeId nodeId);
   bool focusDiagnosticTarget(const juce::String &graphId,

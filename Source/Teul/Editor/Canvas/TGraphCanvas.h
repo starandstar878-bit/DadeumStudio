@@ -59,6 +59,10 @@ public:
 
   TGraphDocument &getDocument() { return document; }
   const TGraphDocument &getDocument() const { return document; }
+  const std::vector<NodeId> &getSelectedNodeIds() const noexcept {
+    return selectedNodeIds;
+  }
+  int getSelectedFrameId() const noexcept { return selectedFrameId; }
 
   void rebuildNodeComponents();
   void updateChildPositions();
@@ -139,6 +143,9 @@ public:
   using NodeSelectionChangedHandler =
       std::function<void(const std::vector<NodeId> &)>;
   void setNodeSelectionChangedHandler(NodeSelectionChangedHandler handler);
+
+  using FrameSelectionChangedHandler = std::function<void(int)>;
+  void setFrameSelectionChangedHandler(FrameSelectionChangedHandler handler);
 
   void openQuickAddAt(juce::Point<float> pointView);
   void openNodeSearchPrompt();
@@ -226,8 +233,10 @@ private:
                                const TNodeDescriptor &replacement) const;
 
   void clearNodeSelection();
+  void clearFrameSelection();
   void setNodeSelection(NodeId nodeId, bool selected);
   void selectOnlyNode(NodeId nodeId);
+  void selectOnlyFrame(int frameId);
   void syncNodeSelectionToComponents();
   std::vector<NodeId> collectMarqueeSelection() const;
   void applyMarqueeSelection();
@@ -287,6 +296,7 @@ private:
 
   std::vector<std::unique_ptr<TNodeComponent>> nodeComponents;
   std::vector<NodeId> selectedNodeIds;
+  int selectedFrameId = 0;
 
   struct MarqueeState {
     bool active = false;
@@ -352,6 +362,7 @@ private:
   ConnectionLevelProvider connectionLevelProvider;
   PortLevelProvider portLevelProvider;
   BindingSummaryResolver bindingSummaryResolver;
+  FrameSelectionChangedHandler frameSelectionChangedHandler;
 
   std::vector<juce::String> recentNodeTypes;
 

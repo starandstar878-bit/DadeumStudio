@@ -21,6 +21,7 @@ public:
   virtual void setLayoutChangedCallback(std::function<void()> callback) = 0;
   virtual bool isPanelOpen() const noexcept = 0;
   virtual void inspectNode(NodeId nodeId) = 0;
+  virtual void inspectFrame(int frameId) = 0;
   virtual void refreshFromDocument() = 0;
   virtual void refreshBindingSummaries() = 0;
   virtual void hidePanel() = 0;

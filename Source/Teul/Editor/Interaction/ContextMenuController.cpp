@@ -479,6 +479,8 @@ void TGraphCanvas::showFrameContextMenu(int frameId,
         }
         if (result == 3) {
           self.document.frames.erase(it);
+          if (self.selectedFrameId == frameId)
+            self.clearFrameSelection();
           self.document.touch(false);
           self.updateChildPositions();
           self.repaint();
