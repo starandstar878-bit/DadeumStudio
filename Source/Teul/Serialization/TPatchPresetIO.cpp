@@ -331,7 +331,7 @@ juce::Result TPatchPresetIO::loadFromFile(
 
   if (summaryOut.nodeCount <= 0)
     summaryOut.nodeCount = (int)presetDocumentOut.nodes.size();
-  if (summaryOut.connectionCount < 0)
+  if (summaryOut.connectionCount <= 0)
     summaryOut.connectionCount = (int)presetDocumentOut.connections.size();
   if (summaryOut.frameCount <= 0)
     summaryOut.frameCount = (int)presetDocumentOut.frames.size();

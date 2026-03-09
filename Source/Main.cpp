@@ -2026,6 +2026,423 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
   return juce::Result::ok();
 }
 
+
+juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
+  const auto outputArg = argValue(args, "--output-dir=");
+  juce::File outputDirectory;
+  if (outputArg.isNotEmpty()) {
+    outputDirectory = juce::File(outputArg);
+  } else {
+    outputDirectory =
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulCompatibilityMatrix_" +
+                          juce::String(juce::Time::currentTimeMillis()));
+  }
+
+  if (!outputDirectory.createDirectory() && !outputDirectory.isDirectory()) {
+    return juce::Result::fail(
+        "Teul compatibility matrix output directory could not be created.");
+  }
+
+  struct CompatibilityMatrixCaseResult {
+    juce::String caseId;
+    bool passed = false;
+    bool migrated = false;
+    bool usedLegacyAliases = false;
+    juce::String detail;
+    juce::String artifactRelativePath;
+  };
+
+  std::vector<CompatibilityMatrixCaseResult> caseResults;
+  juce::Array<juce::var> caseEntries;
+  int passedCaseCount = 0;
+  int failedCaseCount = 0;
+
+  auto appendCase = [&](const CompatibilityMatrixCaseResult &result) {
+    caseResults.push_back(result);
+    auto *entry = new juce::DynamicObject();
+    entry->setProperty("caseId", result.caseId);
+    entry->setProperty("passed", result.passed);
+    entry->setProperty("migrated", result.migrated);
+    entry->setProperty("usedLegacyAliases", result.usedLegacyAliases);
+    if (result.detail.isNotEmpty())
+      entry->setProperty("detail", result.detail);
+    if (result.artifactRelativePath.isNotEmpty())
+      entry->setProperty("artifactRelativePath", result.artifactRelativePath);
+    caseEntries.add(juce::var(entry));
+    if (result.passed)
+      ++passedCaseCount;
+    else
+      ++failedCaseCount;
+  };
+
+  auto loadJsonFile = [](const juce::File &file, juce::var &jsonOut) {
+    return !juce::JSON::parse(file.loadFileAsString(), jsonOut).failed() &&
+           jsonOut.isObject();
+  };
+
+  {
+    const auto aliasOutputDirectory = outputDirectory.getChildFile("alias_full");
+    juce::StringArray aliasArgs;
+    aliasArgs.add("--output-dir=" + aliasOutputDirectory.getFullPathName());
+    const auto aliasResult = runTeulPhase8CompatibilitySmoke(aliasArgs);
+
+    CompatibilityMatrixCaseResult caseResult;
+    caseResult.caseId = "alias-full";
+    caseResult.migrated = true;
+    caseResult.usedLegacyAliases = true;
+    caseResult.artifactRelativePath =
+        relativeArtifactPath(outputDirectory, aliasOutputDirectory);
+
+    if (aliasResult.failed()) {
+      caseResult.detail = aliasResult.getErrorMessage();
+    } else {
+      const auto summaryFile =
+          aliasOutputDirectory.getChildFile("compatibility-summary.txt");
+      const auto summaryText = summaryFile.loadFileAsString();
+      caseResult.passed =
+          summaryText.contains("legacyDocumentMigrated=true") &&
+          summaryText.contains("legacyDocumentUsedAliases=true") &&
+          summaryText.contains("legacyPatchMigrated=true") &&
+          summaryText.contains("legacyPatchUsedAliases=true") &&
+          summaryText.contains("legacyPatchGraphMigrated=true") &&
+          summaryText.contains("legacyStateMigrated=true") &&
+          summaryText.contains("legacyStateUsedAliases=true") &&
+          summaryText.contains("passed=true");
+      if (!caseResult.passed) {
+        caseResult.detail =
+            "Legacy alias smoke summary is missing expected migration flags.";
+      }
+    }
+
+    appendCase(caseResult);
+  }
+
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  const auto assetSource =
+      outputDirectory.getChildFile("CompatibilityMatrixImpulse.wav");
+  if (!assetSource.replaceWithText("teul compatibility matrix asset", false,
+                                   false, "\r\n")) {
+    return juce::Result::fail(
+        "Failed to create compatibility matrix asset file.");
+  }
+
+  auto sourceDocument = makeTeulPhase5SmokeDocument(*registry, assetSource);
+  sourceDocument.meta.name = "Compatibility Matrix";
+  if (sourceDocument.nodes.size() < 3) {
+    return juce::Result::fail(
+        "Teul compatibility matrix graph does not contain enough nodes.");
+  }
+
+  Teul::TFrameRegion frame;
+  frame.frameId = sourceDocument.allocFrameId();
+  frame.frameUuid = juce::Uuid().toString();
+  frame.title = "Compatibility Matrix Patch";
+  frame.logicalGroup = true;
+  frame.membershipExplicit = true;
+  frame.colorArgb = 0x334d8bf7;
+
+  juce::Rectangle<float> memberBounds;
+  bool hasMemberBounds = false;
+  for (int index = 0; index < 3; ++index) {
+    const auto &node = sourceDocument.nodes[(size_t)index];
+    const juce::Rectangle<float> nodeRect(node.x, node.y, 160.0f, 90.0f);
+    memberBounds = hasMemberBounds ? memberBounds.getUnion(nodeRect) : nodeRect;
+    hasMemberBounds = true;
+  }
+  if (!hasMemberBounds) {
+    return juce::Result::fail(
+        "Teul compatibility matrix could not compute frame bounds.");
+  }
+
+  memberBounds = memberBounds.expanded(24.0f, 24.0f);
+  frame.x = memberBounds.getX();
+  frame.y = memberBounds.getY();
+  frame.width = memberBounds.getWidth();
+  frame.height = memberBounds.getHeight();
+  sourceDocument.frames.push_back(frame);
+  for (int index = 0; index < 3; ++index) {
+    sourceDocument.addNodeToFrameExclusive(sourceDocument.nodes[(size_t)index].nodeId,
+                                           frame.frameId);
+  }
+
+  const auto expectedFrequency =
+      (double)findTeulNodeByLabel(sourceDocument, "Carrier")->params["frequency"];
+  const auto expectedAmpGain =
+      (double)findTeulNodeByLabel(sourceDocument, "Amp")->params["gain"];
+  const auto expectedAmpBypassed =
+      findTeulNodeByLabel(sourceDocument, "Amp")->bypassed;
+
+  {
+    const auto documentFile = outputDirectory.getChildFile("document_schema_v1.json");
+    auto documentJson = Teul::TSerializer::toJson(sourceDocument);
+    if (auto *root = documentJson.getDynamicObject())
+      root->setProperty("schema_version", 1);
+    if (!writeJsonArtifact(documentFile, documentJson)) {
+      return juce::Result::fail(
+          "Teul compatibility matrix could not write the document schema case.");
+    }
+
+    Teul::TGraphDocument restoredDocument;
+    Teul::TSchemaMigrationReport migrationReport;
+    CompatibilityMatrixCaseResult caseResult;
+    caseResult.caseId = "document-schema-v1";
+    caseResult.artifactRelativePath =
+        relativeArtifactPath(outputDirectory, documentFile);
+    caseResult.passed =
+        Teul::TSerializer::fromJson(restoredDocument, documentJson,
+                                    &migrationReport) &&
+        restoredDocument.nodes.size() == sourceDocument.nodes.size() &&
+        restoredDocument.connections.size() == sourceDocument.connections.size() &&
+        restoredDocument.frames.size() == sourceDocument.frames.size() &&
+        migrationReport.migrated && !migrationReport.usedLegacyAliases &&
+        migrationReport.sourceSchemaVersion == 1 &&
+        migrationReport.targetSchemaVersion ==
+            Teul::TSerializer::currentSchemaVersion();
+    caseResult.migrated = migrationReport.migrated;
+    caseResult.usedLegacyAliases = migrationReport.usedLegacyAliases;
+    if (!caseResult.passed) {
+      caseResult.detail =
+          "Current-key document v1 case did not restore with the expected migration report.";
+    }
+    appendCase(caseResult);
+  }
+
+  const auto currentPatchFile = outputDirectory.getChildFile("current_patch")
+                                    .withFileExtension(
+                                        Teul::TPatchPresetIO::fileExtension());
+  Teul::TPatchPresetSummary currentPatchSummary;
+  const auto patchSaveResult = Teul::TPatchPresetIO::saveFrameToFile(
+      sourceDocument, frame.frameId, currentPatchFile, &currentPatchSummary);
+  if (patchSaveResult.failed())
+    return patchSaveResult;
+
+  auto runPatchCase = [&](const juce::String &caseId,
+                          bool removeSummary) -> juce::Result {
+    juce::var patchJson;
+    if (!loadJsonFile(currentPatchFile, patchJson)) {
+      return juce::Result::fail(
+          "Teul compatibility matrix could not parse the current patch preset.");
+    }
+
+    auto *root = patchJson.getDynamicObject();
+    root->setProperty("schema_version", 1);
+    if (removeSummary)
+      root->removeProperty(juce::Identifier("summary"));
+
+    const auto caseFile = outputDirectory.getChildFile(caseId)
+                              .withFileExtension(Teul::TPatchPresetIO::fileExtension());
+    if (!writeJsonArtifact(caseFile, patchJson)) {
+      return juce::Result::fail(
+          "Teul compatibility matrix could not write a patch case file.");
+    }
+
+    Teul::TGraphDocument loadedDocument;
+    Teul::TPatchPresetSummary loadedSummary;
+    Teul::TPatchPresetLoadReport loadReport;
+    CompatibilityMatrixCaseResult caseResult;
+    caseResult.caseId = caseId;
+    caseResult.artifactRelativePath =
+        relativeArtifactPath(outputDirectory, caseFile);
+
+    const auto loadResult = Teul::TPatchPresetIO::loadFromFile(
+        loadedDocument, loadedSummary, caseFile, &loadReport);
+    caseResult.passed =
+        loadResult.wasOk() &&
+        loadedDocument.nodes.size() == (size_t)currentPatchSummary.nodeCount &&
+        loadedDocument.connections.size() ==
+            (size_t)currentPatchSummary.connectionCount &&
+        loadedSummary.nodeCount == currentPatchSummary.nodeCount &&
+        loadedSummary.connectionCount == currentPatchSummary.connectionCount &&
+        loadedSummary.frameCount == currentPatchSummary.frameCount &&
+        loadReport.migrated && !loadReport.usedLegacyAliases &&
+        !loadReport.graphMigration.migrated &&
+        !loadReport.graphMigration.usedLegacyAliases;
+    caseResult.migrated = loadReport.migrated;
+    caseResult.usedLegacyAliases = loadReport.usedLegacyAliases;
+    if (!caseResult.passed) {
+      caseResult.detail = loadResult.failed()
+                              ? loadResult.getErrorMessage()
+                              : "Patch schema compatibility case did not meet its expected migration report contract.";
+    }
+
+    appendCase(caseResult);
+    return juce::Result::ok();
+  };
+
+  const auto patchSchemaResult =
+      runPatchCase("patch_schema_v1_current_keys", false);
+  if (patchSchemaResult.failed())
+    return patchSchemaResult;
+  const auto patchSummaryResult =
+      runPatchCase("patch_schema_v1_without_summary", true);
+  if (patchSummaryResult.failed())
+    return patchSummaryResult;
+
+  const auto currentStateFile = outputDirectory.getChildFile("current_state")
+                                    .withFileExtension(
+                                        Teul::TStatePresetIO::fileExtension());
+  Teul::TStatePresetSummary currentStateSummary;
+  const auto stateSaveResult = Teul::TStatePresetIO::saveDocumentToFile(
+      sourceDocument, currentStateFile, &currentStateSummary);
+  if (stateSaveResult.failed())
+    return stateSaveResult;
+
+  auto runStateCase = [&](const juce::String &caseId,
+                          bool removeSummary) -> juce::Result {
+    juce::var stateJson;
+    if (!loadJsonFile(currentStateFile, stateJson)) {
+      return juce::Result::fail(
+          "Teul compatibility matrix could not parse the current state preset.");
+    }
+
+    auto *root = stateJson.getDynamicObject();
+    root->setProperty("schema_version", 1);
+    if (removeSummary)
+      root->removeProperty(juce::Identifier("summary"));
+
+    const auto caseFile = outputDirectory.getChildFile(caseId)
+                              .withFileExtension(Teul::TStatePresetIO::fileExtension());
+    if (!writeJsonArtifact(caseFile, stateJson)) {
+      return juce::Result::fail(
+          "Teul compatibility matrix could not write a state case file.");
+    }
+
+    std::vector<Teul::TStatePresetNodeState> nodeStates;
+    Teul::TStatePresetSummary loadedSummary;
+    Teul::TStatePresetLoadReport loadReport;
+    const auto loadResult = Teul::TStatePresetIO::loadFromFile(
+        nodeStates, loadedSummary, caseFile, &loadReport);
+
+    auto mutatedDocument = sourceDocument;
+    auto *mutatedCarrierNode = findTeulNodeByLabel(mutatedDocument, "Carrier");
+    auto *mutatedAmpNode = findTeulNodeByLabel(mutatedDocument, "Amp");
+    if (mutatedCarrierNode == nullptr || mutatedAmpNode == nullptr) {
+      return juce::Result::fail(
+          "Teul compatibility matrix could not resolve state case nodes.");
+    }
+    mutatedCarrierNode->params["frequency"] = 91.0;
+    mutatedAmpNode->params["gain"] = 0.18;
+    mutatedAmpNode->bypassed = !expectedAmpBypassed;
+
+    Teul::TStatePresetApplyReport applyReport;
+    const auto applyResult =
+        Teul::TStatePresetIO::applyToDocument(mutatedDocument, caseFile, &applyReport);
+
+    mutatedCarrierNode = findTeulNodeByLabel(mutatedDocument, "Carrier");
+    mutatedAmpNode = findTeulNodeByLabel(mutatedDocument, "Amp");
+
+    CompatibilityMatrixCaseResult caseResult;
+    caseResult.caseId = caseId;
+    caseResult.artifactRelativePath =
+        relativeArtifactPath(outputDirectory, caseFile);
+    caseResult.passed =
+        loadResult.wasOk() && applyResult.wasOk() &&
+        loadedSummary.nodeStateCount == currentStateSummary.nodeStateCount &&
+        loadedSummary.paramValueCount == currentStateSummary.paramValueCount &&
+        loadReport.migrated && !loadReport.usedLegacyAliases &&
+        mutatedCarrierNode != nullptr && mutatedAmpNode != nullptr &&
+        std::abs((double)mutatedCarrierNode->params["frequency"] -
+                 expectedFrequency) <= 1.0e-9 &&
+        std::abs((double)mutatedAmpNode->params["gain"] - expectedAmpGain) <=
+            1.0e-9 &&
+        mutatedAmpNode->bypassed == expectedAmpBypassed;
+    caseResult.migrated = loadReport.migrated;
+    caseResult.usedLegacyAliases = loadReport.usedLegacyAliases;
+    if (!caseResult.passed) {
+      caseResult.detail = loadResult.failed()
+                              ? loadResult.getErrorMessage()
+                              : (applyResult.failed()
+                                     ? applyResult.getErrorMessage()
+                                     : "State schema compatibility case did not meet its expected migration/apply contract.");
+    }
+
+    appendCase(caseResult);
+    return juce::Result::ok();
+  };
+
+  const auto stateSchemaResult =
+      runStateCase("state_schema_v1_current_keys", false);
+  if (stateSchemaResult.failed())
+    return stateSchemaResult;
+  const auto stateSummaryResult =
+      runStateCase("state_schema_v1_without_summary", true);
+  if (stateSummaryResult.failed())
+    return stateSummaryResult;
+
+  const bool passed = failedCaseCount == 0;
+  juce::String summaryText =
+      "totalCaseCount=" + juce::String((int)caseResults.size()) + "\r\n" +
+      "passedCaseCount=" + juce::String(passedCaseCount) + "\r\n" +
+      "failedCaseCount=" + juce::String(failedCaseCount) + "\r\n" +
+      "passed=" + juce::String(passed ? "true" : "false") + "\r\n";
+
+  for (const auto &caseResult : caseResults) {
+    summaryText += "case." + caseResult.caseId + ".passed=" +
+                   juce::String(caseResult.passed ? "true" : "false") +
+                   "\r\n";
+    summaryText += "case." + caseResult.caseId + ".migrated=" +
+                   juce::String(caseResult.migrated ? "true" : "false") +
+                   "\r\n";
+    summaryText += "case." + caseResult.caseId + ".usedLegacyAliases=" +
+                   juce::String(caseResult.usedLegacyAliases ? "true" : "false") +
+                   "\r\n";
+    if (caseResult.detail.isNotEmpty()) {
+      summaryText += "case." + caseResult.caseId + ".detail=" +
+                     caseResult.detail.replaceCharacters("\r\n", "  ") +
+                     "\r\n";
+    }
+  }
+
+  const auto summaryFile =
+      outputDirectory.getChildFile("compatibility-matrix-summary.txt");
+  if (!summaryFile.replaceWithText(summaryText, false, false, "\r\n")) {
+    return juce::Result::fail(
+        "Teul compatibility matrix could not write its summary file.");
+  }
+
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("summary", outputDirectory, summaryFile));
+  files.add(makeArtifactFileEntry("aliasFull", outputDirectory,
+                                  outputDirectory.getChildFile("alias_full")));
+  files.add(makeArtifactFileEntry("currentPatch", outputDirectory, currentPatchFile));
+  files.add(makeArtifactFileEntry("currentState", outputDirectory, currentStateFile));
+
+  auto *bundleRoot = new juce::DynamicObject();
+  bundleRoot->setProperty("kind", "teul-verification-artifact-bundle");
+  bundleRoot->setProperty("scope", "compatibility-matrix");
+  bundleRoot->setProperty("passed", passed);
+  bundleRoot->setProperty("artifactDirectory", outputDirectory.getFullPathName());
+  bundleRoot->setProperty("totalCaseCount", (int)caseResults.size());
+  bundleRoot->setProperty("passedCaseCount", passedCaseCount);
+  bundleRoot->setProperty("failedCaseCount", failedCaseCount);
+  bundleRoot->setProperty("cases", juce::var(caseEntries));
+  bundleRoot->setProperty("files", juce::var(files));
+
+  const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
+  if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
+    return juce::Result::fail(
+        "Teul compatibility matrix could not write its artifact bundle.");
+  }
+
+  std::cout << "Teul Phase8 compatibility matrix directory: "
+            << outputDirectory.getFullPathName() << std::endl;
+  std::cout << summaryText << std::endl;
+  std::cout << "Teul Phase8 compatibility matrix checks: "
+            << (passed ? "PASS" : "FAIL") << std::endl;
+
+  if (!passed) {
+    return juce::Result::fail(
+        "Teul compatibility matrix detected failing cases.");
+  }
+
+  return juce::Result::ok();
+}
+
 juce::Result runTeulPhase7BenchmarkGate(const juce::StringArray &args) {
   auto registry = Teul::makeDefaultNodeRegistry();
   if (!registry)
@@ -2500,6 +2917,20 @@ public:
       const auto smokeResult = runTeulPhase8CompatibilitySmoke(args);
       if (smokeResult.failed()) {
         std::cerr << "Teul Phase8 compatibility smoke failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
+    if (hasArg(args, "--teul-phase8-compatibility-matrix")) {
+      const auto smokeResult = runTeulPhase8CompatibilityMatrix(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase8 compatibility matrix failed: "
                   << smokeResult.getErrorMessage() << std::endl;
         setApplicationReturnValue(1);
       } else {
