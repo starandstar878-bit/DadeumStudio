@@ -939,6 +939,10 @@ public:
     addAndMakeVisible(runCompileSmokeButton);
     addAndMakeVisible(runBenchmarkButton);
     addAndMakeVisible(actionStatusLabel);
+    addAndMakeVisible(copySummaryButton);
+    addAndMakeVisible(copyCompareButton);
+    addAndMakeVisible(openSelectedArtifactButton);
+    addAndMakeVisible(openBundleButton);
     addAndMakeVisible(refreshButton);
     addAndMakeVisible(closeButton);
     addAndMakeVisible(listViewport);
@@ -998,6 +1002,15 @@ public:
                                 juce::Colours::white.withAlpha(0.58f));
     actionStatusLabel.setJustificationType(juce::Justification::centredLeft);
 
+    copySummaryButton.setButtonText("Copy Summary");
+    copyCompareButton.setButtonText("Copy Compare");
+    openSelectedArtifactButton.setButtonText("Open Artifact");
+    openBundleButton.setButtonText("Open Bundle");
+    copySummaryButton.onClick = [this] { copySelectedSummary(); };
+    copyCompareButton.onClick = [this] { copyCompareSummary(); };
+    openSelectedArtifactButton.onClick = [this] { revealSelectedArtifact(); };
+    openBundleButton.onClick = [this] { revealSelectedBundle(); };
+
     refreshButton.setButtonText("Refresh");
     closeButton.setButtonText("Hide");
     refreshButton.onClick = [this] { refreshArtifacts(true); };
@@ -1030,6 +1043,7 @@ public:
     configureReadOnlyEditor(detailEditor);
     configureReadOnlyEditor(diffEditor);
     updateActionButtons();
+    updateShareButtons();
 
     setVisible(false);
   }
@@ -1185,7 +1199,15 @@ public:
     runBenchmarkButton.setBounds(actionRow.removeFromLeft(94));
 
     area.removeFromTop(4);
-    auto actionStatusArea = area.removeFromTop(18);
+    auto actionStatusArea = area.removeFromTop(24);
+    auto shareButtons = actionStatusArea.removeFromRight(430);
+    copySummaryButton.setBounds(shareButtons.removeFromLeft(102));
+    shareButtons.removeFromLeft(4);
+    copyCompareButton.setBounds(shareButtons.removeFromLeft(102));
+    shareButtons.removeFromLeft(4);
+    openSelectedArtifactButton.setBounds(shareButtons.removeFromLeft(106));
+    shareButtons.removeFromLeft(4);
+    openBundleButton.setBounds(shareButtons.removeFromLeft(102));
     actionStatusLabel.setBounds(actionStatusArea);
 
     area.removeFromTop(8);
@@ -1242,6 +1264,93 @@ private:
     runCompiledParityButton.setEnabled(!running);
     runCompileSmokeButton.setEnabled(!running);
     runBenchmarkButton.setEnabled(!running);
+  }
+
+  const DiagnosticSnapshot *getSelectedSnapshot() const {
+    if (selectedSnapshotIndex < 0 ||
+        selectedSnapshotIndex >= static_cast<int>(snapshots.size()))
+      return nullptr;
+    return &snapshots[static_cast<std::size_t>(selectedSnapshotIndex)];
+  }
+
+  const DiagnosticSnapshot *getCompareSnapshot() const {
+    const auto compareId = compareBox.getSelectedId();
+    if (compareId < compareBaseId)
+      return nullptr;
+
+    const auto compareIndex = compareId - compareBaseId;
+    if (compareIndex < 0 || compareIndex >= static_cast<int>(snapshots.size()))
+      return nullptr;
+    return &snapshots[static_cast<std::size_t>(compareIndex)];
+  }
+
+  juce::File getSelectedBundleFile() const {
+    const auto *snapshot = getSelectedSnapshot();
+    if (snapshot == nullptr || snapshot->artifactDirectory.isEmpty())
+      return {};
+    return juce::File(snapshot->artifactDirectory).getChildFile("artifact-bundle.json");
+  }
+
+  juce::String buildSelectedSummaryText() const {
+    const auto *snapshot = getSelectedSnapshot();
+    if (snapshot == nullptr)
+      return "No diagnostic selected.";
+
+    juce::String text;
+    text << snapshot->title << "\r\n";
+    text << "Status: " << snapshot->statusText << "\r\n";
+    if (snapshot->summaryText.isNotEmpty())
+      text << "Summary: " << snapshot->summaryText << "\r\n";
+    if (snapshot->contextText.isNotEmpty())
+      text << "Context: " << snapshot->contextText << "\r\n";
+    if (snapshot->artifactDirectory.isNotEmpty())
+      text << "Artifact: " << snapshot->artifactDirectory << "\r\n";
+    return text.trimEnd();
+  }
+
+  juce::String buildCompareShareText() const {
+    const auto *selected = getSelectedSnapshot();
+    const auto *other = getCompareSnapshot();
+    if (selected == nullptr)
+      return "No diagnostic selected.";
+
+    juce::String text = buildSelectedSummaryText();
+    text << "\r\n";
+    text << buildDiffText(*selected, other);
+    return text.trimEnd();
+  }
+
+  void updateShareButtons() {
+    const auto *selected = getSelectedSnapshot();
+    copySummaryButton.setEnabled(selected != nullptr);
+    openSelectedArtifactButton.setEnabled(selected != nullptr &&
+                                          selected->artifactDirectory.isNotEmpty());
+
+    const auto bundleFile = getSelectedBundleFile();
+    openBundleButton.setEnabled(bundleFile.existsAsFile());
+    copyCompareButton.setEnabled(selected != nullptr && getCompareSnapshot() != nullptr);
+  }
+
+  void copySelectedSummary() {
+    juce::SystemClipboard::copyTextToClipboard(buildSelectedSummaryText());
+  }
+
+  void copyCompareSummary() {
+    juce::SystemClipboard::copyTextToClipboard(buildCompareShareText());
+  }
+
+  void revealSelectedArtifact() {
+    const auto *selected = getSelectedSnapshot();
+    if (selected == nullptr || selected->artifactDirectory.isEmpty())
+      return;
+    juce::File(selected->artifactDirectory).revealToUser();
+  }
+
+  void revealSelectedBundle() {
+    const auto bundleFile = getSelectedBundleFile();
+    if (!bundleFile.existsAsFile())
+      return;
+    bundleFile.revealToUser();
   }
 
   void startActionProcess(const juce::String &actionName,
@@ -1303,6 +1412,7 @@ private:
     runningActionName.clear();
     runningActionCommand.clear();
     updateActionButtons();
+    updateShareButtons();
     refreshArtifacts(true);
   }
 
@@ -1453,6 +1563,7 @@ private:
       detailEditor.setText("No diagnostic selected.", false);
       diffEditor.setText("No diagnostic selected.", false);
       compareScreen.setComparison(nullptr, nullptr);
+      updateShareButtons();
       return;
     }
 
@@ -1469,6 +1580,7 @@ private:
 
     compareScreen.setComparison(&selected, compareSnapshot);
     diffEditor.setText(buildDiffText(selected, compareSnapshot), false);
+    updateShareButtons();
   }
 
   void selectSnapshot(int snapshotIndex) {
@@ -1483,6 +1595,7 @@ private:
     }
     rebuildCompareOptions();
     refreshDetailPanels();
+    updateShareButtons();
   }
 
   void revealArtifact(int snapshotIndex) {
@@ -1516,6 +1629,10 @@ private:
   juce::TextButton runCompileSmokeButton;
   juce::TextButton runBenchmarkButton;
   juce::Label actionStatusLabel;
+  juce::TextButton copySummaryButton;
+  juce::TextButton copyCompareButton;
+  juce::TextButton openSelectedArtifactButton;
+  juce::TextButton openBundleButton;
   juce::TextButton refreshButton;
   juce::TextButton closeButton;
   juce::Viewport listViewport;
