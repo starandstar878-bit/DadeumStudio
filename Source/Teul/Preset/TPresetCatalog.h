@@ -52,6 +52,7 @@ public:
   bool toggleFavorite(const juce::String &entryId);
   void markUsed(const juce::String &entryId);
   void setTags(const juce::String &entryId, const juce::StringArray &tags);
+  void clearRecent(const juce::String &entryId);
   const std::vector<TPresetEntry> &getEntries() const noexcept {
     return entries;
   }

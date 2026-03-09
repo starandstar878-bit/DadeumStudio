@@ -9,6 +9,7 @@ constexpr int filterPatch = 3;
 constexpr int filterState = 4;
 constexpr int filterRecovery = 5;
 constexpr int filterFavorites = 6;
+constexpr int filterRecent = 7;
 
 juce::String formatTimestamp(const juce::Time &time) {
   if (time.toMilliseconds() <= 0)
@@ -36,6 +37,7 @@ public:
     addAndMakeVisible(statusLabel);
     addAndMakeVisible(primaryActionButton);
     addAndMakeVisible(secondaryActionButton);
+    addAndMakeVisible(clearRecentButton);
     addAndMakeVisible(cancelConflictButton);
     addAndMakeVisible(favoriteButton);
     addAndMakeVisible(revealButton);
@@ -55,6 +57,7 @@ public:
     filterBox.addItem("State", filterState);
     filterBox.addItem("Recovery", filterRecovery);
     filterBox.addItem("Favorites", filterFavorites);
+    filterBox.addItem("Recent", filterRecent);
     filterBox.setSelectedId(filterAll, juce::dontSendNotification);
     filterBox.onChange = [this] { rebuildVisibleEntries(); };
 
@@ -125,6 +128,8 @@ public:
       cancelConflictArm("Conflict confirmation cleared.");
     };
     favoriteButton.onClick = [this] { toggleFavorite(); };
+    clearRecentButton.setButtonText("Forget");
+    clearRecentButton.onClick = [this] { clearRecent(); };
     revealButton.setButtonText("Reveal");
     revealButton.onClick = [this] { revealSelectedPreset(); };
 
@@ -296,6 +301,8 @@ public:
     actions.removeFromLeft(8);
     secondaryActionButton.setBounds(actions.removeFromLeft(100));
     actions.removeFromLeft(8);
+    clearRecentButton.setBounds(actions.removeFromLeft(84));
+    actions.removeFromLeft(8);
     favoriteButton.setBounds(actions.removeFromLeft(96));
     actions.removeFromLeft(8);
     revealButton.setBounds(actions.removeFromLeft(88));
@@ -438,6 +445,8 @@ private:
       return false;
     if (filterId == filterFavorites && !entry.favorite)
       return false;
+    if (filterId == filterRecent && !entry.recent)
+      return false;
 
     const auto query = searchEditor.getText().trim().toLowerCase();
     if (query.isEmpty())
@@ -460,6 +469,7 @@ private:
       pendingConflictEntryId.clear();
       conflictLabel.setVisible(false);
       cancelConflictButton.setVisible(false);
+      clearRecentButton.setVisible(false);
       tagsEditor.setText({}, false);
       selectionPreviewEditor.setVisible(false);
       selectionPreviewEditor.setText({}, false);
@@ -624,6 +634,8 @@ private:
             : "More");
     favoriteButton.setButtonText(
         hasEntry && selectedEntry->favorite ? "Unfavorite" : "Favorite");
+    clearRecentButton.setEnabled(hasEntry && selectedEntry->recent);
+    clearRecentButton.setVisible(hasEntry);
     saveTagsButton.setEnabled(hasEntry);
     primaryActionButton.setEnabled(allowPrimary);
     secondaryActionButton.setEnabled(allowSecondary);
@@ -667,6 +679,18 @@ private:
     rebuildVisibleEntries(selectedEntry->entryId);
   }
 
+  void clearRecent() {
+    if (selectedEntry == nullptr)
+      return;
+
+    const auto selectedEntryId = selectedEntry->entryId;
+    catalog->clearRecent(selectedEntryId);
+    statusLabel.setText("Preset removed from recent list.",
+                        juce::dontSendNotification);
+    refreshEntries(true);
+    rebuildVisibleEntries(selectedEntryId);
+  }
+
   std::function<void()> layoutChangedCallback;
   PrimaryActionHandler primaryActionHandler;
   SecondaryActionHandler secondaryActionHandler;
@@ -693,6 +717,7 @@ private:
   juce::Label statusLabel;
   juce::TextButton primaryActionButton;
   juce::TextButton secondaryActionButton;
+  juce::TextButton clearRecentButton;
   juce::TextButton cancelConflictButton;
   juce::TextButton favoriteButton;
   juce::TextButton saveTagsButton;

@@ -596,6 +596,18 @@ void TPresetCatalog::setTags(const juce::String &entryId,
   saveLibraryState();
 }
 
+void TPresetCatalog::clearRecent(const juce::String &entryId) {
+  if (entryId.isEmpty())
+    return;
+
+  const auto found = libraryState.find(entryId);
+  if (found == libraryState.end())
+    return;
+
+  found->second.lastUsedMs = 0;
+  saveLibraryState();
+}
+
 void TPresetCatalog::loadLibraryState() {
   libraryState = loadLibraryStateMap(stateFile);
 }
