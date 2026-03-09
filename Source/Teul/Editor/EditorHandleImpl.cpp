@@ -7,6 +7,7 @@
 #include "Teul/Editor/Panels/PresetBrowserPanel.h"
 #include "Teul/Registry/TNodeRegistry.h"
 #include "Teul/Serialization/TFileIo.h"
+#include "Teul/Serialization/TStatePresetIO.h"
 
 namespace Teul {
 
@@ -393,6 +394,45 @@ EditorHandle::Impl::Impl(
                            juce::Colour(0xff94a3b8), 44);
         return juce::Result::ok();
       });
+  presetBrowserPanel->setEntryPreviewHandler(
+      [this](const TPresetEntry &entry, juce::String &summaryText,
+             juce::String &detailText, bool &warning) {
+        if (entry.presetKind != "teul.state")
+          return;
+
+        TStatePresetDiffPreview preview;
+        const auto result =
+            TStatePresetIO::previewAgainstDocument(doc, entry.file, &preview);
+        if (result.failed()) {
+          summaryText = "State Diff Preview Unavailable";
+          detailText = result.getErrorMessage();
+          warning = true;
+          return;
+        }
+
+        summaryText = "State Diff Preview";
+        juce::StringArray parts;
+        parts.add(juce::String(preview.changedNodeCount) + " changed nodes");
+        parts.add(juce::String(preview.changedParamValueCount) + " param deltas");
+        if (preview.changedBypassCount > 0)
+          parts.add(juce::String(preview.changedBypassCount) + " bypass deltas");
+        if (preview.missingNodeCount > 0)
+          parts.add(juce::String(preview.missingNodeCount) + " missing nodes");
+
+        detailText = parts.joinIntoString("  |  ");
+        if (!preview.changedNodeLabels.isEmpty()) {
+          auto names = preview.changedNodeLabels;
+          if (names.size() > 4)
+            names.removeRange(4, names.size() - 4);
+          detailText << "\r\nTargets: " << names.joinIntoString(", ");
+          if (preview.changedNodeLabels.size() > names.size())
+            detailText << " +" << juce::String(preview.changedNodeLabels.size() - names.size())
+                       << " more";
+        }
+        if (!preview.warnings.isEmpty())
+          detailText << "\r\nWarnings: " << preview.warnings.joinIntoString(" | ");
+        warning = preview.degraded || preview.missingNodeCount > 0;
+      });
   owner.addAndMakeVisible(*presetBrowserPanel);
   presetBrowserPanel->setVisible(false);
   presetBrowserPanel->setSessionPreview("Session: Saved",
@@ -546,6 +586,7 @@ EditorHandle::Impl::~Impl() {
   if (presetBrowserPanel != nullptr) {
     presetBrowserPanel->setPrimaryActionHandler({});
     presetBrowserPanel->setSecondaryActionHandler({});
+    presetBrowserPanel->setEntryPreviewHandler({});
     presetBrowserPanel->setLayoutChangedCallback({});
   }
 

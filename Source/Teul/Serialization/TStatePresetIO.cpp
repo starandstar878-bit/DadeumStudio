@@ -150,10 +150,10 @@ juce::String joinWarnings(const juce::StringArray &warnings) {
   return normalizedWarnings.joinIntoString(" | ");
 }
 
-TNode *findFallbackNode(TGraphDocument &document,
-                        const TStatePresetNodeState &nodeState) {
-  TNode *match = nullptr;
-  for (auto &node : document.nodes) {
+const TNode *findFallbackNode(const TGraphDocument &document,
+                              const TStatePresetNodeState &nodeState) {
+  const TNode *match = nullptr;
+  for (const auto &node : document.nodes) {
     if (node.typeKey != nodeState.typeKey)
       continue;
     if (nodeState.label.isNotEmpty() && node.label != nodeState.label)
@@ -168,14 +168,46 @@ TNode *findFallbackNode(TGraphDocument &document,
   return match;
 }
 
-TNode *findTargetNode(TGraphDocument &document,
-                      const TStatePresetNodeState &nodeState) {
-  if (auto *node = document.findNode(nodeState.nodeId)) {
+TNode *findFallbackNode(TGraphDocument &document,
+                        const TStatePresetNodeState &nodeState) {
+  return const_cast<TNode *>(findFallbackNode(
+      const_cast<const TGraphDocument &>(document), nodeState));
+}
+
+const TNode *findTargetNode(const TGraphDocument &document,
+                            const TStatePresetNodeState &nodeState) {
+  if (const auto *node = document.findNode(nodeState.nodeId)) {
     if (node->typeKey == nodeState.typeKey)
       return node;
   }
 
   return findFallbackNode(document, nodeState);
+}
+
+TNode *findTargetNode(TGraphDocument &document,
+                      const TStatePresetNodeState &nodeState) {
+  return const_cast<TNode *>(findTargetNode(
+      const_cast<const TGraphDocument &>(document), nodeState));
+}
+
+bool varsDiffer(const juce::var &lhs, const juce::var &rhs) {
+  if (lhs.isVoid() != rhs.isVoid())
+    return true;
+  if (lhs.isBool() != rhs.isBool())
+    return true;
+  if (lhs.isInt() != rhs.isInt())
+    return true;
+  if (lhs.isInt64() != rhs.isInt64())
+    return true;
+  if (lhs.isDouble() != rhs.isDouble())
+    return true;
+  if (lhs.isString() != rhs.isString())
+    return true;
+  return juce::JSON::toString(lhs) != juce::JSON::toString(rhs);
+}
+
+void appendPreviewWarning(juce::StringArray &warnings, const juce::String &warning) {
+  appendWarning(warnings, warning);
 }
 
 } // namespace
@@ -331,6 +363,65 @@ juce::Result TStatePresetIO::loadFromFile(
       loadReport.sourceSchemaVersion != loadReport.targetSchemaVersion;
   if (loadReportOut != nullptr)
     *loadReportOut = loadReport;
+
+  return juce::Result::ok();
+}
+
+juce::Result TStatePresetIO::previewAgainstDocument(
+    const TGraphDocument &document,
+    const juce::File &file,
+    TStatePresetDiffPreview *previewOut) {
+  std::vector<TStatePresetNodeState> nodeStates;
+  TStatePresetSummary summary;
+  TStatePresetLoadReport loadReport;
+  const auto loadResult = loadFromFile(nodeStates, summary, file, &loadReport);
+  if (loadResult.failed())
+    return loadResult;
+
+  TStatePresetDiffPreview preview;
+  preview.summary = summary;
+  preview.loadReport = loadReport;
+  preview.degraded = loadReport.degraded;
+  preview.warnings = loadReport.warnings;
+
+  for (const auto &nodeState : nodeStates) {
+    const auto *node = findTargetNode(document, nodeState);
+    if (node == nullptr) {
+      ++preview.missingNodeCount;
+      preview.degraded = true;
+      appendPreviewWarning(
+          preview.warnings,
+          "Missing target node for state preset entry: " +
+              (nodeState.label.isNotEmpty() ? nodeState.label : nodeState.typeKey));
+      continue;
+    }
+
+    ++preview.matchedNodeCount;
+    bool nodeChanged = false;
+
+    if (node->bypassed != nodeState.bypassed) {
+      ++preview.changedBypassCount;
+      nodeChanged = true;
+    }
+
+    for (const auto &[key, value] : nodeState.params) {
+      const auto currentIt = node->params.find(key);
+      if (currentIt == node->params.end() || varsDiffer(currentIt->second, value)) {
+        ++preview.changedParamValueCount;
+        nodeChanged = true;
+      }
+    }
+
+    if (nodeChanged) {
+      ++preview.changedNodeCount;
+      const auto label = node->label.isNotEmpty() ? node->label : node->typeKey;
+      if (!preview.changedNodeLabels.contains(label))
+        preview.changedNodeLabels.add(label);
+    }
+  }
+
+  if (previewOut != nullptr)
+    *previewOut = preview;
 
   return juce::Result::ok();
 }

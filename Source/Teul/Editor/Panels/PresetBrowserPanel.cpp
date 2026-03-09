@@ -34,6 +34,7 @@ public:
     addAndMakeVisible(secondaryActionButton);
     addAndMakeVisible(revealButton);
     addAndMakeVisible(sessionPreviewEditor);
+    addAndMakeVisible(selectionPreviewEditor);
     addAndMakeVisible(detailEditor);
 
     titleLabel.setText("Preset Browser", juce::dontSendNotification);
@@ -97,17 +98,23 @@ public:
     revealButton.setButtonText("Reveal");
     revealButton.onClick = [this] { revealSelectedPreset(); };
 
-    sessionPreviewEditor.setMultiLine(true);
-    sessionPreviewEditor.setReadOnly(true);
-    sessionPreviewEditor.setScrollbarsShown(false);
-    sessionPreviewEditor.setCaretVisible(false);
-    sessionPreviewEditor.setPopupMenuEnabled(false);
-    sessionPreviewEditor.setColour(juce::TextEditor::backgroundColourId,
-                                   juce::Colour(0xff111827));
-    sessionPreviewEditor.setColour(juce::TextEditor::textColourId,
-                                   juce::Colours::white.withAlpha(0.88f));
-    sessionPreviewEditor.setColour(juce::TextEditor::outlineColourId,
-                                   juce::Colour(0xff334155));
+    auto configurePreviewEditor = [](juce::TextEditor &editor,
+                                     juce::Colour background) {
+      editor.setMultiLine(true);
+      editor.setReadOnly(true);
+      editor.setScrollbarsShown(false);
+      editor.setCaretVisible(false);
+      editor.setPopupMenuEnabled(false);
+      editor.setColour(juce::TextEditor::backgroundColourId, background);
+      editor.setColour(juce::TextEditor::textColourId,
+                       juce::Colours::white.withAlpha(0.88f));
+      editor.setColour(juce::TextEditor::outlineColourId,
+                       juce::Colour(0xff334155));
+      editor.setVisible(false);
+    };
+
+    configurePreviewEditor(sessionPreviewEditor, juce::Colour(0xff111827));
+    configurePreviewEditor(selectionPreviewEditor, juce::Colour(0xff0f172a));
 
     detailEditor.setMultiLine(true);
     detailEditor.setReadOnly(true);
@@ -164,6 +171,11 @@ public:
   void setSecondaryActionHandler(SecondaryActionHandler handler) override {
     secondaryActionHandler = std::move(handler);
     updateActionButtons();
+  }
+
+  void setEntryPreviewHandler(EntryPreviewHandler handler) override {
+    entryPreviewHandler = std::move(handler);
+    refreshDetailPanel();
   }
 
   void setSessionPreview(const juce::String &summaryText,
@@ -225,6 +237,14 @@ public:
     summaryValueLabel.setBounds(infoArea.removeFromTop(40));
 
     area.removeFromTop(8);
+
+    if (selectionPreviewEditor.isVisible()) {
+      auto diffArea = area.removeFromTop(66);
+      selectionPreviewEditor.setBounds(diffArea);
+      area.removeFromTop(8);
+    } else {
+      selectionPreviewEditor.setBounds({});
+    }
 
     auto actions = area.removeFromTop(28);
     primaryActionButton.setBounds(actions.removeFromLeft(112));
@@ -376,6 +396,8 @@ private:
       summaryValueLabel.setText("Create or save presets, then refresh to browse.",
                                 juce::dontSendNotification);
       statusLabel.setText("No preset selected", juce::dontSendNotification);
+      selectionPreviewEditor.setVisible(false);
+      selectionPreviewEditor.setText({}, false);
       detailEditor.setText(
           "Preset Browser MVP\r\n"
           "- Uses a shared PresetEntry/provider model.\r\n"
@@ -411,8 +433,26 @@ private:
                           juce::dontSendNotification);
     }
 
+    juce::String previewSummary;
+    juce::String previewDetail;
+    bool previewWarning = false;
+    if (entryPreviewHandler != nullptr && selectedEntry->available)
+      entryPreviewHandler(*selectedEntry, previewSummary, previewDetail,
+                          previewWarning);
+
+    selectionPreviewEditor.setText(
+        previewSummary.isNotEmpty() ? previewSummary + "\r\n" + previewDetail
+                                    : previewDetail,
+        false);
+    selectionPreviewEditor.setColour(
+        juce::TextEditor::outlineColourId,
+        previewWarning ? juce::Colour(0xfff59e0b) : juce::Colour(0xff334155));
+    selectionPreviewEditor.setVisible(previewSummary.isNotEmpty() ||
+                                      previewDetail.isNotEmpty());
+
     detailEditor.setText(selectedEntry->detailText, false);
     updateActionButtons();
+    resized();
   }
 
   static juce::String joinFileLine(const TPresetEntry &entry,
@@ -484,6 +524,7 @@ private:
   std::function<void()> layoutChangedCallback;
   PrimaryActionHandler primaryActionHandler;
   SecondaryActionHandler secondaryActionHandler;
+  EntryPreviewHandler entryPreviewHandler;
   std::unique_ptr<TPresetCatalog> catalog;
   juce::String sessionPreviewSummary;
   juce::String sessionPreviewDetail;
@@ -505,6 +546,7 @@ private:
   juce::TextButton secondaryActionButton;
   juce::TextButton revealButton;
   juce::TextEditor sessionPreviewEditor;
+  juce::TextEditor selectionPreviewEditor;
   juce::TextEditor detailEditor;
 };
 

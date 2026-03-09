@@ -43,6 +43,19 @@ struct TStatePresetApplyReport {
   std::vector<NodeId> appliedNodeIds;
 };
 
+struct TStatePresetDiffPreview {
+  TStatePresetSummary summary;
+  TStatePresetLoadReport loadReport;
+  int matchedNodeCount = 0;
+  int changedNodeCount = 0;
+  int changedBypassCount = 0;
+  int changedParamValueCount = 0;
+  int missingNodeCount = 0;
+  bool degraded = false;
+  juce::StringArray warnings;
+  juce::StringArray changedNodeLabels;
+};
+
 class TStatePresetIO {
 public:
   static juce::String fileExtension();
@@ -55,6 +68,10 @@ public:
                                    TStatePresetSummary &summaryOut,
                                    const juce::File &file,
                                    TStatePresetLoadReport *loadReportOut = nullptr);
+  static juce::Result previewAgainstDocument(
+      const TGraphDocument &document,
+      const juce::File &file,
+      TStatePresetDiffPreview *previewOut = nullptr);
   static juce::Result applyToDocument(TGraphDocument &document,
                                       const juce::File &file,
                                       TStatePresetApplyReport *reportOut = nullptr);

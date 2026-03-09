@@ -13,6 +13,10 @@ public:
   using PrimaryActionHandler = std::function<juce::Result(const TPresetEntry &)>;
   using SecondaryActionHandler =
       std::function<juce::Result(const TPresetEntry &)>;
+  using EntryPreviewHandler = std::function<void(const TPresetEntry &entry,
+                                                 juce::String &summaryText,
+                                                 juce::String &detailText,
+                                                 bool &warning)>;
 
   ~PresetBrowserPanel() override = default;
 
@@ -22,6 +26,7 @@ public:
   virtual void refreshEntries(bool force = false) = 0;
   virtual void setPrimaryActionHandler(PrimaryActionHandler handler) = 0;
   virtual void setSecondaryActionHandler(SecondaryActionHandler handler) = 0;
+  virtual void setEntryPreviewHandler(EntryPreviewHandler handler) = 0;
   virtual void setSessionPreview(const juce::String &summaryText,
                                  const juce::String &detailText,
                                  bool warning) = 0;
