@@ -14,6 +14,7 @@ class TNodeRegistry;
 class NodeLibraryPanel;
 class NodePropertiesPanel;
 class DiagnosticsDrawer;
+class PresetBrowserPanel;
 class RuntimeStatusStrip;
 class DocumentNoticeBanner;
 
@@ -54,6 +55,7 @@ private:
   std::unique_ptr<NodeLibraryPanel> libraryPanel;
   std::unique_ptr<NodePropertiesPanel> propertiesPanel;
   std::unique_ptr<DiagnosticsDrawer> diagnosticsDrawer;
+  std::unique_ptr<PresetBrowserPanel> presetBrowserPanel;
   std::unique_ptr<RuntimeStatusStrip> runtimeStatusStrip;
   std::unique_ptr<DocumentNoticeBanner> documentNoticeBanner;
   juce::AudioDeviceManager *audioDeviceManager = nullptr;
@@ -66,6 +68,7 @@ private:
   juce::TextButton toggleProbeButton;
   juce::TextButton toggleOverlayButton;
   juce::TextButton toggleDiagnosticsButton;
+  juce::TextButton togglePresetsButton;
 
   bool libraryVisible = true;
   std::uint64_t lastDocumentRevision = 0;

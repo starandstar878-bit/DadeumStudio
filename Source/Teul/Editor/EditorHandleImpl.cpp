@@ -4,6 +4,7 @@
 #include "Teul/Editor/Panels/DiagnosticsDrawer.h"
 #include "Teul/Editor/Panels/NodeLibraryPanel.h"
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
+#include "Teul/Editor/Panels/PresetBrowserPanel.h"
 #include "Teul/Registry/TNodeRegistry.h"
 
 namespace Teul {
@@ -304,6 +305,24 @@ EditorHandle::Impl::Impl(
   owner.addAndMakeVisible(*diagnosticsDrawer);
   diagnosticsDrawer->setVisible(false);
 
+  presetBrowserPanel = PresetBrowserPanel::create();
+  presetBrowserPanel->setLayoutChangedCallback([this] { owner.resized(); });
+  presetBrowserPanel->setPrimaryActionHandler(
+      [this](const TPresetEntry &entry) -> juce::Result {
+        if (canvas == nullptr)
+          return juce::Result::fail("Preset action failed: canvas unavailable.");
+
+        if (entry.presetKind == "teul.patch")
+          return canvas->insertPatchPresetFromFile(entry.file,
+                                                   canvas->getViewCenter());
+        if (entry.presetKind == "teul.state")
+          return canvas->applyStatePresetFromFile(entry.file);
+        return juce::Result::fail(
+            "Preset action failed: unsupported preset kind.");
+      });
+  owner.addAndMakeVisible(*presetBrowserPanel);
+  presetBrowserPanel->setVisible(false);
+
   runtimeStatusStrip = std::make_unique<RuntimeStatusStrip>();
   owner.addAndMakeVisible(*runtimeStatusStrip);
 
@@ -330,6 +349,7 @@ EditorHandle::Impl::Impl(
   owner.addAndMakeVisible(toggleProbeButton);
   owner.addAndMakeVisible(toggleOverlayButton);
   owner.addAndMakeVisible(toggleDiagnosticsButton);
+  owner.addAndMakeVisible(togglePresetsButton);
 
   toggleLibraryButton.setButtonText("Library");
   quickAddButton.setButtonText("Quick Add");
@@ -339,15 +359,19 @@ EditorHandle::Impl::Impl(
   toggleProbeButton.setButtonText("Probe");
   toggleOverlayButton.setButtonText("Overlay");
   toggleDiagnosticsButton.setButtonText("Diagnostics");
+  togglePresetsButton.setButtonText("Presets");
 
   toggleHeatmapButton.setClickingTogglesState(true);
   toggleProbeButton.setClickingTogglesState(true);
   toggleOverlayButton.setClickingTogglesState(true);
   toggleDiagnosticsButton.setClickingTogglesState(true);
+  togglePresetsButton.setClickingTogglesState(true);
   toggleHeatmapButton.setTooltip("Toggle node cost tint and heat rails");
   toggleProbeButton.setTooltip("Toggle node probe rails and selected readouts");
   toggleOverlayButton.setTooltip("Toggle runtime overlay card");
   toggleDiagnosticsButton.setTooltip("Show latest verification and benchmark results");
+  togglePresetsButton.setTooltip(
+      "Browse reusable presets and insert or apply them");
 
   toggleLibraryButton.onClick = [this] {
     libraryVisible = !libraryVisible;
@@ -390,8 +414,24 @@ EditorHandle::Impl::Impl(
   };
 
   toggleDiagnosticsButton.onClick = [this] {
-    if (diagnosticsDrawer != nullptr)
+    if (toggleDiagnosticsButton.getToggleState() && presetBrowserPanel != nullptr)
+      presetBrowserPanel->setBrowserOpen(false);
+    if (diagnosticsDrawer != nullptr) {
       diagnosticsDrawer->setDrawerOpen(toggleDiagnosticsButton.getToggleState());
+      if (toggleDiagnosticsButton.getToggleState())
+        diagnosticsDrawer->refreshArtifacts(true);
+    }
+    syncRuntimeViewButtons();
+  };
+
+  togglePresetsButton.onClick = [this] {
+    if (togglePresetsButton.getToggleState() && diagnosticsDrawer != nullptr)
+      diagnosticsDrawer->setDrawerOpen(false);
+    if (presetBrowserPanel != nullptr) {
+      if (togglePresetsButton.getToggleState())
+        presetBrowserPanel->refreshEntries(true);
+      presetBrowserPanel->setBrowserOpen(togglePresetsButton.getToggleState());
+    }
     syncRuntimeViewButtons();
   };
 
@@ -425,6 +465,11 @@ EditorHandle::Impl::~Impl() {
   if (diagnosticsDrawer != nullptr) {
     diagnosticsDrawer->setFocusRequestHandler({});
     diagnosticsDrawer->setLayoutChangedCallback({});
+  }
+
+  if (presetBrowserPanel != nullptr) {
+    presetBrowserPanel->setPrimaryActionHandler({});
+    presetBrowserPanel->setLayoutChangedCallback({});
   }
 
   if (documentNoticeBanner != nullptr)
@@ -464,6 +509,8 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   toggleOverlayButton.setBounds(top.removeFromLeft(108));
   top.removeFromLeft(4);
   toggleDiagnosticsButton.setBounds(top.removeFromLeft(118));
+  top.removeFromLeft(4);
+  togglePresetsButton.setBounds(top.removeFromLeft(96));
 
   if (runtimeStatusStrip != nullptr) {
     auto statusArea = area.removeFromTop(60).reduced(6, 4);
@@ -492,10 +539,18 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
     propertiesPanel->setBounds(right.reduced(0, 2));
   }
 
-  if (diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen()) {
+  if (presetBrowserPanel != nullptr && presetBrowserPanel->isBrowserOpen()) {
+    auto drawerArea = area.removeFromBottom(548).reduced(0, 2);
+    presetBrowserPanel->setBounds(drawerArea);
+  } else if (diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen()) {
     auto drawerArea = area.removeFromBottom(654).reduced(0, 2);
     diagnosticsDrawer->setBounds(drawerArea);
   }
+
+  if (presetBrowserPanel != nullptr && !presetBrowserPanel->isBrowserOpen())
+    presetBrowserPanel->setBounds({});
+  if (diagnosticsDrawer != nullptr && !diagnosticsDrawer->isDrawerOpen())
+    diagnosticsDrawer->setBounds({});
 
   if (canvas != nullptr)
     canvas->setBounds(area.reduced(0, 2));
@@ -709,6 +764,9 @@ void EditorHandle::Impl::syncRuntimeViewButtons() {
   syncButton(toggleDiagnosticsButton,
              diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen(),
              juce::Colour(0xff38bdf8), "Diagnostics On", "Diagnostics");
+  syncButton(togglePresetsButton,
+             presetBrowserPanel != nullptr && presetBrowserPanel->isBrowserOpen(),
+             juce::Colour(0xff8b5cf6), "Presets On", "Presets");
 }
 void EditorHandle::Impl::pushRuntimeMessage(const juce::String &text,
                                             juce::Colour accent,

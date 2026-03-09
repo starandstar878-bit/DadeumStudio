@@ -68,6 +68,9 @@
     <Filter Include="DadeumStudio\Source\Teul\Serialization">
       <UniqueIdentifier>{C67EC42A-69A7-211D-CDF3-2B3A64B1505F}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DadeumStudio\Source\Teul\Preset">
+      <UniqueIdentifier>{9F3DB4CA-DF68-4B8A-B5B7-3862E3B58B43}</UniqueIdentifier>
+    </Filter>
     <Filter Include="DadeumStudio\Source\Teul\Export">
       <UniqueIdentifier>{4D4F42A6-A4F0-4D72-8B6F-92A6B9CF8A70}</UniqueIdentifier>
     </Filter>
@@ -919,6 +922,9 @@
     <ClCompile Include="..\..\Source\Teul\Serialization\TStatePresetIO.cpp">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Preset\TPresetCatalog.cpp">
+      <Filter>DadeumStudio\Source\Teul\Preset</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp">
       <Filter>DadeumStudio\Source\Teul\Export</Filter>
     </ClCompile>
@@ -977,6 +983,9 @@
       <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\DiagnosticsDrawer.cpp">
+      <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\PresetBrowserPanel.cpp">
       <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamValueFormatter.cpp">
@@ -3995,6 +4004,12 @@
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Serialization\TPatchPresetIO.h">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Teul\Preset\TPresetCatalog.h">
+      <Filter>DadeumStudio\Source\Teul\Preset</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Teul\Editor\Panels\PresetBrowserPanel.h">
+      <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Export\TExport.h">
       <Filter>DadeumStudio\Source\Teul\Export</Filter>

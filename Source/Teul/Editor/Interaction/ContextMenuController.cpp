@@ -173,24 +173,35 @@ void TGraphCanvas::insertPatchPresetAt(juce::Point<float> pointView) {
         if (selectedFile == juce::File())
           return;
 
-        std::vector<NodeId> insertedNodeIds;
-        int insertedFrameId = 0;
-        TPatchPresetSummary summary;
-        const auto insertResult = TPatchPresetIO::insertFromFile(
-            self.document, selectedFile, self.viewToWorld(pointView),
-            &insertedNodeIds, &insertedFrameId, &summary);
-        if (insertResult.failed()) {
-          self.pushStatusHint("Patch preset insert failed.");
-          return;
-        }
-
-        self.document.touch(false);
-        self.rebuildNodeComponents();
-        self.selectOnlyNodes(insertedNodeIds);
-        if (!insertedNodeIds.empty())
-          self.ensureNodeVisible(insertedNodeIds.front());
-        self.pushStatusHint("Patch preset inserted: " + summary.presetName + ".");
+        self.insertPatchPresetFromFile(selectedFile, pointView);
       });
+}
+
+juce::Result
+TGraphCanvas::insertPatchPresetFromFile(const juce::File &file,
+                                        juce::Point<float> pointView,
+                                        TPatchPresetSummary *summaryOut) {
+  std::vector<NodeId> insertedNodeIds;
+  int insertedFrameId = 0;
+  TPatchPresetSummary summary;
+  const auto insertResult = TPatchPresetIO::insertFromFile(
+      document, file, viewToWorld(pointView), &insertedNodeIds, &insertedFrameId,
+      &summary);
+  juce::ignoreUnused(insertedFrameId);
+  if (insertResult.failed()) {
+    pushStatusHint("Patch preset insert failed.");
+    return insertResult;
+  }
+
+  document.touch(false);
+  rebuildNodeComponents();
+  selectOnlyNodes(insertedNodeIds);
+  if (!insertedNodeIds.empty())
+    ensureNodeVisible(insertedNodeIds.front());
+  pushStatusHint("Patch preset inserted: " + summary.presetName + ".");
+  if (summaryOut != nullptr)
+    *summaryOut = summary;
+  return juce::Result::ok();
 }
 
 void TGraphCanvas::saveDocumentAsStatePreset() {
@@ -254,24 +265,30 @@ void TGraphCanvas::applyStatePreset() {
         if (selectedFile == juce::File())
           return;
 
-        TStatePresetApplyReport report;
-        const auto applyResult =
-            TStatePresetIO::applyToDocument(self.document, selectedFile, &report);
-        if (applyResult.failed()) {
-          self.pushStatusHint("State preset apply failed.");
-          return;
-        }
-
-        self.repaint();
-        if (self.nodeSelectionChangedHandler != nullptr)
-          self.nodeSelectionChangedHandler(self.selectedNodeIds);
-
-        self.pushStatusHint("State preset applied: " + report.summary.presetName +
-                            " (" + juce::String(report.appliedNodeCount) +
-                            " nodes, " +
-                            juce::String(report.skippedNodeCount) +
-                            " skipped).");
+        self.applyStatePresetFromFile(selectedFile);
       });
+}
+
+juce::Result
+TGraphCanvas::applyStatePresetFromFile(const juce::File &file,
+                                       TStatePresetApplyReport *reportOut) {
+  TStatePresetApplyReport report;
+  const auto applyResult = TStatePresetIO::applyToDocument(document, file, &report);
+  if (applyResult.failed()) {
+    pushStatusHint("State preset apply failed.");
+    return applyResult;
+  }
+
+  repaint();
+  if (nodeSelectionChangedHandler != nullptr)
+    nodeSelectionChangedHandler(selectedNodeIds);
+
+  pushStatusHint("State preset applied: " + report.summary.presetName + " (" +
+                 juce::String(report.appliedNodeCount) + " nodes, " +
+                 juce::String(report.skippedNodeCount) + " skipped).");
+  if (reportOut != nullptr)
+    *reportOut = report;
+  return juce::Result::ok();
 }
 
 void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,

@@ -203,6 +203,7 @@
     <ClCompile Include="..\..\Source\Teul\Serialization\TFileIo.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Serialization\TPatchPresetIO.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Serialization\TStatePresetIO.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Preset\TPresetCatalog.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\EditorHandle.cpp">
       <ObjectFileName>$(IntDir)Teul\EditorHandle.obj</ObjectFileName>
@@ -227,6 +228,7 @@
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodeLibraryPanel.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodePropertiesPanel.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\DiagnosticsDrawer.cpp"/>
+    <ClCompile Include="..\..\Source\Teul\Editor\Panels\PresetBrowserPanel.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamValueFormatter.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamEditorFactory.cpp"/>
     <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\BindingSummaryPresenter.cpp"/>
@@ -2981,6 +2983,8 @@
     <ClInclude Include="..\..\Source\Teul\Verification\TVerificationCompiledParity.h"/>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h"/>
     <ClInclude Include="..\..\Source\Teul\Serialization\TPatchPresetIO.h"/>
+    <ClInclude Include="..\..\Source\Teul\Preset\TPresetCatalog.h"/>
+    <ClInclude Include="..\..\Source\Teul\Editor\Panels\PresetBrowserPanel.h"/>
     <ClInclude Include="..\..\Source\Teul\Export\TExport.h"/>
     <ClInclude Include="..\..\Source\Teul\Teul.h"/>
     <ClInclude Include="..\..\Source\AppServices.h"/>

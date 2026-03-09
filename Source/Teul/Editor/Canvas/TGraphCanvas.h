@@ -16,6 +16,8 @@ class TNodeComponent;
 class TPortComponent;
 struct TNodeDescriptor;
 class TNodeRegistry;
+struct TPatchPresetSummary;
+struct TStatePresetApplyReport;
 
 class TGraphCanvas : public juce::Component,
                      public juce::DragAndDropTarget,
@@ -166,8 +168,14 @@ public:
   bool fitFrameToMembers(int frameId);
   void saveFrameAsPatchPreset(int frameId);
   void insertPatchPresetAt(juce::Point<float> pointView);
+  juce::Result insertPatchPresetFromFile(const juce::File &file,
+                                         juce::Point<float> pointView,
+                                         TPatchPresetSummary *summaryOut = nullptr);
   void saveDocumentAsStatePreset();
   void applyStatePreset();
+  juce::Result applyStatePresetFromFile(
+      const juce::File &file,
+      TStatePresetApplyReport *reportOut = nullptr);
 
   bool isNodeSelected(NodeId nodeId) const;
   bool isNodeMoveLocked(NodeId nodeId) const;
