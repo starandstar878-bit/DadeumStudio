@@ -33,6 +33,7 @@ public:
     addAndMakeVisible(primaryActionButton);
     addAndMakeVisible(secondaryActionButton);
     addAndMakeVisible(revealButton);
+    addAndMakeVisible(sessionPreviewEditor);
     addAndMakeVisible(detailEditor);
 
     titleLabel.setText("Preset Browser", juce::dontSendNotification);
@@ -96,6 +97,18 @@ public:
     revealButton.setButtonText("Reveal");
     revealButton.onClick = [this] { revealSelectedPreset(); };
 
+    sessionPreviewEditor.setMultiLine(true);
+    sessionPreviewEditor.setReadOnly(true);
+    sessionPreviewEditor.setScrollbarsShown(false);
+    sessionPreviewEditor.setCaretVisible(false);
+    sessionPreviewEditor.setPopupMenuEnabled(false);
+    sessionPreviewEditor.setColour(juce::TextEditor::backgroundColourId,
+                                   juce::Colour(0xff111827));
+    sessionPreviewEditor.setColour(juce::TextEditor::textColourId,
+                                   juce::Colours::white.withAlpha(0.88f));
+    sessionPreviewEditor.setColour(juce::TextEditor::outlineColourId,
+                                   juce::Colour(0xff334155));
+
     detailEditor.setMultiLine(true);
     detailEditor.setReadOnly(true);
     detailEditor.setScrollbarsShown(true);
@@ -153,6 +166,25 @@ public:
     updateActionButtons();
   }
 
+  void setSessionPreview(const juce::String &summaryText,
+                         const juce::String &detailText,
+                         bool warning) override {
+    sessionPreviewSummary = summaryText;
+    sessionPreviewDetail = detailText;
+    sessionPreviewWarning = warning;
+    sessionPreviewEditor.setText(
+        sessionPreviewSummary.isNotEmpty()
+            ? sessionPreviewSummary + "\r\n" + sessionPreviewDetail
+            : sessionPreviewDetail,
+        false);
+    sessionPreviewEditor.setColour(
+        juce::TextEditor::outlineColourId,
+        warning ? juce::Colour(0xfff59e0b) : juce::Colour(0xff334155));
+    sessionPreviewEditor.setVisible(sessionPreviewSummary.isNotEmpty() ||
+                                    sessionPreviewDetail.isNotEmpty());
+    resized();
+  }
+
   void paint(juce::Graphics &g) override {
     g.fillAll(juce::Colour(0xff07101d));
     g.setColour(juce::Colour(0xff1e293b));
@@ -176,6 +208,14 @@ public:
     auto left = area.removeFromLeft(298);
     listBox.setBounds(left);
     area.removeFromLeft(12);
+
+    if (sessionPreviewEditor.isVisible()) {
+      auto previewArea = area.removeFromTop(58);
+      sessionPreviewEditor.setBounds(previewArea);
+      area.removeFromTop(8);
+    } else {
+      sessionPreviewEditor.setBounds({});
+    }
 
     auto infoArea = area.removeFromTop(84);
     kindValueLabel.setBounds(infoArea.removeFromTop(22));
@@ -445,6 +485,9 @@ private:
   PrimaryActionHandler primaryActionHandler;
   SecondaryActionHandler secondaryActionHandler;
   std::unique_ptr<TPresetCatalog> catalog;
+  juce::String sessionPreviewSummary;
+  juce::String sessionPreviewDetail;
+  bool sessionPreviewWarning = false;
   std::vector<VisibleEntry> visibleEntries;
   const TPresetEntry *selectedEntry = nullptr;
   bool browserOpen = false;
@@ -461,6 +504,7 @@ private:
   juce::TextButton primaryActionButton;
   juce::TextButton secondaryActionButton;
   juce::TextButton revealButton;
+  juce::TextEditor sessionPreviewEditor;
   juce::TextEditor detailEditor;
 };
 

@@ -17,6 +17,12 @@ using ParamBindingSummaryResolver =
     std::function<juce::String(const juce::String &paramId)>;
 using ParamBindingRevisionProvider = std::function<std::uint64_t()>;
 
+struct TEditorSessionStatus {
+  std::uint64_t lastPersistedDocumentRevision = 0;
+  bool hasAutosaveSnapshot = false;
+  juce::Time lastAutosaveTime;
+};
+
 class EditorHandle : public juce::Component {
 public:
   explicit EditorHandle(
@@ -29,6 +35,7 @@ public:
   const TGraphDocument &document() const noexcept;
 
   void refreshFromDocument();
+  void setSessionStatus(const TEditorSessionStatus &status);
   TExportResult runExportDryRun(const TExportOptions &options = {}) const;
 
   void paint(juce::Graphics &g) override;

@@ -22,6 +22,11 @@ const TGraphDocument &EditorHandle::document() const noexcept {
 
 void EditorHandle::refreshFromDocument() { impl->refreshFromDocument(); }
 
+void EditorHandle::setSessionStatus(const TEditorSessionStatus &status) {
+  if (impl != nullptr)
+    impl->setSessionStatus(status);
+}
+
 TExportResult EditorHandle::runExportDryRun(
     const TExportOptions &options) const {
   if (impl == nullptr || impl->registry() == nullptr)

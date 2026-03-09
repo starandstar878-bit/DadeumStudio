@@ -29,6 +29,7 @@ struct EditorHandle::Impl : private juce::Timer {
   const TGraphDocument &document() const noexcept;
   const TNodeRegistry *registry() const noexcept;
   void refreshFromDocument();
+  void setSessionStatus(const TEditorSessionStatus &status);
   void layout(juce::Rectangle<int> area);
 
 private:
@@ -42,6 +43,7 @@ private:
                              const juce::String &query);
   void refreshRuntimeUi(bool forceMessage = false);
   void refreshDocumentNoticeUi(bool force = false);
+  void refreshSessionStatusUi(bool force = false);
   void syncRuntimeViewButtons();
   void pushRuntimeMessage(const juce::String &text,
                           juce::Colour accent,
@@ -75,6 +77,10 @@ private:
   std::uint64_t lastRuntimeRevision = 0;
   std::uint64_t lastDocumentNoticeRevision = 0;
   std::uint64_t lastBindingRevision = 0;
+  bool lastSessionDirty = false;
+  bool lastSessionHasAutosaveSnapshot = false;
+  std::int64_t lastSessionAutosaveMillis = 0;
+  TEditorSessionStatus sessionStatus;
   TGraphRuntime::RuntimeStats lastRuntimeStats;
   juce::String runtimeMessageText;
   juce::Colour runtimeMessageAccent = juce::Colour(0xff60a5fa);

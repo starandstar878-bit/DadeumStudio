@@ -297,6 +297,7 @@ MainComponent::MainComponent(AppServices &services) : appServices(services) {
     lastPersistedTeulDocumentRevision =
         teulPage->document().getDocumentRevision();
 
+  updateTeulSessionStatus();
   juce::ignoreUnused(writeSessionStateSnapshot(sessionStateFilePath(), false));
   startTimer(kSessionAutosaveIntervalMs);
   setSize(600, 400);
@@ -344,6 +345,19 @@ juce::File MainComponent::teulSessionFilePath() {
 
 juce::File MainComponent::sessionStateFilePath() {
   return resolveSessionDirectory().getChildFile("autosave-session-state.json");
+}
+
+void MainComponent::updateTeulSessionStatus() const {
+  if (teulPage == nullptr)
+    return;
+
+  Teul::TEditorSessionStatus status;
+  status.lastPersistedDocumentRevision = lastPersistedTeulDocumentRevision;
+  const auto autosaveFile = teulSessionFilePath();
+  status.hasAutosaveSnapshot = autosaveFile.existsAsFile();
+  if (status.hasAutosaveSnapshot)
+    status.lastAutosaveTime = autosaveFile.getLastModificationTime();
+  teulPage->setSessionStatus(status);
 }
 
 void MainComponent::restoreSession() {
@@ -396,6 +410,8 @@ void MainComponent::restoreSession() {
       }
     }
   }
+
+  updateTeulSessionStatus();
 }
 
 void MainComponent::persistSession() const {
@@ -442,4 +458,6 @@ void MainComponent::persistSession() const {
 
   if (wroteAutosave)
     juce::ignoreUnused(writeSessionStateSnapshot(sessionStateFilePath(), false));
+
+  updateTeulSessionStatus();
 }

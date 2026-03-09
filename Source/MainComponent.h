@@ -106,6 +106,7 @@ private:
   // -------------------------------------------------------------------------
   void restoreSession();
   void persistSession() const;
+  void updateTeulSessionStatus() const;
   static juce::File sessionFilePath();
   static juce::File teulSessionFilePath();
   static juce::File sessionStateFilePath();

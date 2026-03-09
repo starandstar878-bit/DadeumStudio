@@ -17,6 +17,13 @@ public:
     repaint();
   }
 
+  void setSessionStatus(const TEditorSessionStatus &newStatus,
+                        bool dirtyState) {
+    sessionStatus = newStatus;
+    dirty = dirtyState;
+    repaint();
+  }
+
   void setTransientMessage(const juce::String &text, juce::Colour accent) {
     transientMessage = text;
     transientAccent = accent;
@@ -135,6 +142,15 @@ public:
     }
     if (!drewBadge)
       drawBadge("Stable", juce::Colour(0xff22c55e));
+
+    drawBadge(dirty ? "Dirty" : "Saved",
+              dirty ? juce::Colour(0xfff59e0b) : juce::Colour(0xff64748b));
+    if (sessionStatus.hasAutosaveSnapshot) {
+      const auto timeLabel = sessionStatus.lastAutosaveTime.toMilliseconds() > 0
+                                 ? sessionStatus.lastAutosaveTime.formatted("%H:%M")
+                                 : juce::String("--:--");
+      drawBadge("Autosave " + timeLabel, juce::Colour(0xff38bdf8));
+    }
   }
 
 private:
@@ -187,6 +203,8 @@ private:
   }
 
   TGraphRuntime::RuntimeStats stats;
+  TEditorSessionStatus sessionStatus;
+  bool dirty = false;
   juce::String transientMessage;
   juce::Colour transientAccent = juce::Colour(0xff60a5fa);
 };
@@ -368,12 +386,18 @@ EditorHandle::Impl::Impl(
           return juce::Result::fail(
               "Recovery discard failed: session marker file could not be removed.");
 
+        sessionStatus.hasAutosaveSnapshot = false;
+        sessionStatus.lastAutosaveTime = {};
+        refreshSessionStatusUi(true);
         pushRuntimeMessage("Autosave snapshot discarded",
                            juce::Colour(0xff94a3b8), 44);
         return juce::Result::ok();
       });
   owner.addAndMakeVisible(*presetBrowserPanel);
   presetBrowserPanel->setVisible(false);
+  presetBrowserPanel->setSessionPreview("Session: Saved",
+                                        "Waiting for the first autosave snapshot.",
+                                        false);
 
   runtimeStatusStrip = std::make_unique<RuntimeStatusStrip>();
   owner.addAndMakeVisible(*runtimeStatusStrip);
@@ -544,6 +568,11 @@ const TNodeRegistry *EditorHandle::Impl::registry() const noexcept {
 
 void EditorHandle::Impl::refreshFromDocument() { rebuildAll(true); }
 
+void EditorHandle::Impl::setSessionStatus(const TEditorSessionStatus &status) {
+  sessionStatus = status;
+  refreshSessionStatusUi(true);
+}
+
 void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   auto top = area.removeFromTop(40).reduced(6, 4);
 
@@ -633,6 +662,7 @@ void EditorHandle::Impl::timerCallback() {
 
   refreshRuntimeUi();
   refreshDocumentNoticeUi();
+  refreshSessionStatusUi();
   if (diagnosticsDrawer != nullptr)
     diagnosticsDrawer->refreshArtifacts();
 }
@@ -651,6 +681,7 @@ void EditorHandle::Impl::rebuildAll(bool rebuildRuntime) {
   lastRuntimeRevision = doc.getRuntimeRevision();
   refreshRuntimeUi(true);
   refreshDocumentNoticeUi(true);
+  refreshSessionStatusUi(true);
   owner.resized();
 }
 
@@ -717,6 +748,53 @@ void EditorHandle::Impl::refreshDocumentNoticeUi(bool force) {
 
   if (wasVisible != documentNoticeBanner->isVisible())
     owner.resized();
+}
+
+void EditorHandle::Impl::refreshSessionStatusUi(bool force) {
+  const bool dirty =
+      doc.getDocumentRevision() != sessionStatus.lastPersistedDocumentRevision;
+  const auto autosaveMillis = sessionStatus.lastAutosaveTime.toMilliseconds();
+  if (!force && dirty == lastSessionDirty &&
+      sessionStatus.hasAutosaveSnapshot == lastSessionHasAutosaveSnapshot &&
+      autosaveMillis == lastSessionAutosaveMillis) {
+    return;
+  }
+
+  if (runtimeStatusStrip != nullptr)
+    runtimeStatusStrip->setSessionStatus(sessionStatus, dirty);
+
+  if (presetBrowserPanel != nullptr) {
+    juce::String summary;
+    juce::String detail;
+    if (dirty) {
+      summary = "Session: Dirty";
+      detail = sessionStatus.hasAutosaveSnapshot
+                   ? "Latest autosave " +
+                         (autosaveMillis > 0
+                              ? sessionStatus.lastAutosaveTime.formatted(
+                                    "%Y-%m-%d %H:%M")
+                              : juce::String("time unavailable"))
+                   : juce::String("No autosave snapshot has been written yet.");
+    } else {
+      summary = "Session: Saved";
+      detail = sessionStatus.hasAutosaveSnapshot
+                   ? "Autosave is up to date as of " +
+                         (autosaveMillis > 0
+                              ? sessionStatus.lastAutosaveTime.formatted(
+                                    "%Y-%m-%d %H:%M")
+                              : juce::String("time unavailable"))
+                   : juce::String("Waiting for the first autosave snapshot.");
+    }
+
+    if (sessionStatus.hasAutosaveSnapshot)
+      detail << " | Use Recovery to inspect or discard the snapshot.";
+
+    presetBrowserPanel->setSessionPreview(summary, detail, dirty);
+  }
+
+  lastSessionDirty = dirty;
+  lastSessionHasAutosaveSnapshot = sessionStatus.hasAutosaveSnapshot;
+  lastSessionAutosaveMillis = autosaveMillis;
 }
 
 void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {
