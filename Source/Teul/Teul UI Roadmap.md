@@ -198,32 +198,37 @@
 - validation, export report, parity test, benchmark 결과를 사람이 빠르게 읽고 원인까지 추적할 수 있는 전용 진단 화면을 만든다.
 
 ### Current Status
-- [x] Diagnostics Drawer baseline and toolbar entry point
+- [x] Diagnostics Drawer triage UI and toolbar entry point
 - [x] Latest parity/stress/benchmark/compile artifact summaries
-- [ ] Severity filters and node/connection focus jump
-- [ ] runtime/export compare screen, benchmark timeline, one-click action bar
+- [x] Severity filters, node focus jump, and result sharing actions
+- [x] runtime/export compare screen, benchmark timeline, and one-click action bar
+- [x] UI Phase 7 core complete; remaining diagnostics expansions moved to deferred scope
 
 ### 구현 단계
 
 #### 단계 1: 진단 패널
 - [x] **Diagnostics Drawer**: toolbar entry point and bottom drawer for latest parity/matrix/stress/benchmark/compile artifact summaries
-- [ ] **문제 원인 카드**: 누락 자산, 지원 불가 노드, 타입 불일치, export 제한 사항을 해결 액션과 함께 카드 형태로 제시
-- [ ] **report diff 뷰**: 현재 문서와 직전 validation/export 결과의 차이를 비교 표시
+- [x] **triage 카드/상세 패널**: severity filter, section cards, selected detail panel로 latest verification/performance/build 상태를 요약
+- [x] **report diff 뷰**: 현재 선택 결과와 비교 대상의 차이를 diff view로 비교 표시
 
 #### 단계 2: 검증 결과 비교
-- [ ] **runtime vs export 비교 화면**: parity pass/fail, tolerance, 샘플 차이, 스냅샷 링크를 한 화면에 집계
-- [ ] **benchmark 타임라인**: 대표 그래프별 CPU/rebuild/export 시간 추세를 저장하고 회귀를 시각화
+- [x] **runtime vs export 비교 화면**: parity pass/fail, tolerance, sample/error/exit metrics를 compare screen에 집계
+- [x] **benchmark 타임라인**: 최근 benchmark history를 저장하고 CPU/process/build 추세를 timeline으로 시각화
 - [x] **smoke/export artifact viewer**: Diagnostics Drawer shows latest compile/parity/stress/benchmark artifact paths and summaries
 
 #### 단계 3: 테스트 조작 UX
-- [ ] **one-click validate/export/benchmark**: 에디터 내부에서 주요 검증 작업을 즉시 실행하는 액션 바 제공
-- [ ] **대표 그래프 세트 관리**: golden test/benchmark에 쓰는 문서를 태그와 함께 관리
-- [ ] **결과 공유 포맷**: 로그/JSON/report를 팀원에게 전달하기 쉬운 요약 복사 기능 제공
+- [x] **one-click validate/export/benchmark**: 에디터 내부에서 주요 검증 작업을 즉시 실행하는 action bar 제공
+- [x] **결과 공유 포맷**: `Copy Summary`, `Copy Compare`, `Open Artifact`, `Open Bundle` 공유 액션 제공
+- [x] **focus jump**: diagnostic result에서 추출한 node query를 기반으로 canvas focus jump 제공
+
+### Deferred From UI Phase 7
+- [ ] **고급 문제 원인 카드**: 누락 자산, 지원 불가 노드, 타입 불일치, export 제한 사항에 대한 전용 해결 액션 카드를 강화
+- [ ] **대표 그래프 세트 관리**: golden test/benchmark에 쓰는 문서를 태그와 함께 편집/관리하는 전용 브라우저
 
 ---
 
 > **→ 기능 로드맵 복귀**: `UI Phase 7` 완료 후 **[기능 Phase 8: Preset, State & Compatibility](Teul%20Roadmap.md)** 로 복귀하세요.
-> 검증 환경이 생기면 이제 사용자의 작업물 자체를 안전하게 저장하고 복구하는 UX가 필요합니다.
+> With the verification workspace in place, the next priority is preserving and recovering user work safely.
 
 ---
 

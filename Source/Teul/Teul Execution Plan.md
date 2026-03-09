@@ -5,12 +5,11 @@
 
 ## 현재 상태 요약
 
-- 기능 로드맵은 `Phase 6: Runtime Hardening & Real-time Safety`까지 완료됨
-- UI 로드맵은 `Phase 6: 런타임 상태/안전성 UX`까지 완료됨
-- `마일스톤 1.5`까지 마감되어 `Phase 6` UI의 정보 위계, 가시성, 패널 밀도 보정이 반영됨
-- 남은 작업은 크게 두 갈래로 나뉨
-  - 상용 1.0에 직접 필요한 코어 기능/UI
-  - 상용 1.0 이후로 미뤄도 되는 확장 노드/플러그인 ABI
+- 기능 로드맵은 `Phase 7: Verification & Benchmark Infrastructure` core까지 완료됨
+- UI 로드맵은 `Phase 7: 검증/진단 워크스페이스` core까지 완료됨
+- `마일스톤 2`까지 마감되어 verification runner, diagnostics drawer, compare/timeline/action bar가 반영됨
+- 다음 메인 작업은 `마일스톤 3: Preset / State / Recovery`와 `UI Phase 8` 범위임
+- 남은 확장 항목은 deferred verification, deferred diagnostics, external control/device profile UX 중심으로 정리됨
 
 ---
 
