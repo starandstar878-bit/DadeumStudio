@@ -1,5 +1,5 @@
 #pragma once
-#include "../TNodeSDK.h"
+#include "../../TNodeSDK.h"
 
 namespace Teul::Nodes {
 
@@ -11,16 +11,16 @@ public:
     desc.displayName = "LowPass Filter";
     desc.category = "Filter";
 
-    auto cutoff = makeFloatParamSpec("cutoff", "Cutoff", 1000.0f, 20.0f,
-                                     20000.0f, 0.01f, "Hz", 2, "Frequency",
-                                     "Low-pass cutoff frequency.");
+    auto cutoff =
+        makeFloatParamSpec("cutoff", "Cutoff", 1000.0f, 20.0f, 20000.0f, 0.01f,
+                           "Hz", 2, "Frequency", "Low-pass cutoff frequency.");
     cutoff.showInNodeBody = true;
     cutoff.preferredBindingKey = "cutoff";
     cutoff.categoryPath = "Filter/Frequency";
 
-    auto resonance = makeFloatParamSpec(
-        "resonance", "Resonance", 0.707f, 0.1f, 12.0f, 0.001f, {}, 3,
-        "Response", "Filter resonance / Q response.");
+    auto resonance = makeFloatParamSpec("resonance", "Resonance", 0.707f, 0.1f,
+                                        12.0f, 0.001f, {}, 3, "Response",
+                                        "Filter resonance / Q response.");
     resonance.preferredBindingKey = "resonance";
     resonance.categoryPath = "Filter/Response";
 

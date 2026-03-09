@@ -106,7 +106,14 @@ DiagnosticSnapshot loadCompileSnapshot() {
   DiagnosticSnapshot snapshot;
   snapshot.title = "Runtime Compile Smoke";
 
-  const auto directory = findLatestCompileSmokeDirectory();
+  const auto directory = findLatestCompileSmokeDirectory();
+  if (directory.getFullPathName().isEmpty()) {
+    snapshot.statusText = "No artifacts yet";
+    snapshot.detailText =
+        "Artifact file not found: Builds/TeulCompileSmoke_*/artifact-bundle.json";
+    return snapshot;
+  }
+
   const auto bundleFile = directory.getChildFile("artifact-bundle.json");
   if (!bundleFile.existsAsFile()) {
     snapshot.statusText = "No artifacts yet";
@@ -239,6 +246,14 @@ public:
             .getChildFile("golden-suite-summary.txt"),
         {}));
     snapshots.push_back(loadSummarySnapshot(
+        "Compiled Parity",
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulVerification")
+            .getChildFile("CompiledRuntimeParity")
+            .getChildFile("RepresentativePrimary")
+            .getChildFile("compiled-runtime-parity-summary.txt"),
+        {}));    snapshots.push_back(loadSummarySnapshot(
         "Parity Smoke",
         juce::File::getCurrentWorkingDirectory()
             .getChildFile("Builds")

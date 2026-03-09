@@ -64,6 +64,27 @@ struct WidgetEnumOption {
 };
 
 struct WidgetPropertySpec {
+  WidgetPropertySpec() = default;
+  WidgetPropertySpec(juce::Identifier k, juce::String l, WidgetPropertyKind ki) 
+      : key(std::move(k)), label(std::move(l)), kind(ki) {}
+
+  /// 속성 그룹 설정 (Inspector 상의 섹션)
+  WidgetPropertySpec& setGroup(juce::String g) { group = std::move(g); return *this; }
+  /// 속성 표시 순서 (낮을수록 상단)
+  WidgetPropertySpec& setOrder(int o) { order = o; return *this; }
+  /// 사용자 힌트 (툴팁)
+  WidgetPropertySpec& setHint(juce::String h) { hint = std::move(h); return *this; }
+  /// 기본값 설정
+  WidgetPropertySpec& def(juce::var v) { defaultValue = std::move(v); return *this; }
+  /// UI 표현 방식 강제 지정
+  WidgetPropertySpec& ui(WidgetPropertyUiHint h) { uiHint = h; return *this; }
+  /// 수치 최소/최대값 제약
+  WidgetPropertySpec& range(double min, double max) { minValue = min; maxValue = max; return *this; }
+  /// 콤보박스 선택지 추가
+  WidgetPropertySpec& addOption(juce::String val, juce::String lab) { enumOptions.push_back({std::move(val), std::move(lab)}); return *this; }
+  /// 조건부 노출 설정 (특정 속성값이 일치할 때만 보임)
+  WidgetPropertySpec& dependsOn(juce::Identifier key, juce::var value) { dependsOnKey = key; dependsOnValue = value; return *this; }
+
   juce::Identifier key;
   juce::String label;
   WidgetPropertyKind kind = WidgetPropertyKind::text;
@@ -100,7 +121,22 @@ struct WidgetPropertySpec {
   bool readOnly = false;
 };
 
+/// 흔히 사용되는 속성을 빠르게 생성하기 위한 팩토리
+struct Property {
+    static WidgetPropertySpec Text(juce::Identifier key, juce::String label) { return {key, label, WidgetPropertyKind::text}; }
+    static WidgetPropertySpec Number(juce::Identifier key, juce::String label) { return {key, label, WidgetPropertyKind::number}; }
+    static WidgetPropertySpec Bool(juce::Identifier key, juce::String label) { return {key, label, WidgetPropertyKind::boolean}; }
+    static WidgetPropertySpec Color(juce::Identifier key, juce::String label) { return {key, label, WidgetPropertyKind::color}; }
+    static WidgetPropertySpec Choice(juce::Identifier key, juce::String label) { return {key, label, WidgetPropertyKind::enumChoice}; }
+    static WidgetPropertySpec Asset(juce::Identifier key, juce::String label) { return {key, label, WidgetPropertyKind::assetRef}; }
+};
+
 struct RuntimeEventSpec {
+  /// 이벤트 발생 간격 제한 (ms)
+  RuntimeEventSpec& throttle(int ms) { throttleMs = ms; return *this; }
+  /// 연속적 이벤트 여부 (드래그 등)
+  RuntimeEventSpec& setContinuous(bool c) { continuous = c; return *this; }
+
   juce::String key;
   juce::String displayLabel;
   juce::String description;
@@ -110,6 +146,11 @@ struct RuntimeEventSpec {
   std::optional<int> debounceMs;
   juce::String reliability = "bestEffort";
   juce::String channel = "ui";
+};
+
+struct Event {
+    static RuntimeEventSpec Action(juce::String key, juce::String label) { return {key, label, "", false}; }
+    static RuntimeEventSpec Continuous(juce::String key, juce::String label) { return {key, label, "", true}; }
 };
 
 using DropOptionsProvider = std::function<std::vector<DropOption>(
@@ -202,12 +243,32 @@ using ExportCodegen = std::function<juce::Result(const ExportCodegenContext &,
                                                  ExportCodegenOutput &)>;
 
 struct WidgetDescriptor {
+  /// 위젯 타입 식별자 설정
+  WidgetDescriptor& setType(WidgetType t) { type = t; return *this; }
+  /// 카테고리 설정 (Library Panel)
+  WidgetDescriptor& setCategory(juce::String c) { category = std::move(c); return *this; }
+  /// 기본 크기 설정
+  WidgetDescriptor& setSize(float w, float h) { defaultBounds.setSize(w, h); return *this; }
+  /// 속성 명세 추가
+  WidgetDescriptor& addProperty(WidgetPropertySpec s) { propertySpecs.push_back(std::move(s)); return *this; }
+  /// 기본 속성값 설정
+  WidgetDescriptor& prop(const juce::Identifier& k, juce::var v) { defaultProperties.set(k, std::move(v)); return *this; }
+  /// 런타임 이벤트 추가
+  WidgetDescriptor& addEvent(RuntimeEventSpec e) { runtimeEvents.push_back(std::move(e)); return *this; }
+  /// 렌더 함수 지정
+  WidgetDescriptor& setPainter(WidgetPainter p) { painter = std::move(p); return *this; }
+  /// 드래그 앤 드롭 핸들러 지정
+  WidgetDescriptor& setDropHandler(DropOptionsProvider opts, ApplyDrop apply) { 
+      dropOptions = std::move(opts); 
+      applyDrop = std::move(apply); 
+      return *this; 
+  }
+
   WidgetType type = WidgetType::button;
   juce::String schemaVersion = "2.0.0";
   juce::String manifestVersion = "1.0.0";
   int widgetTypeVersion = 1;
   juce::var migrationRules;
-
   juce::String abiVersion = "1";
   juce::String abiHash;
   juce::String sdkMinVersion = "1.0.0";
@@ -215,7 +276,6 @@ struct WidgetDescriptor {
   juce::StringArray supportedHostVersions;
   juce::StringArray platformTargets;
   juce::StringArray architectureTargets;
-
   juce::String pluginId;
   juce::String pluginVersion = "1.0.0";
   juce::String vendor;
@@ -224,18 +284,15 @@ struct WidgetDescriptor {
   juce::String pluginBinaryPath;
   juce::String publisherFingerprint;
   juce::String signature;
-
   juce::StringArray capabilities;
   juce::String repaintPolicy = "onDemand";
   std::optional<double> tickRateHintHz;
   bool supportsOffscreenCache = false;
   std::optional<double> estimatedPaintCost;
   std::optional<int> memoryBudgetKb;
-
   juce::String threadingModel = "main-thread";
   bool realtimeSafe = false;
   bool renderThreadOnly = false;
-
   juce::String typeKey;
   juce::String displayName;
   juce::String category;

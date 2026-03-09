@@ -15,6 +15,7 @@
 #include "Teul/Verification/TVerificationParity.h"
 #include "Teul/Verification/TVerificationBenchmark.h"
 #include "Teul/Verification/TVerificationGoldenAudio.h"
+#include "Teul/Verification/TVerificationCompiledParity.h"
 #include "Teul/Verification/TVerificationStress.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
@@ -982,6 +983,52 @@ juce::Result runTeulPhase7GoldenAudioVerify(const juce::StringArray &args) {
   return juce::Result::ok();
 }
 
+
+juce::Result runTeulPhase7CompiledRuntimeParity(const juce::StringArray &args) {
+  juce::ignoreUnused(args);
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  Teul::TVerificationCompiledParitySuiteReport report;
+  const bool passed =
+      Teul::runRepresentativeCompiledRuntimeParity(*registry, report);
+  if (report.artifactDirectory.isEmpty()) {
+    return juce::Result::fail(
+        "Teul compiled runtime parity did not produce an artifact directory.");
+  }
+
+  const auto artifactDirectory = juce::File(report.artifactDirectory);
+  const auto summaryFile =
+      artifactDirectory.getChildFile("compiled-runtime-parity-summary.txt");
+  const auto bundleFile = artifactDirectory.getChildFile("artifact-bundle.json");
+  if (!artifactDirectory.isDirectory() || !summaryFile.existsAsFile() ||
+      !bundleFile.existsAsFile()) {
+    return juce::Result::fail(
+        "Teul compiled runtime parity is missing expected suite artifacts.");
+  }
+
+  std::cout << "Teul Phase7 compiled runtime parity artifact directory: "
+            << artifactDirectory.getFullPathName() << std::endl;
+  std::cout << summaryFile.loadFileAsString() << std::endl;
+
+  if (!passed || report.failedCaseCount != 0) {
+    return juce::Result::fail(
+        report.failureReason.isNotEmpty()
+            ? report.failureReason
+            : juce::String(
+                  "Teul representative compiled runtime parity reported one or more failures."));
+  }
+
+  if (report.totalCaseCount <= 0) {
+    return juce::Result::fail(
+        "Teul compiled runtime parity did not complete a valid representative run.");
+  }
+
+  std::cout << "Teul Phase7 compiled runtime parity checks: PASS"
+            << std::endl;
+  return juce::Result::ok();
+}
 juce::Result runTeulPhase7BenchmarkGate(const juce::StringArray &args) {
   auto registry = Teul::makeDefaultNodeRegistry();
   if (!registry)
@@ -1369,6 +1416,19 @@ public:
       return;
     }
 
+    if (hasArg(args, "--teul-phase7-compiled-runtime-parity")) {
+      const auto smokeResult = runTeulPhase7CompiledRuntimeParity(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase7 compiled runtime parity failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
     if (hasArg(args, "--teul-phase7-runtime-compile-smoke")) {
       const auto smokeResult = runTeulPhase7RuntimeCompileSmoke(args);
       if (smokeResult.failed()) {

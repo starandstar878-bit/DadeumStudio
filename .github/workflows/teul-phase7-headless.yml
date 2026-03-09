@@ -1,0 +1,64 @@
+name: Teul Phase 7 Headless Verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/teul-phase7-headless.yml'
+      - 'Builds/VisualStudio2026/**'
+      - 'Source/**'
+      - 'Tools/TeulVerification/**'
+      - 'build_check.bat'
+  pull_request:
+    paths:
+      - '.github/workflows/teul-phase7-headless.yml'
+      - 'Builds/VisualStudio2026/**'
+      - 'Source/**'
+      - 'Tools/TeulVerification/**'
+      - 'build_check.bat'
+
+jobs:
+  teul-phase7:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Debug App
+        shell: cmd
+        run: build_check.bat
+
+      - name: Golden Audio Verify
+        shell: cmd
+        run: Tools\TeulVerification\teul_golden_audio_verify.bat
+
+      - name: Representative Parity Matrix
+        shell: cmd
+        run: Tools\TeulVerification\teul_parity_matrix.bat
+
+      - name: Compiled Runtime Parity
+        shell: cmd
+        run: Tools\TeulVerification\teul_compiled_runtime_parity.bat
+
+      - name: Runtime Compile Smoke
+        shell: cmd
+        run: Tools\TeulVerification\teul_runtime_compile_smoke.bat
+
+      - name: Benchmark Gate
+        shell: cmd
+        run: Tools\TeulVerification\teul_benchmark_gate.bat --iteration-count=4
+
+      - name: Upload Teul Verification Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: teul-phase7-verification
+          path: |
+            build_log.txt
+            Builds/TeulVerification/**
+            Builds/TeulCompileSmoke*/**

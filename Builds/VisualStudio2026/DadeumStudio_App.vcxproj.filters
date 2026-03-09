@@ -904,6 +904,9 @@
     <ClCompile Include="..\..\Source\Teul\Verification\TVerificationGoldenAudio.cpp">
       <Filter>DadeumStudio\Source\Teul\Verification</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationCompiledParity.cpp">
+      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
     </ClCompile>
@@ -3976,6 +3979,9 @@
       <Filter>DadeumStudio\Source\Teul\Verification</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Verification\TVerificationGoldenAudio.h">
+      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationCompiledParity.h">
       <Filter>DadeumStudio\Source\Teul\Verification</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h">

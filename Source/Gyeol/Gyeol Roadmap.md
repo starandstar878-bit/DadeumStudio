@@ -13,6 +13,7 @@
 - [~] Phase 6: Export 런타임 브리지
 - [x] Phase 7: 확장 SDK(외부 위젯/패키지)
 - [~] Phase 8: 안정화/성능/릴리스
+- [ ] Phase 14: Studio High-End DSP Integration (Polyphony/Oversampling)
 
 ---
 
@@ -641,6 +642,28 @@
 - 수정: `Source/Gyeol/Editor/Interaction/*`
 - 추가: `Source/Gyeol/Editor/Panels/PerformancePanel.*`
 - 추가: `Tools/GyeolPerfSmoke.cpp`
+
+---
+
+## Phase 14: Studio High-End DSP Integration (Polyphony/Oversampling Support)
+
+### 목표
+- Teul의 고성능 DSP 기능(폴리포니, 오버샘플링)을 Gyeol UI에서 원활하게 제어하고 모니터링할 수 있는 브리지를 완성하고, 상용급 성능을 확보한다.
+
+### 구현 단계
+
+#### 단계 1: 폴리포니 및 보이스 모니터링
+- [ ] **Polyphony Voice State Bridge**: Teul의 개별 보이스 상태를 Ieum을 통해 Gyeol 위젯(예: 건반, 애니메이션)에 실시간 미러링하여 발음 상태 시각화
+- [ ] **Voice Allocation UI**: 최대 발음 수, 보이스 할당 정책(FIFO/LIFO), Voice Stealing 임계값 설정용 고급 패널 제공
+
+#### 단계 2: 고품질 렌더링 및 오버샘플링
+- [ ] **Global High-Precision Setup**: 프로젝트 설정에서 전체 오디오 경로에 대한 오버샘플링(2x, 4x, 8x) 및 품질 정책(Linear Phase, Minimum Phase 등) 일괄 제어
+- [ ] **Anti-Aliasing Diagnostics**: 노드/연결선 위에 에일리어싱 경고나 비선형 품질 문제(Hotspot)를 오버레이로 표시하는 기술 모드 제공
+
+#### 단계 3: 엔진 성능 최적화 (Commercial Hardening)
+- [ ] **DSP Block Fusion/SIMD**: 런타임 및 Export 시 노드 연산을 단일 루프로 묶고 벡터화(SIMD)하여 L1/L2 캐시 효율 극대화
+- [ ] **JIT Compilation Bridge**: (선택적) 그래프를 기계어로 즉시 컴파일하여 노드 호출 오버헤드를 제거하는 고성능 실행 옵션 제공
+- [ ] **Adaptive Processing UI**: 무음 구간 연산 스킵 기능 활성화 시, 절약되는 CPU 부하를 Performance 패널에서 실시간으로 시각화
 
 ---
 
