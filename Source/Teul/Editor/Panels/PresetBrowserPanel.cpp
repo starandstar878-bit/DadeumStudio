@@ -10,6 +10,7 @@ constexpr int filterState = 4;
 constexpr int filterRecovery = 5;
 constexpr int filterFavorites = 6;
 constexpr int filterRecent = 7;
+constexpr int tagFilterAll = 1;
 
 juce::String formatTimestamp(const juce::Time &time) {
   if (time.toMilliseconds() <= 0)
@@ -25,6 +26,7 @@ public:
   PresetBrowserPanelImpl() : catalog(makeDefaultPresetCatalog()) {
     addAndMakeVisible(titleLabel);
     addAndMakeVisible(filterBox);
+    addAndMakeVisible(tagFilterBox);
     addAndMakeVisible(searchEditor);
     addAndMakeVisible(refreshButton);
     addAndMakeVisible(listBox);
@@ -60,6 +62,10 @@ public:
     filterBox.addItem("Recent", filterRecent);
     filterBox.setSelectedId(filterAll, juce::dontSendNotification);
     filterBox.onChange = [this] { rebuildVisibleEntries(); };
+
+    tagFilterBox.addItem("All Tags", tagFilterAll);
+    tagFilterBox.setSelectedId(tagFilterAll, juce::dontSendNotification);
+    tagFilterBox.onChange = [this] { rebuildVisibleEntries(); };
 
     searchEditor.setTextToShowWhenEmpty("Search presets...", juce::Colours::grey);
     searchEditor.setEscapeAndReturnKeysConsumed(false);
@@ -246,6 +252,8 @@ public:
     header.removeFromLeft(8);
     filterBox.setBounds(header.removeFromLeft(118));
     header.removeFromLeft(8);
+    tagFilterBox.setBounds(header.removeFromLeft(132));
+    header.removeFromLeft(8);
     refreshButton.setBounds(header.removeFromRight(88));
     header.removeFromRight(8);
     searchEditor.setBounds(header);
@@ -366,6 +374,8 @@ private:
     juce::String footer = entry->summaryText.isNotEmpty()
                                ? entry->summaryText
                                : juce::String("No summary");
+    if (!entry->tags.isEmpty())
+      footer << "  |  Tags: " << entry->tags.joinIntoString(", ");
     if (entry->recent)
       footer = juce::String("Recent  |  ") + footer;
     g.drawText(footer, textArea, juce::Justification::centredLeft, false);
@@ -399,6 +409,7 @@ private:
   }
 
   void rebuildVisibleEntries(const juce::String &preferredEntryId = {}) {
+    refreshTagFilterOptions();
     visibleEntries.clear();
     for (const auto &entry : catalog->getEntries()) {
       if (!passesFilter(entry))
@@ -448,13 +459,21 @@ private:
     if (filterId == filterRecent && !entry.recent)
       return false;
 
+    const auto selectedTagId = tagFilterBox.getSelectedId();
+    if (selectedTagId > tagFilterAll) {
+      const auto selectedTag = tagFilterBox.getText().trim();
+      if (selectedTag.isNotEmpty() && !entry.tags.contains(selectedTag))
+        return false;
+    }
+
     const auto query = searchEditor.getText().trim().toLowerCase();
     if (query.isEmpty())
       return true;
 
     const auto haystack =
         (entry.displayName + " " + entry.summaryText + " " + entry.detailText +
-         " " + entry.presetKind + " " + entry.domains.joinIntoString(" "))
+         " " + entry.presetKind + " " + entry.domains.joinIntoString(" ") +
+         " " + entry.tags.joinIntoString(" "))
             .toLowerCase();
     return haystack.contains(query);
   }
@@ -650,6 +669,30 @@ private:
            pendingConflictEntryId == selectedEntry->entryId;
   }
 
+  void refreshTagFilterOptions() {
+    const auto previousText = tagFilterBox.getText().trim();
+    const auto previousSelected = tagFilterBox.getSelectedId();
+    juce::StringArray tags;
+    for (const auto &entry : catalog->getEntries()) {
+      for (const auto &tag : entry.tags) {
+        const auto trimmed = tag.trim();
+        if (trimmed.isNotEmpty() && !tags.contains(trimmed))
+          tags.add(trimmed);
+      }
+    }
+
+    tags.sort(true);
+    tagFilterBox.clear(juce::dontSendNotification);
+    tagFilterBox.addItem("All Tags", tagFilterAll);
+    for (int i = 0; i < tags.size(); ++i)
+      tagFilterBox.addItem(tags[i], i + 2);
+
+    int nextSelected = tagFilterAll;
+    if (previousSelected > tagFilterAll && tags.contains(previousText))
+      nextSelected = tags.indexOf(previousText) + 2;
+    tagFilterBox.setSelectedId(nextSelected, juce::dontSendNotification);
+  }
+
   void toggleFavorite() {
     if (selectedEntry == nullptr)
       return;
@@ -706,6 +749,7 @@ private:
 
   juce::Label titleLabel;
   juce::ComboBox filterBox;
+  juce::ComboBox tagFilterBox;
   juce::TextEditor searchEditor;
   juce::TextEditor tagsEditor;
   juce::TextButton refreshButton;
