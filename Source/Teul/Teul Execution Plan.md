@@ -227,6 +227,18 @@
   - autosave / crash recovery
   - compatibility test matrix
 
+**Milestone 3 Status**
+- [x] frame group -> patch preset save/load/insert MVP
+- [x] document-level state preset save/apply MVP
+- [x] autosave / crash recovery MVP
+- [ ] schema migration chain
+- [ ] compatibility test matrix
+
+**Verification Notes (2026-03-09)**
+- [x] `Tools/TeulVerification/teul_patch_preset_smoke.bat` passed.
+- [x] `Tools/TeulVerification/teul_state_preset_smoke.bat` passed.
+- [x] `Tools/TeulVerification/teul_autosave_recovery_smoke.bat` passed.
+
 ### External Control Sources / Device Profiles
 
 목표:

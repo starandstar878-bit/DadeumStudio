@@ -19,6 +19,7 @@
 #include "Teul/Verification/TVerificationStress.h"
 #include "Teul/Serialization/TPatchPresetIO.h"
 #include "Teul/Serialization/TStatePresetIO.h"
+#include "Teul/Serialization/TFileIo.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
 #include <algorithm>
@@ -168,6 +169,39 @@ juce::var makeArtifactFileEntry(const juce::String &role,
 bool writeJsonArtifact(const juce::File &file, const juce::var &json) {
   return file.replaceWithText(juce::JSON::toString(json, true), false, false,
                               "\r\n");
+}
+
+bool writeSessionStateArtifact(const juce::File &file, bool cleanShutdown) {
+  auto *root = new juce::DynamicObject();
+  root->setProperty("cleanShutdown", cleanShutdown);
+  root->setProperty(
+      "updatedAtMillis",
+      static_cast<juce::int64>(juce::Time::currentTimeMillis()));
+  return file.replaceWithText(juce::JSON::toString(juce::var(root), true), false,
+                              false, "\r\n");
+}
+
+bool readSessionStateArtifact(const juce::File &file, bool &cleanShutdownOut) {
+  juce::var json;
+  if (juce::JSON::parse(file.loadFileAsString(), json).failed())
+    return false;
+
+  const auto *root = json.getDynamicObject();
+  if (root == nullptr)
+    return false;
+
+  const auto value = root->getProperty("cleanShutdown");
+  if (value.isBool()) {
+    cleanShutdownOut = static_cast<bool>(value);
+    return true;
+  }
+
+  const auto textValue = value.toString().trim();
+  if (textValue.isEmpty())
+    return false;
+
+  cleanShutdownOut = textValue.equalsIgnoreCase("true") || textValue == "1";
+  return true;
 }
 juce::Result writeTeulRuntimeCompileSmokeArtifactBundle(
     const juce::File &outputDirectory,
@@ -1332,6 +1366,160 @@ juce::Result runTeulPhase8StatePresetSmoke(const juce::StringArray &args) {
   return juce::Result::ok();
 }
 
+
+juce::Result runTeulPhase8AutosaveRecoverySmoke(const juce::StringArray &args) {
+  const auto outputArg = argValue(args, "--output-dir=");
+  juce::File outputDirectory;
+  if (outputArg.isNotEmpty()) {
+    outputDirectory = juce::File(outputArg);
+  } else {
+    outputDirectory =
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulAutosaveRecoverySmoke_" +
+                          juce::String(juce::Time::currentTimeMillis()));
+  }
+
+  if (!outputDirectory.createDirectory() && !outputDirectory.isDirectory()) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke output directory could not be created.");
+  }
+
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  const auto assetSource =
+      outputDirectory.getChildFile("AutosaveRecoverySmokeImpulse.wav");
+  if (!assetSource.replaceWithText("teul autosave recovery smoke asset", false,
+                                   false, "\r\n")) {
+    return juce::Result::fail(
+        "Failed to create autosave recovery smoke asset file.");
+  }
+
+  auto sourceDocument = makeTeulPhase5SmokeDocument(*registry, assetSource);
+  sourceDocument.meta.name = "Autosave Recovery Smoke";
+  auto *carrierNode = findTeulNodeByLabel(sourceDocument, "Carrier");
+  auto *ampNode = findTeulNodeByLabel(sourceDocument, "Amp");
+  if (carrierNode == nullptr || ampNode == nullptr) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke graph could not resolve its target nodes.");
+  }
+
+  carrierNode->params["frequency"] = 176.0;
+  ampNode->params["gain"] = 0.42;
+  ampNode->bypassed = true;
+
+  const auto expectedFrequency = (double)carrierNode->params["frequency"];
+  const auto expectedAmpGain = (double)ampNode->params["gain"];
+  const auto expectedAmpBypassed = ampNode->bypassed;
+
+  const auto sessionDirectory = outputDirectory.getChildFile("Session");
+  if (!sessionDirectory.createDirectory() && !sessionDirectory.isDirectory()) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke session directory could not be created.");
+  }
+
+  const auto autosaveFile = sessionDirectory.getChildFile("autosave-teul.teul");
+  const auto stateFile =
+      sessionDirectory.getChildFile("autosave-session-state.json");
+  if (!Teul::TFileIo::saveToFile(sourceDocument, autosaveFile)) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke could not write its autosave file.");
+  }
+  if (!writeSessionStateArtifact(stateFile, false)) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke could not write its recovery marker.");
+  }
+
+  bool cleanShutdown = true;
+  if (!readSessionStateArtifact(stateFile, cleanShutdown) || cleanShutdown) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke expected an unclean shutdown marker.");
+  }
+
+  Teul::TGraphDocument restoredDocument;
+  if (!Teul::TFileIo::loadFromFile(restoredDocument, autosaveFile)) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke could not restore the autosaved graph.");
+  }
+
+  carrierNode = findTeulNodeByLabel(restoredDocument, "Carrier");
+  ampNode = findTeulNodeByLabel(restoredDocument, "Amp");
+  if (carrierNode == nullptr || ampNode == nullptr) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke restored graph is missing expected nodes.");
+  }
+
+  if (restoredDocument.meta.name != sourceDocument.meta.name ||
+      restoredDocument.nodes.size() != sourceDocument.nodes.size() ||
+      restoredDocument.connections.size() != sourceDocument.connections.size() ||
+      std::abs((double)carrierNode->params["frequency"] - expectedFrequency) >
+          1.0e-9 ||
+      std::abs((double)ampNode->params["gain"] - expectedAmpGain) > 1.0e-9 ||
+      ampNode->bypassed != expectedAmpBypassed) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke did not restore the saved document state.");
+  }
+
+  if (!writeSessionStateArtifact(stateFile, true)) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke could not update its clean shutdown marker.");
+  }
+
+  cleanShutdown = false;
+  if (!readSessionStateArtifact(stateFile, cleanShutdown) || !cleanShutdown) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke expected a clean shutdown marker after finalize.");
+  }
+
+  const auto summaryFile =
+      outputDirectory.getChildFile("autosave-recovery-summary.txt");
+  const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
+  const auto summaryText =
+      juce::String("graph=") + restoredDocument.meta.name + "\r\n" +
+      "savedNodes=" + juce::String((int)sourceDocument.nodes.size()) +
+      "\r\n" + "savedConnections=" +
+      juce::String((int)sourceDocument.connections.size()) + "\r\n" +
+      "restoredNodes=" + juce::String((int)restoredDocument.nodes.size()) +
+      "\r\n" + "cleanShutdownMarker=" +
+      juce::String(cleanShutdown ? "true" : "false") + "\r\n" +
+      "autosaveFile=" + autosaveFile.getFullPathName() + "\r\n" +
+      "passed=true\r\n";
+  if (!summaryFile.replaceWithText(summaryText, false, false, "\r\n")) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke could not write its summary file.");
+  }
+
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("autosave", outputDirectory, autosaveFile));
+  files.add(makeArtifactFileEntry("sessionState", outputDirectory, stateFile));
+  files.add(makeArtifactFileEntry("summary", outputDirectory, summaryFile));
+  auto *bundleRoot = new juce::DynamicObject();
+  bundleRoot->setProperty("kind", "teul-verification-artifact-bundle");
+  bundleRoot->setProperty("scope", "autosave-recovery-smoke");
+  bundleRoot->setProperty("passed", true);
+  bundleRoot->setProperty("artifactDirectory",
+                          outputDirectory.getFullPathName());
+  bundleRoot->setProperty("savedNodeCount", (int)sourceDocument.nodes.size());
+  bundleRoot->setProperty("savedConnectionCount",
+                          (int)sourceDocument.connections.size());
+  bundleRoot->setProperty("restoredNodeCount",
+                          (int)restoredDocument.nodes.size());
+  bundleRoot->setProperty("files", juce::var(files));
+  if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
+    return juce::Result::fail(
+        "Teul autosave recovery smoke could not write its artifact bundle.");
+  }
+
+  std::cout << "Teul Phase8 autosave recovery smoke directory: "
+            << outputDirectory.getFullPathName() << std::endl;
+  std::cout << summaryText << std::endl;
+  std::cout << "Teul Phase8 autosave recovery smoke checks: PASS"
+            << std::endl;
+  return juce::Result::ok();
+}
+
 juce::Result runTeulPhase7BenchmarkGate(const juce::StringArray &args) {
   auto registry = Teul::makeDefaultNodeRegistry();
   if (!registry)
@@ -1778,6 +1966,20 @@ public:
       const auto smokeResult = runTeulPhase8StatePresetSmoke(args);
       if (smokeResult.failed()) {
         std::cerr << "Teul Phase8 state preset smoke failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
+    if (hasArg(args, "--teul-phase8-autosave-recovery-smoke")) {
+      const auto smokeResult = runTeulPhase8AutosaveRecoverySmoke(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase8 autosave recovery smoke failed: "
                   << smokeResult.getErrorMessage() << std::endl;
         setApplicationReturnValue(1);
       } else {

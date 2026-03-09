@@ -1,5 +1,6 @@
 // BOM
 #include "MainComponent.h"
+#include "Teul/Serialization/TFileIo.h"
 
 #include <algorithm>
 
@@ -185,13 +186,67 @@ juce::String buildTeulBindingSummary(const Gyeol::DocumentHandle &document,
 
 } // namespace
 
+static constexpr int kSessionAutosaveIntervalMs = 4000;
+
+static juce::File resolveSessionDirectory() {
+  auto dir =
+      juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+          .getChildFile("DadeumStudio");
+  if (!dir.exists())
+    dir.createDirectory();
+
+  if (!dir.exists()) {
+    dir = juce::File::getCurrentWorkingDirectory()
+              .getChildFile("Builds")
+              .getChildFile("GyeolSession");
+    if (!dir.exists())
+      dir.createDirectory();
+  }
+
+  return dir;
+}
+
+static bool writeSessionStateSnapshot(const juce::File &file,
+                                      bool cleanShutdown) {
+  const auto parent = file.getParentDirectory();
+  if (!parent.exists() && !parent.createDirectory())
+    return false;
+
+  auto *root = new juce::DynamicObject();
+  root->setProperty("cleanShutdown", cleanShutdown);
+  root->setProperty("updatedAtMillis",
+                    static_cast<juce::int64>(juce::Time::currentTimeMillis()));
+  return file.replaceWithText(juce::JSON::toString(juce::var(root), true), false,
+                              false, "\r\n");
+}
+
+static bool wasLastSessionShutdownClean(const juce::File &file) {
+  if (!file.existsAsFile())
+    return true;
+
+  juce::var json;
+  if (juce::JSON::parse(file.loadFileAsString(), json).failed())
+    return true;
+
+  const auto *root = json.getDynamicObject();
+  if (root == nullptr)
+    return true;
+
+  const auto value = root->getProperty("cleanShutdown");
+  if (value.isBool())
+    return static_cast<bool>(value);
+
+  const auto textValue = value.toString().trim();
+  if (textValue.isEmpty())
+    return true;
+
+  return textValue.equalsIgnoreCase("true") || textValue == "1";
+}
+
 // =============================================================================
 //  MainComponent
 // =============================================================================
 MainComponent::MainComponent(AppServices &services) : appServices(services) {
-  // ------------------------------------------------------------------
-  //  ??륁뵠筌왖 ??밴쉐 (addChildComponent ??筌ｌ꼷?????ｊ볼????됱벉)
-  // ------------------------------------------------------------------
   gyeolPage = Gyeol::createEditor();
   teulPage = Teul::createEditor(
       &appServices.audioDeviceManager,
@@ -209,47 +264,39 @@ MainComponent::MainComponent(AppServices &services) : appServices(services) {
   addChildComponent(*gyeolPage);
   addChildComponent(*teulPage);
 
-  // ------------------------------------------------------------------
-  //  ??而???밴쉐 獄??꾩뮆媛??怨뚭퍙
-  // ------------------------------------------------------------------
   pageTabBar = std::make_unique<AppPageTabBar>(currentPage);
   addAndMakeVisible(*pageTabBar);
-
   pageTabBar->onPageSelected = [this](AppPage page) { switchToPage(page); };
 
-  // ------------------------------------------------------------------
-  //  ?λ뜃由???륁뵠筌왖 ??뽮쉐??
-  // ------------------------------------------------------------------
   switchToPage(currentPage);
-
-  // ------------------------------------------------------------------
-  //  ?紐꾨?癰귣벊??(Gyeol ?얜챷苑?
-  //  TODO [Phase 1]: Teul 域밸챶????얜챷苑????ｍ뜞 癰귣벊??
-  // ------------------------------------------------------------------
   restoreSession();
 
+  if (gyeolPage != nullptr)
+    lastPersistedGyeolHistorySerial = gyeolPage->document().historySerial();
+  if (teulPage != nullptr)
+    lastPersistedTeulDocumentRevision =
+        teulPage->document().getDocumentRevision();
+
+  juce::ignoreUnused(writeSessionStateSnapshot(sessionStateFilePath(), false));
+  startTimer(kSessionAutosaveIntervalMs);
   setSize(600, 400);
 }
 
-MainComponent::~MainComponent() { persistSession(); }
+MainComponent::~MainComponent() {
+  stopTimer();
+  persistSession();
+  juce::ignoreUnused(writeSessionStateSnapshot(sessionStateFilePath(), true));
+}
 
-// =============================================================================
-//  ??륁뵠筌왖 ?袁れ넎
-// =============================================================================
+void MainComponent::timerCallback() { persistSession(); }
+
 void MainComponent::switchToPage(AppPage page) {
   currentPage = page;
-
-  //  ??ｋ┛疫?/ 癰귣똻?졿묾怨뺤춸 ??뺣뼄 ???紐꾨뮞??곷뮞????? ???댘??? ??놁벉.
-  //  ??Teul ??TGraphRuntime ?? ??ｊ볼?紐껊즲 ??삳탵????살쟿??뽯퓠???④쑴????덉삂??뺣뼄.
   gyeolPage->setVisible(page == AppPage::Gyeol);
   teulPage->setVisible(page == AppPage::Teul);
-
   resized();
 }
 
-// =============================================================================
-//  paint / resized
-// =============================================================================
 void MainComponent::paint(juce::Graphics &g) {
   g.fillAll(
       getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
@@ -258,77 +305,100 @@ void MainComponent::paint(juce::Graphics &g) {
 void MainComponent::resized() {
   auto bounds = getLocalBounds();
 
-  // TODO [UI]: GlobalToolbar 揶쎛 ??룸┛筌??袁⑥삋 雅뚯눘苑???곸젫
-  // if (globalToolbar != nullptr)
-  //     globalToolbar->setBounds (bounds.removeFromTop (42));
-
-  // ??롫뼊 ??而?
   if (pageTabBar != nullptr)
     pageTabBar->setBounds(bounds.removeFromBottom(40));
 
-  // ??롢돢筌왖 = ??륁뵠筌왖 ?怨몃열 (筌뤴뫀諭???륁뵠筌왖 ??덉뵬 ??由경에???쇱젟)
   if (gyeolPage != nullptr)
     gyeolPage->setBounds(bounds);
   if (teulPage != nullptr)
     teulPage->setBounds(bounds);
 }
 
-// =============================================================================
-//  ?紐꾨?????/ 癰귣벊??
-// =============================================================================
 juce::File MainComponent::sessionFilePath() {
-  auto dir =
-      juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-          .getChildFile("DadeumStudio");
-  if (!dir.exists())
-    dir.createDirectory();
+  return resolveSessionDirectory().getChildFile("autosave-session.json");
+}
 
-  if (!dir.exists()) {
-    dir = juce::File::getCurrentWorkingDirectory()
-              .getChildFile("Builds")
-              .getChildFile("GyeolSession");
-    if (!dir.exists())
-      dir.createDirectory();
-  }
+juce::File MainComponent::teulSessionFilePath() {
+  return resolveSessionDirectory().getChildFile("autosave-teul.teul");
+}
 
-  return dir.getChildFile("autosave-session.json");
+juce::File MainComponent::sessionStateFilePath() {
+  return resolveSessionDirectory().getChildFile("autosave-session-state.json");
 }
 
 void MainComponent::restoreSession() {
-  if (gyeolPage == nullptr)
-    return;
-
-  const auto file = sessionFilePath();
-  if (!file.existsAsFile())
-    return;
-
-  const auto result = gyeolPage->document().loadFromFile(file);
-  if (result.failed()) {
-    DBG("[Gyeol] Session restore failed: " + result.getErrorMessage());
-    return;
+  const auto previousSessionWasClean =
+      wasLastSessionShutdownClean(sessionStateFilePath());
+  if (!previousSessionWasClean) {
+    DBG("[Session] Previous shutdown was not clean. Restoring autosave snapshots.");
   }
 
-  gyeolPage->refreshFromDocument();
+  if (gyeolPage != nullptr) {
+    const auto file = sessionFilePath();
+    if (file.existsAsFile()) {
+      const auto result = gyeolPage->document().loadFromFile(file);
+      if (result.failed()) {
+        DBG("[Gyeol] Session restore failed: " + result.getErrorMessage());
+      } else {
+        gyeolPage->refreshFromDocument();
+      }
+    }
+  }
 
-  // TODO [Phase 1]: Teul ?紐꾨????ｍ뜞 癰귣벊??
-  //   auto teulFile = sessionFilePath().getSiblingFile("autosave-teul.json");
-  //   teulPage->document().loadFromFile(teulFile);
+  if (teulPage != nullptr) {
+    const auto file = teulSessionFilePath();
+    if (file.existsAsFile()) {
+      if (!Teul::TFileIo::loadFromFile(teulPage->document(), file)) {
+        DBG("[Teul] Session restore failed: " + file.getFullPathName());
+      } else {
+        teulPage->refreshFromDocument();
+      }
+    }
+  }
 }
 
 void MainComponent::persistSession() const {
-  if (gyeolPage == nullptr)
-    return;
+  auto ensureParentDirectory = [](const juce::File &file) {
+    const auto parent = file.getParentDirectory();
+    return parent.exists() || parent.createDirectory();
+  };
 
-  const auto file = sessionFilePath();
-  const auto parent = file.getParentDirectory();
-  if (!parent.exists())
-    parent.createDirectory();
+  bool wroteAutosave = false;
 
-  const auto result = gyeolPage->document().saveToFile(file);
-  if (result.failed())
-    DBG("[Gyeol] Session save failed: " + result.getErrorMessage());
+  if (gyeolPage != nullptr) {
+    const auto file = sessionFilePath();
+    const auto historySerial = gyeolPage->document().historySerial();
+    if (historySerial != lastPersistedGyeolHistorySerial || !file.existsAsFile()) {
+      if (!ensureParentDirectory(file)) {
+        DBG("[Gyeol] Session save failed: could not create autosave directory.");
+      } else {
+        const auto result = gyeolPage->document().saveToFile(file);
+        if (result.failed()) {
+          DBG("[Gyeol] Session save failed: " + result.getErrorMessage());
+        } else {
+          lastPersistedGyeolHistorySerial = historySerial;
+          wroteAutosave = true;
+        }
+      }
+    }
+  }
 
-  // TODO [Phase 1]: Teul ?紐꾨????ｍ뜞 ????
-  //   auto teulFile = file.getSiblingFile("autosave-teul.json");
-  //   teulPage->document().saveToFile(teulFile);
+  if (teulPage != nullptr) {
+    const auto file = teulSessionFilePath();
+    const auto documentRevision = teulPage->document().getDocumentRevision();
+    if (documentRevision != lastPersistedTeulDocumentRevision ||
+        !file.existsAsFile()) {
+      if (!ensureParentDirectory(file)) {
+        DBG("[Teul] Session save failed: could not create autosave directory.");
+      } else if (!Teul::TFileIo::saveToFile(teulPage->document(), file)) {
+        DBG("[Teul] Session save failed: " + file.getFullPathName());
+      } else {
+        lastPersistedTeulDocumentRevision = documentRevision;
+        wroteAutosave = true;
+      }
+    }
+  }
+
+  if (wroteAutosave)
+    juce::ignoreUnused(writeSessionStateSnapshot(sessionStateFilePath(), false));
 }

@@ -85,7 +85,7 @@ private:
 //
 //  AppServices 는 참조로만 보유 — 수명은 DadeumStudioApplication 이 관리
 // =============================================================================
-class MainComponent : public juce::Component {
+class MainComponent : public juce::Component, private juce::Timer {
 public:
   explicit MainComponent(AppServices &services);
   ~MainComponent() override;
@@ -94,6 +94,8 @@ public:
   void resized() override;
 
 private:
+  void timerCallback() override;
+
   // -------------------------------------------------------------------------
   //  페이지 전환
   // -------------------------------------------------------------------------
@@ -105,6 +107,8 @@ private:
   void restoreSession();
   void persistSession() const;
   static juce::File sessionFilePath();
+  static juce::File teulSessionFilePath();
+  static juce::File sessionStateFilePath();
 
   // -------------------------------------------------------------------------
   //  앱 공통 서비스 (참조, 수명 소유하지 않음)
@@ -132,6 +136,8 @@ private:
   //            - 오디오 장치 선택 콤보박스 (→ appServices.audioDeviceManager)
   //            - 프로젝트 저장 버튼 (Gyeol + Teul 통합 세이브)
   std::unique_ptr<AppPageTabBar> pageTabBar;
+  mutable std::uint64_t lastPersistedGyeolHistorySerial = 0;
+  mutable std::uint64_t lastPersistedTeulDocumentRevision = 0;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
