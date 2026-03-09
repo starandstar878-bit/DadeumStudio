@@ -139,6 +139,71 @@ void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
     warnings.add(normalized);
 }
 
+void appendMigrationStep(TStatePresetLoadReport *report,
+                         const juce::String &stepName) {
+  if (report == nullptr)
+    return;
+
+  const auto normalized = stepName.trim();
+  if (normalized.isEmpty())
+    return;
+  if (!report->appliedSteps.contains(normalized))
+    report->appliedSteps.add(normalized);
+}
+
+juce::var normalizeStatePresetJson(const juce::var &rootVar) {
+  if (!rootVar.isObject())
+    return {};
+
+  const auto *root = rootVar.getDynamicObject();
+  auto *object = new juce::DynamicObject();
+  object->setProperty("format",
+                      propertyOrAlias(root, {"format"}, "teul.state_preset"));
+  object->setProperty(
+      "schema_version",
+      propertyOrAlias(root, {"schema_version", "schemaVersion"},
+                      kStatePresetSchemaVersion));
+  object->setProperty("preset_name",
+                      propertyOrAlias(root, {"preset_name", "presetName"}));
+  object->setProperty("target_graph_name",
+                      propertyOrAlias(root, {"target_graph_name", "targetGraphName"}));
+  object->setProperty("summary",
+                      propertyOrAlias(root, {"summary", "presetSummary"}));
+  object->setProperty("node_states",
+                      propertyOrAlias(root, {"node_states", "nodeStates"}));
+  return juce::var(object);
+}
+
+juce::var migrateStatePresetV1ToV2(const juce::var &rootVar) {
+  if (!rootVar.isObject())
+    return {};
+
+  const auto *root = rootVar.getDynamicObject();
+  auto *object = new juce::DynamicObject();
+  object->setProperty("format", "teul.state_preset");
+  object->setProperty("schema_version", kStatePresetSchemaVersion);
+  object->setProperty("preset_name",
+                      propertyOrAlias(root, {"preset_name", "presetName"}));
+  object->setProperty("target_graph_name",
+                      propertyOrAlias(root, {"target_graph_name", "targetGraphName"}));
+  object->setProperty("summary",
+                      propertyOrAlias(root, {"summary", "presetSummary"}));
+  object->setProperty("node_states",
+                      propertyOrAlias(root, {"node_states", "nodeStates"}));
+  return juce::var(object);
+}
+
+juce::var migrateStatePresetJson(const juce::var &rootVar,
+                                 int sourceSchemaVersion,
+                                 TStatePresetLoadReport *report) {
+  if (sourceSchemaVersion <= 1) {
+    appendMigrationStep(report, "state:v1->v2");
+    return migrateStatePresetV1ToV2(rootVar);
+  }
+
+  return normalizeStatePresetJson(rootVar);
+}
+
 juce::String joinWarnings(const juce::StringArray &warnings) {
   juce::StringArray normalizedWarnings;
   for (const auto &warning : warnings) {
@@ -280,24 +345,24 @@ juce::Result TStatePresetIO::loadFromFile(
   if (!file.existsAsFile())
     return juce::Result::fail("State preset load failed: file not found.");
 
-  const auto json = juce::JSON::parse(file);
-  if (json.isVoid())
+  const auto rootVar = juce::JSON::parse(file);
+  if (rootVar.isVoid())
     return juce::Result::fail("State preset load failed: invalid JSON.");
 
-  auto *root = json.getDynamicObject();
-  if (root == nullptr)
+  auto *sourceRoot = rootVar.getDynamicObject();
+  if (sourceRoot == nullptr)
     return juce::Result::fail("State preset load failed: invalid preset root.");
 
-  if (propertyOrAlias(root, {"format"}).toString() != "teul.state_preset") {
+  if (propertyOrAlias(sourceRoot, {"format"}).toString() != "teul.state_preset") {
     return juce::Result::fail(
         "State preset load failed: unsupported preset format.");
   }
 
   TStatePresetLoadReport loadReport;
   loadReport.sourceSchemaVersion =
-      (int)propertyOrAlias(root, {"schema_version", "schemaVersion"}, 1);
+      (int)propertyOrAlias(sourceRoot, {"schema_version", "schemaVersion"}, 1);
   loadReport.targetSchemaVersion = kStatePresetSchemaVersion;
-  loadReport.usedLegacyAliases = usesLegacyStateAliases(root);
+  loadReport.usedLegacyAliases = usesLegacyStateAliases(sourceRoot);
 
   if (loadReport.usedLegacyAliases) {
     appendWarning(loadReport.warnings,
@@ -315,6 +380,12 @@ juce::Result TStatePresetIO::loadFromFile(
         loadReport.warnings,
         "State preset schema is newer than this build supports; using best-effort load.");
   }
+
+  const auto migratedRootVar =
+      migrateStatePresetJson(rootVar, loadReport.sourceSchemaVersion, &loadReport);
+  auto *root = migratedRootVar.getDynamicObject();
+  if (root == nullptr)
+    return juce::Result::fail("State preset load failed: migrated preset root is invalid.");
 
   const auto summaryVar = propertyOrAlias(root, {"summary", "presetSummary"});
   const bool hasSummaryObject = summaryVar.isObject();
@@ -360,7 +431,8 @@ juce::Result TStatePresetIO::loadFromFile(
 
   loadReport.migrated =
       loadReport.usedLegacyAliases ||
-      loadReport.sourceSchemaVersion != loadReport.targetSchemaVersion;
+      loadReport.sourceSchemaVersion != loadReport.targetSchemaVersion ||
+      !loadReport.appliedSteps.isEmpty();
   if (loadReportOut != nullptr)
     *loadReportOut = loadReport;
 
@@ -368,6 +440,7 @@ juce::Result TStatePresetIO::loadFromFile(
 }
 
 juce::Result TStatePresetIO::previewAgainstDocument(
+
     const TGraphDocument &document,
     const juce::File &file,
     TStatePresetDiffPreview *previewOut) {

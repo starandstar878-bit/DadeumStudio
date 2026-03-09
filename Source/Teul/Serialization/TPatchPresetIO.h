@@ -24,6 +24,7 @@ struct TPatchPresetLoadReport {
   bool usedLegacyAliases = false;
   bool degraded = false;
   juce::StringArray warnings;
+  juce::StringArray appliedSteps;
   TSchemaMigrationReport graphMigration;
 };
 

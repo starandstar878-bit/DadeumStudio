@@ -30,6 +30,7 @@ struct TStatePresetLoadReport {
   bool usedLegacyAliases = false;
   bool degraded = false;
   juce::StringArray warnings;
+  juce::StringArray appliedSteps;
 };
 
 struct TStatePresetApplyReport {

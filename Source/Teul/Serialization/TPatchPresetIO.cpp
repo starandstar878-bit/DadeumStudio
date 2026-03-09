@@ -188,6 +188,77 @@ void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
     warnings.add(normalized);
 }
 
+void appendMigrationStep(TPatchPresetLoadReport *report,
+                         const juce::String &stepName) {
+  if (report == nullptr)
+    return;
+
+  const auto normalized = stepName.trim();
+  if (normalized.isEmpty())
+    return;
+  if (!report->appliedSteps.contains(normalized))
+    report->appliedSteps.add(normalized);
+}
+
+juce::var normalizePatchPresetJson(const juce::var &rootVar) {
+  if (!rootVar.isObject())
+    return {};
+
+  const auto *root = rootVar.getDynamicObject();
+  auto *object = new juce::DynamicObject();
+  object->setProperty("format",
+                      propertyOrAlias(root, {"format"}, "teul.patch_preset"));
+  object->setProperty(
+      "schema_version",
+      propertyOrAlias(root, {"schema_version", "schemaVersion"},
+                      kPatchPresetSchemaVersion));
+  object->setProperty("preset_name",
+                      propertyOrAlias(root, {"preset_name", "presetName"}));
+  object->setProperty("source_frame_uuid",
+                      propertyOrAlias(root, {"source_frame_uuid", "sourceFrameUuid"}));
+  object->setProperty("saved_at",
+                      propertyOrAlias(root, {"saved_at", "savedAt"}));
+  object->setProperty("summary",
+                      propertyOrAlias(root, {"summary", "presetSummary"}));
+  object->setProperty(
+      "graph",
+      propertyOrAlias(root, {"graph", "graphPayload", "graph_json"}));
+  return juce::var(object);
+}
+
+juce::var migratePatchPresetV1ToV2(const juce::var &rootVar) {
+  if (!rootVar.isObject())
+    return {};
+
+  const auto *root = rootVar.getDynamicObject();
+  auto *object = new juce::DynamicObject();
+  object->setProperty("format", "teul.patch_preset");
+  object->setProperty("schema_version", kPatchPresetSchemaVersion);
+  object->setProperty("preset_name",
+                      propertyOrAlias(root, {"preset_name", "presetName"}));
+  object->setProperty("source_frame_uuid",
+                      propertyOrAlias(root, {"source_frame_uuid", "sourceFrameUuid"}));
+  object->setProperty("saved_at",
+                      propertyOrAlias(root, {"saved_at", "savedAt"}));
+  object->setProperty("summary",
+                      propertyOrAlias(root, {"summary", "presetSummary"}));
+  object->setProperty(
+      "graph",
+      propertyOrAlias(root, {"graph", "graphPayload", "graph_json"}));
+  return juce::var(object);
+}
+
+juce::var migratePatchPresetJson(const juce::var &rootVar,
+                                 int sourceSchemaVersion,
+                                 TPatchPresetLoadReport *report) {
+  if (sourceSchemaVersion <= 1) {
+    appendMigrationStep(report, "patch:v1->v2");
+    return migratePatchPresetV1ToV2(rootVar);
+  }
+
+  return normalizePatchPresetJson(rootVar);
+}
+
 juce::String joinWarnings(const juce::StringArray &warnings) {
   juce::StringArray normalizedWarnings;
   for (const auto &warning : warnings) {
@@ -313,20 +384,20 @@ juce::Result TPatchPresetIO::loadFromFile(
   if (parseResult.failed())
     return juce::Result::fail("Patch preset load failed: invalid JSON.");
 
-  auto *root = rootVar.getDynamicObject();
-  if (root == nullptr)
+  auto *sourceRoot = rootVar.getDynamicObject();
+  if (sourceRoot == nullptr)
     return juce::Result::fail("Patch preset load failed: invalid preset root.");
 
-  if (propertyOrAlias(root, {"format"}).toString() != "teul.patch_preset") {
+  if (propertyOrAlias(sourceRoot, {"format"}).toString() != "teul.patch_preset") {
     return juce::Result::fail(
         "Patch preset load failed: unsupported preset format.");
   }
 
   TPatchPresetLoadReport loadReport;
   loadReport.sourceSchemaVersion =
-      (int)propertyOrAlias(root, {"schema_version", "schemaVersion"}, 1);
+      (int)propertyOrAlias(sourceRoot, {"schema_version", "schemaVersion"}, 1);
   loadReport.targetSchemaVersion = kPatchPresetSchemaVersion;
-  loadReport.usedLegacyAliases = usesLegacyPatchAliases(root);
+  loadReport.usedLegacyAliases = usesLegacyPatchAliases(sourceRoot);
 
   if (loadReport.usedLegacyAliases) {
     appendWarning(loadReport.warnings,
@@ -343,6 +414,14 @@ juce::Result TPatchPresetIO::loadFromFile(
     appendWarning(
         loadReport.warnings,
         "Patch preset schema is newer than this build supports; using best-effort load.");
+  }
+
+  const auto migratedRootVar =
+      migratePatchPresetJson(rootVar, loadReport.sourceSchemaVersion, &loadReport);
+  auto *root = migratedRootVar.getDynamicObject();
+  if (root == nullptr) {
+    return juce::Result::fail(
+        "Patch preset load failed: migrated preset root is invalid.");
   }
 
   const auto summaryVar = propertyOrAlias(root, {"summary", "presetSummary"});
@@ -399,7 +478,7 @@ juce::Result TPatchPresetIO::loadFromFile(
   loadReport.migrated =
       loadReport.usedLegacyAliases ||
       loadReport.sourceSchemaVersion != loadReport.targetSchemaVersion ||
-      loadReport.graphMigration.migrated;
+      loadReport.graphMigration.migrated || !loadReport.appliedSteps.isEmpty();
   loadReport.degraded = loadReport.degraded || loadReport.graphMigration.degraded;
   if (loadReportOut != nullptr)
     *loadReportOut = loadReport;
@@ -408,6 +487,7 @@ juce::Result TPatchPresetIO::loadFromFile(
 }
 
 juce::Result TPatchPresetIO::insertFromFile(
+
     TGraphDocument &targetDocument,
     const juce::File &file,
     juce::Point<float> originWorld,

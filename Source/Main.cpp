@@ -1849,6 +1849,8 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       !legacyPatchLoadReport.usedLegacyAliases ||
       legacyPatchLoadReport.degraded ||
       legacyPatchLoadReport.warnings.isEmpty() ||
+      legacyPatchLoadReport.appliedSteps.size() != 1 ||
+      !legacyPatchLoadReport.appliedSteps.contains("patch:v1->v2") ||
       !legacyPatchLoadReport.graphMigration.migrated ||
       !legacyPatchLoadReport.graphMigration.usedLegacyAliases ||
       legacyPatchLoadReport.graphMigration.degraded ||
@@ -1960,6 +1962,8 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       !legacyStateLoadReport.usedLegacyAliases ||
       legacyStateLoadReport.degraded ||
       legacyStateLoadReport.warnings.isEmpty() ||
+      legacyStateLoadReport.appliedSteps.size() != 1 ||
+      !legacyStateLoadReport.appliedSteps.contains("state:v1->v2") ||
       legacyStateApplyReport.degraded ||
       legacyStateApplyReport.warnings.isEmpty()) {
     return juce::Result::fail(
@@ -2004,6 +2008,10 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       juce::String(legacyPatchLoadReport.warnings.size()) + "\r\n" +
       "legacyPatchWarnings=" +
       summarizeWarnings(legacyPatchLoadReport.warnings) + "\r\n" +
+      "legacyPatchAppliedStepCount=" +
+      juce::String(legacyPatchLoadReport.appliedSteps.size()) + "\r\n" +
+      "legacyPatchAppliedSteps=" +
+      summarizeWarnings(legacyPatchLoadReport.appliedSteps) + "\r\n" +
       "legacyPatchGraphMigrated=" +
       juce::String(legacyPatchLoadReport.graphMigration.migrated ? "true" : "false") +
       "\r\n" +
@@ -2031,6 +2039,10 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       juce::String(legacyStateLoadReport.warnings.size()) + "\r\n" +
       "legacyStateWarnings=" +
       summarizeWarnings(legacyStateLoadReport.warnings) + "\r\n" +
+      "legacyStateAppliedStepCount=" +
+      juce::String(legacyStateLoadReport.appliedSteps.size()) + "\r\n" +
+      "legacyStateAppliedSteps=" +
+      summarizeWarnings(legacyStateLoadReport.appliedSteps) + "\r\n" +
       "legacyStateApplyDegraded=" +
       juce::String(legacyStateApplyReport.degraded ? "true" : "false") +
       "\r\n" +
@@ -2086,6 +2098,10 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
                           legacyPatchLoadReport.warnings.size());
   bundleRoot->setProperty("legacyPatchWarnings",
                           stringArrayToJsonArray(legacyPatchLoadReport.warnings));
+  bundleRoot->setProperty("legacyPatchAppliedStepCount",
+                          legacyPatchLoadReport.appliedSteps.size());
+  bundleRoot->setProperty("legacyPatchAppliedSteps",
+                          stringArrayToJsonArray(legacyPatchLoadReport.appliedSteps));
   bundleRoot->setProperty("legacyPatchGraphMigrated",
                           legacyPatchLoadReport.graphMigration.migrated);
   bundleRoot->setProperty("legacyPatchGraphDegraded",
@@ -2107,6 +2123,10 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
                           legacyStateLoadReport.warnings.size());
   bundleRoot->setProperty("legacyStateWarnings",
                           stringArrayToJsonArray(legacyStateLoadReport.warnings));
+  bundleRoot->setProperty("legacyStateAppliedStepCount",
+                          legacyStateLoadReport.appliedSteps.size());
+  bundleRoot->setProperty("legacyStateAppliedSteps",
+                          stringArrayToJsonArray(legacyStateLoadReport.appliedSteps));
   bundleRoot->setProperty("legacyStateApplyDegraded",
                           legacyStateApplyReport.degraded);
   bundleRoot->setProperty("legacyStateApplyWarningCount",
@@ -2399,6 +2419,8 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
         loadedSummary.frameCount == currentPatchSummary.frameCount &&
         loadReport.migrated && !loadReport.usedLegacyAliases &&
         !loadReport.degraded && loadReport.warnings.size() > 0 &&
+        loadReport.appliedSteps.size() == 1 &&
+        loadReport.appliedSteps.contains("patch:v1->v2") &&
         !loadReport.graphMigration.migrated &&
         !loadReport.graphMigration.usedLegacyAliases &&
         !loadReport.graphMigration.degraded &&
@@ -2497,7 +2519,9 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
           loadedSummary.nodeStateCount == currentStateSummary.nodeStateCount &&
           loadedSummary.paramValueCount == currentStateSummary.paramValueCount &&
           loadReport.migrated && !loadReport.usedLegacyAliases &&
-          !loadReport.degraded && applyReport.degraded &&
+          !loadReport.degraded && loadReport.appliedSteps.size() == 1 &&
+          loadReport.appliedSteps.contains("state:v1->v2") &&
+          applyReport.degraded &&
           applyReport.skippedNodeCount > 0 &&
           applyWarningSummary.containsIgnoreCase("skipped") &&
           mutatedCarrierNode != nullptr &&
@@ -2510,7 +2534,9 @@ juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
           loadedSummary.nodeStateCount == currentStateSummary.nodeStateCount &&
           loadedSummary.paramValueCount == currentStateSummary.paramValueCount &&
           loadReport.migrated && !loadReport.usedLegacyAliases &&
-          !loadReport.degraded && !applyReport.degraded &&
+          !loadReport.degraded && loadReport.appliedSteps.size() == 1 &&
+          loadReport.appliedSteps.contains("state:v1->v2") &&
+          !applyReport.degraded &&
           applyReport.warnings.size() > 0 &&
           mutatedCarrierNode != nullptr && restoredAmpNode != nullptr &&
           std::abs((double)mutatedCarrierNode->params["frequency"] -
