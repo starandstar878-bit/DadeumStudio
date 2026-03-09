@@ -23,6 +23,13 @@ struct TStatePresetSummary {
   int paramValueCount = 0;
 };
 
+struct TStatePresetLoadReport {
+  int sourceSchemaVersion = 0;
+  int targetSchemaVersion = 0;
+  bool migrated = false;
+  bool usedLegacyAliases = false;
+};
+
 struct TStatePresetApplyReport {
   TStatePresetSummary summary;
   int appliedNodeCount = 0;
@@ -41,7 +48,8 @@ public:
                                          TStatePresetSummary *summaryOut = nullptr);
   static juce::Result loadFromFile(std::vector<TStatePresetNodeState> &nodeStatesOut,
                                    TStatePresetSummary &summaryOut,
-                                   const juce::File &file);
+                                   const juce::File &file,
+                                   TStatePresetLoadReport *loadReportOut = nullptr);
   static juce::Result applyToDocument(TGraphDocument &document,
                                       const juce::File &file,
                                       TStatePresetApplyReport *reportOut = nullptr);

@@ -170,6 +170,16 @@ void hydrateSummaryFromJson(TPatchPresetSummary &summary,
   }
 }
 
+bool usesLegacyPatchAliases(const juce::DynamicObject *root) {
+  return root != nullptr &&
+         (root->hasProperty("schemaVersion") ||
+          root->hasProperty("presetName") ||
+          root->hasProperty("sourceFrameUuid") ||
+          root->hasProperty("presetSummary") ||
+          root->hasProperty("graphPayload") ||
+          root->hasProperty("graph_json"));
+}
+
 } // namespace
 
 juce::String TPatchPresetIO::fileExtension() { return ".teulpatch"; }
@@ -271,9 +281,11 @@ juce::Result TPatchPresetIO::saveFrameToFile(const TGraphDocument &document,
   return juce::Result::ok();
 }
 
-juce::Result TPatchPresetIO::loadFromFile(TGraphDocument &presetDocumentOut,
-                                          TPatchPresetSummary &summaryOut,
-                                          const juce::File &file) {
+juce::Result TPatchPresetIO::loadFromFile(
+    TGraphDocument &presetDocumentOut,
+    TPatchPresetSummary &summaryOut,
+    const juce::File &file,
+    TPatchPresetLoadReport *loadReportOut) {
   if (!file.existsAsFile())
     return juce::Result::fail("Patch preset load failed: file not found.");
 
@@ -291,6 +303,12 @@ juce::Result TPatchPresetIO::loadFromFile(TGraphDocument &presetDocumentOut,
         "Patch preset load failed: unsupported preset format.");
   }
 
+  TPatchPresetLoadReport loadReport;
+  loadReport.sourceSchemaVersion =
+      (int)propertyOrAlias(root, {"schema_version", "schemaVersion"}, 1);
+  loadReport.targetSchemaVersion = kPatchPresetSchemaVersion;
+  loadReport.usedLegacyAliases = usesLegacyPatchAliases(root);
+
   summaryOut = {};
   summaryOut.presetName =
       propertyOrAlias(root, {"preset_name", "presetName"}).toString();
@@ -305,7 +323,8 @@ juce::Result TPatchPresetIO::loadFromFile(TGraphDocument &presetDocumentOut,
   presetDocumentOut = TGraphDocument();
   const auto graphVar =
       propertyOrAlias(root, {"graph", "graphPayload", "graph_json"});
-  if (!TSerializer::fromJson(presetDocumentOut, graphVar)) {
+  if (!TSerializer::fromJson(presetDocumentOut, graphVar,
+                             &loadReport.graphMigration)) {
     return juce::Result::fail(
         "Patch preset load failed: graph payload could not be restored.");
   }
@@ -318,6 +337,13 @@ juce::Result TPatchPresetIO::loadFromFile(TGraphDocument &presetDocumentOut,
     summaryOut.frameCount = (int)presetDocumentOut.frames.size();
   if (summaryOut.bounds.isEmpty())
     summaryOut.bounds = computeDocumentBounds(presetDocumentOut);
+
+  loadReport.migrated =
+      loadReport.usedLegacyAliases ||
+      loadReport.sourceSchemaVersion != loadReport.targetSchemaVersion ||
+      loadReport.graphMigration.migrated;
+  if (loadReportOut != nullptr)
+    *loadReportOut = loadReport;
 
   return juce::Result::ok();
 }

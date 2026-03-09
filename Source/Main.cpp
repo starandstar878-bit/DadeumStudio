@@ -1194,11 +1194,12 @@ juce::Result runTeulPhase8PatchPresetSmoke(const juce::StringArray &args) {
   const auto summaryFile = outputDirectory.getChildFile("patch-preset-summary.txt");
   const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
   const auto summaryText =
-      juce::String("preset=") + savedSummary.presetName + "\r\n" +
-      "savedNodes=" + juce::String(savedSummary.nodeCount) + "\r\n" +
+      juce::String("savedNodes=") + juce::String(savedSummary.nodeCount) +
+      "\r\n" +
       "savedConnections=" + juce::String(savedSummary.connectionCount) +
       "\r\n" +
-      "insertedNodes=" + juce::String((int)insertedNodeIds.size()) + "\r\n" +
+      "insertedNodes=" + juce::String((int)insertedNodeIds.size()) +
+      "\r\n" +
       "insertedFrameId=" + juce::String(insertedFrameId) + "\r\n" +
       "presetFile=" + presetFile.getFullPathName() + "\r\n" +
       "passed=true\r\n";
@@ -1729,7 +1730,9 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
 
   const auto legacyDocumentJson = makeLegacyGraphJson(sourceDocument);
   Teul::TGraphDocument restoredLegacyDocument;
-  if (!Teul::TSerializer::fromJson(restoredLegacyDocument, legacyDocumentJson)) {
+  Teul::TSchemaMigrationReport legacyDocumentMigration;
+  if (!Teul::TSerializer::fromJson(restoredLegacyDocument, legacyDocumentJson,
+                                   &legacyDocumentMigration)) {
     return juce::Result::fail(
         "Teul compatibility smoke failed to restore the legacy document payload.");
   }
@@ -1738,7 +1741,9 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
       restoredLegacyDocument.nodes.size() != sourceDocument.nodes.size() ||
       restoredLegacyDocument.connections.size() !=
           sourceDocument.connections.size() ||
-      restoredLegacyDocument.frames.size() != sourceDocument.frames.size()) {
+      restoredLegacyDocument.frames.size() != sourceDocument.frames.size() ||
+      !legacyDocumentMigration.migrated ||
+      !legacyDocumentMigration.usedLegacyAliases) {
     return juce::Result::fail(
         "Teul compatibility smoke legacy document restore mismatch.");
   }
@@ -1754,8 +1759,10 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
 
   Teul::TGraphDocument currentPatchDocument;
   Teul::TPatchPresetSummary currentPatchLoadSummary;
+  Teul::TPatchPresetLoadReport currentPatchLoadReport;
   const auto currentPatchLoadResult = Teul::TPatchPresetIO::loadFromFile(
-      currentPatchDocument, currentPatchLoadSummary, currentPatchFile);
+      currentPatchDocument, currentPatchLoadSummary, currentPatchFile,
+      &currentPatchLoadReport);
   if (currentPatchLoadResult.failed())
     return currentPatchLoadResult;
 
@@ -1801,8 +1808,10 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
 
   Teul::TGraphDocument loadedLegacyPatchDocument;
   Teul::TPatchPresetSummary loadedLegacyPatchSummary;
+  Teul::TPatchPresetLoadReport legacyPatchLoadReport;
   const auto patchLoadResult = Teul::TPatchPresetIO::loadFromFile(
-      loadedLegacyPatchDocument, loadedLegacyPatchSummary, legacyPatchFile);
+      loadedLegacyPatchDocument, loadedLegacyPatchSummary, legacyPatchFile,
+      &legacyPatchLoadReport);
   if (patchLoadResult.failed())
     return patchLoadResult;
 
@@ -1818,7 +1827,12 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
   if ((int)loadedLegacyPatchDocument.nodes.size() !=
           currentPatchSummary.nodeCount ||
       (int)insertedNodeIds.size() != currentPatchSummary.nodeCount ||
-      insertedFrameId == 0) {
+      insertedFrameId == 0 || currentPatchLoadReport.migrated ||
+      currentPatchLoadReport.usedLegacyAliases ||
+      !legacyPatchLoadReport.migrated ||
+      !legacyPatchLoadReport.usedLegacyAliases ||
+      !legacyPatchLoadReport.graphMigration.migrated ||
+      !legacyPatchLoadReport.graphMigration.usedLegacyAliases) {
     return juce::Result::fail(
         "Teul compatibility smoke legacy patch preset restore mismatch.");
   }
@@ -1844,15 +1858,15 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
                                currentStateRoot->getProperty("preset_name"));
   legacyStateRoot->setProperty(
       "targetGraphName", currentStateRoot->getProperty("target_graph_name"));
-  auto *legacyStateSummary = new juce::DynamicObject();
-  legacyStateSummary->setProperty("presetName", currentStateSummary.presetName);
-  legacyStateSummary->setProperty("targetGraphName",
+  auto *legacyStateSummaryObject = new juce::DynamicObject();
+  legacyStateSummaryObject->setProperty("presetName", currentStateSummary.presetName);
+  legacyStateSummaryObject->setProperty("targetGraphName",
                                   currentStateSummary.targetGraphName);
-  legacyStateSummary->setProperty("nodeStateCount",
+  legacyStateSummaryObject->setProperty("nodeStateCount",
                                   currentStateSummary.nodeStateCount);
-  legacyStateSummary->setProperty("paramValueCount",
+  legacyStateSummaryObject->setProperty("paramValueCount",
                                   currentStateSummary.paramValueCount);
-  legacyStateRoot->setProperty("presetSummary", legacyStateSummary);
+  legacyStateRoot->setProperty("presetSummary", legacyStateSummaryObject);
 
   juce::Array<juce::var> legacyNodeStates;
   if (auto *nodeStates = currentStateRoot->getProperty("node_states").getArray()) {
@@ -1899,6 +1913,15 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
   mutatedAmpNode->params["gain"] = 0.18;
   mutatedAmpNode->bypassed = !expectedAmpBypassed;
 
+  std::vector<Teul::TStatePresetNodeState> legacyStateNodes;
+  Teul::TStatePresetSummary legacyStateSummary;
+  Teul::TStatePresetLoadReport legacyStateLoadReport;
+  const auto legacyStateLoadResult = Teul::TStatePresetIO::loadFromFile(
+      legacyStateNodes, legacyStateSummary, legacyStateFile,
+      &legacyStateLoadReport);
+  if (legacyStateLoadResult.failed())
+    return legacyStateLoadResult;
+
   Teul::TStatePresetApplyReport legacyStateApplyReport;
   const auto stateApplyResult = Teul::TStatePresetIO::applyToDocument(
       mutatedDocument, legacyStateFile, &legacyStateApplyReport);
@@ -1912,7 +1935,9 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
                expectedFrequency) > 1.0e-9 ||
       std::abs((double)mutatedAmpNode->params["gain"] - expectedAmpGain) >
           1.0e-9 ||
-      mutatedAmpNode->bypassed != expectedAmpBypassed) {
+      mutatedAmpNode->bypassed != expectedAmpBypassed ||
+      !legacyStateLoadReport.migrated ||
+      !legacyStateLoadReport.usedLegacyAliases) {
     return juce::Result::fail(
         "Teul compatibility smoke legacy state preset apply mismatch.");
   }
@@ -1923,10 +1948,31 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
   const auto summaryText =
       juce::String("legacyDocumentNodes=") +
       juce::String((int)restoredLegacyDocument.nodes.size()) + "\r\n" +
+      "legacyDocumentMigrated=" +
+      juce::String(legacyDocumentMigration.migrated ? "true" : "false") +
+      "\r\n" +
+      "legacyDocumentUsedAliases=" +
+      juce::String(legacyDocumentMigration.usedLegacyAliases ? "true" : "false") +
+      "\r\n" +
       "legacyPatchNodes=" +
       juce::String((int)loadedLegacyPatchDocument.nodes.size()) + "\r\n" +
+      "legacyPatchMigrated=" +
+      juce::String(legacyPatchLoadReport.migrated ? "true" : "false") +
+      "\r\n" +
+      "legacyPatchUsedAliases=" +
+      juce::String(legacyPatchLoadReport.usedLegacyAliases ? "true" : "false") +
+      "\r\n" +
+      "legacyPatchGraphMigrated=" +
+      juce::String(legacyPatchLoadReport.graphMigration.migrated ? "true" : "false") +
+      "\r\n" +
       "legacyStateAppliedNodes=" +
       juce::String(legacyStateApplyReport.appliedNodeCount) + "\r\n" +
+      "legacyStateMigrated=" +
+      juce::String(legacyStateLoadReport.migrated ? "true" : "false") +
+      "\r\n" +
+      "legacyStateUsedAliases=" +
+      juce::String(legacyStateLoadReport.usedLegacyAliases ? "true" : "false") +
+      "\r\n" +
       "legacyPatchFile=" + legacyPatchFile.getFullPathName() + "\r\n" +
       "legacyStateFile=" + legacyStateFile.getFullPathName() + "\r\n" +
       "passed=true\r\n";
@@ -1949,10 +1995,24 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
                           outputDirectory.getFullPathName());
   bundleRoot->setProperty("legacyDocumentNodeCount",
                           (int)restoredLegacyDocument.nodes.size());
+  bundleRoot->setProperty("legacyDocumentMigrated",
+                          legacyDocumentMigration.migrated);
+  bundleRoot->setProperty("legacyDocumentUsedAliases",
+                          legacyDocumentMigration.usedLegacyAliases);
   bundleRoot->setProperty("legacyPatchNodeCount",
                           (int)loadedLegacyPatchDocument.nodes.size());
+  bundleRoot->setProperty("legacyPatchMigrated",
+                          legacyPatchLoadReport.migrated);
+  bundleRoot->setProperty("legacyPatchUsedAliases",
+                          legacyPatchLoadReport.usedLegacyAliases);
+  bundleRoot->setProperty("legacyPatchGraphMigrated",
+                          legacyPatchLoadReport.graphMigration.migrated);
   bundleRoot->setProperty("legacyStateAppliedNodeCount",
                           legacyStateApplyReport.appliedNodeCount);
+  bundleRoot->setProperty("legacyStateMigrated",
+                          legacyStateLoadReport.migrated);
+  bundleRoot->setProperty("legacyStateUsedAliases",
+                          legacyStateLoadReport.usedLegacyAliases);
   bundleRoot->setProperty("files", juce::var(files));
   if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
     return juce::Result::fail(

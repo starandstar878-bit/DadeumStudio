@@ -20,11 +20,21 @@ juce::var propertyOrAlias(const juce::DynamicObject *object,
   return fallback;
 }
 
-void setIfNotVoid(juce::DynamicObject &object,
-                  const juce::Identifier &key,
-                  const juce::var &value) {
-  if (!value.isVoid())
-    object.setProperty(key, value);
+bool hasProperty(const juce::DynamicObject *object, const char *key) {
+  return object != nullptr && object->hasProperty(juce::Identifier(key));
+}
+
+bool hasAnyProperty(const juce::DynamicObject *object,
+                    std::initializer_list<const char *> keys) {
+  if (object == nullptr)
+    return false;
+
+  for (const auto *key : keys) {
+    if (hasProperty(object, key))
+      return true;
+  }
+
+  return false;
 }
 
 juce::Array<juce::var> migrateArray(
@@ -41,6 +51,86 @@ juce::Array<juce::var> migrateArray(
 } // namespace
 
 int TSerializer::currentSchemaVersion() noexcept { return 3; }
+
+bool TSerializer::usesLegacyDocumentAliases(const juce::var &json) {
+  const auto *root = json.getDynamicObject();
+  if (root == nullptr)
+    return false;
+
+  if (hasAnyProperty(root, {"schemaVersion", "nextNodeId", "nextPortId",
+                            "nextConnectionId", "nextFrameId",
+                            "nextBookmarkId", "graphMeta", "node_list",
+                            "connection_list", "frame_regions",
+                            "bookmark_list"})) {
+    return true;
+  }
+
+  if (const auto *meta =
+          propertyOrAlias(root, {"meta", "graphMeta"}).getDynamicObject()) {
+    if (hasAnyProperty(meta, {"canvasOffsetX", "canvasOffsetY", "canvasZoom",
+                              "sampleRate", "blockSize"})) {
+      return true;
+    }
+  }
+
+  if (const auto *nodes =
+          propertyOrAlias(root, {"nodes", "node_list"}).getArray()) {
+    for (const auto &nodeVar : *nodes) {
+      const auto *node = nodeVar.getDynamicObject();
+      if (hasAnyProperty(node, {"nodeId", "typeKey", "posX", "posY",
+                                "isCollapsed", "isBypassed", "colorTag",
+                                "paramValues", "param_values", "port_list"})) {
+        return true;
+      }
+
+      if (const auto *ports =
+              propertyOrAlias(node, {"ports", "port_list"}).getArray()) {
+        for (const auto &portVar : *ports) {
+          const auto *port = portVar.getDynamicObject();
+          if (hasAnyProperty(port, {"portId", "portDirection", "dataType",
+                                    "portName", "channelIndex"})) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+
+  if (const auto *connections =
+          propertyOrAlias(root, {"connections", "connection_list"}).getArray()) {
+    for (const auto &connectionVar : *connections) {
+      const auto *connection = connectionVar.getDynamicObject();
+      if (hasAnyProperty(connection, {"connectionId", "source", "target"}))
+        return true;
+    }
+  }
+
+  if (const auto *frames =
+          propertyOrAlias(root, {"frames", "frame_regions"}).getArray()) {
+    for (const auto &frameVar : *frames) {
+      const auto *frame = frameVar.getDynamicObject();
+      if (hasAnyProperty(frame, {"frameId", "frameUuid", "posX", "posY",
+                                 "colorArgb", "isCollapsed", "isLocked",
+                                 "logicalGroup", "membershipExplicit",
+                                 "memberNodeIds"})) {
+        return true;
+      }
+    }
+  }
+
+  if (const auto *bookmarks =
+          propertyOrAlias(root, {"bookmarks", "bookmark_list"}).getArray()) {
+    for (const auto &bookmarkVar : *bookmarks) {
+      const auto *bookmark = bookmarkVar.getDynamicObject();
+      if (hasAnyProperty(bookmark, {"bookmarkId", "focusX", "focusY",
+                                    "colorTag"})) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 
 juce::var TSerializer::migrateDocumentJson(const juce::var &json) {
   if (!json.isObject())
@@ -391,7 +481,19 @@ juce::var TSerializer::bookmarkToJson(const TBookmark &bookmark) {
   return juce::var(obj);
 }
 
-bool TSerializer::fromJson(TGraphDocument &doc, const juce::var &json) {
+bool TSerializer::fromJson(TGraphDocument &doc,
+                           const juce::var &json,
+                           TSchemaMigrationReport *migrationReportOut) {
+  TSchemaMigrationReport migrationReport;
+  migrationReport.sourceSchemaVersion =
+      (int)propertyOrAlias(json.getDynamicObject(),
+                           {"schema_version", "schemaVersion"}, 1);
+  migrationReport.targetSchemaVersion = currentSchemaVersion();
+  migrationReport.usedLegacyAliases = usesLegacyDocumentAliases(json);
+  migrationReport.migrated =
+      migrationReport.usedLegacyAliases ||
+      migrationReport.sourceSchemaVersion != migrationReport.targetSchemaVersion;
+
   const auto migratedJson = migrateDocumentJson(json);
   if (!migratedJson.isObject())
     return false;
@@ -468,6 +570,9 @@ bool TSerializer::fromJson(TGraphDocument &doc, const juce::var &json) {
       maxBookmarkId = juce::jmax(maxBookmarkId, bookmark.bookmarkId);
     doc.setNextBookmarkId(maxBookmarkId + 1);
   }
+
+  if (migrationReportOut != nullptr)
+    *migrationReportOut = migrationReport;
 
   return true;
 }

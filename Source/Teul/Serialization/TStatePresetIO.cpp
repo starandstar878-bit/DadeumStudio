@@ -122,6 +122,15 @@ void hydrateSummaryFromJson(TStatePresetSummary &summary,
   }
 }
 
+bool usesLegacyStateAliases(const juce::DynamicObject *root) {
+  return root != nullptr &&
+         (root->hasProperty("schemaVersion") ||
+          root->hasProperty("presetName") ||
+          root->hasProperty("targetGraphName") ||
+          root->hasProperty("presetSummary") ||
+          root->hasProperty("nodeStates"));
+}
+
 TNode *findFallbackNode(TGraphDocument &document,
                         const TStatePresetNodeState &nodeState) {
   TNode *match = nullptr;
@@ -213,8 +222,10 @@ juce::Result TStatePresetIO::saveDocumentToFile(const TGraphDocument &document,
 }
 
 juce::Result TStatePresetIO::loadFromFile(
-    std::vector<TStatePresetNodeState> &nodeStatesOut, TStatePresetSummary &summaryOut,
-    const juce::File &file) {
+    std::vector<TStatePresetNodeState> &nodeStatesOut,
+    TStatePresetSummary &summaryOut,
+    const juce::File &file,
+    TStatePresetLoadReport *loadReportOut) {
   if (!file.existsAsFile())
     return juce::Result::fail("State preset load failed: file not found.");
 
@@ -230,6 +241,12 @@ juce::Result TStatePresetIO::loadFromFile(
     return juce::Result::fail(
         "State preset load failed: unsupported preset format.");
   }
+
+  TStatePresetLoadReport loadReport;
+  loadReport.sourceSchemaVersion =
+      (int)propertyOrAlias(root, {"schema_version", "schemaVersion"}, 1);
+  loadReport.targetSchemaVersion = kStatePresetSchemaVersion;
+  loadReport.usedLegacyAliases = usesLegacyStateAliases(root);
 
   nodeStatesOut.clear();
   summaryOut = {};
@@ -257,6 +274,12 @@ juce::Result TStatePresetIO::loadFromFile(
     summaryOut.nodeStateCount = (int)nodeStatesOut.size();
   if (summaryOut.paramValueCount <= 0)
     summaryOut.paramValueCount = countParamValues(nodeStatesOut);
+
+  loadReport.migrated =
+      loadReport.usedLegacyAliases ||
+      loadReport.sourceSchemaVersion != loadReport.targetSchemaVersion;
+  if (loadReportOut != nullptr)
+    *loadReportOut = loadReport;
 
   return juce::Result::ok();
 }

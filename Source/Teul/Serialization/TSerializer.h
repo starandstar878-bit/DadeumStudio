@@ -4,14 +4,24 @@
 
 namespace Teul {
 
+struct TSchemaMigrationReport {
+  int sourceSchemaVersion = 0;
+  int targetSchemaVersion = 0;
+  bool migrated = false;
+  bool usedLegacyAliases = false;
+};
+
 class TSerializer {
 public:
   static int currentSchemaVersion() noexcept;
   static juce::var toJson(const TGraphDocument &doc);
-  static bool fromJson(TGraphDocument &doc, const juce::var &json);
+  static bool fromJson(TGraphDocument &doc,
+                       const juce::var &json,
+                       TSchemaMigrationReport *migrationReportOut = nullptr);
 
 private:
   static juce::var migrateDocumentJson(const juce::var &json);
+  static bool usesLegacyDocumentAliases(const juce::var &json);
   static juce::var migrateMetaJson(const juce::var &json);
   static juce::var migrateNodeJson(const juce::var &json);
   static juce::var migratePortJson(const juce::var &json);

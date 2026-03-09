@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Teul/Model/TGraphDocument.h"
+#include "Teul/Serialization/TSerializer.h"
 
 #include <JuceHeader.h>
 #include <vector>
@@ -16,6 +17,14 @@ struct TPatchPresetSummary {
   juce::Rectangle<float> bounds;
 };
 
+struct TPatchPresetLoadReport {
+  int sourceSchemaVersion = 0;
+  int targetSchemaVersion = 0;
+  bool migrated = false;
+  bool usedLegacyAliases = false;
+  TSchemaMigrationReport graphMigration;
+};
+
 class TPatchPresetIO {
 public:
   static juce::String fileExtension();
@@ -27,7 +36,8 @@ public:
                                       TPatchPresetSummary *summaryOut = nullptr);
   static juce::Result loadFromFile(TGraphDocument &presetDocumentOut,
                                    TPatchPresetSummary &summaryOut,
-                                   const juce::File &file);
+                                   const juce::File &file,
+                                   TPatchPresetLoadReport *loadReportOut = nullptr);
   static juce::Result insertFromFile(TGraphDocument &targetDocument,
                                      const juce::File &file,
                                      juce::Point<float> originWorld,
