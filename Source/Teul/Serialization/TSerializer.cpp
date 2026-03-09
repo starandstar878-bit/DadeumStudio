@@ -68,6 +68,466 @@ juce::Array<juce::var> migrateArray(
   return migrated;
 }
 
+juce::String railKindToString(TRailKind kind) {
+  switch (kind) {
+  case TRailKind::input:
+    return "input";
+  case TRailKind::output:
+    return "output";
+  case TRailKind::controlSource:
+    return "control_source";
+  }
+
+  return "control_source";
+}
+
+TRailKind railKindFromVar(const juce::var &value) {
+  if (value.isInt() || value.isInt64())
+    return static_cast<TRailKind>((int)value);
+
+  const auto text = value.toString().trim().toLowerCase();
+  if (text == "input")
+    return TRailKind::input;
+  if (text == "output")
+    return TRailKind::output;
+  return TRailKind::controlSource;
+}
+
+juce::String controlSourceKindToString(TControlSourceKind kind) {
+  switch (kind) {
+  case TControlSourceKind::expression:
+    return "expression";
+  case TControlSourceKind::footswitch:
+    return "footswitch";
+  case TControlSourceKind::trigger:
+    return "trigger";
+  case TControlSourceKind::midiCc:
+    return "midi_cc";
+  case TControlSourceKind::midiNote:
+    return "midi_note";
+  case TControlSourceKind::macro:
+    return "macro";
+  }
+
+  return "expression";
+}
+
+TControlSourceKind controlSourceKindFromVar(const juce::var &value) {
+  if (value.isInt() || value.isInt64())
+    return static_cast<TControlSourceKind>((int)value);
+
+  const auto text = value.toString().trim().toLowerCase();
+  if (text == "footswitch")
+    return TControlSourceKind::footswitch;
+  if (text == "trigger")
+    return TControlSourceKind::trigger;
+  if (text == "midi_cc")
+    return TControlSourceKind::midiCc;
+  if (text == "midi_note")
+    return TControlSourceKind::midiNote;
+  if (text == "macro")
+    return TControlSourceKind::macro;
+  return TControlSourceKind::expression;
+}
+
+juce::String controlSourceModeToString(TControlSourceMode mode) {
+  switch (mode) {
+  case TControlSourceMode::continuous:
+    return "continuous";
+  case TControlSourceMode::momentary:
+    return "momentary";
+  case TControlSourceMode::toggle:
+    return "toggle";
+  }
+
+  return "continuous";
+}
+
+TControlSourceMode controlSourceModeFromVar(const juce::var &value) {
+  if (value.isInt() || value.isInt64())
+    return static_cast<TControlSourceMode>((int)value);
+
+  const auto text = value.toString().trim().toLowerCase();
+  if (text == "momentary")
+    return TControlSourceMode::momentary;
+  if (text == "toggle")
+    return TControlSourceMode::toggle;
+  return TControlSourceMode::continuous;
+}
+
+juce::String controlPortKindToString(TControlPortKind kind) {
+  switch (kind) {
+  case TControlPortKind::value:
+    return "value";
+  case TControlPortKind::gate:
+    return "gate";
+  case TControlPortKind::trigger:
+    return "trigger";
+  }
+
+  return "value";
+}
+
+TControlPortKind controlPortKindFromVar(const juce::var &value) {
+  if (value.isInt() || value.isInt64())
+    return static_cast<TControlPortKind>((int)value);
+
+  const auto text = value.toString().trim().toLowerCase();
+  if (text == "gate")
+    return TControlPortKind::gate;
+  if (text == "trigger")
+    return TControlPortKind::trigger;
+  return TControlPortKind::value;
+}
+
+juce::var controlRailToJson(const TControlRailLayout &rail) {
+  auto *object = new juce::DynamicObject();
+  object->setProperty("id", rail.railId);
+  object->setProperty("title", rail.title);
+  object->setProperty("kind", railKindToString(rail.kind));
+  object->setProperty("collapsed", rail.collapsed);
+  object->setProperty("order", rail.order);
+  return juce::var(object);
+}
+
+bool jsonToControlRail(TControlRailLayout &rail, const juce::var &json) {
+  const auto *object = json.getDynamicObject();
+  if (object == nullptr)
+    return false;
+
+  rail.railId = propertyOrAlias(object, {"id", "rail_id", "railId"}).toString();
+  if (rail.railId.isEmpty())
+    return false;
+
+  rail.title =
+      propertyOrAlias(object, {"title", "display_name", "displayName"}, rail.railId)
+          .toString();
+  rail.kind = railKindFromVar(
+      propertyOrAlias(object, {"kind", "rail_kind", "railKind"}, "control_source"));
+  rail.collapsed = (bool)propertyOrAlias(object, {"collapsed"}, false);
+  rail.order = (int)propertyOrAlias(object, {"order"}, 0);
+  return true;
+}
+
+juce::var controlSourcePortToJson(const TControlSourcePort &port) {
+  auto *object = new juce::DynamicObject();
+  object->setProperty("id", port.portId);
+  object->setProperty("display_name", port.displayName);
+  object->setProperty("kind", controlPortKindToString(port.kind));
+  return juce::var(object);
+}
+
+bool jsonToControlSourcePort(TControlSourcePort &port, const juce::var &json) {
+  const auto *object = json.getDynamicObject();
+  if (object == nullptr)
+    return false;
+
+  port.portId = propertyOrAlias(object, {"id", "port_id", "portId"}).toString();
+  if (port.portId.isEmpty())
+    return false;
+
+  port.displayName =
+      propertyOrAlias(object, {"display_name", "displayName", "name"}, port.portId)
+          .toString();
+  port.kind = controlPortKindFromVar(
+      propertyOrAlias(object, {"kind", "port_kind", "portKind"}, "value"));
+  return true;
+}
+
+juce::var deviceBindingSignatureToJson(const TDeviceBindingSignature &binding) {
+  auto *object = new juce::DynamicObject();
+  object->setProperty("midi_device_name", binding.midiDeviceName);
+  object->setProperty("hardware_id", binding.hardwareId);
+  object->setProperty("midi_channel", binding.midiChannel);
+  object->setProperty("controller_number", binding.controllerNumber);
+  object->setProperty("note_number", binding.noteNumber);
+  return juce::var(object);
+}
+
+bool jsonToDeviceBindingSignature(TDeviceBindingSignature &binding,
+                                  const juce::var &json) {
+  const auto *object = json.getDynamicObject();
+  if (object == nullptr)
+    return false;
+
+  binding.midiDeviceName =
+      propertyOrAlias(object, {"midi_device_name", "midiDeviceName"}).toString();
+  binding.hardwareId = propertyOrAlias(object, {"hardware_id", "hardwareId"}).toString();
+  binding.midiChannel = (int)propertyOrAlias(object, {"midi_channel", "midiChannel"}, 0);
+  binding.controllerNumber =
+      (int)propertyOrAlias(object, {"controller_number", "controllerNumber"}, -1);
+  binding.noteNumber = (int)propertyOrAlias(object, {"note_number", "noteNumber"}, -1);
+  return true;
+}
+
+juce::var deviceSourceProfileToJson(const TDeviceSourceProfile &source) {
+  auto *object = new juce::DynamicObject();
+  object->setProperty("id", source.sourceId);
+  object->setProperty("display_name", source.displayName);
+  object->setProperty("kind", controlSourceKindToString(source.kind));
+  object->setProperty("mode", controlSourceModeToString(source.mode));
+
+  juce::Array<juce::var> portsArray;
+  for (const auto &port : source.ports)
+    portsArray.add(controlSourcePortToJson(port));
+  object->setProperty("ports", portsArray);
+
+  juce::Array<juce::var> bindingsArray;
+  for (const auto &binding : source.bindings)
+    bindingsArray.add(deviceBindingSignatureToJson(binding));
+  object->setProperty("bindings", bindingsArray);
+  return juce::var(object);
+}
+
+bool jsonToDeviceSourceProfile(TDeviceSourceProfile &source, const juce::var &json) {
+  const auto *object = json.getDynamicObject();
+  if (object == nullptr)
+    return false;
+
+  source.sourceId = propertyOrAlias(object, {"id", "source_id", "sourceId"}).toString();
+  if (source.sourceId.isEmpty())
+    return false;
+
+  source.displayName =
+      propertyOrAlias(object, {"display_name", "displayName"}, source.sourceId).toString();
+  source.kind = controlSourceKindFromVar(
+      propertyOrAlias(object, {"kind", "source_kind", "sourceKind"}, "expression"));
+  source.mode = controlSourceModeFromVar(
+      propertyOrAlias(object, {"mode", "source_mode", "sourceMode"}, "continuous"));
+  source.ports.clear();
+  source.bindings.clear();
+
+  if (auto *portsArray = propertyOrAlias(object, {"ports"}).getArray()) {
+    for (const auto &portVar : *portsArray) {
+      TControlSourcePort port;
+      if (jsonToControlSourcePort(port, portVar))
+        source.ports.push_back(std::move(port));
+    }
+  }
+
+  if (auto *bindingsArray = propertyOrAlias(object, {"bindings"}).getArray()) {
+    for (const auto &bindingVar : *bindingsArray) {
+      TDeviceBindingSignature binding;
+      if (jsonToDeviceBindingSignature(binding, bindingVar))
+        source.bindings.push_back(std::move(binding));
+    }
+  }
+
+  return true;
+}
+
+juce::var deviceProfileToJson(const TDeviceProfile &profile) {
+  auto *object = new juce::DynamicObject();
+  object->setProperty("id", profile.profileId);
+  object->setProperty("device_id", profile.deviceId);
+  object->setProperty("display_name", profile.displayName);
+  object->setProperty("auto_detected", profile.autoDetected);
+
+  juce::Array<juce::var> sourcesArray;
+  for (const auto &source : profile.sources)
+    sourcesArray.add(deviceSourceProfileToJson(source));
+  object->setProperty("sources", sourcesArray);
+  return juce::var(object);
+}
+
+bool jsonToDeviceProfile(TDeviceProfile &profile, const juce::var &json) {
+  const auto *object = json.getDynamicObject();
+  if (object == nullptr)
+    return false;
+
+  profile.profileId = propertyOrAlias(object, {"id", "profile_id", "profileId"}).toString();
+  if (profile.profileId.isEmpty())
+    return false;
+
+  profile.deviceId = propertyOrAlias(object, {"device_id", "deviceId"}).toString();
+  profile.displayName =
+      propertyOrAlias(object, {"display_name", "displayName"}, profile.profileId).toString();
+  profile.autoDetected = (bool)propertyOrAlias(object, {"auto_detected", "autoDetected"}, false);
+  profile.sources.clear();
+
+  if (auto *sourcesArray = propertyOrAlias(object, {"sources"}).getArray()) {
+    for (const auto &sourceVar : *sourcesArray) {
+      TDeviceSourceProfile source;
+      if (jsonToDeviceSourceProfile(source, sourceVar))
+        profile.sources.push_back(std::move(source));
+    }
+  }
+
+  return true;
+}
+
+juce::var controlSourceToJson(const TControlSource &source) {
+  auto *object = new juce::DynamicObject();
+  object->setProperty("id", source.sourceId);
+  object->setProperty("device_profile_id", source.deviceProfileId);
+  object->setProperty("rail_id", source.railId);
+  object->setProperty("display_name", source.displayName);
+  object->setProperty("kind", controlSourceKindToString(source.kind));
+  object->setProperty("mode", controlSourceModeToString(source.mode));
+  object->setProperty("auto_detected", source.autoDetected);
+  object->setProperty("confirmed", source.confirmed);
+  object->setProperty("missing", source.missing);
+
+  juce::Array<juce::var> portsArray;
+  for (const auto &port : source.ports)
+    portsArray.add(controlSourcePortToJson(port));
+  object->setProperty("ports", portsArray);
+  return juce::var(object);
+}
+
+bool jsonToControlSource(TControlSource &source, const juce::var &json) {
+  const auto *object = json.getDynamicObject();
+  if (object == nullptr)
+    return false;
+
+  source.sourceId = propertyOrAlias(object, {"id", "source_id", "sourceId"}).toString();
+  if (source.sourceId.isEmpty())
+    return false;
+
+  source.deviceProfileId =
+      propertyOrAlias(object, {"device_profile_id", "deviceProfileId"}).toString();
+  source.railId = propertyOrAlias(object, {"rail_id", "railId"}, "control-rail").toString();
+  source.displayName =
+      propertyOrAlias(object, {"display_name", "displayName"}, source.sourceId).toString();
+  source.kind = controlSourceKindFromVar(
+      propertyOrAlias(object, {"kind", "source_kind", "sourceKind"}, "expression"));
+  source.mode = controlSourceModeFromVar(
+      propertyOrAlias(object, {"mode", "source_mode", "sourceMode"}, "continuous"));
+  source.autoDetected = (bool)propertyOrAlias(object, {"auto_detected", "autoDetected"}, false);
+  source.confirmed = (bool)propertyOrAlias(object, {"confirmed"}, false);
+  source.missing = (bool)propertyOrAlias(object, {"missing"}, false);
+  source.ports.clear();
+
+  if (auto *portsArray = propertyOrAlias(object, {"ports"}).getArray()) {
+    for (const auto &portVar : *portsArray) {
+      TControlSourcePort port;
+      if (jsonToControlSourcePort(port, portVar))
+        source.ports.push_back(std::move(port));
+    }
+  }
+
+  return true;
+}
+
+juce::var controlAssignmentToJson(const TControlSourceAssignment &assignment) {
+  auto *object = new juce::DynamicObject();
+  object->setProperty("source_id", assignment.sourceId);
+  object->setProperty("port_id", assignment.portId);
+  object->setProperty("target_node_id", (int64_t)assignment.targetNodeId);
+  object->setProperty("target_param_id", assignment.targetParamId);
+  return juce::var(object);
+}
+
+bool jsonToControlAssignment(TControlSourceAssignment &assignment,
+                             const juce::var &json) {
+  const auto *object = json.getDynamicObject();
+  if (object == nullptr)
+    return false;
+
+  assignment.sourceId = propertyOrAlias(object, {"source_id", "sourceId"}).toString();
+  assignment.portId = propertyOrAlias(object, {"port_id", "portId"}).toString();
+  assignment.targetNodeId =
+      (NodeId)(int64_t)propertyOrAlias(object, {"target_node_id", "targetNodeId"}, 0);
+  assignment.targetParamId =
+      propertyOrAlias(object, {"target_param_id", "targetParamId"}).toString();
+  return assignment.sourceId.isNotEmpty() && assignment.portId.isNotEmpty();
+}
+
+juce::var controlStateToJson(const TControlSourceState &state) {
+  auto *object = new juce::DynamicObject();
+
+  juce::Array<juce::var> railsArray;
+  for (const auto &rail : state.rails)
+    railsArray.add(controlRailToJson(rail));
+  object->setProperty("rails", railsArray);
+
+  juce::Array<juce::var> sourcesArray;
+  for (const auto &source : state.sources)
+    sourcesArray.add(controlSourceToJson(source));
+  object->setProperty("sources", sourcesArray);
+
+  juce::Array<juce::var> profilesArray;
+  for (const auto &profile : state.deviceProfiles)
+    profilesArray.add(deviceProfileToJson(profile));
+  object->setProperty("device_profiles", profilesArray);
+
+  juce::Array<juce::var> assignmentsArray;
+  for (const auto &assignment : state.assignments)
+    assignmentsArray.add(controlAssignmentToJson(assignment));
+  object->setProperty("assignments", assignmentsArray);
+
+  juce::Array<juce::var> missingProfilesArray;
+  for (const auto &profileId : state.missingDeviceProfileIds)
+    missingProfilesArray.add(profileId);
+  object->setProperty("missing_device_profile_ids", missingProfilesArray);
+  return juce::var(object);
+}
+
+void jsonToControlState(TControlSourceState &state, const juce::var &json) {
+  state = {};
+
+  const auto *object = json.getDynamicObject();
+  if (object == nullptr) {
+    state.ensureDefaultRails();
+    return;
+  }
+
+  state.rails.clear();
+  state.sources.clear();
+  state.deviceProfiles.clear();
+  state.assignments.clear();
+  state.missingDeviceProfileIds.clear();
+
+  if (auto *railsArray = propertyOrAlias(object, {"rails", "rail_layouts", "railLayouts"}).getArray()) {
+    for (const auto &railVar : *railsArray) {
+      TControlRailLayout rail;
+      if (jsonToControlRail(rail, railVar))
+        state.rails.push_back(std::move(rail));
+    }
+  }
+
+  if (auto *sourcesArray = propertyOrAlias(object, {"sources", "control_sources", "controlSources"}).getArray()) {
+    for (const auto &sourceVar : *sourcesArray) {
+      TControlSource source;
+      if (jsonToControlSource(source, sourceVar))
+        state.sources.push_back(std::move(source));
+    }
+  }
+
+  if (auto *profilesArray = propertyOrAlias(object, {"device_profiles", "deviceProfiles"}).getArray()) {
+    for (const auto &profileVar : *profilesArray) {
+      TDeviceProfile profile;
+      if (jsonToDeviceProfile(profile, profileVar))
+        state.deviceProfiles.push_back(std::move(profile));
+    }
+  }
+
+  if (auto *assignmentsArray = propertyOrAlias(object, {"assignments", "control_assignments", "controlAssignments"}).getArray()) {
+    for (const auto &assignmentVar : *assignmentsArray) {
+      TControlSourceAssignment assignment;
+      if (jsonToControlAssignment(assignment, assignmentVar))
+        state.assignments.push_back(std::move(assignment));
+    }
+  }
+
+  if (auto *missingProfilesArray =
+          propertyOrAlias(object, {"missing_device_profile_ids", "missingDeviceProfileIds"}).getArray()) {
+    for (const auto &profileVar : *missingProfilesArray) {
+      const auto profileId = profileVar.toString().trim();
+      if (profileId.isNotEmpty())
+        state.missingDeviceProfileIds.push_back(profileId);
+    }
+  }
+
+  state.ensureDefaultRails();
+}
+
+juce::var migrateControlStateJson(const juce::var &json) {
+  TControlSourceState state;
+  jsonToControlState(state, json);
+  return controlStateToJson(state);
+}
+
 } // namespace
 
 int TSerializer::currentSchemaVersion() noexcept { return 3; }
@@ -79,7 +539,7 @@ bool TSerializer::usesLegacyDocumentAliases(const juce::var &json) {
 
   if (hasAnyProperty(root, {"schemaVersion", "nextNodeId", "nextPortId",
                             "nextConnectionId", "nextFrameId",
-                            "nextBookmarkId", "graphMeta", "node_list",
+                            "nextBookmarkId", "graphMeta", "controlState", "node_list",
                             "connection_list", "frame_regions",
                             "bookmark_list"})) {
     return true;
@@ -225,6 +685,10 @@ juce::var TSerializer::normalizeDocumentJson(const juce::var &json) {
                    [](const juce::var &item) {
                      return TSerializer::migrateBookmarkJson(item);
                    }));
+  object->setProperty(
+      "control_state",
+      migrateControlStateJson(
+          propertyOrAlias(source, {"control_state", "controlState"})));
   return juce::var(object);
 }
 
@@ -278,6 +742,10 @@ juce::var TSerializer::migrateDocumentV1ToV2(const juce::var &json) {
                    [](const juce::var &item) {
                      return TSerializer::migrateBookmarkJson(item);
                    }));
+  object->setProperty(
+      "control_state",
+      migrateControlStateJson(
+          propertyOrAlias(source, {"control_state", "controlState"})));
   return juce::var(object);
 }
 
@@ -331,6 +799,10 @@ juce::var TSerializer::migrateDocumentV2ToV3(const juce::var &json) {
                    [](const juce::var &item) {
                      return TSerializer::migrateBookmarkJson(item);
                    }));
+  object->setProperty(
+      "control_state",
+      migrateControlStateJson(
+          propertyOrAlias(source, {"control_state", "controlState"})));
   return juce::var(object);
 }
 
@@ -566,6 +1038,7 @@ juce::var TSerializer::toJson(const TGraphDocument &doc) {
   for (const auto &bookmark : doc.bookmarks)
     bookmarksArr.add(bookmarkToJson(bookmark));
   obj->setProperty("bookmarks", bookmarksArr);
+  obj->setProperty("control_state", controlStateToJson(doc.controlState));
 
   return juce::var(obj);
 }
@@ -708,6 +1181,7 @@ bool TSerializer::fromJson(TGraphDocument &doc,
   doc.connections.clear();
   doc.frames.clear();
   doc.bookmarks.clear();
+  doc.controlState = {};
 
   doc.schemaVersion = currentSchemaVersion();
   doc.setNextNodeId(
@@ -762,6 +1236,10 @@ bool TSerializer::fromJson(TGraphDocument &doc,
         doc.bookmarks.push_back(std::move(bookmark));
     }
   }
+
+  jsonToControlState(
+      doc.controlState,
+      migratedJson.getProperty("control_state", juce::var()));
 
   if (doc.getNextFrameId() <= 0) {
     int maxFrameId = 0;

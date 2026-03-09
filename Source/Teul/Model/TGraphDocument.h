@@ -71,6 +71,170 @@ struct TBookmark {
   juce::String colorTag;
 };
 
+enum class TRailKind { input, output, controlSource };
+
+enum class TControlSourceKind {
+  expression,
+  footswitch,
+  trigger,
+  midiCc,
+  midiNote,
+  macro
+};
+
+enum class TControlSourceMode { continuous, momentary, toggle };
+
+enum class TControlPortKind { value, gate, trigger };
+
+struct TControlRailLayout {
+  juce::String railId;
+  juce::String title;
+  TRailKind kind = TRailKind::controlSource;
+  bool collapsed = false;
+  int order = 0;
+};
+
+struct TControlSourcePort {
+  juce::String portId;
+  juce::String displayName;
+  TControlPortKind kind = TControlPortKind::value;
+};
+
+struct TDeviceBindingSignature {
+  juce::String midiDeviceName;
+  juce::String hardwareId;
+  int midiChannel = 0;
+  int controllerNumber = -1;
+  int noteNumber = -1;
+};
+
+struct TDeviceSourceProfile {
+  juce::String sourceId;
+  juce::String displayName;
+  TControlSourceKind kind = TControlSourceKind::expression;
+  TControlSourceMode mode = TControlSourceMode::continuous;
+  std::vector<TControlSourcePort> ports;
+  std::vector<TDeviceBindingSignature> bindings;
+};
+
+struct TDeviceProfile {
+  juce::String profileId;
+  juce::String deviceId;
+  juce::String displayName;
+  bool autoDetected = false;
+  std::vector<TDeviceSourceProfile> sources;
+};
+
+struct TControlSource {
+  juce::String sourceId;
+  juce::String deviceProfileId;
+  juce::String railId = "control-rail";
+  juce::String displayName;
+  TControlSourceKind kind = TControlSourceKind::expression;
+  TControlSourceMode mode = TControlSourceMode::continuous;
+  std::vector<TControlSourcePort> ports;
+  bool autoDetected = false;
+  bool confirmed = false;
+  bool missing = false;
+};
+
+struct TControlSourceAssignment {
+  juce::String sourceId;
+  juce::String portId;
+  NodeId targetNodeId = kInvalidNodeId;
+  juce::String targetParamId;
+};
+
+struct TControlSourceState {
+  std::vector<TControlRailLayout> rails;
+  std::vector<TControlSource> sources;
+  std::vector<TDeviceProfile> deviceProfiles;
+  std::vector<TControlSourceAssignment> assignments;
+  std::vector<juce::String> missingDeviceProfileIds;
+
+  TControlSourceState() { ensureDefaultRails(); }
+
+  void ensureDefaultRails() {
+    ensureRail("input-rail", "Inputs", TRailKind::input, 0);
+    ensureRail("control-rail", "Controls", TRailKind::controlSource, 1);
+    ensureRail("output-rail", "Outputs", TRailKind::output, 2);
+  }
+
+  void ensureRail(const juce::String &railId,
+                  const juce::String &title,
+                  TRailKind kind,
+                  int order) {
+    if (auto *rail = findRail(railId)) {
+      rail->title = title;
+      rail->kind = kind;
+      rail->order = order;
+      return;
+    }
+
+    TControlRailLayout rail;
+    rail.railId = railId;
+    rail.title = title;
+    rail.kind = kind;
+    rail.order = order;
+    rails.push_back(std::move(rail));
+  }
+
+  TControlRailLayout *findRail(const juce::String &railId) noexcept {
+    for (auto &rail : rails) {
+      if (rail.railId == railId)
+        return &rail;
+    }
+
+    return nullptr;
+  }
+
+  const TControlRailLayout *findRail(const juce::String &railId) const noexcept {
+    for (const auto &rail : rails) {
+      if (rail.railId == railId)
+        return &rail;
+    }
+
+    return nullptr;
+  }
+
+  TControlSource *findSource(const juce::String &sourceId) noexcept {
+    for (auto &source : sources) {
+      if (source.sourceId == sourceId)
+        return &source;
+    }
+
+    return nullptr;
+  }
+
+  const TControlSource *findSource(const juce::String &sourceId) const noexcept {
+    for (const auto &source : sources) {
+      if (source.sourceId == sourceId)
+        return &source;
+    }
+
+    return nullptr;
+  }
+
+  TDeviceProfile *findDeviceProfile(const juce::String &profileId) noexcept {
+    for (auto &profile : deviceProfiles) {
+      if (profile.profileId == profileId)
+        return &profile;
+    }
+
+    return nullptr;
+  }
+
+  const TDeviceProfile *
+  findDeviceProfile(const juce::String &profileId) const noexcept {
+    for (const auto &profile : deviceProfiles) {
+      if (profile.profileId == profileId)
+        return &profile;
+    }
+
+    return nullptr;
+  }
+};
+
 struct TGraphDocument {
   TGraphDocument();
   ~TGraphDocument();
@@ -88,6 +252,7 @@ struct TGraphDocument {
   std::vector<TConnection> connections;
   std::vector<TFrameRegion> frames;
   std::vector<TBookmark> bookmarks;
+  TControlSourceState controlState;
 
   NodeId allocNodeId() noexcept { return nextNodeId++; }
   PortId allocPortId() noexcept { return nextPortId++; }

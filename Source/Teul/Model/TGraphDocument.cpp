@@ -18,6 +18,7 @@ TGraphDocument::TGraphDocument(const TGraphDocument &other) {
   connections = other.connections;
   frames = other.frames;
   bookmarks = other.bookmarks;
+  controlState = other.controlState;
   nextNodeId = other.nextNodeId;
   nextPortId = other.nextPortId;
   nextConnectionId = other.nextConnectionId;
@@ -38,6 +39,7 @@ TGraphDocument &TGraphDocument::operator=(const TGraphDocument &other) {
     connections = other.connections;
     frames = other.frames;
     bookmarks = other.bookmarks;
+    controlState = other.controlState;
     nextNodeId = other.nextNodeId;
     nextPortId = other.nextPortId;
     nextConnectionId = other.nextConnectionId;

@@ -2147,6 +2147,199 @@ juce::Result runTeulPhase8CompatibilitySmoke(const juce::StringArray &args) {
 }
 
 
+juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
+  const auto outputArg = argValue(args, "--output-dir=");
+  juce::File outputDirectory;
+  if (outputArg.isNotEmpty()) {
+    outputDirectory = juce::File(outputArg);
+  } else {
+    outputDirectory =
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulControlModelSmoke_" +
+                          juce::String(juce::Time::currentTimeMillis()));
+  }
+
+  if (!outputDirectory.createDirectory() && !outputDirectory.isDirectory()) {
+    return juce::Result::fail(
+        "Teul control model smoke output directory could not be created.");
+  }
+
+  Teul::TGraphDocument sourceDocument;
+  sourceDocument.meta.name = "Teul Control Model Smoke";
+  sourceDocument.controlState.ensureDefaultRails();
+
+  Teul::TControlSource expressionSource;
+  expressionSource.sourceId = "exp-1";
+  expressionSource.deviceProfileId = "vox-floor";
+  expressionSource.railId = "control-rail";
+  expressionSource.displayName = "EXP 1";
+  expressionSource.kind = Teul::TControlSourceKind::expression;
+  expressionSource.mode = Teul::TControlSourceMode::continuous;
+  expressionSource.autoDetected = true;
+  expressionSource.confirmed = true;
+  expressionSource.ports.push_back(
+      {"value", "Value", Teul::TControlPortKind::value});
+
+  Teul::TControlSource footswitchSource;
+  footswitchSource.sourceId = "fs-1";
+  footswitchSource.deviceProfileId = "vox-floor";
+  footswitchSource.railId = "control-rail";
+  footswitchSource.displayName = "FS 1";
+  footswitchSource.kind = Teul::TControlSourceKind::footswitch;
+  footswitchSource.mode = Teul::TControlSourceMode::momentary;
+  footswitchSource.autoDetected = true;
+  footswitchSource.confirmed = true;
+  footswitchSource.ports.push_back(
+      {"gate", "Gate", Teul::TControlPortKind::gate});
+  footswitchSource.ports.push_back(
+      {"trigger", "Trigger", Teul::TControlPortKind::trigger});
+
+  sourceDocument.controlState.sources.push_back(expressionSource);
+  sourceDocument.controlState.sources.push_back(footswitchSource);
+
+  Teul::TDeviceProfile deviceProfile;
+  deviceProfile.profileId = "vox-floor";
+  deviceProfile.deviceId = "midi:vox-floor";
+  deviceProfile.displayName = "VOX Floor Controller";
+  deviceProfile.autoDetected = true;
+
+  Teul::TDeviceSourceProfile expressionProfile;
+  expressionProfile.sourceId = "exp-1";
+  expressionProfile.displayName = "EXP 1";
+  expressionProfile.kind = Teul::TControlSourceKind::expression;
+  expressionProfile.mode = Teul::TControlSourceMode::continuous;
+  expressionProfile.ports.push_back(
+      {"value", "Value", Teul::TControlPortKind::value});
+  expressionProfile.bindings.push_back(
+      {"VOX Floor Controller", "vox-floor-hw", 1, 11, -1});
+
+  Teul::TDeviceSourceProfile footswitchProfile;
+  footswitchProfile.sourceId = "fs-1";
+  footswitchProfile.displayName = "FS 1";
+  footswitchProfile.kind = Teul::TControlSourceKind::footswitch;
+  footswitchProfile.mode = Teul::TControlSourceMode::momentary;
+  footswitchProfile.ports.push_back(
+      {"gate", "Gate", Teul::TControlPortKind::gate});
+  footswitchProfile.ports.push_back(
+      {"trigger", "Trigger", Teul::TControlPortKind::trigger});
+  footswitchProfile.bindings.push_back(
+      {"VOX Floor Controller", "vox-floor-hw", 1, -1, 36});
+
+  deviceProfile.sources.push_back(expressionProfile);
+  deviceProfile.sources.push_back(footswitchProfile);
+  sourceDocument.controlState.deviceProfiles.push_back(deviceProfile);
+
+  sourceDocument.controlState.assignments.push_back(
+      {"exp-1", "value", 1, "mix"});
+  sourceDocument.controlState.assignments.push_back(
+      {"fs-1", "trigger", 1, "bypass"});
+  sourceDocument.controlState.missingDeviceProfileIds.push_back(
+      "missing-stage-rig");
+
+  const auto documentJson = Teul::TSerializer::toJson(sourceDocument);
+  const auto documentFile =
+      outputDirectory.getChildFile("control-model-document.json");
+  if (!documentFile.replaceWithText(juce::JSON::toString(documentJson, true),
+                                    false, false, "\r\n")) {
+    return juce::Result::fail(
+        "Teul control model smoke could not write the round-trip document.");
+  }
+
+  Teul::TGraphDocument restoredDocument;
+  Teul::TSchemaMigrationReport migrationReport;
+  if (!Teul::TSerializer::fromJson(restoredDocument, documentJson,
+                                   &migrationReport)) {
+    return juce::Result::fail(
+        "Teul control model smoke could not restore the round-trip document.");
+  }
+
+  const auto *controlRail =
+      restoredDocument.controlState.findRail("control-rail");
+  const auto *expressionRestored =
+      restoredDocument.controlState.findSource("exp-1");
+  const auto *footswitchRestored =
+      restoredDocument.controlState.findSource("fs-1");
+  const auto *profileRestored =
+      restoredDocument.controlState.findDeviceProfile("vox-floor");
+  const bool passed =
+      restoredDocument.controlState.rails.size() == 3 &&
+      controlRail != nullptr &&
+      controlRail->kind == Teul::TRailKind::controlSource &&
+      restoredDocument.controlState.sources.size() == 2 &&
+      expressionRestored != nullptr && expressionRestored->ports.size() == 1 &&
+      footswitchRestored != nullptr && footswitchRestored->ports.size() == 2 &&
+      restoredDocument.controlState.deviceProfiles.size() == 1 &&
+      profileRestored != nullptr && profileRestored->sources.size() == 2 &&
+      restoredDocument.controlState.assignments.size() == 2 &&
+      restoredDocument.controlState.missingDeviceProfileIds.size() == 1 &&
+      !migrationReport.degraded;
+
+  const auto summaryFile =
+      outputDirectory.getChildFile("control-model-summary.txt");
+  const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
+  const auto summaryText =
+      "railCount=" +
+      juce::String((int)restoredDocument.controlState.rails.size()) + "\r\n" +
+      "sourceCount=" +
+      juce::String((int)restoredDocument.controlState.sources.size()) + "\r\n" +
+      "deviceProfileCount=" +
+      juce::String((int)restoredDocument.controlState.deviceProfiles.size()) +
+      "\r\n" +
+      "assignmentCount=" +
+      juce::String((int)restoredDocument.controlState.assignments.size()) +
+      "\r\n" +
+      "missingDeviceProfileCount=" +
+      juce::String(
+          (int)restoredDocument.controlState.missingDeviceProfileIds.size()) +
+      "\r\n" +
+      "migrated=" +
+      juce::String(migrationReport.migrated ? "true" : "false") + "\r\n" +
+      "passed=" + juce::String(passed ? "true" : "false") + "\r\n";
+  if (!summaryFile.replaceWithText(summaryText, false, false, "\r\n")) {
+    return juce::Result::fail(
+        "Teul control model smoke could not write its summary file.");
+  }
+
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("document", outputDirectory, documentFile));
+  files.add(makeArtifactFileEntry("summary", outputDirectory, summaryFile));
+  auto *bundleRoot = new juce::DynamicObject();
+  bundleRoot->setProperty("kind", "teul-verification-artifact-bundle");
+  bundleRoot->setProperty("scope", "control-model-smoke");
+  bundleRoot->setProperty("passed", passed);
+  bundleRoot->setProperty("artifactDirectory",
+                          outputDirectory.getFullPathName());
+  bundleRoot->setProperty("railCount",
+                          (int)restoredDocument.controlState.rails.size());
+  bundleRoot->setProperty("sourceCount",
+                          (int)restoredDocument.controlState.sources.size());
+  bundleRoot->setProperty(
+      "deviceProfileCount",
+      (int)restoredDocument.controlState.deviceProfiles.size());
+  bundleRoot->setProperty(
+      "assignmentCount",
+      (int)restoredDocument.controlState.assignments.size());
+  bundleRoot->setProperty(
+      "missingDeviceProfileCount",
+      (int)restoredDocument.controlState.missingDeviceProfileIds.size());
+  bundleRoot->setProperty("files", juce::var(files));
+  if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
+    return juce::Result::fail(
+        "Teul control model smoke could not write its artifact bundle.");
+  }
+
+  if (!passed)
+    return juce::Result::fail("Teul control model smoke checks failed.");
+
+  std::cout << "Teul Phase8 control model smoke directory: "
+            << outputDirectory.getFullPathName() << std::endl;
+  std::cout << summaryText << std::endl;
+  std::cout << "Teul Phase8 control model smoke checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
+
+
 juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
   const auto outputArg = argValue(args, "--output-dir=");
   juce::File outputDirectory;
@@ -3129,6 +3322,20 @@ public:
       const auto smokeResult = runTeulPhase8CompatibilitySmoke(args);
       if (smokeResult.failed()) {
         std::cerr << "Teul Phase8 compatibility smoke failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
+    if (hasArg(args, "--teul-phase8-control-model-smoke")) {
+      const auto smokeResult = runTeulPhase8ControlModelSmoke(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase8 control model smoke failed: "
                   << smokeResult.getErrorMessage() << std::endl;
         setApplicationReturnValue(1);
       } else {

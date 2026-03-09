@@ -76,5 +76,6 @@ Builds/TeulStatePresetSmoke_*/
 Builds/TeulAutosaveRecoverySmoke_*/
 Builds/TeulCompatibilitySmoke_*/
 Builds/TeulCompatibilityMatrix_*/
+Builds/TeulControlModelSmoke_*/
 
 Builds/TeulPresetLibrary/
