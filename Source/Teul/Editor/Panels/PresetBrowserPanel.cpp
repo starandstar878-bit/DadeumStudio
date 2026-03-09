@@ -286,7 +286,7 @@ public:
     area.removeFromTop(8);
 
     if (selectionPreviewEditor.isVisible()) {
-      auto diffArea = area.removeFromTop(66);
+      auto diffArea = area.removeFromTop(88);
       selectionPreviewEditor.setBounds(diffArea);
       area.removeFromTop(8);
     } else {

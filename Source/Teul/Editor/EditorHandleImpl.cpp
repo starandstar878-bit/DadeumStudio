@@ -11,6 +11,97 @@
 
 namespace Teul {
 
+namespace {
+
+juce::String teulGraphDisplayName(const TGraphDocument &document) {
+  return document.meta.name.isNotEmpty() ? document.meta.name
+                                        : juce::String("Untitled");
+}
+
+juce::String formatRecoveryCountDiff(const juce::String &label, int currentCount,
+                                     int snapshotCount) {
+  const int delta = snapshotCount - currentCount;
+  juce::String text = label + " " + juce::String(currentCount) + " -> " +
+                      juce::String(snapshotCount);
+  if (delta > 0)
+    text << " (+" << juce::String(delta) << ")";
+  else if (delta < 0)
+    text << " (" << juce::String(delta) << ")";
+  else
+    text << " (=)";
+  return text;
+}
+
+juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
+                                      const juce::File &recoveryFile,
+                                      juce::String &summaryText,
+                                      juce::String &detailText,
+                                      bool &warning) {
+  TGraphDocument recoveryDocument;
+  TSchemaMigrationReport migrationReport;
+  if (!TFileIo::loadFromFile(recoveryDocument, recoveryFile, &migrationReport))
+    return juce::Result::fail(
+        "Recovery preview failed: autosave snapshot could not be loaded.");
+
+  const auto currentName = teulGraphDisplayName(currentDocument);
+  const auto recoveryName = teulGraphDisplayName(recoveryDocument);
+  const bool nameChanged = currentName != recoveryName;
+  const bool nodeCountChanged =
+      currentDocument.nodes.size() != recoveryDocument.nodes.size();
+  const bool connectionCountChanged =
+      currentDocument.connections.size() != recoveryDocument.connections.size();
+  const bool frameCountChanged =
+      currentDocument.frames.size() != recoveryDocument.frames.size();
+
+  summaryText = "Recovery Diff Preview";
+
+  juce::StringArray parts;
+  parts.add(formatRecoveryCountDiff("Nodes", (int)currentDocument.nodes.size(),
+                                    (int)recoveryDocument.nodes.size()));
+  parts.add(formatRecoveryCountDiff(
+      "Wires", (int)currentDocument.connections.size(),
+      (int)recoveryDocument.connections.size()));
+  if (!currentDocument.frames.empty() || !recoveryDocument.frames.empty()) {
+    parts.add(formatRecoveryCountDiff("Frames",
+                                      (int)currentDocument.frames.size(),
+                                      (int)recoveryDocument.frames.size()));
+  }
+
+  detailText = parts.joinIntoString("  |  ");
+  if (nameChanged)
+    detailText << "\r\nGraph: " << currentName << " -> " << recoveryName;
+  else
+    detailText << "\r\nGraph: " << currentName;
+
+  juce::StringArray compatibilityParts;
+  if (migrationReport.migrated)
+    compatibilityParts.add("migrated");
+  if (migrationReport.usedLegacyAliases)
+    compatibilityParts.add("legacy aliases");
+  if (migrationReport.degraded)
+    compatibilityParts.add("degraded");
+  if (!compatibilityParts.isEmpty())
+    detailText << "\r\nCompatibility: "
+               << compatibilityParts.joinIntoString(" | ");
+
+  if (!migrationReport.warnings.isEmpty())
+    detailText << "\r\nWarnings: "
+               << migrationReport.warnings.joinIntoString(" | ");
+
+  if (!nameChanged && !nodeCountChanged && !connectionCountChanged &&
+      !frameCountChanged && !migrationReport.degraded &&
+      migrationReport.warnings.isEmpty()) {
+    detailText << "\r\nStructure matches the current document.";
+  }
+
+  warning = nameChanged || nodeCountChanged || connectionCountChanged ||
+            frameCountChanged || migrationReport.migrated ||
+            migrationReport.degraded || !migrationReport.warnings.isEmpty();
+  return juce::Result::ok();
+}
+
+} // namespace
+
 class RuntimeStatusStrip : public juce::Component {
 public:
   void setStats(const TGraphRuntime::RuntimeStats &newStats) {
@@ -397,6 +488,17 @@ EditorHandle::Impl::Impl(
   presetBrowserPanel->setEntryPreviewHandler(
       [this](const TPresetEntry &entry, juce::String &summaryText,
              juce::String &detailText, bool &warning) {
+        if (entry.presetKind == "teul.recovery") {
+          const auto result = buildRecoveryDiffPreview(doc, entry.file, summaryText,
+                                                       detailText, warning);
+          if (result.failed()) {
+            summaryText = "Recovery Diff Preview Unavailable";
+            detailText = result.getErrorMessage();
+            warning = true;
+          }
+          return;
+        }
+
         if (entry.presetKind != "teul.state")
           return;
 
