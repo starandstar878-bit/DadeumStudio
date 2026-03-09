@@ -562,14 +562,39 @@ private:
     conflictLabel.setVisible(isConflictArmed());
     detailEditor.setText(selectedEntry->detailText, false);
     if (isConflictArmed()) {
-      conflictLabel.setText(
-          "Unsaved session conflict is armed for this preset action.",
-          juce::dontSendNotification);
-      statusLabel.setText("Confirm with the primary action or cancel.",
+      conflictLabel.setText(conflictSummaryText(*selectedEntry, previewDetail),
+                            juce::dontSendNotification);
+      statusLabel.setText("Review the overwrite summary, then continue or cancel.",
                           juce::dontSendNotification);
     }
     updateActionButtons();
     resized();
+  }
+
+  static juce::String firstNonEmptyLine(const juce::String &text) {
+    juce::StringArray lines;
+    lines.addLines(text);
+    lines.trim();
+    lines.removeEmptyStrings();
+    return lines.isEmpty() ? juce::String() : lines[0];
+  }
+
+  juce::String conflictSummaryText(const TPresetEntry &entry,
+                                   const juce::String &previewDetail) const {
+    const auto detailLine = firstNonEmptyLine(previewDetail);
+    if (entry.presetKind == "teul.recovery") {
+      if (detailLine.isNotEmpty())
+        return "Restore will replace: " + detailLine;
+      return "Restore will replace the current Teul graph.";
+    }
+
+    if (entry.presetKind == "teul.state") {
+      if (detailLine.isNotEmpty())
+        return "Apply will overwrite: " + detailLine;
+      return "Apply will overwrite matching node values and bypass states.";
+    }
+
+    return "Unsaved session conflict is armed for this preset action.";
   }
 
   static juce::String joinFileLine(const TPresetEntry &entry,
@@ -588,11 +613,7 @@ private:
     if (requiresConflictConfirmation(*selectedEntry) &&
         pendingConflictEntryId != selectedEntry->entryId) {
       pendingConflictEntryId = selectedEntry->entryId;
-      statusLabel.setText(
-          selectedEntry->primaryActionLabel +
-              " is armed. Review the conflict preview and press again to continue.",
-          juce::dontSendNotification);
-      updateActionButtons();
+      refreshDetailPanel();
       return;
     }
 
