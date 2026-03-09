@@ -228,6 +228,26 @@
   - autosave / crash recovery
   - compatibility test matrix
 
+### External Control Sources / Device Profiles
+
+목표:
+- 외부 MIDI foot controller, expression pedal, switch 입력을 그래프의 시스템 경계로 다루고, preset/state 복원 흐름과 함께 안정적으로 저장·재연결한다.
+
+주요 작업:
+- [ ] **Control Source Rail 모델 도입**: 좌측 Input rail, 우측 Output rail, 하단 Control Source rail 구조를 기준으로 시스템 I/O와 일반 DSP 노드를 분리
+- [ ] **동적 장치 감지**: 연결된 외부 컨트롤 장치를 감지하고, 입력 이벤트를 바탕으로 임시 control source를 자동 생성
+- [ ] **learn + confirm 등록 흐름**: 사용자가 페달/스위치를 움직여 `EXP`, `FS`, `Trigger` source를 확정하고 이름, 타입, momentary/toggle 모드를 보정
+- [ ] **device profile persist**: 장치별 source 구성, 표시 이름, binding 정보를 profile로 저장하고 재연결 시 안정적으로 복원
+- [ ] **preset/state 연동 복원**: 문서 로드, preset 전환, crash recovery 이후에도 control source assignment와 device mapping이 일관되게 복원되도록 상태 모델 정리
+- [ ] **fallback / partial recovery 정책**: 장치가 없거나 source 일부가 누락된 경우 unassigned, degraded, relink-needed 상태를 명시적으로 유지
+- [ ] **assignment inspector 계약 정리**: `Value`, `Gate`, `Trigger` 같은 source 출력 타입과 target parameter binding 규칙을 명문화
+- [ ] **검증 항목 추가**: device reconnect, profile mismatch, preset reload, missing controller 상황에 대한 state recovery 테스트 추가
+
+완료 기준:
+- 대표 foot controller / expression 장치를 연결했을 때 source가 자동 감지되고, 사용자가 learn으로 의미를 확정할 수 있다.
+- 저장 후 재실행하거나 장치를 재연결해도 source profile과 assignment가 일관되게 복원된다.
+- 장치가 누락되거나 구성이 달라져도 문서가 깨지지 않고 degraded 상태로 복구된다.
+
 **바로 이어서 UI**
 - UI `Phase 8`
   - Preset Browser

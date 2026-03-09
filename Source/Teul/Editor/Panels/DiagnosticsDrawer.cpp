@@ -593,6 +593,12 @@ public:
     addAndMakeVisible(filterBox);
     addAndMakeVisible(compareLabel);
     addAndMakeVisible(compareBox);
+    addAndMakeVisible(runGoldenVerifyButton);
+    addAndMakeVisible(runParityMatrixButton);
+    addAndMakeVisible(runCompiledParityButton);
+    addAndMakeVisible(runCompileSmokeButton);
+    addAndMakeVisible(runBenchmarkButton);
+    addAndMakeVisible(actionStatusLabel);
     addAndMakeVisible(refreshButton);
     addAndMakeVisible(closeButton);
     addAndMakeVisible(listViewport);
@@ -632,6 +638,22 @@ public:
     compareBox.setSelectedId(compareNone, juce::dontSendNotification);
     compareBox.onChange = [this] { refreshDetailPanels(); };
 
+    runGoldenVerifyButton.setButtonText("Golden Verify");
+    runParityMatrixButton.setButtonText("Parity Matrix");
+    runCompiledParityButton.setButtonText("Compiled Parity");
+    runCompileSmokeButton.setButtonText("Compile Smoke");
+    runBenchmarkButton.setButtonText("Benchmark");
+    runGoldenVerifyButton.onClick = [this] { startActionProcess("Golden Verify", "--teul-phase7-golden-audio-verify"); };
+    runParityMatrixButton.onClick = [this] { startActionProcess("Parity Matrix", "--teul-phase7-parity-matrix"); };
+    runCompiledParityButton.onClick = [this] { startActionProcess("Compiled Parity", "--teul-phase7-compiled-runtime-parity"); };
+    runCompileSmokeButton.onClick = [this] { startActionProcess("Compile Smoke", "--teul-phase7-runtime-compile-smoke"); };
+    runBenchmarkButton.onClick = [this] { startActionProcess("Benchmark Gate", "--teul-phase7-benchmark-gate"); };
+
+    actionStatusLabel.setText("Action Bar idle", juce::dontSendNotification);
+    actionStatusLabel.setColour(juce::Label::textColourId,
+                                juce::Colours::white.withAlpha(0.58f));
+    actionStatusLabel.setJustificationType(juce::Justification::centredLeft);
+
     refreshButton.setButtonText("Refresh");
     closeButton.setButtonText("Hide");
     refreshButton.onClick = [this] { refreshArtifacts(true); };
@@ -657,6 +679,7 @@ public:
 
     configureReadOnlyEditor(detailEditor);
     configureReadOnlyEditor(diffEditor);
+    updateActionButtons();
 
     setVisible(false);
   }
@@ -798,8 +821,24 @@ public:
     controlArea.removeFromLeft(6);
     compareBox.setBounds(controlArea.removeFromLeft(220));
 
+    area.removeFromTop(6);
+    auto actionRow = area.removeFromTop(26);
+    runGoldenVerifyButton.setBounds(actionRow.removeFromLeft(108));
+    actionRow.removeFromLeft(4);
+    runParityMatrixButton.setBounds(actionRow.removeFromLeft(102));
+    actionRow.removeFromLeft(4);
+    runCompiledParityButton.setBounds(actionRow.removeFromLeft(114));
+    actionRow.removeFromLeft(4);
+    runCompileSmokeButton.setBounds(actionRow.removeFromLeft(110));
+    actionRow.removeFromLeft(4);
+    runBenchmarkButton.setBounds(actionRow.removeFromLeft(94));
+
+    area.removeFromTop(4);
+    auto actionStatusArea = area.removeFromTop(18);
+    actionStatusLabel.setBounds(actionStatusArea);
+
     area.removeFromTop(8);
-    auto listArea = area.removeFromTop(juce::roundToInt(area.getHeight() * 0.42f));
+    auto listArea = area.removeFromTop(juce::roundToInt(area.getHeight() * 0.38f));
     listViewport.setBounds(listArea);
 
     area.removeFromTop(8);
@@ -820,7 +859,7 @@ public:
   }
 
 private:
-  void timerCallback() override { refreshArtifacts(false); }
+  void timerCallback() override { pollRunningAction(); refreshArtifacts(false); }
 
   static void configureReadOnlyEditor(juce::TextEditor &editor) {
     editor.setMultiLine(true);
@@ -833,6 +872,77 @@ private:
     editor.setColour(juce::TextEditor::outlineColourId,
                      juce::Colour(0xff334155));
     editor.setFont(juce::FontOptions(12.0f, juce::Font::plain));
+  }
+
+  void updateActionButtons() {
+    const bool running = runningActionProcess != nullptr;
+    runGoldenVerifyButton.setEnabled(!running);
+    runParityMatrixButton.setEnabled(!running);
+    runCompiledParityButton.setEnabled(!running);
+    runCompileSmokeButton.setEnabled(!running);
+    runBenchmarkButton.setEnabled(!running);
+  }
+
+  void startActionProcess(const juce::String &actionName,
+                          const juce::String &commandArg) {
+    if (runningActionProcess != nullptr)
+      return;
+
+    const auto executable =
+        juce::File::getSpecialLocation(juce::File::currentExecutableFile);
+    if (!executable.existsAsFile()) {
+      actionStatusLabel.setText("Action launch failed: missing executable",
+                                juce::dontSendNotification);
+      return;
+    }
+
+    auto process = std::make_unique<juce::ChildProcess>();
+    juce::StringArray arguments;
+    arguments.add(executable.getFullPathName());
+    arguments.add(commandArg);
+    if (!process->start(arguments)) {
+      actionStatusLabel.setText("Action launch failed: " + actionName,
+                                juce::dontSendNotification);
+      return;
+    }
+
+    runningActionName = actionName;
+    runningActionCommand = commandArg;
+    runningActionStart = juce::Time::getCurrentTime();
+    runningActionProcess = std::move(process);
+    actionStatusLabel.setText("Running " + actionName + "...",
+                              juce::dontSendNotification);
+    updateActionButtons();
+  }
+
+  void pollRunningAction() {
+    if (runningActionProcess == nullptr)
+      return;
+
+    if (runningActionProcess->isRunning())
+      return;
+
+    const auto output = normalizeLineEndings(runningActionProcess->readAllProcessOutput()).trim();
+    const auto exitCode = runningActionProcess->getExitCode();
+    const auto elapsedMs =
+        (juce::Time::getCurrentTime() - runningActionStart).inMilliseconds();
+    const bool passed = exitCode == 0;
+
+    actionStatusLabel.setText(
+        runningActionName + (passed ? " PASS" : " FAIL") +
+            "  |  " + juce::String(elapsedMs) + " ms",
+        juce::dontSendNotification);
+
+    if (output.isNotEmpty()) {
+      diffEditor.setText(runningActionName + " output\r\n\r\n" + output,
+                         false);
+    }
+
+    runningActionProcess.reset();
+    runningActionName.clear();
+    runningActionCommand.clear();
+    updateActionButtons();
+    refreshArtifacts(true);
   }
 
   std::vector<int> filteredSnapshotIndices() const {
@@ -1037,6 +1147,12 @@ private:
   juce::ComboBox filterBox;
   juce::Label compareLabel;
   juce::ComboBox compareBox;
+  juce::TextButton runGoldenVerifyButton;
+  juce::TextButton runParityMatrixButton;
+  juce::TextButton runCompiledParityButton;
+  juce::TextButton runCompileSmokeButton;
+  juce::TextButton runBenchmarkButton;
+  juce::Label actionStatusLabel;
   juce::TextButton refreshButton;
   juce::TextButton closeButton;
   juce::Viewport listViewport;
@@ -1048,6 +1164,10 @@ private:
   juce::TextEditor diffEditor;
   juce::Colour overallAccent = juce::Colour(0xff22c55e);
   juce::Time lastRefreshTime;
+  juce::Time runningActionStart;
+  std::unique_ptr<juce::ChildProcess> runningActionProcess;
+  juce::String runningActionName;
+  juce::String runningActionCommand;
   std::function<void()> onLayoutChanged;
   std::vector<DiagnosticSnapshot> snapshots;
   std::vector<int> visibleSnapshotIndices;

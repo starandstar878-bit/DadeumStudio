@@ -1,8 +1,32 @@
 
-C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(788,5): error MSB6003: 지정한 작업 실행 파일 "CL.exe"을(를) 실행할 수 없습니다. System.IO.IOException: 'C:\USERS\STARA\DESKTOP\DADEUMSTUDIO\BUILDS\VISUALSTUDIO2026\X64\DEBUG\APP\DIAGNOSTICSDRAWER.OBJ' 파일은 다른 프로세스에서 사용 중이므로 프로세스에서 액세스할 수 없습니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(788,5): error MSB6003:    위치: System.IO.__Error.WinIOError(Int32 errorCode, String maybeFullPath) [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(788,5): error MSB6003:    위치: System.IO.FileInfo.Delete() [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(788,5): error MSB6003:    위치: Microsoft.Build.CPPTasks.TrackedVCToolTask.DeleteFiles(ITaskItem[] filesToDelete) [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(788,5): error MSB6003:    위치: Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(788,5): error MSB6003:    위치: Microsoft.Build.Utilities.ToolTask.Execute() [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-EXIT_CODE=1 
+  DiagnosticsDrawer.cpp
+  EditorHandleImpl.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TConnection.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(32,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(31,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+  DadeumStudio_App.vcxproj -> C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\x64\Debug\App\DadeumStudio.exe
+EXIT_CODE=0 
