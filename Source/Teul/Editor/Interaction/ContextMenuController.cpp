@@ -4,6 +4,7 @@
 #include "Teul/History/TCommands.h"
 #include "Teul/Registry/TNodeRegistry.h"
 #include "Teul/Serialization/TPatchPresetIO.h"
+#include "Teul/Serialization/TStatePresetIO.h"
 
 #include <algorithm>
 #include <set>
@@ -16,6 +17,17 @@ juce::String sanitizePatchPresetName(const juce::String &rawName) {
   juce::String text = rawName.trim();
   if (text.isEmpty())
     text = "PatchPreset";
+
+  for (const auto character : {'<', '>', ':', '"', '/', '\\', '|', '?', '*'})
+    text = text.replaceCharacter(character, '_');
+
+  return text;
+}
+
+juce::String sanitizeStatePresetName(const juce::String &rawName) {
+  juce::String text = rawName.trim();
+  if (text.isEmpty())
+    text = "StatePreset";
 
   for (const auto character : {'<', '>', ':', '"', '/', '\\', '|', '?', '*'})
     text = text.replaceCharacter(character, '_');
@@ -181,6 +193,87 @@ void TGraphCanvas::insertPatchPresetAt(juce::Point<float> pointView) {
       });
 }
 
+void TGraphCanvas::saveDocumentAsStatePreset() {
+  auto startDirectory = TStatePresetIO::defaultPresetDirectory();
+  juce::ignoreUnused(startDirectory.createDirectory());
+  auto baseName = sanitizeStatePresetName(document.meta.name + " State");
+  if (baseName == "StatePreset" && document.meta.name.isNotEmpty())
+    baseName = sanitizeStatePresetName(document.meta.name);
+  const auto startFile = startDirectory.getChildFile(baseName).withFileExtension(
+      TStatePresetIO::fileExtension());
+  const auto wildcard = "*" + TStatePresetIO::fileExtension();
+  auto chooser = std::make_shared<juce::FileChooser>(
+      "Save State Preset", startFile, wildcard);
+  auto safeThis = juce::Component::SafePointer<TGraphCanvas>(this);
+  chooser->launchAsync(
+      juce::FileBrowserComponent::saveMode |
+          juce::FileBrowserComponent::canSelectFiles,
+      [safeThis, chooser](const juce::FileChooser &fileChooser) {
+        juce::ignoreUnused(chooser);
+        if (safeThis == nullptr)
+          return;
+
+        auto &self = *safeThis;
+        auto selectedFile = fileChooser.getResult();
+        if (selectedFile == juce::File())
+          return;
+
+        if (!selectedFile.hasFileExtension(TStatePresetIO::fileExtension()))
+          selectedFile =
+              selectedFile.withFileExtension(TStatePresetIO::fileExtension());
+
+        TStatePresetSummary summary;
+        const auto saveResult =
+            TStatePresetIO::saveDocumentToFile(self.document, selectedFile, &summary);
+        if (saveResult.failed()) {
+          self.pushStatusHint("State preset save failed.");
+          return;
+        }
+
+        self.pushStatusHint("State preset saved: " + summary.presetName + ".");
+      });
+}
+
+void TGraphCanvas::applyStatePreset() {
+  auto startDirectory = TStatePresetIO::defaultPresetDirectory();
+  juce::ignoreUnused(startDirectory.createDirectory());
+  const auto wildcard = "*" + TStatePresetIO::fileExtension();
+  auto chooser = std::make_shared<juce::FileChooser>(
+      "Apply State Preset", startDirectory, wildcard);
+  auto safeThis = juce::Component::SafePointer<TGraphCanvas>(this);
+  chooser->launchAsync(
+      juce::FileBrowserComponent::openMode |
+          juce::FileBrowserComponent::canSelectFiles,
+      [safeThis, chooser](const juce::FileChooser &fileChooser) {
+        juce::ignoreUnused(chooser);
+        if (safeThis == nullptr)
+          return;
+
+        auto &self = *safeThis;
+        const auto selectedFile = fileChooser.getResult();
+        if (selectedFile == juce::File())
+          return;
+
+        TStatePresetApplyReport report;
+        const auto applyResult =
+            TStatePresetIO::applyToDocument(self.document, selectedFile, &report);
+        if (applyResult.failed()) {
+          self.pushStatusHint("State preset apply failed.");
+          return;
+        }
+
+        self.repaint();
+        if (self.nodeSelectionChangedHandler != nullptr)
+          self.nodeSelectionChangedHandler(self.selectedNodeIds);
+
+        self.pushStatusHint("State preset applied: " + report.summary.presetName +
+                            " (" + juce::String(report.appliedNodeCount) +
+                            " nodes, " +
+                            juce::String(report.skippedNodeCount) +
+                            " skipped).");
+      });
+}
+
 void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
                                          juce::Point<float> pointScreen) {
   juce::PopupMenu menu;
@@ -207,6 +300,8 @@ void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
   menu.addItem(20, "Create Frame Here");
   menu.addItem(21, "Insert Patch Preset...");
   menu.addItem(22, "Add Bookmark Here");
+  menu.addItem(23, "Save State Preset...");
+  menu.addItem(24, "Apply State Preset...");
 
   if (!document.bookmarks.empty()) {
     juce::PopupMenu bookmarks;
@@ -309,6 +404,16 @@ void TGraphCanvas::showCanvasContextMenu(juce::Point<float> pointView,
           bookmark.zoom = self.zoomLevel;
           self.document.bookmarks.push_back(bookmark);
           self.document.touch(false);
+          return;
+        }
+
+        if (result == 23) {
+          self.saveDocumentAsStatePreset();
+          return;
+        }
+
+        if (result == 24) {
+          self.applyStatePreset();
           return;
         }
 

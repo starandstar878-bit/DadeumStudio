@@ -18,6 +18,7 @@
 #include "Teul/Verification/TVerificationCompiledParity.h"
 #include "Teul/Verification/TVerificationStress.h"
 #include "Teul/Serialization/TPatchPresetIO.h"
+#include "Teul/Serialization/TStatePresetIO.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
 #include <algorithm>
@@ -352,6 +353,16 @@ juce::Result addTeulConnection(Teul::TGraphDocument &document,
   connection.to.portId = toPort->portId;
   document.connections.push_back(connection);
   return juce::Result::ok();
+}
+
+Teul::TNode *findTeulNodeByLabel(Teul::TGraphDocument &document,
+                                 const juce::String &label) {
+  for (auto &node : document.nodes) {
+    if (node.label == label)
+      return &node;
+  }
+
+  return nullptr;
 }
 
 Teul::TGraphDocument
@@ -1186,6 +1197,141 @@ juce::Result runTeulPhase8PatchPresetSmoke(const juce::StringArray &args) {
   return juce::Result::ok();
 }
 
+juce::Result runTeulPhase8StatePresetSmoke(const juce::StringArray &args) {
+  const auto outputArg = argValue(args, "--output-dir=");
+  juce::File outputDirectory;
+  if (outputArg.isNotEmpty()) {
+    outputDirectory = juce::File(outputArg);
+  } else {
+    outputDirectory =
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulStatePresetSmoke_" +
+                          juce::String(juce::Time::currentTimeMillis()));
+  }
+
+  if (!outputDirectory.createDirectory() && !outputDirectory.isDirectory()) {
+    return juce::Result::fail(
+        "Teul state preset smoke output directory could not be created.");
+  }
+
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  const auto assetSource =
+      outputDirectory.getChildFile("StatePresetSmokeImpulse.wav");
+  if (!assetSource.replaceWithText("teul state preset smoke asset", false,
+                                   false, "\r\n")) {
+    return juce::Result::fail(
+        "Failed to create state preset smoke asset file.");
+  }
+
+  auto document = makeTeulPhase5SmokeDocument(*registry, assetSource);
+  auto *carrierNode = findTeulNodeByLabel(document, "Carrier");
+  auto *ampNode = findTeulNodeByLabel(document, "Amp");
+  auto *cvNode = findTeulNodeByLabel(document, "CV");
+  if (carrierNode == nullptr || ampNode == nullptr || cvNode == nullptr) {
+    return juce::Result::fail(
+        "Teul state preset smoke graph could not resolve its target nodes.");
+  }
+
+  const auto expectedFrequency = (double)carrierNode->params["frequency"];
+  const auto expectedCarrierGain = (double)carrierNode->params["gain"];
+  const auto expectedAmpGain = (double)ampNode->params["gain"];
+  const auto expectedCvValue = (double)cvNode->params["value"];
+  const auto expectedAmpBypassed = ampNode->bypassed;
+
+  const auto presetFile = outputDirectory.getChildFile("smoke_state_preset")
+                              .withFileExtension(
+                                  Teul::TStatePresetIO::fileExtension());
+  Teul::TStatePresetSummary savedSummary;
+  const auto saveResult = Teul::TStatePresetIO::saveDocumentToFile(
+      document, presetFile, &savedSummary);
+  if (saveResult.failed())
+    return saveResult;
+
+  carrierNode->params["frequency"] = 110.0;
+  carrierNode->params["gain"] = 0.10;
+  ampNode->params["gain"] = 0.20;
+  ampNode->bypassed = !expectedAmpBypassed;
+  cvNode->params["value"] = 0.15;
+
+  Teul::TStatePresetApplyReport applyReport;
+  const auto applyResult =
+      Teul::TStatePresetIO::applyToDocument(document, presetFile, &applyReport);
+  if (applyResult.failed())
+    return applyResult;
+
+  carrierNode = findTeulNodeByLabel(document, "Carrier");
+  ampNode = findTeulNodeByLabel(document, "Amp");
+  cvNode = findTeulNodeByLabel(document, "CV");
+  if (carrierNode == nullptr || ampNode == nullptr || cvNode == nullptr) {
+    return juce::Result::fail(
+        "Teul state preset smoke graph lost its target nodes after apply.");
+  }
+
+  const auto restoredFrequency = (double)carrierNode->params["frequency"];
+  const auto restoredCarrierGain = (double)carrierNode->params["gain"];
+  const auto restoredAmpGain = (double)ampNode->params["gain"];
+  const auto restoredCvValue = (double)cvNode->params["value"];
+  if (std::abs(restoredFrequency - expectedFrequency) > 1.0e-9 ||
+      std::abs(restoredCarrierGain - expectedCarrierGain) > 1.0e-9 ||
+      std::abs(restoredAmpGain - expectedAmpGain) > 1.0e-9 ||
+      std::abs(restoredCvValue - expectedCvValue) > 1.0e-9 ||
+      ampNode->bypassed != expectedAmpBypassed) {
+    return juce::Result::fail(
+        "Teul state preset smoke failed to restore the saved node state.");
+  }
+
+  const auto summaryFile =
+      outputDirectory.getChildFile("state-preset-summary.txt");
+  const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
+  const auto summaryText =
+      juce::String("preset=") + savedSummary.presetName + "\r\n" +
+      "targetGraph=" + savedSummary.targetGraphName + "\r\n" +
+      "savedNodeStates=" + juce::String(savedSummary.nodeStateCount) +
+      "\r\n" + "savedParamValues=" +
+      juce::String(savedSummary.paramValueCount) + "\r\n" +
+      "appliedNodes=" + juce::String(applyReport.appliedNodeCount) +
+      "\r\n" + "skippedNodes=" +
+      juce::String(applyReport.skippedNodeCount) + "\r\n" +
+      "appliedParamValues=" +
+      juce::String(applyReport.appliedParamValueCount) + "\r\n" +
+      "presetFile=" + presetFile.getFullPathName() + "\r\n" +
+      "passed=true\r\n";
+  if (!summaryFile.replaceWithText(summaryText, false, false, "\r\n")) {
+    return juce::Result::fail(
+        "Teul state preset smoke could not write its summary file.");
+  }
+
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("statePreset", outputDirectory, presetFile));
+  files.add(makeArtifactFileEntry("summary", outputDirectory, summaryFile));
+  auto *bundleRoot = new juce::DynamicObject();
+  bundleRoot->setProperty("kind", "teul-verification-artifact-bundle");
+  bundleRoot->setProperty("scope", "state-preset-smoke");
+  bundleRoot->setProperty("passed", true);
+  bundleRoot->setProperty("artifactDirectory", outputDirectory.getFullPathName());
+  bundleRoot->setProperty("presetName", savedSummary.presetName);
+  bundleRoot->setProperty("savedNodeStateCount", savedSummary.nodeStateCount);
+  bundleRoot->setProperty("savedParamValueCount", savedSummary.paramValueCount);
+  bundleRoot->setProperty("appliedNodeCount", applyReport.appliedNodeCount);
+  bundleRoot->setProperty("appliedParamValueCount",
+                          applyReport.appliedParamValueCount);
+  bundleRoot->setProperty("files", juce::var(files));
+  if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
+    return juce::Result::fail(
+        "Teul state preset smoke could not write its artifact bundle.");
+  }
+
+  std::cout << "Teul Phase8 state preset smoke directory: "
+            << outputDirectory.getFullPathName() << std::endl;
+  std::cout << summaryText << std::endl;
+  std::cout << "Teul Phase8 state preset smoke checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
+
 juce::Result runTeulPhase7BenchmarkGate(const juce::StringArray &args) {
   auto registry = Teul::makeDefaultNodeRegistry();
   if (!registry)
@@ -1618,6 +1764,20 @@ public:
       const auto smokeResult = runTeulPhase8PatchPresetSmoke(args);
       if (smokeResult.failed()) {
         std::cerr << "Teul Phase8 patch preset smoke failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
+    if (hasArg(args, "--teul-phase8-state-preset-smoke")) {
+      const auto smokeResult = runTeulPhase8StatePresetSmoke(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase8 state preset smoke failed: "
                   << smokeResult.getErrorMessage() << std::endl;
         setApplicationReturnValue(1);
       } else {

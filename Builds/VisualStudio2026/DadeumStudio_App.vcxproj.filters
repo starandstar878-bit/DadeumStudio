@@ -916,6 +916,9 @@
     <ClCompile Include="..\..\Source\Teul\Serialization\TPatchPresetIO.cpp">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Source\Teul\Serialization\TStatePresetIO.cpp">
+      <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp">
       <Filter>DadeumStudio\Source\Teul\Export</Filter>
     </ClCompile>

@@ -166,6 +166,8 @@ public:
   bool fitFrameToMembers(int frameId);
   void saveFrameAsPatchPreset(int frameId);
   void insertPatchPresetAt(juce::Point<float> pointView);
+  void saveDocumentAsStatePreset();
+  void applyStatePreset();
 
   bool isNodeSelected(NodeId nodeId) const;
   bool isNodeMoveLocked(NodeId nodeId) const;
