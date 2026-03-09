@@ -6,6 +6,7 @@
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
 #include "Teul/Editor/Panels/PresetBrowserPanel.h"
 #include "Teul/Registry/TNodeRegistry.h"
+#include "Teul/Serialization/TFileIo.h"
 
 namespace Teul {
 
@@ -312,13 +313,64 @@ EditorHandle::Impl::Impl(
         if (canvas == nullptr)
           return juce::Result::fail("Preset action failed: canvas unavailable.");
 
-        if (entry.presetKind == "teul.patch")
-          return canvas->insertPatchPresetFromFile(entry.file,
-                                                   canvas->getViewCenter());
-        if (entry.presetKind == "teul.state")
-          return canvas->applyStatePresetFromFile(entry.file);
+        if (entry.presetKind == "teul.patch") {
+          const auto result =
+              canvas->insertPatchPresetFromFile(entry.file, canvas->getViewCenter());
+          if (result.wasOk())
+            pushRuntimeMessage("Patch preset inserted", juce::Colour(0xff22c55e),
+                               44);
+          return result;
+        }
+
+        if (entry.presetKind == "teul.state") {
+          const auto result = canvas->applyStatePresetFromFile(entry.file);
+          if (result.wasOk())
+            pushRuntimeMessage("State preset applied", juce::Colour(0xff38bdf8),
+                               44);
+          return result;
+        }
+
+        if (entry.presetKind == "teul.recovery") {
+          TSchemaMigrationReport migrationReport;
+          if (!TFileIo::loadFromFile(doc, entry.file, &migrationReport)) {
+            return juce::Result::fail(
+                "Recovery restore failed: autosave snapshot could not be loaded.");
+          }
+
+          rebuildAll(true);
+          pushRuntimeMessage("Autosave snapshot restored",
+                             migrationReport.degraded
+                                 ? juce::Colour(0xfff59e0b)
+                                 : juce::Colour(0xff22c55e),
+                             56);
+          return juce::Result::ok();
+        }
+
         return juce::Result::fail(
             "Preset action failed: unsupported preset kind.");
+      });
+  presetBrowserPanel->setSecondaryActionHandler(
+      [this](const TPresetEntry &entry) -> juce::Result {
+        if (entry.presetKind != "teul.recovery")
+          return juce::Result::fail(
+              "Preset action failed: no secondary action available.");
+
+        if (!entry.file.existsAsFile())
+          return juce::Result::fail(
+              "Recovery discard failed: autosave snapshot file was not found.");
+
+        const auto stateFile =
+            entry.file.getParentDirectory().getChildFile("autosave-session-state.json");
+        if (!entry.file.deleteFile())
+          return juce::Result::fail(
+              "Recovery discard failed: autosave snapshot file could not be removed.");
+        if (stateFile.existsAsFile() && !stateFile.deleteFile())
+          return juce::Result::fail(
+              "Recovery discard failed: session marker file could not be removed.");
+
+        pushRuntimeMessage("Autosave snapshot discarded",
+                           juce::Colour(0xff94a3b8), 44);
+        return juce::Result::ok();
       });
   owner.addAndMakeVisible(*presetBrowserPanel);
   presetBrowserPanel->setVisible(false);
@@ -469,6 +521,7 @@ EditorHandle::Impl::~Impl() {
 
   if (presetBrowserPanel != nullptr) {
     presetBrowserPanel->setPrimaryActionHandler({});
+    presetBrowserPanel->setSecondaryActionHandler({});
     presetBrowserPanel->setLayoutChangedCallback({});
   }
 

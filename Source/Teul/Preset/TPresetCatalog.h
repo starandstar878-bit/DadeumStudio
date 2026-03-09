@@ -11,6 +11,7 @@ struct TPresetEntry {
   juce::String presetKind;
   juce::String kindLabel;
   juce::String primaryActionLabel;
+  juce::String secondaryActionLabel;
   juce::String displayName;
   juce::String summaryText;
   juce::String detailText;

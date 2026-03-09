@@ -1,5 +1,6 @@
 #include "Teul/Preset/TPresetCatalog.h"
 
+#include "Teul/Serialization/TFileIo.h"
 #include "Teul/Serialization/TPatchPresetIO.h"
 #include "Teul/Serialization/TStatePresetIO.h"
 
@@ -34,6 +35,47 @@ juce::String formatTimestamp(const juce::Time &time) {
   if (time.toMilliseconds() <= 0)
     return "Unknown";
   return time.formatted("%Y-%m-%d %H:%M");
+}
+
+juce::File resolveSessionDirectory() {
+  auto dir =
+      juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+          .getChildFile("DadeumStudio");
+  if (!dir.exists())
+    dir.createDirectory();
+
+  if (!dir.exists()) {
+    dir = juce::File::getCurrentWorkingDirectory()
+              .getChildFile("Builds")
+              .getChildFile("GyeolSession");
+    if (!dir.exists())
+      dir.createDirectory();
+  }
+
+  return dir;
+}
+
+bool readCleanShutdownMarker(const juce::File &file) {
+  if (!file.existsAsFile())
+    return true;
+
+  juce::var json;
+  if (juce::JSON::parse(file.loadFileAsString(), json).failed())
+    return true;
+
+  const auto *root = json.getDynamicObject();
+  if (root == nullptr)
+    return true;
+
+  const auto value = root->getProperty("cleanShutdown");
+  if (value.isBool())
+    return static_cast<bool>(value);
+
+  const auto textValue = value.toString().trim();
+  if (textValue.isEmpty())
+    return true;
+
+  return textValue.equalsIgnoreCase("true") || textValue == "1";
 }
 
 juce::String buildPatchSummary(const TPatchPresetSummary &summary,
@@ -128,6 +170,66 @@ juce::String buildStateDetail(const juce::File &file,
                                                   : "unnamed"));
   lines.add("Node States: " + juce::String(summary.nodeStateCount));
   lines.add("Param Values: " + juce::String(summary.paramValueCount));
+  lines.add("Schema: " + juce::String(report.sourceSchemaVersion) + " -> " +
+            juce::String(report.targetSchemaVersion));
+  lines.add("Migrated: " + juce::String(report.migrated ? "yes" : "no"));
+  lines.add("Legacy Aliases: " +
+            juce::String(report.usedLegacyAliases ? "yes" : "no"));
+  lines.add("Degraded: " + juce::String(report.degraded ? "yes" : "no"));
+  if (report.warnings.isEmpty())
+    lines.add("Warnings: none");
+  else
+    lines.add("Warnings: " + joinWarnings(report.warnings));
+  return lines.joinIntoString("\r\n");
+}
+
+juce::String buildRecoverySummary(const TGraphDocument &document,
+                                  const TSchemaMigrationReport &report,
+                                  bool available,
+                                  bool cleanShutdown) {
+  if (!available)
+    return "Autosave snapshot could not be parsed";
+
+  juce::StringArray parts;
+  parts.add(juce::String(document.nodes.size()) + " nodes");
+  parts.add(juce::String(document.connections.size()) + " wires");
+  if (!document.frames.empty())
+    parts.add(juce::String(document.frames.size()) + " frames");
+  parts.add(cleanShutdown ? "clean marker" : "active autosave marker");
+  if (report.degraded)
+    parts.add("degraded");
+  if (report.migrated)
+    parts.add("migrated");
+  return parts.joinIntoString("  |  ");
+}
+
+juce::String buildRecoveryDetail(const juce::File &autosaveFile,
+                                 const juce::File &stateFile,
+                                 const TGraphDocument &document,
+                                 const TSchemaMigrationReport &report,
+                                 const juce::Result &loadResult,
+                                 bool cleanShutdown) {
+  juce::StringArray lines;
+  lines.add("Kind: Recovery Snapshot");
+  lines.add("File: " + autosaveFile.getFullPathName());
+  lines.add("Modified: " +
+            formatTimestamp(autosaveFile.getLastModificationTime()));
+  lines.add("Session State File: " + stateFile.getFullPathName());
+  lines.add("Shutdown Marker: " +
+            juce::String(cleanShutdown ? "clean" : "active or unclean"));
+
+  if (loadResult.failed()) {
+    lines.add("Status: Invalid");
+    lines.add("Error: " + loadResult.getErrorMessage());
+    return lines.joinIntoString("\r\n");
+  }
+
+  lines.add("Graph: " +
+            (document.meta.name.isNotEmpty() ? document.meta.name : "Untitled"));
+  lines.add("Domains: teul");
+  lines.add("Nodes: " + juce::String(document.nodes.size()));
+  lines.add("Connections: " + juce::String(document.connections.size()));
+  lines.add("Frames: " + juce::String(document.frames.size()));
   lines.add("Schema: " + juce::String(report.sourceSchemaVersion) + " -> " +
             juce::String(report.targetSchemaVersion));
   lines.add("Migrated: " + juce::String(report.migrated ? "yes" : "no"));
@@ -238,6 +340,67 @@ public:
   }
 };
 
+class TeulRecoverySnapshotProvider final : public TPresetProvider {
+public:
+  juce::String providerId() const override { return "teul.recovery"; }
+
+  juce::StringArray domains() const override {
+    juce::StringArray result;
+    result.add("teul");
+    return result;
+  }
+
+  void collectEntries(std::vector<TPresetEntry> &entriesOut) const override {
+    const auto directory = resolveSessionDirectory();
+    const auto autosaveFile = directory.getChildFile("autosave-teul.teul");
+    const auto stateFile =
+        directory.getChildFile("autosave-session-state.json");
+    if (!autosaveFile.existsAsFile())
+      return;
+
+    TPresetEntry entry;
+    entry.entryId = providerId() + ":" + autosaveFile.getFullPathName();
+    entry.presetKind = "teul.recovery";
+    entry.kindLabel = "Recovery Snapshot";
+    entry.primaryActionLabel = "Restore";
+    entry.secondaryActionLabel = "Discard";
+    entry.domains = domains();
+    entry.file = autosaveFile;
+    entry.modifiedTime = autosaveFile.getLastModificationTime();
+
+    TGraphDocument autosaveDocument;
+    TSchemaMigrationReport report;
+    const bool loaded = TFileIo::loadFromFile(autosaveDocument, autosaveFile,
+                                              &report);
+    const auto loadResult = loaded
+                                ? juce::Result::ok()
+                                : juce::Result::fail(
+                                      "Autosave snapshot could not be parsed.");
+    const bool cleanShutdown = readCleanShutdownMarker(stateFile);
+
+    entry.available = loadResult.wasOk();
+    entry.degraded = report.degraded;
+    entry.displayName = autosaveDocument.meta.name.isNotEmpty()
+                            ? autosaveDocument.meta.name + " Autosave"
+                            : juce::String("Latest Teul Autosave");
+    entry.summaryText =
+        buildRecoverySummary(autosaveDocument, report, entry.available,
+                             cleanShutdown);
+    entry.detailText = buildRecoveryDetail(autosaveFile, stateFile,
+                                           autosaveDocument, report, loadResult,
+                                           cleanShutdown);
+    entry.warningText = joinWarnings(report.warnings);
+    if (!cleanShutdown) {
+      if (entry.warningText.isNotEmpty())
+        entry.warningText << " | ";
+      entry.warningText << "Session shutdown marker is still active.";
+    }
+    if (!entry.available && entry.summaryText.isEmpty())
+      entry.summaryText = loadResult.getErrorMessage();
+    entriesOut.push_back(std::move(entry));
+  }
+};
+
 } // namespace
 
 TPresetCatalog::TPresetCatalog(
@@ -274,6 +437,7 @@ std::unique_ptr<TPresetCatalog> makeDefaultPresetCatalog() {
   std::vector<std::unique_ptr<TPresetProvider>> providers;
   providers.push_back(std::make_unique<TeulPatchPresetProvider>());
   providers.push_back(std::make_unique<TeulStatePresetProvider>());
+  providers.push_back(std::make_unique<TeulRecoverySnapshotProvider>());
   return std::make_unique<TPresetCatalog>(std::move(providers));
 }
 

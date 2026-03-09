@@ -7,6 +7,7 @@ constexpr int filterAll = 1;
 constexpr int filterTeul = 2;
 constexpr int filterPatch = 3;
 constexpr int filterState = 4;
+constexpr int filterRecovery = 5;
 
 juce::String formatTimestamp(const juce::Time &time) {
   if (time.toMilliseconds() <= 0)
@@ -30,6 +31,7 @@ public:
     addAndMakeVisible(summaryValueLabel);
     addAndMakeVisible(statusLabel);
     addAndMakeVisible(primaryActionButton);
+    addAndMakeVisible(secondaryActionButton);
     addAndMakeVisible(revealButton);
     addAndMakeVisible(detailEditor);
 
@@ -43,6 +45,7 @@ public:
     filterBox.addItem("Teul", filterTeul);
     filterBox.addItem("Patch", filterPatch);
     filterBox.addItem("State", filterState);
+    filterBox.addItem("Recovery", filterRecovery);
     filterBox.setSelectedId(filterAll, juce::dontSendNotification);
     filterBox.onChange = [this] { rebuildVisibleEntries(); };
 
@@ -89,6 +92,7 @@ public:
                    0.78f);
 
     primaryActionButton.onClick = [this] { performPrimaryAction(); };
+    secondaryActionButton.onClick = [this] { performSecondaryAction(); };
     revealButton.setButtonText("Reveal");
     revealButton.onClick = [this] { revealSelectedPreset(); };
 
@@ -144,6 +148,11 @@ public:
     updateActionButtons();
   }
 
+  void setSecondaryActionHandler(SecondaryActionHandler handler) override {
+    secondaryActionHandler = std::move(handler);
+    updateActionButtons();
+  }
+
   void paint(juce::Graphics &g) override {
     g.fillAll(juce::Colour(0xff07101d));
     g.setColour(juce::Colour(0xff1e293b));
@@ -156,7 +165,7 @@ public:
     auto header = area.removeFromTop(28);
     titleLabel.setBounds(header.removeFromLeft(160));
     header.removeFromLeft(8);
-    filterBox.setBounds(header.removeFromLeft(110));
+    filterBox.setBounds(header.removeFromLeft(118));
     header.removeFromLeft(8);
     refreshButton.setBounds(header.removeFromRight(88));
     header.removeFromRight(8);
@@ -179,6 +188,8 @@ public:
 
     auto actions = area.removeFromTop(28);
     primaryActionButton.setBounds(actions.removeFromLeft(112));
+    actions.removeFromLeft(8);
+    secondaryActionButton.setBounds(actions.removeFromLeft(100));
     actions.removeFromLeft(8);
     revealButton.setBounds(actions.removeFromLeft(88));
     actions.removeFromLeft(10);
@@ -221,7 +232,7 @@ private:
 
     auto textArea = bounds.reduced(10, 6);
     auto top = textArea.removeFromTop(18);
-    auto tagArea = top.removeFromRight(98);
+    auto tagArea = top.removeFromRight(112);
     g.setColour(juce::Colours::white.withAlpha(entry->available ? 0.95f : 0.65f));
     g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
     g.drawText(entry->displayName, top, juce::Justification::centredLeft, false);
@@ -304,6 +315,8 @@ private:
       return false;
     if (filterId == filterState && entry.presetKind != "teul.state")
       return false;
+    if (filterId == filterRecovery && entry.presetKind != "teul.recovery")
+      return false;
 
     const auto query = searchEditor.getText().trim().toLowerCase();
     if (query.isEmpty())
@@ -326,7 +339,7 @@ private:
       detailEditor.setText(
           "Preset Browser MVP\r\n"
           "- Uses a shared PresetEntry/provider model.\r\n"
-          "- Currently scans Teul patch and state preset directories.\r\n"
+          "- Currently scans Teul patch, state, and recovery snapshot sources.\r\n"
           "- Future providers can add composite or multi-domain presets.",
           false);
       updateActionButtons();
@@ -348,10 +361,16 @@ private:
                                   ? selectedEntry->summaryText
                                   : "No summary available",
                               juce::dontSendNotification);
-    statusLabel.setText(selectedEntry->available
-                            ? "Primary action is ready."
-                            : "Invalid preset file; reveal it to inspect.",
-                        juce::dontSendNotification);
+
+    if (selectedEntry->warningText.isNotEmpty()) {
+      statusLabel.setText(selectedEntry->warningText, juce::dontSendNotification);
+    } else if (selectedEntry->available) {
+      statusLabel.setText("Primary action is ready.", juce::dontSendNotification);
+    } else {
+      statusLabel.setText("Invalid preset file; reveal it to inspect.",
+                          juce::dontSendNotification);
+    }
+
     detailEditor.setText(selectedEntry->detailText, false);
     updateActionButtons();
   }
@@ -369,14 +388,31 @@ private:
     if (selectedEntry == nullptr || primaryActionHandler == nullptr)
       return;
 
+    const auto selectedEntryId = selectedEntry->entryId;
     const auto result = primaryActionHandler(*selectedEntry);
     if (result.failed()) {
       statusLabel.setText(result.getErrorMessage(), juce::dontSendNotification);
       return;
     }
 
-    statusLabel.setText(selectedEntry->primaryActionLabel + " completed.",
-                        juce::dontSendNotification);
+    refreshEntries(true);
+    rebuildVisibleEntries(selectedEntryId);
+  }
+
+  void performSecondaryAction() {
+    if (selectedEntry == nullptr || secondaryActionHandler == nullptr ||
+        selectedEntry->secondaryActionLabel.isEmpty())
+      return;
+
+    const auto selectedEntryId = selectedEntry->entryId;
+    const auto result = secondaryActionHandler(*selectedEntry);
+    if (result.failed()) {
+      statusLabel.setText(result.getErrorMessage(), juce::dontSendNotification);
+      return;
+    }
+
+    refreshEntries(true);
+    rebuildVisibleEntries(selectedEntryId);
   }
 
   void revealSelectedPreset() {
@@ -391,14 +427,23 @@ private:
     const bool hasEntry = selectedEntry != nullptr;
     const bool allowPrimary =
         hasEntry && selectedEntry->available && primaryActionHandler != nullptr;
+    const bool allowSecondary =
+        hasEntry && selectedEntry->secondaryActionLabel.isNotEmpty() &&
+        secondaryActionHandler != nullptr;
     primaryActionButton.setButtonText(
         hasEntry ? selectedEntry->primaryActionLabel : "Run");
+    secondaryActionButton.setButtonText(
+        hasEntry && selectedEntry->secondaryActionLabel.isNotEmpty()
+            ? selectedEntry->secondaryActionLabel
+            : "More");
     primaryActionButton.setEnabled(allowPrimary);
+    secondaryActionButton.setEnabled(allowSecondary);
     revealButton.setEnabled(hasEntry && selectedEntry->file.exists());
   }
 
   std::function<void()> layoutChangedCallback;
   PrimaryActionHandler primaryActionHandler;
+  SecondaryActionHandler secondaryActionHandler;
   std::unique_ptr<TPresetCatalog> catalog;
   std::vector<VisibleEntry> visibleEntries;
   const TPresetEntry *selectedEntry = nullptr;
@@ -414,6 +459,7 @@ private:
   juce::Label summaryValueLabel;
   juce::Label statusLabel;
   juce::TextButton primaryActionButton;
+  juce::TextButton secondaryActionButton;
   juce::TextButton revealButton;
   juce::TextEditor detailEditor;
 };

@@ -11,6 +11,8 @@ namespace Teul {
 class PresetBrowserPanel : public juce::Component {
 public:
   using PrimaryActionHandler = std::function<juce::Result(const TPresetEntry &)>;
+  using SecondaryActionHandler =
+      std::function<juce::Result(const TPresetEntry &)>;
 
   ~PresetBrowserPanel() override = default;
 
@@ -19,6 +21,7 @@ public:
   virtual void setBrowserOpen(bool shouldOpen) = 0;
   virtual void refreshEntries(bool force = false) = 0;
   virtual void setPrimaryActionHandler(PrimaryActionHandler handler) = 0;
+  virtual void setSecondaryActionHandler(SecondaryActionHandler handler) = 0;
 
   static std::unique_ptr<PresetBrowserPanel> create();
 };
