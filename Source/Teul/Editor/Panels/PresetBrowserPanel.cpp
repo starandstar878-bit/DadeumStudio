@@ -8,6 +8,7 @@ constexpr int filterTeul = 2;
 constexpr int filterPatch = 3;
 constexpr int filterState = 4;
 constexpr int filterRecovery = 5;
+constexpr int filterFavorites = 6;
 
 juce::String formatTimestamp(const juce::Time &time) {
   if (time.toMilliseconds() <= 0)
@@ -34,6 +35,7 @@ public:
     addAndMakeVisible(primaryActionButton);
     addAndMakeVisible(secondaryActionButton);
     addAndMakeVisible(cancelConflictButton);
+    addAndMakeVisible(favoriteButton);
     addAndMakeVisible(revealButton);
     addAndMakeVisible(sessionPreviewEditor);
     addAndMakeVisible(selectionPreviewEditor);
@@ -50,6 +52,7 @@ public:
     filterBox.addItem("Patch", filterPatch);
     filterBox.addItem("State", filterState);
     filterBox.addItem("Recovery", filterRecovery);
+    filterBox.addItem("Favorites", filterFavorites);
     filterBox.setSelectedId(filterAll, juce::dontSendNotification);
     filterBox.onChange = [this] { rebuildVisibleEntries(); };
 
@@ -106,6 +109,7 @@ public:
     cancelConflictButton.onClick = [this] {
       cancelConflictArm("Conflict confirmation cleared.");
     };
+    favoriteButton.onClick = [this] { toggleFavorite(); };
     revealButton.setButtonText("Reveal");
     revealButton.onClick = [this] { revealSelectedPreset(); };
 
@@ -273,6 +277,8 @@ public:
     actions.removeFromLeft(8);
     secondaryActionButton.setBounds(actions.removeFromLeft(100));
     actions.removeFromLeft(8);
+    favoriteButton.setBounds(actions.removeFromLeft(96));
+    actions.removeFromLeft(8);
     revealButton.setBounds(actions.removeFromLeft(88));
     actions.removeFromLeft(10);
     statusLabel.setBounds(actions);
@@ -317,7 +323,9 @@ private:
     auto tagArea = top.removeFromRight(112);
     g.setColour(juce::Colours::white.withAlpha(entry->available ? 0.95f : 0.65f));
     g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
-    g.drawText(entry->displayName, top, juce::Justification::centredLeft, false);
+    const auto titleText = entry->favorite ? juce::String("* ") + entry->displayName
+                                           : entry->displayName;
+    g.drawText(titleText, top, juce::Justification::centredLeft, false);
 
     g.setColour(accent.withAlpha(0.18f));
     g.fillRoundedRectangle(tagArea.toFloat(), 7.0f);
@@ -329,9 +337,11 @@ private:
 
     g.setColour(juce::Colours::white.withAlpha(0.65f));
     g.setFont(11.0f);
-    const auto footer = entry->summaryText.isNotEmpty()
-                            ? entry->summaryText
-                            : juce::String("No summary");
+    juce::String footer = entry->summaryText.isNotEmpty()
+                               ? entry->summaryText
+                               : juce::String("No summary");
+    if (entry->recent)
+      footer = juce::String("Recent  |  ") + footer;
     g.drawText(footer, textArea, juce::Justification::centredLeft, false);
   }
 
@@ -402,6 +412,8 @@ private:
       return false;
     if (filterId == filterRecovery && entry.presetKind != "teul.recovery")
       return false;
+    if (filterId == filterFavorites && !entry.favorite)
+      return false;
 
     const auto query = searchEditor.getText().trim().toLowerCase();
     if (query.isEmpty())
@@ -421,7 +433,9 @@ private:
       summaryValueLabel.setText("Create or save presets, then refresh to browse.",
                                 juce::dontSendNotification);
       statusLabel.setText("No preset selected", juce::dontSendNotification);
-      cancelConflictArm({});
+      pendingConflictEntryId.clear();
+      conflictLabel.setVisible(false);
+      cancelConflictButton.setVisible(false);
       selectionPreviewEditor.setVisible(false);
       selectionPreviewEditor.setText({}, false);
       detailEditor.setText(
@@ -535,6 +549,7 @@ private:
     }
 
     pendingConflictEntryId.clear();
+    catalog->markUsed(selectedEntryId);
     refreshEntries(true);
     rebuildVisibleEntries(selectedEntryId);
   }
@@ -581,16 +596,32 @@ private:
         hasEntry && selectedEntry->secondaryActionLabel.isNotEmpty()
             ? selectedEntry->secondaryActionLabel
             : "More");
+    favoriteButton.setButtonText(
+        hasEntry && selectedEntry->favorite ? "Unfavorite" : "Favorite");
     primaryActionButton.setEnabled(allowPrimary);
     secondaryActionButton.setEnabled(allowSecondary);
     cancelConflictButton.setEnabled(isConflictArmed());
     cancelConflictButton.setVisible(isConflictArmed());
+    favoriteButton.setEnabled(hasEntry);
     revealButton.setEnabled(hasEntry && selectedEntry->file.exists());
   }
 
   bool isConflictArmed() const {
     return selectedEntry != nullptr &&
            pendingConflictEntryId == selectedEntry->entryId;
+  }
+
+  void toggleFavorite() {
+    if (selectedEntry == nullptr)
+      return;
+
+    const auto selectedEntryId = selectedEntry->entryId;
+    const bool nowFavorite = catalog->toggleFavorite(selectedEntryId);
+    statusLabel.setText(nowFavorite ? "Preset marked as favorite."
+                                    : "Preset removed from favorites.",
+                        juce::dontSendNotification);
+    refreshEntries(true);
+    rebuildVisibleEntries(selectedEntryId);
   }
 
   std::function<void()> layoutChangedCallback;
@@ -619,6 +650,7 @@ private:
   juce::TextButton primaryActionButton;
   juce::TextButton secondaryActionButton;
   juce::TextButton cancelConflictButton;
+  juce::TextButton favoriteButton;
   juce::TextButton revealButton;
   juce::TextEditor sessionPreviewEditor;
   juce::TextEditor selectionPreviewEditor;

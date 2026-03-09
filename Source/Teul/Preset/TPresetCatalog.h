@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -19,8 +20,18 @@ struct TPresetEntry {
   juce::StringArray domains;
   juce::File file;
   juce::Time modifiedTime;
+  juce::Time lastUsedTime;
+  juce::StringArray tags;
   bool available = false;
   bool degraded = false;
+  bool favorite = false;
+  bool recent = false;
+};
+
+struct TPresetLibraryEntryState {
+  bool favorite = false;
+  int64_t lastUsedMs = 0;
+  juce::StringArray tags;
 };
 
 class TPresetProvider {
@@ -38,13 +49,20 @@ public:
       std::vector<std::unique_ptr<TPresetProvider>> providersIn);
 
   void reload();
+  bool toggleFavorite(const juce::String &entryId);
+  void markUsed(const juce::String &entryId);
   const std::vector<TPresetEntry> &getEntries() const noexcept {
     return entries;
   }
 
 private:
+  void loadLibraryState();
+  void saveLibraryState() const;
+
   std::vector<std::unique_ptr<TPresetProvider>> providers;
   std::vector<TPresetEntry> entries;
+  juce::File stateFile;
+  std::map<juce::String, TPresetLibraryEntryState> libraryState;
 };
 
 std::unique_ptr<TPresetCatalog> makeDefaultPresetCatalog();

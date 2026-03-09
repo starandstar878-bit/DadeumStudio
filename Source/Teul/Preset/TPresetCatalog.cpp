@@ -5,6 +5,7 @@
 #include "Teul/Serialization/TStatePresetIO.h"
 
 #include <algorithm>
+#include <map>
 
 namespace Teul {
 namespace {
@@ -35,6 +36,109 @@ juce::String formatTimestamp(const juce::Time &time) {
   if (time.toMilliseconds() <= 0)
     return "Unknown";
   return time.formatted("%Y-%m-%d %H:%M");
+}
+
+juce::File resolveLibraryStateFile() {
+  auto directory = juce::File::getCurrentWorkingDirectory()
+                       .getChildFile("Builds")
+                       .getChildFile("TeulPresetLibrary");
+  if (!directory.exists())
+    directory.createDirectory();
+  return directory.getChildFile("preset-browser-state.json");
+}
+
+juce::StringArray jsonArrayToStringArray(const juce::var &value) {
+  juce::StringArray result;
+  if (auto *array = value.getArray()) {
+    for (const auto &item : *array) {
+      const auto text = item.toString().trim();
+      if (text.isNotEmpty() && !result.contains(text))
+        result.add(text);
+    }
+  }
+  return result;
+}
+
+juce::var stringArrayToJson(const juce::StringArray &values) {
+  juce::Array<juce::var> items;
+  for (const auto &value : values) {
+    const auto trimmed = value.trim();
+    if (trimmed.isNotEmpty())
+      items.add(trimmed);
+  }
+  return juce::var(items);
+}
+
+std::map<juce::String, TPresetLibraryEntryState> loadLibraryStateMap(
+    const juce::File &file) {
+  std::map<juce::String, TPresetLibraryEntryState> result;
+  if (!file.existsAsFile())
+    return result;
+
+  juce::var json;
+  if (juce::JSON::parse(file.loadFileAsString(), json).failed())
+    return result;
+
+  const auto *root = json.getDynamicObject();
+  if (root == nullptr)
+    return result;
+
+  const auto entriesValue = root->getProperty("entries");
+  auto *entriesArray = entriesValue.getArray();
+  if (entriesArray == nullptr)
+    return result;
+
+  for (const auto &item : *entriesArray) {
+    const auto *entryObject = item.getDynamicObject();
+    if (entryObject == nullptr)
+      continue;
+
+    const auto entryId = entryObject->getProperty("entryId").toString().trim();
+    if (entryId.isEmpty())
+      continue;
+
+    TPresetLibraryEntryState state;
+    state.favorite = static_cast<bool>(entryObject->getProperty("favorite"));
+    state.lastUsedMs = static_cast<int64_t>(entryObject->getProperty("lastUsedMs"));
+    state.tags = jsonArrayToStringArray(entryObject->getProperty("tags"));
+    result[entryId] = state;
+  }
+
+  return result;
+}
+
+void saveLibraryStateMap(const juce::File &file,
+                         const std::map<juce::String, TPresetLibraryEntryState> &stateMap) {
+  auto root = std::make_unique<juce::DynamicObject>();
+  root->setProperty("schemaVersion", 1);
+  root->setProperty("format", "teul.preset-browser-state");
+
+  juce::Array<juce::var> items;
+  for (const auto &pair : stateMap) {
+    const auto &entryId = pair.first;
+    const auto &state = pair.second;
+    auto entry = std::make_unique<juce::DynamicObject>();
+    entry->setProperty("entryId", entryId);
+    entry->setProperty("favorite", state.favorite);
+    entry->setProperty("lastUsedMs", static_cast<int64_t>(state.lastUsedMs));
+    entry->setProperty("tags", stringArrayToJson(state.tags));
+    items.add(juce::var(entry.release()));
+  }
+
+  root->setProperty("entries", juce::var(items));
+  file.replaceWithText(juce::JSON::toString(juce::var(root.release()), true));
+}
+
+void applyLibraryState(const std::map<juce::String, TPresetLibraryEntryState> &stateMap,
+                       TPresetEntry &entry) {
+  const auto found = stateMap.find(entry.entryId);
+  if (found == stateMap.end())
+    return;
+
+  entry.favorite = found->second.favorite;
+  entry.lastUsedTime = juce::Time(found->second.lastUsedMs);
+  entry.recent = found->second.lastUsedMs > 0;
+  entry.tags = found->second.tags;
 }
 
 juce::File resolveSessionDirectory() {
@@ -130,6 +234,20 @@ juce::String buildPatchDetail(const juce::File &file,
   else
     lines.add("Warnings: " + joinWarnings(report.warnings));
   return lines.joinIntoString("\r\n");
+}
+
+void appendLibraryDetail(TPresetEntry &entry) {
+  juce::StringArray lines;
+  if (entry.favorite)
+    lines.add("Library: favorite");
+  if (entry.recent)
+    lines.add("Last Used: " + formatTimestamp(entry.lastUsedTime));
+  if (!entry.tags.isEmpty())
+    lines.add("Tags: " + entry.tags.joinIntoString(", "));
+  if (lines.isEmpty())
+    return;
+
+  entry.detailText << "\r\n" << lines.joinIntoString("\r\n");
 }
 
 juce::String buildStateSummary(const TStatePresetSummary &summary,
@@ -405,9 +523,12 @@ public:
 
 TPresetCatalog::TPresetCatalog(
     std::vector<std::unique_ptr<TPresetProvider>> providersIn)
-    : providers(std::move(providersIn)) {}
+    : providers(std::move(providersIn)), stateFile(resolveLibraryStateFile()) {
+  loadLibraryState();
+}
 
 void TPresetCatalog::reload() {
+  loadLibraryState();
   entries.clear();
   for (const auto &provider : providers) {
     if (provider == nullptr)
@@ -415,22 +536,55 @@ void TPresetCatalog::reload() {
     provider->collectEntries(entries);
   }
 
+  for (auto &entry : entries) {
+    applyLibraryState(libraryState, entry);
+    if (entry.detailText.isEmpty()) {
+      entry.detailText = "Kind: " + entry.kindLabel + "\r\n"
+                         "Domains: " + joinDomains(entry.domains) + "\r\n"
+                         "File: " + entry.file.getFullPathName();
+    }
+    appendLibraryDetail(entry);
+  }
+
   std::stable_sort(entries.begin(), entries.end(),
                    [](const TPresetEntry &a, const TPresetEntry &b) {
+                     if (a.favorite != b.favorite)
+                       return a.favorite && !b.favorite;
+                     if (a.lastUsedTime != b.lastUsedTime)
+                       return a.lastUsedTime > b.lastUsedTime;
                      if (a.modifiedTime != b.modifiedTime)
                        return a.modifiedTime > b.modifiedTime;
                      if (a.kindLabel != b.kindLabel)
                        return a.kindLabel < b.kindLabel;
                      return a.displayName.compareIgnoreCase(b.displayName) < 0;
                    });
+}
 
-  for (auto &entry : entries) {
-    if (entry.detailText.isEmpty()) {
-      entry.detailText = "Kind: " + entry.kindLabel + "\r\n"
-                         "Domains: " + joinDomains(entry.domains) + "\r\n"
-                         "File: " + entry.file.getFullPathName();
-    }
-  }
+bool TPresetCatalog::toggleFavorite(const juce::String &entryId) {
+  if (entryId.isEmpty())
+    return false;
+
+  auto &state = libraryState[entryId];
+  state.favorite = !state.favorite;
+  saveLibraryState();
+  return state.favorite;
+}
+
+void TPresetCatalog::markUsed(const juce::String &entryId) {
+  if (entryId.isEmpty())
+    return;
+
+  auto &state = libraryState[entryId];
+  state.lastUsedMs = juce::Time::getCurrentTime().toMilliseconds();
+  saveLibraryState();
+}
+
+void TPresetCatalog::loadLibraryState() {
+  libraryState = loadLibraryStateMap(stateFile);
+}
+
+void TPresetCatalog::saveLibraryState() const {
+  saveLibraryStateMap(stateFile, libraryState);
 }
 
 std::unique_ptr<TPresetCatalog> makeDefaultPresetCatalog() {
