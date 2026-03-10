@@ -1,189 +1,293 @@
 # 외부 제어 소스 / 디바이스 프로필
 
-`Teul Execution Plan.md`의 `External Control Sources / Device Profiles` 항목을 한글로 분리 정리한 문서입니다.
+`Teul Execution Plan.md`의 `External Control Sources / Device Profiles` 항목을 분리하고, 현재 구현 상태와 MVP까지의 수정 계획을 함께 정리한 문서다.
 
 ---
 
-## UI 레이아웃 초안
-
-- 왼쪽 `Input Rail`: 에디터 전체 폭의 `12% - 14%`
-- 오른쪽 `Output Rail`: 에디터 전체 폭의 `12% - 14%`
-- 하단 `Control Rail`: 에디터 전체 높이의 `14% - 18%`
-- 중앙 캔버스는 나머지 공간을 유지하며, 기본 DSP 편집 영역으로 사용
-- 그래프 편집이 복잡해질 때 캔버스가 공간을 다시 확보할 수 있도록 각 Rail은 접기/펼치기가 가능해야 함
-
-## 비주얼 언어
-
-- 일반 노드 포트는 내부 그래프 배선을 위한 작고 중립적인 소켓 형태를 유지
-- Rail 포트는 일반 노드 핀보다는 하드웨어 경계 커넥터처럼 보여야 함
-- 기본 상태에서는 Rail이 `jack/socket` 스타일의 엔드포인트로 보여야 하며, 드래그 시에는 기존 케이블 렌더링 방식을 재사용
-- 케이블 두께는 대체로 일관되게 유지하고, 차이는 선 굵기보다는 포트 실루엣, 슬롯 배경, 커넥터 캡/스터브 형태로 표현
-
-## Rail별 포트 형태 규칙
-
-- `Input Rail` / `Output Rail`: 프레임과 테두리 표현이 더 강한 캡슐형 또는 반-잭형 커넥터
-- `Control Rail`: `Value`, `Gate`, `Trigger`용 작은 `pill` 포트를 가진 소스 카드
-- `Expression` 소스는 기본적으로 단일 `Value` 포트 사용
-- `Footswitch` 소스는 기본적으로 `Gate` + `Trigger` 포트 사용
-- 스테레오 오디오 엔드포인트는 서로 무관한 점 두 개가 아니라 하나로 묶인 `L/R` 커넥터처럼 보여야 함
-
-## 색상 방향
-
-- Rail 배경은 캔버스보다 한 톤 더 진하게 해서 시스템 패널처럼 읽히게 함
-- 오디오 I/O 강조색: teal / cyan 계열
-- 연속 제어(`Value`) 강조색: warm yellow / amber 계열
-- Gate / Trigger 강조색: orange / red 계열
-- MIDI 계열 강조색: mint / lime 계열
-- Rail 커넥터는 내부 노드 포트보다 더 강한 테두리와 약간 낮은 채도를 유지
-
-## 예정된 리소스 사용 방식
-
-- DPI 스케일링, 줌, 상태 전환을 고려해 Rail, 포트, 케이블은 코드 기반 드로잉을 우선 사용
-- `Input`, `Output`, `Expression`, `Footswitch`, `MIDI`, `Missing`, `Learn`, `Auto` 배지용 소형 재사용 아이콘 리소스를 추가
-- 비트맵 기반 케이블이나 큰 장식용 패널 배경은 지양
-- 이미지 에셋이 필요하더라도 핵심 인터랙션 도형이 아니라 아이콘, 배지, 미니 글리프 수준으로 제한
-
-## 2단계 목표
-
-- 새 문서 모델의 placeholder 데이터를 사용해 세 개의 Rail을 렌더링
-- 초안 단계에서 최소한 `EXP 1`, `FS 1`, 그리고 하나의 오디오 입력/출력 엔드포인트를 표시
-- 디바이스 감지나 Learn 모드를 연결하기 전에 스크린샷으로 간격, 카드 밀도, 포트 가독성을 검증
-
 ## 목표
 
-- 외부 MIDI foot controller, expression pedal, switch 입력을 그래프의 시스템 경계로 다루고, preset/state 복원 흐름과 함께 안정적으로 저장하고 재연결한다.
+- 외부 오디오 입력, MIDI 입력, 컨트롤 소스를 그래프의 경계로 취급한다.
+- `Input Rail`, `Output Rail`, `Control Rail`이 내부 노드를 대신하는 실제 연결 종단점으로 동작해야 한다.
+- preset/state/recovery 흐름에서도 device profile과 control assignment가 안정적으로 복원되어야 한다.
 
-## 주요 작업
+## UI 기본 방향
 
-- `Control Source Rail` 모델 도입
-  - 좌측 `Input Rail`, 우측 `Output Rail`, 하단 `Control Rail` 구조를 기준으로 시스템 I/O와 일반 DSP 노드를 분리
-- 동적 장치 감지
-  - 연결된 외부 컨트롤 장치를 감지하고, 입력 이벤트를 바탕으로 임시 control source를 자동 생성
-- `learn + confirm` 등록 흐름
-  - 사용자가 페달/스위치를 움직여 `EXP`, `FS`, `Trigger` source를 확정하고 이름, 타입, momentary/toggle 모드를 보정
-- device profile persist
-  - 장치별 source 구성, 표시 이름, binding 정보를 profile로 저장하고 재연결 시 안정적으로 복원
-- preset/state 연동 복원
-  - 문서 로드, preset 전환, crash recovery 이후에도 control source assignment와 device mapping이 일관되게 복원되도록 상태 모델 정리
-- fallback / partial recovery 정책
-  - 장치가 없거나 source 일부가 누락된 경우 `unassigned`, `degraded`, `relink-needed` 상태를 명시적으로 유지
-- assignment inspector 계약 정리
-  - `Value`, `Gate`, `Trigger` 같은 source 출력 타입과 target parameter binding 규칙을 명문화
-- 검증 항목 추가
-  - device reconnect, profile mismatch, preset reload, missing controller 상황에 대한 state recovery 테스트 추가
+- 좌측 `Input Rail`, 우측 `Output Rail`, 하단 `Control Rail` 구조를 유지한다.
+- 중앙 캔버스는 DSP 그래프 편집의 주 무대다.
+- Rail은 시스템 경계, 노드는 내부 처리, 케이블은 둘을 직접 잇는 공통 계층으로 읽혀야 한다.
 
-## 완료 기준
+## 포트 체계
 
-- 대표 foot controller / expression 장치를 연결했을 때 source가 자동 감지되고, 사용자가 learn으로 의미를 확정할 수 있음
-- 저장 후 재실행하거나 장치를 재연결해도 source profile과 assignment가 일관되게 복원됨
-- 장치가 누락되거나 구성이 달라져도 문서가 깨지지 않고 degraded 상태로 복구됨
+- `SignalShape`
+  - `Mono`
+  - `Stereo`
+  - `Bus`
+- `ConnectionPolicy`
+  - `Single`
+  - `Multi`
+- `SignalDomain`
+  - `Audio`
+  - `Midi`
+  - `CV`
+  - `Control`
 
-## 바로 이어서 UI
+## 포트 실루엣
 
-- UI `Phase 8`
-  - Preset Browser
-  - 노드 상태 스냅샷
-  - 변경 비교 보기
-  - dirty state 표시
-  - crash recovery 대화상자
-  - 충돌 해결 흐름
-  - migration 경고 배너
-  - deprecated/alias 표시
-  - 복구 가능성 등급
+- `Mono`: 원형 포트
+- `Stereo`: 세로 아령형 포트
+  - 상단 = `L`
+  - 하단 = `R`
+  - 중앙 손잡이 = bundle
+- `Bus`: 세로 긴 캡슐형 포트
+- `Multi`: 별도 모양이 아니라 같은 타입 포트를 여러 개 반복 배치
 
-## 이 단계가 중요한 이유
+## 상태 표현 원칙
 
-- 상용 툴에서 사용자가 가장 싫어하는 것은 데이터 손실임
-- 검증 인프라가 준비된 뒤에 preset/migration을 얹어야 포맷 변경을 안전하게 운영할 수 있음
+- 내부
+  - `Disconnected`
+  - `Connected`
+  - `PartiallyConnected`
+  - `Full`
+  - `Hover`
+  - `Selected`
+  - `DragSource`
+  - `DragTarget`
+  - `Focus`
+- 외부 링
+  - `Missing`
+  - `Degraded`
+  - `InvalidConfig`
+- 렌더 순서
+  1. 포트 내부
+  2. 포트 테두리
+  3. 외부 상태 링
 
-## 게이트
+## 케이블 원칙
 
-- autosave 복구 경로가 실제로 동작
-- 구버전 문서/프리셋을 migration 후 다시 열 수 있음
-- recovery/migration 실패가 사용자에게 설명 가능한 상태로 노출됨
+- `Mono`는 단일 케이블
+- `Stereo` / `Bus`는 bundle 케이블을 지원
+- bundle 케이블은 개별 채널선이 묶인 것처럼 보여야 한다
+- 다발 구간은 얇게 유지한다
+- 포트 연결부는 포트 길이와 비슷한 폭으로 맞춘다
+- `partial`, `asymmetric` 강조는 약하게 유지한다
+
+## 히트 테스트 규칙
+
+- `Stereo`
+  - 상단 원 클릭 = `L`
+  - 하단 원 클릭 = `R`
+  - 중앙 손잡이 클릭 = bundle
+- `Bus`
+  - 채널 세그먼트 클릭 = 개별 채널
+  - 나머지 바디 클릭 = 전체 bundle
+
+## 자동 채널 변환 규칙
+
+- `Mono -> Stereo`
+  - 사용자가 꽂은 쪽 채널에만 입력
+- `Stereo -> Mono`
+  - downmix
+- `Bus -> Stereo/Mono`
+  - 사용자가 꽂은 채널만 입력
+- 불가능한 경우는 `InvalidConfig`
+
+## Multi / Bus 수용량 규칙
+
+- `Multi`는 동일 타입 포트를 반복해서 배치한다
+- `MultiStereo xN`은 `2N` mono channel unit 총량으로 해석한다
+- 비대칭 채널 사용은 허용한다
+- `Bus`가 6채널을 넘으면 포트 길이를 더 늘리지 않고 세그먼트 두께를 줄인다
+
+## Inspector 구조
+
+- `Connection Setup`
+- `Audio Parameters`
+- `Missing`, `Degraded`, `InvalidConfig`는 tooltip과 상세 설명으로 보강한다
+
+## 렌더 계층 원칙
+
+1. 캔버스 배경
+2. 캔버스 그리드
+3. 캔버스 내부 장식 요소
+4. 노드 / 프레임 / 캔버스 위젯 본체
+5. Rail 패널 본체
+6. 연결선
+7. 포트 강조 / 드래그 타깃 / 상태 오버레이
+8. HUD 오버레이
+   - runtime overlay
+   - minimap
+9. 최상위 UI
+   - toast
+   - warning banner
+   - popup
+
+핵심 관계:
+- `Rail 본체 < 연결선 < 포트 상태 오버레이 < HUD < 최상위 UI`
+
+---
+
+## 현재 구현 상태
+
+### 완료
+
+- `Input Rail`, `Output Rail`, `Control Rail` 기본 배치
+- Rail 카드 선택과 Inspector 연동
+- `Control Rail` source inspector 기본 표시
+- `Input Rail` 포트에서 node input으로 직접 드래그 가능
+- node output에서 `Output Rail` 포트로 직접 드롭 가능
+- `Control Rail` 포트에서 parameter assignment 드래그 가능
+- rail endpoint를 backing node가 아닌 직접 연결 endpoint로 승격
+- rail endpoint 직렬화 / 역직렬화
+- 런타임에서 rail input / rail output을 직접 처리하는 경로 추가
+- Node inspector의 `Connection Setup` 요약 표시
+
+### 진행 중
+
+- stereo / bus 포트 실루엣을 최종 문법대로 맞추는 작업
+- bundle 케이블 렌더링
+- 포트 상태 표현의 전면 적용
+- rail 포트 앵커와 실제 연결선 위치 정렬
+
+### 아직 미완료
+
+- `Missing`, `Degraded`, `InvalidConfig`의 전면 처리
+- assignment 편집부 확장
+- device detect / learn / profile persist / restore
+- preset / state / recovery 전체 복구 검증
+
+---
+
+## MVP까지 수정해야 할 사항
+
+### 1. 렌더 순서 바로잡기
+
+- 연결선이 rail 아래로 깔리지 않게 수정
+- minimap / runtime overlay / toast / warning의 z-order 정리
+- 포트 오버레이가 연결선보다 항상 위에 오게 정리
+
+### 2. stereo / bus 포트 문법 반영
+
+- 현재 가로 `L/R` 배치를 세로 `L/R`로 교체
+- stereo 포트의 상단 `L`, 하단 `R`, 중앙 bundle hit test 반영
+- bus 포트의 채널 세그먼트와 바디 hit test 반영
+
+### 3. 연결선 앵커 정렬
+
+- rail 포트 중심과 케이블 시작점 / 끝점이 정확히 맞도록 수정
+- rail 카드 테두리에서 선이 튀어나오는 것처럼 보이는 문제 제거
+
+### 4. bundle 케이블 구현
+
+- stereo / bus bundle 케이블 실루엣 추가
+- 개별선과 bundle 선이 시각적으로 구분되게 정리
+- split / merge 지점 문법 정리
+
+### 5. legacy 시각 흔적 제거
+
+- rail이 있는 상태에서 중복 의미의 입력 노드가 캔버스에 보이지 않게 정리
+- direct rail endpoint 구조에 맞는 canvas 표현으로 통일
+
+### 6. 포트 상태 적용 확대
+
+- 내부 fill, 테두리, 외부 점선 링 규칙을 rail과 node 포트 전반에 적용
+- valid / invalid drag target 강조 문법 통일
+
+### 7. Inspector 마감
+
+- `Connection Setup`과 `Audio Parameters` 분리 정리
+- assignment 읽기 / 삭제 / 상태 표시 보강
+
+### 8. 회귀 검증
+
+- 저장 / 불러오기
+- rail selection / cable drag / invalid drop
+- stereo / bus / multi routing
+- asymmetric routing
+- preset reload / recovery / degraded state
+
 ---
 
 ## 로드맵
 
-### Milestone 3 구현 순서
+### Milestone 3 구현 순서와 현재 상태
 
-1. **Rail 상호작용 완성**
+1. **Rail 상호작용 완성** `[완료]`
    - `Input / Output / Control` 카드 선택 규칙 통일
    - 카드 클릭 시 Inspector 열기
    - 포트 클릭 시 케이블 드래그 시작
    - hover / selected / focus 상태 연결
 
-2. **포트 타입 / 상태 모델 고정**
+2. **포트 타입 / 상태 모델 고정** `[완료]`
    - `SignalShape`: `Mono / Stereo / Bus`
    - `ConnectionPolicy`: `Single / Multi`
    - `SignalDomain`: `Audio / Midi / CV / Control`
-   - 장기 유지 상태 / 단기 일시 상태 정리
-   - 상태 조합 우선순위 정리
+   - 장기 유지 상태 / 단기 일시 상태 구분
+   - 상태 표현 원칙 정리
 
-3. **포트 렌더러 구현**
-   - mono 원형
-   - stereo 아령형
-   - bus 긴 캡슐형
-   - 내부 fill, 도메인 테두리, 외부 점선 링 렌더 반영
+3. **포트 렌더러 구현** `[진행 중]`
+   - mono / stereo / bus 실루엣 반영
+   - 내부 fill, 외부 상태 링 적용
+   - 현재는 일부만 반영됐고 최종 문법과 불일치가 남아 있음
 
-4. **포트 hit test / 케이블 시작 규칙 구현**
-   - stereo:
-     - 상단 원 = `L`
-     - 하단 원 = `R`
-     - 손잡이 = bundle
-   - bus:
-     - 채널 세그먼트 = 개별 채널
-     - 바디 = bundle
-   - drag source / valid target / invalid target 시각화
+4. **포트 hit test / 케이블 시작 규칙 구현** `[진행 중]`
+   - 현재 rail 포트 드래그는 동작
+   - stereo / bus의 최종 hit test 규칙은 아직 미완성
 
-5. **케이블 렌더러 확장**
-   - mono 케이블
-   - stereo / bus bundle 케이블
-   - bundle은 다발부를 얇게 유지
-   - 포트 연결부는 포트 길이와 비슷한 폭으로 맞춤
-   - split / merge 지점 표현
-   - partial / asymmetric는 약하게만 강조
+5. **케이블 렌더러 확장** `[진행 중]`
+   - direct rail endpoint 연결은 동작
+   - bundle 케이블 문법, split / merge 표현, 앵커 정렬은 아직 수정 필요
 
-6. **Bus / Multi 수용량 규칙 구현**
-   - `Multi`는 동일 타입 포트 반복 배치
-   - `MultiStereo xN`은 mono unit 총량으로 해석
+6. **Bus / Multi 수용량 규칙 구현** `[예정]`
+   - `Multi` 반복 배치
+   - `MultiStereo xN` 용량 계산
    - 비대칭 허용
-   - capacity 계산과 연결 제한 적용
 
-7. **자동 채널 변환 규칙 구현**
-   - `Mono -> Stereo`: 꽂은 채널에만 입력
-   - `Stereo -> Mono`: downmix
-   - `Bus -> Stereo/Mono`: 꽂은 채널만 입력
-   - 자동 변환 불가 케이스는 `InvalidConfig`
+7. **자동 채널 변환 규칙 구현** `[부분 완료]`
+   - 규칙은 정리됨
+   - 연결 검증과 전면 적용은 아직 추가 필요
 
-8. **Inspector 1차 완성**
-   - 연결 설정부
-   - 오디오 파라미터 편집부
-   - 카드 / 포트 메타 정보 표시
-   - `Missing`, `Degraded`, `InvalidConfig` tooltip / 상세 메시지 연결
+8. **Inspector 1차 완성** `[진행 중]`
+   - `Connection Setup` 추가 완료
+   - assignment 편집과 상태 메시지 보강은 남음
 
-9. **Rail UI polish**
-   - spacing / padding / typography 정리
-   - Input / Output / Control 포트 스타일 통일
-   - Bus 6ch 이상 압축 규칙 반영
-   - 애니메이션 강도 조정
+9. **Rail UI polish** `[예정]`
+   - spacing / padding / typography
+   - stereo / bus 실루엣 마감
+   - Bus 6ch 이상 압축 규칙
+   - 애니메이션 강도 정리
 
-10. **Control Source / Device Profile 로직 연결**
+10. **Control Source / Device Profile 로직 연결** `[예정]`
     - dynamic device detection
     - learn + confirm
     - profile persist / restore
     - preset / state / recovery 연동
-    - missing controller / degraded state 처리
 
-11. **검증**
-    - rail selection / cable drag / invalid drop
-    - stereo / bus / multi routing
-    - asymmetric routing
-    - device reconnect / profile mismatch
-    - preset reload / recovery / degraded state
+11. **검증** `[진행 중]`
+    - 빌드 통과
+    - 기본 drag / drop은 동작
+    - 저장 / 복구 / degraded / profile mismatch 검증은 아직 남음
 
 ### 작업 묶음 제안
 
-- `3A`: Rail 선택 / 포트 / 기본 상호작용
-- `3B`: 케이블 / 수용량 / 채널 변환 / Inspector
-- `3C`: polish / device profile / recovery / test
+- `3A` `[완료]`
+  - Rail 선택
+  - direct rail endpoint 구조 전환
+  - 기본 drag / drop 경로 확보
+- `3B` `[진행 중]`
+  - 포트 실루엣
+  - hit test
+  - 케이블 렌더
+  - Inspector 1차 마감
+- `3C` `[예정]`
+  - polish
+  - device profile
+  - recovery
+  - regression test
+
+### 지금 UI 점검 후 바로 들어갈 수정 우선순위
+
+1. 렌더 순서 바로잡기
+2. stereo 포트 세로 문법 반영
+3. rail 포트 앵커 정렬
+4. bundle 케이블 구현
+5. 중복 입력 노드 흔적 제거
