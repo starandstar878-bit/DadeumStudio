@@ -164,6 +164,18 @@ public static class NativeMethods {
   [DllImport("user32.dll")]
   public static extern bool SetForegroundWindow(IntPtr hWnd);
 
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+
+  [DllImport("user32.dll")]
+  public static extern bool BringWindowToTop(IntPtr hWnd);
+
+  [DllImport("user32.dll")]
+  public static extern bool IsWindow(IntPtr hWnd);
+
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
   [DllImport("user32.dll", SetLastError = true)]
   public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
 
@@ -229,8 +241,51 @@ function Prepare-WindowForScreenCapture {
   Start-Sleep -Milliseconds 250
 }
 
-function Capture-WindowBitmap {
+function Restore-PreviousForegroundWindow {
+  param(
+    [IntPtr]$WindowHandle,
+    [IntPtr]$PreviousForegroundWindowHandle
+  )
+
+  if ($PreviousForegroundWindowHandle -eq [IntPtr]::Zero) {
+    return
+  }
+
+  if ($PreviousForegroundWindowHandle -eq $WindowHandle) {
+    return
+  }
+
+  if (-not [NativeMethods]::IsWindow($PreviousForegroundWindowHandle)) {
+    return
+  }
+
+  [NativeMethods]::ShowWindowAsync($PreviousForegroundWindowHandle, 9) | Out-Null
+  [NativeMethods]::BringWindowToTop($PreviousForegroundWindowHandle) | Out-Null
+  [NativeMethods]::SetForegroundWindow($PreviousForegroundWindowHandle) | Out-Null
+  Start-Sleep -Milliseconds 150
+}
+
+function Send-WindowToBack {
   param([IntPtr]$WindowHandle)
+
+  if ($WindowHandle -eq [IntPtr]::Zero) {
+    return
+  }
+
+  if (-not [NativeMethods]::IsWindow($WindowHandle)) {
+    return
+  }
+
+  $hwndBottom = [IntPtr]1
+  $flags = 0x0001 -bor 0x0002 -bor 0x0010
+  [NativeMethods]::SetWindowPos($WindowHandle, $hwndBottom, 0, 0, 0, 0, $flags) | Out-Null
+}
+
+function Capture-WindowBitmap {
+  param(
+    [IntPtr]$WindowHandle,
+    [IntPtr]$PreviousForegroundWindowHandle = [IntPtr]::Zero
+  )
 
   if ($WindowHandle -eq [IntPtr]::Zero) {
     throw "Window handle is invalid."
@@ -255,6 +310,9 @@ function Capture-WindowBitmap {
   } catch {
     $bitmap.Dispose()
     throw
+  } finally {
+    Restore-PreviousForegroundWindow -WindowHandle $WindowHandle -PreviousForegroundWindowHandle $PreviousForegroundWindowHandle
+    Send-WindowToBack -WindowHandle $WindowHandle
   }
 }
 
@@ -281,7 +339,8 @@ try {
   }
 
   $windowHandle = [IntPtr]$targetProcess.MainWindowHandle
-  $bitmap = Capture-WindowBitmap -WindowHandle $windowHandle
+  $previousForegroundWindowHandle = [NativeMethods]::GetForegroundWindow()
+  $bitmap = Capture-WindowBitmap -WindowHandle $windowHandle -PreviousForegroundWindowHandle $previousForegroundWindowHandle
   try {
     $bitmap.Save($resolvedOutputPath, [System.Drawing.Imaging.ImageFormat]::Png)
   } finally {
