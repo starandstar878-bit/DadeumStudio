@@ -18,6 +18,7 @@ class PresetBrowserPanel;
 class RuntimeStatusStrip;
 class DocumentNoticeBanner;
 class RailPanel;
+class ControlSourceInspectorPanel;
 
 struct EditorHandle::Impl : private juce::Timer {
   explicit Impl(EditorHandle &owner,
@@ -40,6 +41,8 @@ private:
   void handleFrameSelectionChanged(int frameId);
   void openProperties(NodeId nodeId);
   void inspectNodeWithReveal(NodeId nodeId);
+  void inspectControlSource(const juce::String &sourceId);
+  void clearControlSourceInspector();
   bool focusDiagnosticTarget(const juce::String &graphId,
                              const juce::String &query);
   void refreshRuntimeUi(bool forceMessage = false);
@@ -62,6 +65,7 @@ private:
   std::unique_ptr<PresetBrowserPanel> presetBrowserPanel;
   std::unique_ptr<RuntimeStatusStrip> runtimeStatusStrip;
   std::unique_ptr<DocumentNoticeBanner> documentNoticeBanner;
+  std::unique_ptr<ControlSourceInspectorPanel> controlSourceInspector;
   std::unique_ptr<RailPanel> inputRail;
   std::unique_ptr<RailPanel> outputRail;
   std::unique_ptr<RailPanel> controlRail;

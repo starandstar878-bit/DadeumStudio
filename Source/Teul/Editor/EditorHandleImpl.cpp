@@ -110,6 +110,7 @@ struct RailCardPortView {
 };
 
 struct RailCardView {
+  juce::String itemId;
   juce::String title;
   juce::String subtitle;
   juce::String badge;
@@ -293,6 +294,7 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
                                                       railId);
     for (const auto *endpoint : endpoints) {
       RailCardView card;
+      card.itemId = endpoint->endpointId;
       card.title = endpoint->displayName;
       card.subtitle = endpoint->subtitle.isNotEmpty()
                           ? endpoint->subtitle
@@ -315,6 +317,7 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
         continue;
 
       RailCardView card;
+      card.itemId = source.sourceId;
       card.title = source.displayName;
       card.subtitle = describeControlSource(source);
       card.badge = controlSourceBadgeText(source);
@@ -349,6 +352,7 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
 class RailPanel : public juce::Component {
 public:
   using CollapseHandler = std::function<void()>;
+  using CardSelectionHandler = std::function<void(const juce::String &cardId)>;
 
   RailPanel(TGraphDocument &documentIn, juce::String railIdIn,
             RailOrientation orientationIn)
@@ -361,6 +365,23 @@ public:
 
   void setCollapseHandler(CollapseHandler handler) {
     collapseHandler = std::move(handler);
+  }
+
+  void setCardSelectionHandler(CardSelectionHandler handler) {
+    cardSelectionHandler = std::move(handler);
+    if (cardSelectionHandler == nullptr) {
+      selectedCardId.clear();
+      cardHitZones.clear();
+    }
+    repaint();
+  }
+
+  void setSelectedCardId(const juce::String &cardId) {
+    if (selectedCardId == cardId)
+      return;
+
+    selectedCardId = cardId;
+    repaint();
   }
 
   void refreshFromDocument() {
@@ -385,7 +406,32 @@ public:
     return false;
   }
 
+  void mouseDown(const juce::MouseEvent &event) override {
+    if (cardSelectionHandler == nullptr || isRailCollapsed())
+      return;
+
+    const auto point = event.position.roundToInt();
+    for (auto it = cardHitZones.rbegin(); it != cardHitZones.rend(); ++it) {
+      if (!it->second.contains(point))
+        continue;
+
+      if (selectedCardId != it->first)
+        selectedCardId = it->first;
+      repaint();
+      cardSelectionHandler(it->first);
+      return;
+    }
+
+    if (selectedCardId.isNotEmpty()) {
+      selectedCardId.clear();
+      repaint();
+      cardSelectionHandler({});
+    }
+  }
+
   void paint(juce::Graphics &g) override {
+    cardHitZones.clear();
+
     const auto kind = currentRailKind();
     const auto accent = railAccent(kind);
     const auto collapsed = isRailCollapsed();
@@ -487,7 +533,7 @@ private:
   }
 
   void drawVerticalCards(juce::Graphics &g, juce::Rectangle<int> area,
-                         const std::vector<RailCardView> &cards) const {
+                         const std::vector<RailCardView> &cards) {
     const bool portsOnRight = currentRailKind() != TRailKind::output;
     const int gap = 8;
     const int count = juce::jmax(1, (int)cards.size());
@@ -503,17 +549,18 @@ private:
   }
 
   void drawVerticalCard(juce::Graphics &g, juce::Rectangle<float> area,
-                        const RailCardView &card, bool portsOnRight) const {
+                        const RailCardView &card, bool portsOnRight) {
     const auto accent = card.warning ? juce::Colour(0xffef4444) : card.accent;
+    const bool selected = card.itemId.isNotEmpty() && card.itemId == selectedCardId;
     g.setColour(juce::Colour(0xe50f172a));
     g.fillRoundedRectangle(area, 12.0f);
-    g.setColour(accent.withAlpha(0.72f));
-    g.drawRoundedRectangle(area, 12.0f, 1.0f);
+    g.setColour(accent.withAlpha(selected ? 0.98f : 0.72f));
+    g.drawRoundedRectangle(area, 12.0f, selected ? 2.0f : 1.0f);
 
     auto strip = area;
     strip.setWidth(4.0f);
     strip.setX(portsOnRight ? area.getRight() - 4.0f : area.getX());
-    g.setColour(accent.withAlpha(0.68f));
+    g.setColour(accent.withAlpha(selected ? 0.92f : 0.68f));
     g.fillRoundedRectangle(strip, 2.0f);
 
     auto content = area.toNearestInt().reduced(10, 8);
@@ -541,30 +588,32 @@ private:
       drawGroupedStereoSocket(
           g, socketArea.toFloat().withSizeKeepingCentre(30.0f, 10.0f), accent,
           portsOnRight);
-      return;
+    } else {
+      const int portCount = juce::jmin(3, (int)card.ports.size());
+      if (portCount > 0) {
+        const int rowHeight = juce::jmax(16, portsArea.getHeight() / portCount);
+        for (int index = 0; index < portCount; ++index) {
+          auto row = portsArea.removeFromTop(rowHeight);
+          auto socketArea = portsOnRight ? row.removeFromRight(18)
+                                         : row.removeFromLeft(18);
+          auto labelArea = row;
+          g.setColour(juce::Colours::white.withAlpha(0.78f));
+          g.setFont(10.0f);
+          g.drawText(card.ports[(size_t)index].label, labelArea,
+                     juce::Justification::centredLeft, false);
+          drawSocket(g,
+                     socketArea.toFloat().withSizeKeepingCentre(14.0f, 8.0f),
+                     card.ports[(size_t)index].accent, portsOnRight);
+        }
+      }
     }
 
-    const int portCount = juce::jmin(3, (int)card.ports.size());
-    if (portCount <= 0)
-      return;
-
-    const int rowHeight = juce::jmax(16, portsArea.getHeight() / portCount);
-    for (int index = 0; index < portCount; ++index) {
-      auto row = portsArea.removeFromTop(rowHeight);
-      auto socketArea = portsOnRight ? row.removeFromRight(18)
-                                     : row.removeFromLeft(18);
-      auto labelArea = row;
-      g.setColour(juce::Colours::white.withAlpha(0.78f));
-      g.setFont(10.0f);
-      g.drawText(card.ports[(size_t)index].label, labelArea,
-                 juce::Justification::centredLeft, false);
-      drawSocket(g, socketArea.toFloat().withSizeKeepingCentre(14.0f, 8.0f),
-                 card.ports[(size_t)index].accent, portsOnRight);
-    }
+    if (card.itemId.isNotEmpty())
+      cardHitZones.push_back({card.itemId, area.toNearestInt()});
   }
 
   void drawHorizontalCards(juce::Graphics &g, juce::Rectangle<int> area,
-                           const std::vector<RailCardView> &cards) const {
+                           const std::vector<RailCardView> &cards) {
     const int gap = 10;
     const int count = juce::jmax(1, (int)cards.size());
     const int cardWidth = juce::jlimit(150, 240,
@@ -579,12 +628,13 @@ private:
   }
 
   void drawHorizontalCard(juce::Graphics &g, juce::Rectangle<float> area,
-                          const RailCardView &card) const {
+                          const RailCardView &card) {
     const auto accent = card.warning ? juce::Colour(0xffef4444) : card.accent;
+    const bool selected = card.itemId.isNotEmpty() && card.itemId == selectedCardId;
     g.setColour(juce::Colour(0xe50f172a));
     g.fillRoundedRectangle(area, 13.0f);
-    g.setColour(accent.withAlpha(0.72f));
-    g.drawRoundedRectangle(area, 13.0f, 1.0f);
+    g.setColour(accent.withAlpha(selected ? 0.98f : 0.72f));
+    g.drawRoundedRectangle(area, 13.0f, selected ? 2.0f : 1.0f);
 
     auto content = area.toNearestInt().reduced(12, 10);
     auto titleRow = content.removeFromTop(18);
@@ -617,6 +667,9 @@ private:
       g.setFont(10.0f);
       g.drawText(port.label, pill, juce::Justification::centred, false);
     }
+
+    if (card.itemId.isNotEmpty())
+      cardHitZones.push_back({card.itemId, area.toNearestInt()});
   }
 
   juce::String railTitle() const {
@@ -678,6 +731,281 @@ private:
   RailOrientation orientation;
   juce::TextButton collapseButton;
   CollapseHandler collapseHandler;
+  CardSelectionHandler cardSelectionHandler;
+  juce::String selectedCardId;
+  std::vector<std::pair<juce::String, juce::Rectangle<int>>> cardHitZones;
+};
+
+class ControlSourceInspectorPanel : public juce::Component {
+public:
+  ControlSourceInspectorPanel(TGraphDocument &documentIn,
+                              const TNodeRegistry &registryIn)
+      : document(documentIn), registry(registryIn) {
+    addAndMakeVisible(headerLabel);
+    addAndMakeVisible(kindLabel);
+    addAndMakeVisible(statusLabel);
+    addAndMakeVisible(portsLabel);
+    addAndMakeVisible(assignmentsLabel);
+    addAndMakeVisible(portsBox);
+    addAndMakeVisible(assignmentsBox);
+    addAndMakeVisible(closeButton);
+
+    headerLabel.setJustificationType(juce::Justification::centredLeft);
+    headerLabel.setColour(juce::Label::textColourId,
+                          juce::Colours::white.withAlpha(0.95f));
+    headerLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+
+    kindLabel.setJustificationType(juce::Justification::centredLeft);
+    kindLabel.setColour(juce::Label::textColourId,
+                        juce::Colours::white.withAlpha(0.68f));
+    statusLabel.setJustificationType(juce::Justification::centredLeft);
+    statusLabel.setColour(juce::Label::textColourId,
+                          juce::Colours::white.withAlpha(0.58f));
+
+    portsLabel.setText("Ports", juce::dontSendNotification);
+    portsLabel.setJustificationType(juce::Justification::centredLeft);
+    portsLabel.setColour(juce::Label::textColourId,
+                         juce::Colours::white.withAlpha(0.78f));
+
+    assignmentsLabel.setText("Assignments", juce::dontSendNotification);
+    assignmentsLabel.setJustificationType(juce::Justification::centredLeft);
+    assignmentsLabel.setColour(juce::Label::textColourId,
+                               juce::Colours::white.withAlpha(0.78f));
+
+    configureReadOnlyBox(portsBox);
+    configureReadOnlyBox(assignmentsBox);
+
+    closeButton.setButtonText("Hide");
+    closeButton.onClick = [this] { hidePanel(); };
+    setVisible(false);
+  }
+
+  void setLayoutChangedCallback(std::function<void()> callback) {
+    onLayoutChanged = std::move(callback);
+  }
+
+  bool isPanelOpen() const noexcept {
+    return isVisible() && currentSourceId.isNotEmpty();
+  }
+
+  const juce::String &selectedSourceId() const noexcept { return currentSourceId; }
+
+  void inspectSource(const juce::String &sourceId) {
+    const auto normalized = sourceId.trim();
+    if (normalized.isEmpty()) {
+      hidePanel();
+      return;
+    }
+
+    const bool wasOpen = isPanelOpen();
+    const bool changed = currentSourceId != normalized;
+    currentSourceId = normalized;
+    setVisible(true);
+    refreshFromDocument();
+
+    if ((!wasOpen || changed) && onLayoutChanged != nullptr)
+      onLayoutChanged();
+  }
+
+  void refreshFromDocument() {
+    if (currentSourceId.isEmpty())
+      return;
+
+    const auto *source = document.controlState.findSource(currentSourceId);
+    if (source == nullptr) {
+      hidePanel();
+      return;
+    }
+
+    headerLabel.setText(source->displayName, juce::dontSendNotification);
+    kindLabel.setText(sourceKindLabel(source->kind) + " / " +
+                          sourceModeLabel(source->mode),
+                      juce::dontSendNotification);
+    statusLabel.setText(buildStatusLine(*source), juce::dontSendNotification);
+    portsBox.setText(buildPortSummary(*source), false);
+    assignmentsBox.setText(buildAssignmentSummary(*source), false);
+    repaint();
+  }
+
+  void hidePanel() {
+    if (!isPanelOpen() && currentSourceId.isEmpty())
+      return;
+
+    currentSourceId.clear();
+    setVisible(false);
+    if (onLayoutChanged != nullptr)
+      onLayoutChanged();
+  }
+
+  void paint(juce::Graphics &g) override {
+    const auto bounds = getLocalBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+
+    g.setGradientFill(juce::ColourGradient(juce::Colour(0xee111827),
+                                           bounds.getCentreX(), bounds.getY(),
+                                           juce::Colour(0xee0b1220),
+                                           bounds.getCentreX(),
+                                           bounds.getBottom(), false));
+    g.fillRoundedRectangle(bounds, 12.0f);
+    g.setColour(juce::Colour(0x66fbbf24));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
+  }
+
+  void resized() override {
+    auto area = getLocalBounds().reduced(12, 10);
+    auto header = area.removeFromTop(24);
+    closeButton.setBounds(header.removeFromRight(54));
+    headerLabel.setBounds(header);
+    kindLabel.setBounds(area.removeFromTop(18));
+    statusLabel.setBounds(area.removeFromTop(18));
+    area.removeFromTop(8);
+    portsLabel.setBounds(area.removeFromTop(18));
+    portsBox.setBounds(area.removeFromTop(116));
+    area.removeFromTop(8);
+    assignmentsLabel.setBounds(area.removeFromTop(18));
+    assignmentsBox.setBounds(area);
+  }
+
+private:
+  static void configureReadOnlyBox(juce::TextEditor &box) {
+    box.setMultiLine(true);
+    box.setReadOnly(true);
+    box.setScrollbarsShown(true);
+    box.setColour(juce::TextEditor::backgroundColourId,
+                  juce::Colour(0x66111827));
+    box.setColour(juce::TextEditor::outlineColourId,
+                  juce::Colour(0xff324154));
+    box.setColour(juce::TextEditor::textColourId,
+                  juce::Colours::white.withAlpha(0.82f));
+  }
+
+  static juce::String sourceKindLabel(TControlSourceKind kind) {
+    switch (kind) {
+    case TControlSourceKind::expression:
+      return "Expression";
+    case TControlSourceKind::footswitch:
+      return "Footswitch";
+    case TControlSourceKind::trigger:
+      return "Trigger";
+    case TControlSourceKind::midiCc:
+      return "MIDI CC";
+    case TControlSourceKind::midiNote:
+      return "MIDI Note";
+    case TControlSourceKind::macro:
+      return "Macro";
+    }
+
+    return "Source";
+  }
+
+  static juce::String sourceModeLabel(TControlSourceMode mode) {
+    switch (mode) {
+    case TControlSourceMode::continuous:
+      return "Continuous";
+    case TControlSourceMode::momentary:
+      return "Momentary";
+    case TControlSourceMode::toggle:
+      return "Toggle";
+    }
+
+    return "Continuous";
+  }
+
+  static juce::String portKindLabel(TControlPortKind kind) {
+    switch (kind) {
+    case TControlPortKind::value:
+      return "Value";
+    case TControlPortKind::gate:
+      return "Gate";
+    case TControlPortKind::trigger:
+      return "Trigger";
+    }
+
+    return "Port";
+  }
+
+  juce::String buildStatusLine(const TControlSource &source) const {
+    juce::String text;
+    if (source.missing)
+      text = "Status: Missing";
+    else if (!source.confirmed)
+      text = "Status: Learn pending";
+    else if (source.autoDetected)
+      text = "Status: Auto detected";
+    else
+      text = "Status: Manual";
+
+    if (source.deviceProfileId.isNotEmpty())
+      text << " | Profile: " << source.deviceProfileId;
+    return text;
+  }
+
+  juce::String buildPortSummary(const TControlSource &source) const {
+    juce::StringArray lines;
+    for (const auto &port : source.ports)
+      lines.add(port.displayName + "  |  " + portKindLabel(port.kind) +
+                "  |  id " + port.portId);
+
+    if (lines.isEmpty())
+      lines.add("No ports available.");
+    return lines.joinIntoString("\n");
+  }
+
+  juce::String portNameForId(const TControlSource &source,
+                             const juce::String &portId) const {
+    for (const auto &port : source.ports) {
+      if (port.portId == portId)
+        return port.displayName;
+    }
+
+    return portId;
+  }
+
+  juce::String targetNameForAssignment(
+      const TControlSourceAssignment &assignment) const {
+    const auto *node = document.findNode(assignment.targetNodeId);
+    if (node == nullptr)
+      return "Missing node / " + assignment.targetParamId;
+
+    juce::String nodeName = node->label;
+    if (nodeName.isEmpty()) {
+      if (const auto *desc = registry.descriptorFor(node->typeKey))
+        nodeName = desc->displayName;
+      if (nodeName.isEmpty())
+        nodeName = node->typeKey;
+    }
+
+    return nodeName + " / " + assignment.targetParamId;
+  }
+
+  juce::String buildAssignmentSummary(const TControlSource &source) const {
+    juce::StringArray lines;
+    for (const auto &assignment : document.controlState.assignments) {
+      if (assignment.sourceId != source.sourceId)
+        continue;
+
+      lines.add(portNameForId(source, assignment.portId) + " -> " +
+                targetNameForAssignment(assignment));
+    }
+
+    if (lines.isEmpty())
+      lines.add("No assignments yet.");
+    return lines.joinIntoString("\n");
+  }
+
+  TGraphDocument &document;
+  const TNodeRegistry &registry;
+  juce::String currentSourceId;
+  juce::Label headerLabel;
+  juce::Label kindLabel;
+  juce::Label statusLabel;
+  juce::Label portsLabel;
+  juce::Label assignmentsLabel;
+  juce::TextEditor portsBox;
+  juce::TextEditor assignmentsBox;
+  juce::TextButton closeButton;
+  std::function<void()> onLayoutChanged;
 };
 
 class RuntimeStatusStrip : public juce::Component {
@@ -1130,6 +1458,16 @@ EditorHandle::Impl::Impl(
   owner.addAndMakeVisible(*documentNoticeBanner);
   documentNoticeBanner->setVisible(false);
 
+  controlSourceInspector =
+      std::make_unique<ControlSourceInspectorPanel>(doc, *registryStore);
+  controlSourceInspector->setLayoutChangedCallback(
+      [this] {
+        owner.resized();
+        refreshRailUi();
+      });
+  owner.addAndMakeVisible(*controlSourceInspector);
+  controlSourceInspector->setVisible(false);
+
   inputRail = std::make_unique<RailPanel>(doc, "input-rail",
                                           RailOrientation::vertical);
   inputRail->setCollapseHandler([this] { refreshRailUi(true); });
@@ -1143,6 +1481,8 @@ EditorHandle::Impl::Impl(
   controlRail = std::make_unique<RailPanel>(doc, "control-rail",
                                             RailOrientation::horizontal);
   controlRail->setCollapseHandler([this] { refreshRailUi(true); });
+  controlRail->setCardSelectionHandler(
+      [this](const juce::String &sourceId) { inspectControlSource(sourceId); });
   owner.addAndMakeVisible(*controlRail);
 
   canvas->setNodeSelectionChangedHandler(
@@ -1288,12 +1628,17 @@ EditorHandle::Impl::~Impl() {
   if (documentNoticeBanner != nullptr)
     documentNoticeBanner->setDismissHandler({});
 
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->setLayoutChangedCallback({});
+
   if (inputRail != nullptr)
     inputRail->setCollapseHandler({});
   if (outputRail != nullptr)
     outputRail->setCollapseHandler({});
-  if (controlRail != nullptr)
+  if (controlRail != nullptr) {
     controlRail->setCollapseHandler({});
+    controlRail->setCardSelectionHandler({});
+  }
 
   if (audioDeviceManager != nullptr)
     audioDeviceManager->removeAudioCallback(&runtime);
@@ -1359,9 +1704,19 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
     }
   }
 
-  if (propertiesPanel != nullptr && propertiesPanel->isPanelOpen()) {
+  if (controlSourceInspector != nullptr &&
+      controlSourceInspector->isPanelOpen()) {
+    auto right = area.removeFromRight(336);
+    controlSourceInspector->setBounds(right.reduced(0, 2));
+    if (propertiesPanel != nullptr)
+      propertiesPanel->setBounds({});
+  } else if (propertiesPanel != nullptr && propertiesPanel->isPanelOpen()) {
     auto right = area.removeFromRight(336);
     propertiesPanel->setBounds(right.reduced(0, 2));
+    if (controlSourceInspector != nullptr)
+      controlSourceInspector->setBounds({});
+  } else if (controlSourceInspector != nullptr) {
+    controlSourceInspector->setBounds({});
   }
 
   if (presetBrowserPanel != nullptr && presetBrowserPanel->isBrowserOpen()) {
@@ -1428,6 +1783,8 @@ void EditorHandle::Impl::timerCallback() {
   if (currentDocumentRevision != lastDocumentRevision) {
     if (propertiesPanel != nullptr)
       propertiesPanel->refreshFromDocument();
+    if (controlSourceInspector != nullptr)
+      controlSourceInspector->refreshFromDocument();
     refreshRailUi();
     lastDocumentRevision = currentDocumentRevision;
   }
@@ -1456,6 +1813,8 @@ void EditorHandle::Impl::rebuildAll(bool rebuildRuntime) {
     propertiesPanel->setParamProvider(&runtime);
     propertiesPanel->refreshFromDocument();
   }
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->refreshFromDocument();
 
   lastDocumentRevision = doc.getDocumentRevision();
   lastRuntimeRevision = doc.getRuntimeRevision();
@@ -1471,6 +1830,9 @@ void EditorHandle::Impl::handleSelectionChanged(
   if (propertiesPanel == nullptr)
     return;
 
+  if (!selectedNodeIds.empty())
+    clearControlSourceInspector();
+
   if (selectedNodeIds.size() == 1)
     inspectNodeWithReveal(selectedNodeIds.front());
   else
@@ -1482,6 +1844,7 @@ void EditorHandle::Impl::handleFrameSelectionChanged(int frameId) {
     return;
 
   if (frameId > 0) {
+    clearControlSourceInspector();
     propertiesPanel->inspectFrame(frameId);
     return;
   }
@@ -1499,11 +1862,36 @@ void EditorHandle::Impl::inspectNodeWithReveal(NodeId nodeId) {
   if (propertiesPanel == nullptr)
     return;
 
+  clearControlSourceInspector();
+
   const bool wasOpen = propertiesPanel->isPanelOpen();
   propertiesPanel->inspectNode(nodeId);
 
   if (!wasOpen && canvas != nullptr)
     canvas->ensureNodeVisible(nodeId, 28.0f);
+}
+
+void EditorHandle::Impl::inspectControlSource(const juce::String &sourceId) {
+  if (controlSourceInspector == nullptr)
+    return;
+
+  const auto normalized = sourceId.trim();
+  if (normalized.isEmpty()) {
+    clearControlSourceInspector();
+    return;
+  }
+
+  if (propertiesPanel != nullptr)
+    propertiesPanel->hidePanel();
+
+  controlSourceInspector->inspectSource(normalized);
+  refreshRailUi();
+}
+
+void EditorHandle::Impl::clearControlSourceInspector() {
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->hidePanel();
+  refreshRailUi();
 }
 
 bool EditorHandle::Impl::focusDiagnosticTarget(const juce::String &graphId,
@@ -1583,8 +1971,13 @@ void EditorHandle::Impl::refreshRailUi(bool relayout) {
     inputRail->refreshFromDocument();
   if (outputRail != nullptr)
     outputRail->refreshFromDocument();
-  if (controlRail != nullptr)
+  if (controlRail != nullptr) {
+    const auto selectedSourceId = controlSourceInspector != nullptr
+                                      ? controlSourceInspector->selectedSourceId()
+                                      : juce::String();
+    controlRail->setSelectedCardId(selectedSourceId);
     controlRail->refreshFromDocument();
+  }
 
   if (relayout)
     owner.resized();
