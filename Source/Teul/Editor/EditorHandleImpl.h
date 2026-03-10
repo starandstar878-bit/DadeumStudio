@@ -19,6 +19,7 @@ class RuntimeStatusStrip;
 class DocumentNoticeBanner;
 class RailPanel;
 class ControlSourceInspectorPanel;
+class SystemEndpointInspectorPanel;
 
 struct EditorHandle::Impl : private juce::Timer {
   explicit Impl(EditorHandle &owner,
@@ -42,7 +43,10 @@ private:
   void openProperties(NodeId nodeId);
   void inspectNodeWithReveal(NodeId nodeId);
   void inspectControlSource(const juce::String &sourceId);
+  void inspectSystemEndpoint(const juce::String &endpointId);
   void clearControlSourceInspector();
+  void clearSystemEndpointInspector();
+  void clearRailInspectors();
   bool focusDiagnosticTarget(const juce::String &graphId,
                              const juce::String &query);
   void refreshRuntimeUi(bool forceMessage = false);
@@ -66,6 +70,7 @@ private:
   std::unique_ptr<RuntimeStatusStrip> runtimeStatusStrip;
   std::unique_ptr<DocumentNoticeBanner> documentNoticeBanner;
   std::unique_ptr<ControlSourceInspectorPanel> controlSourceInspector;
+  std::unique_ptr<SystemEndpointInspectorPanel> systemEndpointInspector;
   std::unique_ptr<RailPanel> inputRail;
   std::unique_ptr<RailPanel> outputRail;
   std::unique_ptr<RailPanel> controlRail;
