@@ -270,51 +270,57 @@
 
 ---
 
-### External Control Sources / Device Profiles
+### 외부 제어 소스 / 디바이스 프로필
 
-**UI Layout Draft**
-- Left `Input Rail`: target width `12% - 14%` of the editor.
-- Right `Output Rail`: target width `12% - 14%` of the editor.
-- Bottom `Control Rail`: target height `14% - 18%` of the editor.
-- Center canvas keeps the remaining space and remains the primary DSP editing area.
-- Rails must be collapsible so the canvas can reclaim space during heavy graph editing.
+**UI 레이아웃 초안**
 
-**Visual Language**
-- General node ports stay as small neutral sockets for internal graph wiring.
-- Rail ports must look like hardware boundary connectors rather than normal node pins.
-- Default state should show rails as `jack/socket` style endpoints; dragging should reuse the existing cable rendering language.
-- Cable thickness should stay mostly consistent; differentiation should come from port silhouette, slot background, and connector cap/stub rather than heavy line-weight changes.
+- 왼쪽 Input Rail: 에디터 전체 폭의 12% - 14%
+- 오른쪽 Output Rail: 에디터 전체 폭의 12% - 14%
+- 하단 Control Rail: 에디터 전체 높이의 14% - 18%
+- 중앙 캔버스는 나머지 공간을 유지하며, 기본 DSP 편집 영역으로 사용
+- 그래프 편집이 복잡해질 때 캔버스가 공간을 다시 확보할 수 있도록 각 Rail은 접기/펼치기가 가능해야 함
 
-**Per-Rail Port Shape Rules**
-- `Input Rail` / `Output Rail`: capsule or half-jack connectors with stronger frame/border treatment.
-- `Control Rail`: source cards with small `pill` ports for `Value`, `Gate`, and `Trigger`.
-- `Expression` sources should default to a single `Value` port.
-- `Footswitch` sources should default to `Gate` + `Trigger` ports.
-- Stereo audio endpoints should read as grouped `L/R` connectors rather than two unrelated dots.
+**비주얼 언어**
 
-**Color Direction**
-- Rail backgrounds should be one tone denser than the canvas so they read as system panels.
-- Audio I/O accents: teal / cyan family.
-- Continuous control accents (`Value`): warm yellow / amber family.
-- Gate / trigger accents: orange / red family.
-- MIDI-oriented accents: mint / lime family.
-- Rail connectors should keep stronger borders and slightly lower fill saturation than internal node ports.
+일반 노드 포트는 내부 그래프 배선을 위한 작고 중립적인 소켓 형태를 유지
+Rail 포트는 일반 노드 핀보다는 하드웨어 경계 커넥터처럼 보여야 함
+기본 상태에서는 Rail이 잭/소켓 스타일의 엔드포인트로 보여야 하며, 드래그 시에는 기존 케이블 렌더링 방식을 재사용
+케이블 두께는 대체로 일관되게 유지하고, 차이는 선 굵기보다는 포트 실루엣, 슬롯 배경, 커넥터 캡/스터브 형태로 표현
 
-**Planned Resource Usage**
-- Prefer code-drawn rails, ports, and cables for DPI scaling, zooming, and state transitions.
-- Add small reusable icon resources for `Input`, `Output`, `Expression`, `Footswitch`, `MIDI`, `Missing`, `Learn`, and `Auto` badges.
-- Avoid bitmap-driven cables or large decorative panel backgrounds.
-- If image assets are introduced, keep them limited to icons, badges, and mini-glyphs rather than core interaction geometry.
+**Rail별 포트 형태 규칙**
 
-**Step 2 Target**
-- Render the three rails with placeholder data from the new document model.
-- Show at least `EXP 1`, `FS 1`, and one audio in/out endpoint in the control draft.
-- Validate spacing, card density, and port readability with screenshots before device detection or learn mode is connected.
+Input Rail / Output Rail: 프레임과 테두리 표현이 더 강한 캡슐형 또는 반-잭형 커넥터
+Control Rail: Value, Gate, Trigger용 작은 pill 포트를 가진 소스 카드
+Expression 소스는 기본적으로 단일 Value 포트 사용
+Footswitch 소스는 기본적으로 Gate + Trigger 포트 사용
+스테레오 오디오 엔드포인트는 서로 무관한 점 두 개가 아니라 하나로 묶인 L/R 커넥터처럼 보여야 함
 
-목표:
+**색상 방향**
+
+Rail 배경은 캔버스보다 한 톤 더 진하게 해서 시스템 패널처럼 읽히게 함
+오디오 I/O 강조색: teal / cyan 계열
+연속 제어(Value) 강조색: warm yellow / amber 계열
+Gate / Trigger 강조색: orange / red 계열
+MIDI 계열 강조색: mint / lime 계열
+Rail 커넥터는 내부 노드 포트보다 더 강한 테두리와 약간 낮은 채도를 유지
+
+**예정된 리소스 사용 방식**
+
+DPI 스케일링, 줌, 상태 전환을 고려해 Rail, 포트, 케이블은 코드 기반 드로잉을 우선 사용
+Input, Output, Expression, Footswitch, MIDI, Missing, Learn, Auto 배지용 소형 재사용 아이콘 리소스를 추가
+비트맵 기반 케이블이나 큰 장식용 패널 배경은 지양
+이미지 에셋이 필요하더라도 핵심 인터랙션 도형이 아니라 아이콘, 배지, 미니 글리프 수준으로 제한
+
+**2단계 목표**
+
+새 문서 모델의 플레이스홀더 데이터를 사용해 세 개의 Rail을 렌더링
+초안 단계에서 최소한 EXP 1, FS 1, 그리고 하나의 오디오 입력/출력 엔드포인트를 표시
+디바이스 감지나 Learn 모드를 연결하기 전에 스크린샷으로 간격, 카드 밀도, 포트 가독성을 검증
+
+**목표**:
 - 외부 MIDI foot controller, expression pedal, switch 입력을 그래프의 시스템 경계로 다루고, preset/state 복원 흐름과 함께 안정적으로 저장·재연결한다.
 
-주요 작업:
+**주요 작업**:
 - [ ] **Control Source Rail 모델 도입**: 좌측 Input rail, 우측 Output rail, 하단 Control Source rail 구조를 기준으로 시스템 I/O와 일반 DSP 노드를 분리
 - [ ] **동적 장치 감지**: 연결된 외부 컨트롤 장치를 감지하고, 입력 이벤트를 바탕으로 임시 control source를 자동 생성
 - [ ] **learn + confirm 등록 흐름**: 사용자가 페달/스위치를 움직여 `EXP`, `FS`, `Trigger` source를 확정하고 이름, 타입, momentary/toggle 모드를 보정

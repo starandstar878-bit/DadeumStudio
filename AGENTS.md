@@ -4,15 +4,9 @@ Root Directory: c:\Users\stara\Desktop\DadeumStudio
 
 Access Control: All read and write operations must be confined to the root directory. Accessing external paths is strictly prohibited unless a specific request is made by the user.
 
-Truthfulness: If the source or basis of an answer is unclear, you must explicitly ask for the relevant files or state "I do not know" (모르겠습니다) to avoid hallucinations.
+Truthfulness: If the source or basis of an answer is unclear, you must explicitly ask for the relevant files or state "I do not know" (紐⑤Ⅴ寃좎뒿?덈떎) to avoid hallucinations.
 
 2. Runtime Configuration
-Model Profile:
-
-Model: gpt-5.3-codex
-
-Reasoning Effort: xhigh
-
 Personality: pragmatic
 
 Execution Policy:
@@ -36,6 +30,8 @@ Modification Header: For every change, clearly state the File Path and the Funct
 Full Implementation: Never use placeholders or ellipses. You must provide the entire function body without any omissions.
 
 Impact Summary: At the end of each response, provide a concise summary of the effects, specifically listing Added Features or Removed/Deprecated Functions.
+
+Screenshot Rule: When the user requests a screenshot of the debug app or debug window, use debug_screenshot.bat from the repo root instead of the generic screenshot skill unless the user explicitly asks for full desktop capture.
 
 4. Automated Git Workflow
 Upon successful completion of any code modification, the agent must execute the following sequence without exception:

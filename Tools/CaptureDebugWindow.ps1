@@ -25,7 +25,7 @@ function Resolve-OutputPath {
   )
 
   if ([string]::IsNullOrWhiteSpace($RequestedPath)) {
-    $outputDirectory = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot "Builds\DebugScreenshots"))
+    $outputDirectory = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot "artifacts\screenshots"))
     New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     return Join-Path $outputDirectory ("DadeumStudio-DebugShot-" + (Get-Timestamp) + ".png")
   }
