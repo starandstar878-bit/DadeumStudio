@@ -61,6 +61,16 @@ void TGraphCanvas::setBindingSummaryResolver(BindingSummaryResolver resolver) {
   bindingSummaryResolver = std::move(resolver);
 }
 
+void TGraphCanvas::setExternalDropZoneProvider(
+    ExternalDropZoneProvider provider) {
+  externalDropZoneProvider = std::move(provider);
+}
+
+void TGraphCanvas::setExternalConnectionCommitHandler(
+    ExternalConnectionCommitHandler handler) {
+  externalConnectionCommitHandler = std::move(handler);
+}
+
 void TGraphCanvas::setRuntimeOverlayState(const RuntimeOverlayState &state) {
   runtimeOverlayState = state;
   repaint();

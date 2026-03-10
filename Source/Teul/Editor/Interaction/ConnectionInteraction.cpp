@@ -20,6 +20,7 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
 
   wireDragState.targetNodeId = kInvalidNodeId;
   wireDragState.targetPortId = kInvalidPortId;
+  wireDragState.targetExternalZoneId.clear();
   wireDragState.targetTypeMatch = false;
   wireDragState.targetCycleFree = false;
 
@@ -49,6 +50,19 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
       return;
     }
   }
+
+  if (!externalDropZoneProvider)
+    return;
+
+  for (const auto &zone : externalDropZoneProvider()) {
+    if (!zone.boundsView.contains(mousePosView))
+      continue;
+
+    wireDragState.targetExternalZoneId = zone.zoneId;
+    wireDragState.targetTypeMatch = (zone.dataType == wireDragState.sourceType);
+    wireDragState.targetCycleFree = true;
+    return;
+  }
 }
 
 bool TGraphCanvas::isCurrentDragTargetConnectable() const {
@@ -56,12 +70,21 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
     return false;
 
   if (wireDragState.sourceNodeId == kInvalidNodeId ||
-      wireDragState.sourcePortId == kInvalidPortId ||
-      wireDragState.targetNodeId == kInvalidNodeId ||
-      wireDragState.targetPortId == kInvalidPortId)
+      wireDragState.sourcePortId == kInvalidPortId)
     return false;
 
   if (!wireDragState.targetTypeMatch || !wireDragState.targetCycleFree)
+    return false;
+
+  if (wireDragState.targetExternalZoneId.isNotEmpty()) {
+    const TPort *sourcePort =
+        findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
+    return sourcePort != nullptr &&
+           sourcePort->direction == TPortDirection::Output;
+  }
+
+  if (wireDragState.targetNodeId == kInvalidNodeId ||
+      wireDragState.targetPortId == kInvalidPortId)
     return false;
 
   if (wireDragState.sourceNodeId == wireDragState.targetNodeId &&
@@ -95,6 +118,15 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
 void TGraphCanvas::tryCreateConnectionFromDrag() {
   if (!isCurrentDragTargetConnectable())
     return;
+
+  if (wireDragState.targetExternalZoneId.isNotEmpty()) {
+    const TPort *sourcePort =
+        findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
+    if (sourcePort != nullptr && externalConnectionCommitHandler != nullptr)
+      externalConnectionCommitHandler(*sourcePort,
+                                      wireDragState.targetExternalZoneId);
+    return;
+  }
 
   TConnection conn;
   conn.connectionId = document.allocConnectionId();

@@ -98,6 +98,20 @@ public:
       std::function<juce::String(const juce::String &paramId)>;
   void setBindingSummaryResolver(BindingSummaryResolver resolver);
 
+  struct ExternalDropZone {
+    juce::String zoneId;
+    juce::Rectangle<float> boundsView;
+    TPortDataType dataType = TPortDataType::Audio;
+  };
+
+  using ExternalDropZoneProvider =
+      std::function<std::vector<ExternalDropZone>()>;
+  using ExternalConnectionCommitHandler =
+      std::function<bool(const TPort &sourcePort, const juce::String &zoneId)>;
+  void setExternalDropZoneProvider(ExternalDropZoneProvider provider);
+  void setExternalConnectionCommitHandler(
+      ExternalConnectionCommitHandler handler);
+
   struct RuntimeOverlayState {
     double sampleRate = 0.0;
     int blockSize = 0;
@@ -359,6 +373,7 @@ private:
 
     NodeId targetNodeId = kInvalidNodeId;
     PortId targetPortId = kInvalidPortId;
+    juce::String targetExternalZoneId;
 
     bool targetTypeMatch = false;
     bool targetCycleFree = false;
@@ -382,6 +397,8 @@ private:
   ConnectionLevelProvider connectionLevelProvider;
   PortLevelProvider portLevelProvider;
   BindingSummaryResolver bindingSummaryResolver;
+  ExternalDropZoneProvider externalDropZoneProvider;
+  ExternalConnectionCommitHandler externalConnectionCommitHandler;
   FrameSelectionChangedHandler frameSelectionChangedHandler;
 
   std::vector<juce::String> recentNodeTypes;

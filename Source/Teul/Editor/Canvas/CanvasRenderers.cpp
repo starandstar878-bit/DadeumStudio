@@ -211,8 +211,10 @@ void TGraphCanvas::drawConnections(juce::Graphics &g) {
     const juce::Path previewPath =
         makeWirePath(wireDragState.sourcePosView, wireDragState.mousePosView);
 
-    const bool hasTarget = wireDragState.targetNodeId != kInvalidNodeId &&
-                           wireDragState.targetPortId != kInvalidPortId;
+    const bool hasTarget =
+        (wireDragState.targetNodeId != kInvalidNodeId &&
+         wireDragState.targetPortId != kInvalidPortId) ||
+        wireDragState.targetExternalZoneId.isNotEmpty();
 
     const bool connectable = hasTarget && isCurrentDragTargetConnectable();
 
