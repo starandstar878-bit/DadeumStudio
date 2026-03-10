@@ -17,6 +17,7 @@ class DiagnosticsDrawer;
 class PresetBrowserPanel;
 class RuntimeStatusStrip;
 class DocumentNoticeBanner;
+class RailPanel;
 
 struct EditorHandle::Impl : private juce::Timer {
   explicit Impl(EditorHandle &owner,
@@ -44,6 +45,7 @@ private:
   void refreshRuntimeUi(bool forceMessage = false);
   void refreshDocumentNoticeUi(bool force = false);
   void refreshSessionStatusUi(bool force = false);
+  void refreshRailUi(bool relayout = false);
   void syncRuntimeViewButtons();
   void pushRuntimeMessage(const juce::String &text,
                           juce::Colour accent,
@@ -60,6 +62,9 @@ private:
   std::unique_ptr<PresetBrowserPanel> presetBrowserPanel;
   std::unique_ptr<RuntimeStatusStrip> runtimeStatusStrip;
   std::unique_ptr<DocumentNoticeBanner> documentNoticeBanner;
+  std::unique_ptr<RailPanel> inputRail;
+  std::unique_ptr<RailPanel> outputRail;
+  std::unique_ptr<RailPanel> controlRail;
   juce::AudioDeviceManager *audioDeviceManager = nullptr;
 
   juce::TextButton toggleLibraryButton;

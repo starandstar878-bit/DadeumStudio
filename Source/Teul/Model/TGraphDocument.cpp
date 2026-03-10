@@ -7,7 +7,9 @@
 namespace Teul {
 
 TGraphDocument::TGraphDocument()
-    : historyStack(std::make_unique<THistoryStack>()) {}
+    : historyStack(std::make_unique<THistoryStack>()) {
+  controlState.ensurePreviewDataIfEmpty();
+}
 
 TGraphDocument::~TGraphDocument() = default;
 

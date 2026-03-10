@@ -9,6 +9,8 @@
 #include "Teul/Serialization/TFileIo.h"
 #include "Teul/Serialization/TStatePresetIO.h"
 
+#include <algorithm>
+
 namespace Teul {
 
 namespace {
@@ -100,7 +102,583 @@ juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
   return juce::Result::ok();
 }
 
+enum class RailOrientation { vertical, horizontal };
+
+struct RailCardPortView {
+  juce::String label;
+  juce::Colour accent;
+};
+
+struct RailCardView {
+  juce::String title;
+  juce::String subtitle;
+  juce::String badge;
+  juce::Colour accent = juce::Colour(0xff64748b);
+  std::vector<RailCardPortView> ports;
+  bool warning = false;
+  bool groupedStereo = false;
+};
+
+TRailKind fallbackRailKind(const juce::String &railId) {
+  if (railId == "input-rail")
+    return TRailKind::input;
+  if (railId == "output-rail")
+    return TRailKind::output;
+  return TRailKind::controlSource;
+}
+
+juce::String compactRailLabel(TRailKind kind) {
+  switch (kind) {
+  case TRailKind::input:
+    return "IN";
+  case TRailKind::output:
+    return "OUT";
+  case TRailKind::controlSource:
+    return "CTRL";
+  }
+
+  return "RAIL";
+}
+
+juce::Colour railAccent(TRailKind kind) {
+  switch (kind) {
+  case TRailKind::input:
+    return juce::Colour(0xff2dd4bf);
+  case TRailKind::output:
+    return juce::Colour(0xff22d3ee);
+  case TRailKind::controlSource:
+    return juce::Colour(0xfffbbf24);
+  }
+
+  return juce::Colour(0xff94a3b8);
+}
+
+juce::Colour endpointAccent(const TSystemRailEndpoint &endpoint) {
+  switch (endpoint.kind) {
+  case TSystemRailEndpointKind::audioInput:
+  case TSystemRailEndpointKind::audioOutput:
+    return endpoint.stereo ? juce::Colour(0xff2dd4bf)
+                           : juce::Colour(0xff22d3ee);
+  case TSystemRailEndpointKind::midiInput:
+  case TSystemRailEndpointKind::midiOutput:
+    return juce::Colour(0xff34d399);
+  }
+
+  return juce::Colour(0xff94a3b8);
+}
+
+juce::String endpointBadgeText(const TSystemRailEndpoint &endpoint) {
+  switch (endpoint.kind) {
+  case TSystemRailEndpointKind::midiInput:
+  case TSystemRailEndpointKind::midiOutput:
+    return "MIDI";
+  case TSystemRailEndpointKind::audioInput:
+  case TSystemRailEndpointKind::audioOutput:
+    return endpoint.stereo ? "L/R" : "AUDIO";
+  }
+
+  return "I/O";
+}
+
+juce::Colour controlSourceAccent(TControlSourceKind kind) {
+  switch (kind) {
+  case TControlSourceKind::expression:
+    return juce::Colour(0xfffbbf24);
+  case TControlSourceKind::footswitch:
+    return juce::Colour(0xfffb923c);
+  case TControlSourceKind::trigger:
+    return juce::Colour(0xffef4444);
+  case TControlSourceKind::midiCc:
+  case TControlSourceKind::midiNote:
+    return juce::Colour(0xff34d399);
+  case TControlSourceKind::macro:
+    return juce::Colour(0xff60a5fa);
+  }
+
+  return juce::Colour(0xff94a3b8);
+}
+
+juce::Colour controlPortAccent(TControlPortKind kind) {
+  switch (kind) {
+  case TControlPortKind::value:
+    return juce::Colour(0xfffbbf24);
+  case TControlPortKind::gate:
+    return juce::Colour(0xfffb923c);
+  case TControlPortKind::trigger:
+    return juce::Colour(0xffef4444);
+  }
+
+  return juce::Colour(0xff94a3b8);
+}
+
+juce::String controlSourceBadgeText(const TControlSource &source) {
+  switch (source.kind) {
+  case TControlSourceKind::expression:
+    return "EXP";
+  case TControlSourceKind::footswitch:
+    return "FS";
+  case TControlSourceKind::trigger:
+    return "TRIG";
+  case TControlSourceKind::midiCc:
+    return "CC";
+  case TControlSourceKind::midiNote:
+    return "NOTE";
+  case TControlSourceKind::macro:
+    return "MACRO";
+  }
+
+  return "SRC";
+}
+
+juce::String describeControlSource(const TControlSource &source) {
+  juce::String text;
+  switch (source.kind) {
+  case TControlSourceKind::expression:
+    text = "Continuous value";
+    break;
+  case TControlSourceKind::footswitch:
+    text = source.mode == TControlSourceMode::toggle ? "Toggle footswitch"
+                                                      : "Momentary footswitch";
+    break;
+  case TControlSourceKind::trigger:
+    text = "Trigger pulse";
+    break;
+  case TControlSourceKind::midiCc:
+    text = "MIDI CC source";
+    break;
+  case TControlSourceKind::midiNote:
+    text = "MIDI note source";
+    break;
+  case TControlSourceKind::macro:
+    text = "Macro lane";
+    break;
+  }
+
+  if (source.missing)
+    text << " | Missing";
+  else if (!source.confirmed)
+    text << " | Learn pending";
+  else if (source.autoDetected)
+    text << " | Auto";
+
+  return text;
+}
+
+std::vector<const TSystemRailEndpoint *>
+collectRailEndpoints(const std::vector<TSystemRailEndpoint> &endpoints,
+                    const juce::String &railId) {
+  std::vector<const TSystemRailEndpoint *> result;
+  for (const auto &endpoint : endpoints) {
+    if (endpoint.railId == railId)
+      result.push_back(&endpoint);
+  }
+
+  std::sort(result.begin(), result.end(), [](const auto *lhs, const auto *rhs) {
+    if (lhs->order != rhs->order)
+      return lhs->order < rhs->order;
+    return lhs->displayName.compareNatural(rhs->displayName) < 0;
+  });
+  return result;
+}
+
+std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
+                                         const juce::String &railId) {
+  std::vector<RailCardView> cards;
+
+  if (railId == "input-rail" || railId == "output-rail") {
+    const auto endpoints = railId == "input-rail"
+                               ? collectRailEndpoints(document.controlState.inputEndpoints,
+                                                      railId)
+                               : collectRailEndpoints(document.controlState.outputEndpoints,
+                                                      railId);
+    for (const auto *endpoint : endpoints) {
+      RailCardView card;
+      card.title = endpoint->displayName;
+      card.subtitle = endpoint->subtitle.isNotEmpty()
+                          ? endpoint->subtitle
+                          : juce::String("System endpoint");
+      card.badge = endpointBadgeText(*endpoint);
+      card.accent = endpointAccent(*endpoint);
+      card.warning = endpoint->missing;
+      card.groupedStereo = endpoint->stereo && endpoint->ports.size() >= 2;
+      for (const auto &port : endpoint->ports) {
+        const auto portAccent = port.dataType == TPortDataType::MIDI
+                                    ? juce::Colour(0xff34d399)
+                                    : juce::Colour(0xff2dd4bf);
+        card.ports.push_back({port.displayName, portAccent});
+      }
+      cards.push_back(std::move(card));
+    }
+  } else {
+    for (const auto &source : document.controlState.sources) {
+      if (source.railId != railId)
+        continue;
+
+      RailCardView card;
+      card.title = source.displayName;
+      card.subtitle = describeControlSource(source);
+      card.badge = controlSourceBadgeText(source);
+      card.accent = controlSourceAccent(source.kind);
+      card.warning = source.missing;
+      for (const auto &port : source.ports)
+        card.ports.push_back({port.displayName, controlPortAccent(port.kind)});
+      cards.push_back(std::move(card));
+    }
+  }
+
+  if (!cards.empty())
+    return cards;
+
+  RailCardView empty;
+  empty.accent = railAccent(fallbackRailKind(railId));
+  if (railId == "control-rail") {
+    empty.title = "No control sources";
+    empty.subtitle = "Learn mode and device profiles will appear here.";
+    empty.badge = "LEARN";
+  } else {
+    empty.title = "No endpoints";
+    empty.subtitle = "System I/O endpoints will appear in this rail.";
+    empty.badge = "PATCH";
+  }
+  cards.push_back(std::move(empty));
+  return cards;
+}
+
 } // namespace
+
+class RailPanel : public juce::Component {
+public:
+  using CollapseHandler = std::function<void()>;
+
+  RailPanel(TGraphDocument &documentIn, juce::String railIdIn,
+            RailOrientation orientationIn)
+      : document(documentIn), railId(std::move(railIdIn)),
+        orientation(orientationIn) {
+    addAndMakeVisible(collapseButton);
+    collapseButton.onClick = [this] { toggleCollapsed(); };
+    refreshFromDocument();
+  }
+
+  void setCollapseHandler(CollapseHandler handler) {
+    collapseHandler = std::move(handler);
+  }
+
+  void refreshFromDocument() {
+    const auto accent = railAccent(currentRailKind());
+    const auto collapsed = isRailCollapsed();
+    collapseButton.setButtonText(collapseGlyph(collapsed));
+    collapseButton.setColour(juce::TextButton::buttonColourId,
+                             accent.withAlpha(0.18f));
+    collapseButton.setColour(juce::TextButton::buttonOnColourId,
+                             accent.withAlpha(0.28f));
+    collapseButton.setColour(juce::TextButton::textColourOffId,
+                             juce::Colours::white.withAlpha(0.92f));
+    collapseButton.setColour(juce::TextButton::textColourOnId,
+                             juce::Colours::white.withAlpha(0.97f));
+    collapseButton.setTooltip(collapsed ? "Expand rail" : "Collapse rail");
+    repaint();
+  }
+
+  bool isRailCollapsed() const noexcept {
+    if (const auto *rail = document.controlState.findRail(railId))
+      return rail->collapsed;
+    return false;
+  }
+
+  void paint(juce::Graphics &g) override {
+    const auto kind = currentRailKind();
+    const auto accent = railAccent(kind);
+    const auto collapsed = isRailCollapsed();
+    const auto bounds = getLocalBounds().toFloat().reduced(0.5f);
+    if (bounds.isEmpty())
+      return;
+
+    g.setGradientFill(juce::ColourGradient(juce::Colour(0xee111827),
+                                           bounds.getCentreX(), bounds.getY(),
+                                           juce::Colour(0xee0b1220),
+                                           bounds.getCentreX(),
+                                           bounds.getBottom(), false));
+    g.fillRoundedRectangle(bounds, collapsed ? 10.0f : 14.0f);
+    g.setColour(accent.withAlpha(collapsed ? 0.48f : 0.72f));
+    g.drawRoundedRectangle(bounds, collapsed ? 10.0f : 14.0f, 1.0f);
+
+    auto content = getLocalBounds().reduced(collapsed ? 8 : 12,
+                                            collapsed ? 8 : 10);
+    auto header = content.removeFromTop(collapsed ? 18 : 24);
+    auto titleArea = header;
+    titleArea.removeFromRight(32);
+
+    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.setFont(juce::FontOptions(collapsed ? 10.5f : 12.5f, juce::Font::bold));
+    g.drawText(collapsed ? compactRailLabel(kind) : railTitle(), titleArea,
+               juce::Justification::centredLeft, false);
+
+    if (collapsed) {
+      auto compactArea = content;
+      g.setColour(accent.withAlpha(0.78f));
+      g.setFont(10.0f);
+      g.drawFittedText(compactRailLabel(kind), compactArea,
+                       juce::Justification::centred, 2, 0.8f);
+      return;
+    }
+
+    const auto cards = buildRailCards(document, railId);
+    g.setColour(juce::Colours::white.withAlpha(0.52f));
+    g.setFont(10.0f);
+    g.drawText(metaLabel((int)cards.size()), content.removeFromTop(14),
+               juce::Justification::centredLeft, false);
+    content.removeFromTop(6);
+
+    if (orientation == RailOrientation::vertical)
+      drawVerticalCards(g, content, cards);
+    else
+      drawHorizontalCards(g, content, cards);
+  }
+
+  void resized() override {
+    auto buttonArea = getLocalBounds().reduced(8).removeFromTop(22);
+    collapseButton.setBounds(buttonArea.removeFromRight(24));
+  }
+
+private:
+  static void drawBadge(juce::Graphics &g, juce::Rectangle<int> area,
+                        const juce::String &text, juce::Colour accent) {
+    g.setColour(accent.withAlpha(0.16f));
+    g.fillRoundedRectangle(area.toFloat(), 7.0f);
+    g.setColour(accent.withAlpha(0.82f));
+    g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
+    g.setColour(accent.brighter(0.18f));
+    g.setFont(10.0f);
+    g.drawText(text, area, juce::Justification::centred, false);
+  }
+
+  static void drawSocket(juce::Graphics &g, juce::Rectangle<float> area,
+                         juce::Colour accent, bool capOnRight) {
+    g.setColour(juce::Colour(0xff0f172a));
+    g.fillRoundedRectangle(area, area.getHeight() * 0.45f);
+    g.setColour(accent.withAlpha(0.92f));
+    g.drawRoundedRectangle(area, area.getHeight() * 0.45f, 1.0f);
+
+    juce::Rectangle<float> cap;
+    if (capOnRight) {
+      cap = juce::Rectangle<float>(area.getRight() - 4.0f, area.getY() + 1.0f,
+                                   4.0f, area.getHeight() - 2.0f);
+    } else {
+      cap = juce::Rectangle<float>(area.getX(), area.getY() + 1.0f, 4.0f,
+                                   area.getHeight() - 2.0f);
+    }
+
+    g.setColour(accent.withAlpha(0.78f));
+    g.fillRoundedRectangle(cap, cap.getHeight() * 0.45f);
+  }
+
+  static void drawGroupedStereoSocket(juce::Graphics &g,
+                                      juce::Rectangle<float> area,
+                                      juce::Colour accent,
+                                      bool capOnRight) {
+    drawSocket(g, area, accent, capOnRight);
+    const auto inner = area.reduced(4.0f, 3.0f);
+    const float dotSize = juce::jmin(5.0f, inner.getHeight());
+    g.setColour(accent.withAlpha(0.92f));
+    g.fillEllipse(inner.getX(), inner.getCentreY() - dotSize * 0.5f, dotSize,
+                  dotSize);
+    g.fillEllipse(inner.getRight() - dotSize,
+                  inner.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
+  }
+
+  void drawVerticalCards(juce::Graphics &g, juce::Rectangle<int> area,
+                         const std::vector<RailCardView> &cards) const {
+    const bool portsOnRight = currentRailKind() != TRailKind::output;
+    const int gap = 8;
+    const int count = juce::jmax(1, (int)cards.size());
+    const int cardHeight = juce::jlimit(68, 96,
+                                        (area.getHeight() - gap * (count - 1)) /
+                                            count);
+
+    for (int index = 0; index < count && area.getHeight() >= 58; ++index) {
+      const auto cardArea = area.removeFromTop(cardHeight).toFloat();
+      area.removeFromTop(gap);
+      drawVerticalCard(g, cardArea, cards[(size_t)index], portsOnRight);
+    }
+  }
+
+  void drawVerticalCard(juce::Graphics &g, juce::Rectangle<float> area,
+                        const RailCardView &card, bool portsOnRight) const {
+    const auto accent = card.warning ? juce::Colour(0xffef4444) : card.accent;
+    g.setColour(juce::Colour(0xe50f172a));
+    g.fillRoundedRectangle(area, 12.0f);
+    g.setColour(accent.withAlpha(0.72f));
+    g.drawRoundedRectangle(area, 12.0f, 1.0f);
+
+    auto strip = area;
+    strip.setWidth(4.0f);
+    strip.setX(portsOnRight ? area.getRight() - 4.0f : area.getX());
+    g.setColour(accent.withAlpha(0.68f));
+    g.fillRoundedRectangle(strip, 2.0f);
+
+    auto content = area.toNearestInt().reduced(10, 8);
+    auto titleRow = content.removeFromTop(18);
+    auto badgeArea = titleRow.removeFromRight(58);
+    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    g.drawText(card.title, titleRow, juce::Justification::centredLeft, false);
+    drawBadge(g, badgeArea, card.badge, accent);
+
+    g.setColour(juce::Colours::white.withAlpha(0.62f));
+    g.setFont(10.5f);
+    g.drawFittedText(card.subtitle, content.removeFromTop(28),
+                     juce::Justification::topLeft, 2, 0.9f);
+
+    auto portsArea = content.removeFromBottom(26);
+    if (card.groupedStereo && card.ports.size() >= 2) {
+      auto row = portsArea.removeFromTop(18);
+      auto socketArea = portsOnRight ? row.removeFromRight(34)
+                                     : row.removeFromLeft(34);
+      auto labelArea = row;
+      g.setColour(juce::Colours::white.withAlpha(0.82f));
+      g.setFont(10.0f);
+      g.drawText("L / R", labelArea, juce::Justification::centredLeft, false);
+      drawGroupedStereoSocket(
+          g, socketArea.toFloat().withSizeKeepingCentre(30.0f, 10.0f), accent,
+          portsOnRight);
+      return;
+    }
+
+    const int portCount = juce::jmin(3, (int)card.ports.size());
+    if (portCount <= 0)
+      return;
+
+    const int rowHeight = juce::jmax(16, portsArea.getHeight() / portCount);
+    for (int index = 0; index < portCount; ++index) {
+      auto row = portsArea.removeFromTop(rowHeight);
+      auto socketArea = portsOnRight ? row.removeFromRight(18)
+                                     : row.removeFromLeft(18);
+      auto labelArea = row;
+      g.setColour(juce::Colours::white.withAlpha(0.78f));
+      g.setFont(10.0f);
+      g.drawText(card.ports[(size_t)index].label, labelArea,
+                 juce::Justification::centredLeft, false);
+      drawSocket(g, socketArea.toFloat().withSizeKeepingCentre(14.0f, 8.0f),
+                 card.ports[(size_t)index].accent, portsOnRight);
+    }
+  }
+
+  void drawHorizontalCards(juce::Graphics &g, juce::Rectangle<int> area,
+                           const std::vector<RailCardView> &cards) const {
+    const int gap = 10;
+    const int count = juce::jmax(1, (int)cards.size());
+    const int cardWidth = juce::jlimit(150, 240,
+                                       (area.getWidth() - gap * (count - 1)) /
+                                           count);
+
+    for (int index = 0; index < count && area.getWidth() >= 120; ++index) {
+      const auto cardArea = area.removeFromLeft(cardWidth).toFloat();
+      area.removeFromLeft(gap);
+      drawHorizontalCard(g, cardArea, cards[(size_t)index]);
+    }
+  }
+
+  void drawHorizontalCard(juce::Graphics &g, juce::Rectangle<float> area,
+                          const RailCardView &card) const {
+    const auto accent = card.warning ? juce::Colour(0xffef4444) : card.accent;
+    g.setColour(juce::Colour(0xe50f172a));
+    g.fillRoundedRectangle(area, 13.0f);
+    g.setColour(accent.withAlpha(0.72f));
+    g.drawRoundedRectangle(area, 13.0f, 1.0f);
+
+    auto content = area.toNearestInt().reduced(12, 10);
+    auto titleRow = content.removeFromTop(18);
+    auto badgeArea = titleRow.removeFromRight(60);
+    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    g.drawText(card.title, titleRow, juce::Justification::centredLeft, false);
+    drawBadge(g, badgeArea, card.badge, accent);
+
+    g.setColour(juce::Colours::white.withAlpha(0.64f));
+    g.setFont(10.5f);
+    g.drawFittedText(card.subtitle, content.removeFromTop(30),
+                     juce::Justification::topLeft, 2, 0.9f);
+
+    auto portArea = content.removeFromBottom(18);
+    int portX = portArea.getX();
+    for (const auto &port : card.ports) {
+      const int portWidth = juce::jlimit(44, 72, 18 + port.label.length() * 7);
+      if (portX + portWidth > portArea.getRight())
+        break;
+
+      juce::Rectangle<int> pill(portX, portArea.getY(), portWidth,
+                                portArea.getHeight());
+      portX += portWidth + 6;
+      g.setColour(port.accent.withAlpha(0.16f));
+      g.fillRoundedRectangle(pill.toFloat(), 8.0f);
+      g.setColour(port.accent.withAlpha(0.88f));
+      g.drawRoundedRectangle(pill.toFloat(), 8.0f, 1.0f);
+      g.setColour(port.accent.brighter(0.18f));
+      g.setFont(10.0f);
+      g.drawText(port.label, pill, juce::Justification::centred, false);
+    }
+  }
+
+  juce::String railTitle() const {
+    if (const auto *rail = document.controlState.findRail(railId))
+      return rail->title;
+
+    switch (currentRailKind()) {
+    case TRailKind::input:
+      return "Inputs";
+    case TRailKind::output:
+      return "Outputs";
+    case TRailKind::controlSource:
+      return "Controls";
+    }
+
+    return "Rail";
+  }
+
+  juce::String metaLabel(int cardCount) const {
+    const auto label = currentRailKind() == TRailKind::controlSource
+                           ? "sources"
+                           : "endpoints";
+    return juce::String(cardCount) + " " + label;
+  }
+
+  juce::String collapseGlyph(bool collapsed) const {
+    switch (currentRailKind()) {
+    case TRailKind::input:
+      return collapsed ? ">" : "<";
+    case TRailKind::output:
+      return collapsed ? "<" : ">";
+    case TRailKind::controlSource:
+      return collapsed ? "^" : "v";
+    }
+
+    return collapsed ? ">" : "<";
+  }
+
+  TRailKind currentRailKind() const {
+    if (const auto *rail = document.controlState.findRail(railId))
+      return rail->kind;
+    return fallbackRailKind(railId);
+  }
+
+  void toggleCollapsed() {
+    document.controlState.ensureDefaultRails();
+    if (auto *rail = document.controlState.findRail(railId)) {
+      rail->collapsed = !rail->collapsed;
+      document.touch(false);
+    }
+
+    refreshFromDocument();
+    if (collapseHandler != nullptr)
+      collapseHandler();
+  }
+
+  TGraphDocument &document;
+  juce::String railId;
+  RailOrientation orientation;
+  juce::TextButton collapseButton;
+  CollapseHandler collapseHandler;
+};
 
 class RuntimeStatusStrip : public juce::Component {
 public:
@@ -552,6 +1130,21 @@ EditorHandle::Impl::Impl(
   owner.addAndMakeVisible(*documentNoticeBanner);
   documentNoticeBanner->setVisible(false);
 
+  inputRail = std::make_unique<RailPanel>(doc, "input-rail",
+                                          RailOrientation::vertical);
+  inputRail->setCollapseHandler([this] { refreshRailUi(true); });
+  owner.addAndMakeVisible(*inputRail);
+
+  outputRail = std::make_unique<RailPanel>(doc, "output-rail",
+                                           RailOrientation::vertical);
+  outputRail->setCollapseHandler([this] { refreshRailUi(true); });
+  owner.addAndMakeVisible(*outputRail);
+
+  controlRail = std::make_unique<RailPanel>(doc, "control-rail",
+                                            RailOrientation::horizontal);
+  controlRail->setCollapseHandler([this] { refreshRailUi(true); });
+  owner.addAndMakeVisible(*controlRail);
+
   canvas->setNodeSelectionChangedHandler(
       [this](const std::vector<NodeId> &selectedNodeIds) {
         handleSelectionChanged(selectedNodeIds);
@@ -695,6 +1288,13 @@ EditorHandle::Impl::~Impl() {
   if (documentNoticeBanner != nullptr)
     documentNoticeBanner->setDismissHandler({});
 
+  if (inputRail != nullptr)
+    inputRail->setCollapseHandler({});
+  if (outputRail != nullptr)
+    outputRail->setCollapseHandler({});
+  if (controlRail != nullptr)
+    controlRail->setCollapseHandler({});
+
   if (audioDeviceManager != nullptr)
     audioDeviceManager->removeAudioCallback(&runtime);
 }
@@ -777,6 +1377,42 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   if (diagnosticsDrawer != nullptr && !diagnosticsDrawer->isDrawerOpen())
     diagnosticsDrawer->setBounds({});
 
+  if (controlRail != nullptr) {
+    const bool collapsed = controlRail->isRailCollapsed();
+    const int targetHeight =
+        collapsed ? 40
+                  : juce::jlimit(104, 188,
+                                 juce::roundToInt((float)area.getHeight() * 0.16f));
+    const int railHeight = juce::jmin(targetHeight,
+                                      juce::jmax(collapsed ? 40 : 96,
+                                                 area.getHeight() / 3));
+    controlRail->setBounds(area.removeFromBottom(railHeight).reduced(0, 2));
+  }
+
+  if (inputRail != nullptr) {
+    const bool collapsed = inputRail->isRailCollapsed();
+    const int targetWidth =
+        collapsed ? 44
+                  : juce::jlimit(104, 168,
+                                 juce::roundToInt((float)area.getWidth() * 0.13f));
+    const int railWidth = juce::jmin(targetWidth,
+                                     juce::jmax(collapsed ? 44 : 92,
+                                                area.getWidth() / 4));
+    inputRail->setBounds(area.removeFromLeft(railWidth).reduced(0, 2));
+  }
+
+  if (outputRail != nullptr) {
+    const bool collapsed = outputRail->isRailCollapsed();
+    const int targetWidth =
+        collapsed ? 44
+                  : juce::jlimit(104, 168,
+                                 juce::roundToInt((float)area.getWidth() * 0.13f));
+    const int railWidth = juce::jmin(targetWidth,
+                                     juce::jmax(collapsed ? 44 : 92,
+                                                area.getWidth() / 4));
+    outputRail->setBounds(area.removeFromRight(railWidth).reduced(0, 2));
+  }
+
   if (canvas != nullptr)
     canvas->setBounds(area.reduced(0, 2));
 }
@@ -792,6 +1428,7 @@ void EditorHandle::Impl::timerCallback() {
   if (currentDocumentRevision != lastDocumentRevision) {
     if (propertiesPanel != nullptr)
       propertiesPanel->refreshFromDocument();
+    refreshRailUi();
     lastDocumentRevision = currentDocumentRevision;
   }
 
@@ -822,6 +1459,7 @@ void EditorHandle::Impl::rebuildAll(bool rebuildRuntime) {
 
   lastDocumentRevision = doc.getDocumentRevision();
   lastRuntimeRevision = doc.getRuntimeRevision();
+  refreshRailUi();
   refreshRuntimeUi(true);
   refreshDocumentNoticeUi(true);
   refreshSessionStatusUi(true);
@@ -938,6 +1576,18 @@ void EditorHandle::Impl::refreshSessionStatusUi(bool force) {
   lastSessionDirty = dirty;
   lastSessionHasAutosaveSnapshot = sessionStatus.hasAutosaveSnapshot;
   lastSessionAutosaveMillis = autosaveMillis;
+}
+
+void EditorHandle::Impl::refreshRailUi(bool relayout) {
+  if (inputRail != nullptr)
+    inputRail->refreshFromDocument();
+  if (outputRail != nullptr)
+    outputRail->refreshFromDocument();
+  if (controlRail != nullptr)
+    controlRail->refreshFromDocument();
+
+  if (relayout)
+    owner.resized();
 }
 
 void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {

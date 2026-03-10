@@ -93,6 +93,35 @@ TRailKind railKindFromVar(const juce::var &value) {
   return TRailKind::controlSource;
 }
 
+juce::String systemRailEndpointKindToString(TSystemRailEndpointKind kind) {
+  switch (kind) {
+  case TSystemRailEndpointKind::audioInput:
+    return "audio_input";
+  case TSystemRailEndpointKind::audioOutput:
+    return "audio_output";
+  case TSystemRailEndpointKind::midiInput:
+    return "midi_input";
+  case TSystemRailEndpointKind::midiOutput:
+    return "midi_output";
+  }
+
+  return "audio_input";
+}
+
+TSystemRailEndpointKind systemRailEndpointKindFromVar(const juce::var &value) {
+  if (value.isInt() || value.isInt64())
+    return static_cast<TSystemRailEndpointKind>((int)value);
+
+  const auto text = value.toString().trim().toLowerCase();
+  if (text == "audio_output")
+    return TSystemRailEndpointKind::audioOutput;
+  if (text == "midi_input")
+    return TSystemRailEndpointKind::midiInput;
+  if (text == "midi_output")
+    return TSystemRailEndpointKind::midiOutput;
+  return TSystemRailEndpointKind::audioInput;
+}
+
 juce::String controlSourceKindToString(TControlSourceKind kind) {
   switch (kind) {
   case TControlSourceKind::expression:
@@ -206,6 +235,81 @@ bool jsonToControlRail(TControlRailLayout &rail, const juce::var &json) {
       propertyOrAlias(object, {"kind", "rail_kind", "railKind"}, "control_source"));
   rail.collapsed = (bool)propertyOrAlias(object, {"collapsed"}, false);
   rail.order = (int)propertyOrAlias(object, {"order"}, 0);
+  return true;
+}
+
+juce::var systemRailPortToJson(const TSystemRailPort &port) {
+  auto *object = new juce::DynamicObject();
+  object->setProperty("id", port.portId);
+  object->setProperty("display_name", port.displayName);
+  object->setProperty("type", (int)port.dataType);
+  return juce::var(object);
+}
+
+bool jsonToSystemRailPort(TSystemRailPort &port, const juce::var &json) {
+  const auto *object = json.getDynamicObject();
+  if (object == nullptr)
+    return false;
+
+  port.portId = propertyOrAlias(object, {"id", "port_id", "portId"}).toString();
+  if (port.portId.isEmpty())
+    return false;
+
+  port.displayName =
+      propertyOrAlias(object, {"display_name", "displayName", "name"}, port.portId)
+          .toString();
+  port.dataType = (TPortDataType)(int)propertyOrAlias(object, {"type", "data_type", "dataType"}, 0);
+  return true;
+}
+
+juce::var systemRailEndpointToJson(const TSystemRailEndpoint &endpoint) {
+  auto *object = new juce::DynamicObject();
+  object->setProperty("id", endpoint.endpointId);
+  object->setProperty("rail_id", endpoint.railId);
+  object->setProperty("display_name", endpoint.displayName);
+  object->setProperty("subtitle", endpoint.subtitle);
+  object->setProperty("kind", systemRailEndpointKindToString(endpoint.kind));
+  object->setProperty("stereo", endpoint.stereo);
+  object->setProperty("missing", endpoint.missing);
+  object->setProperty("order", endpoint.order);
+
+  juce::Array<juce::var> portsArray;
+  for (const auto &port : endpoint.ports)
+    portsArray.add(systemRailPortToJson(port));
+  object->setProperty("ports", portsArray);
+  return juce::var(object);
+}
+
+bool jsonToSystemRailEndpoint(TSystemRailEndpoint &endpoint,
+                              const juce::var &json) {
+  const auto *object = json.getDynamicObject();
+  if (object == nullptr)
+    return false;
+
+  endpoint.endpointId = propertyOrAlias(object, {"id", "endpoint_id", "endpointId"}).toString();
+  if (endpoint.endpointId.isEmpty())
+    return false;
+
+  endpoint.railId = propertyOrAlias(object, {"rail_id", "railId"}).toString();
+  endpoint.displayName =
+      propertyOrAlias(object, {"display_name", "displayName", "name"}, endpoint.endpointId)
+          .toString();
+  endpoint.subtitle = propertyOrAlias(object, {"subtitle", "detail"}).toString();
+  endpoint.kind = systemRailEndpointKindFromVar(
+      propertyOrAlias(object, {"kind", "endpoint_kind", "endpointKind"}, "audio_input"));
+  endpoint.stereo = (bool)propertyOrAlias(object, {"stereo"}, false);
+  endpoint.missing = (bool)propertyOrAlias(object, {"missing"}, false);
+  endpoint.order = (int)propertyOrAlias(object, {"order"}, 0);
+  endpoint.ports.clear();
+
+  if (auto *portsArray = propertyOrAlias(object, {"ports"}).getArray()) {
+    for (const auto &portVar : *portsArray) {
+      TSystemRailPort port;
+      if (jsonToSystemRailPort(port, portVar))
+        endpoint.ports.push_back(std::move(port));
+    }
+  }
+
   return true;
 }
 
@@ -441,6 +545,16 @@ juce::var controlStateToJson(const TControlSourceState &state) {
     railsArray.add(controlRailToJson(rail));
   object->setProperty("rails", railsArray);
 
+  juce::Array<juce::var> inputEndpointsArray;
+  for (const auto &endpoint : state.inputEndpoints)
+    inputEndpointsArray.add(systemRailEndpointToJson(endpoint));
+  object->setProperty("input_endpoints", inputEndpointsArray);
+
+  juce::Array<juce::var> outputEndpointsArray;
+  for (const auto &endpoint : state.outputEndpoints)
+    outputEndpointsArray.add(systemRailEndpointToJson(endpoint));
+  object->setProperty("output_endpoints", outputEndpointsArray);
+
   juce::Array<juce::var> sourcesArray;
   for (const auto &source : state.sources)
     sourcesArray.add(controlSourceToJson(source));
@@ -469,10 +583,13 @@ void jsonToControlState(TControlSourceState &state, const juce::var &json) {
   const auto *object = json.getDynamicObject();
   if (object == nullptr) {
     state.ensureDefaultRails();
+    state.ensurePreviewDataIfEmpty();
     return;
   }
 
   state.rails.clear();
+  state.inputEndpoints.clear();
+  state.outputEndpoints.clear();
   state.sources.clear();
   state.deviceProfiles.clear();
   state.assignments.clear();
@@ -483,6 +600,22 @@ void jsonToControlState(TControlSourceState &state, const juce::var &json) {
       TControlRailLayout rail;
       if (jsonToControlRail(rail, railVar))
         state.rails.push_back(std::move(rail));
+    }
+  }
+
+  if (auto *inputEndpointsArray = propertyOrAlias(object, {"input_endpoints", "inputEndpoints"}).getArray()) {
+    for (const auto &endpointVar : *inputEndpointsArray) {
+      TSystemRailEndpoint endpoint;
+      if (jsonToSystemRailEndpoint(endpoint, endpointVar))
+        state.inputEndpoints.push_back(std::move(endpoint));
+    }
+  }
+
+  if (auto *outputEndpointsArray = propertyOrAlias(object, {"output_endpoints", "outputEndpoints"}).getArray()) {
+    for (const auto &endpointVar : *outputEndpointsArray) {
+      TSystemRailEndpoint endpoint;
+      if (jsonToSystemRailEndpoint(endpoint, endpointVar))
+        state.outputEndpoints.push_back(std::move(endpoint));
     }
   }
 
@@ -520,6 +653,7 @@ void jsonToControlState(TControlSourceState &state, const juce::var &json) {
   }
 
   state.ensureDefaultRails();
+  state.ensurePreviewDataIfEmpty();
 }
 
 juce::var migrateControlStateJson(const juce::var &json) {

@@ -73,6 +73,31 @@ struct TBookmark {
 
 enum class TRailKind { input, output, controlSource };
 
+enum class TSystemRailEndpointKind {
+  audioInput,
+  audioOutput,
+  midiInput,
+  midiOutput
+};
+
+struct TSystemRailPort {
+  juce::String portId;
+  juce::String displayName;
+  TPortDataType dataType = TPortDataType::Audio;
+};
+
+struct TSystemRailEndpoint {
+  juce::String endpointId;
+  juce::String railId;
+  juce::String displayName;
+  juce::String subtitle;
+  TSystemRailEndpointKind kind = TSystemRailEndpointKind::audioInput;
+  bool stereo = false;
+  bool missing = false;
+  int order = 0;
+  std::vector<TSystemRailPort> ports;
+};
+
 enum class TControlSourceKind {
   expression,
   footswitch,
@@ -147,6 +172,8 @@ struct TControlSourceAssignment {
 
 struct TControlSourceState {
   std::vector<TControlRailLayout> rails;
+  std::vector<TSystemRailEndpoint> inputEndpoints;
+  std::vector<TSystemRailEndpoint> outputEndpoints;
   std::vector<TControlSource> sources;
   std::vector<TDeviceProfile> deviceProfiles;
   std::vector<TControlSourceAssignment> assignments;
@@ -179,6 +206,77 @@ struct TControlSourceState {
     rails.push_back(std::move(rail));
   }
 
+  bool hasAnyRailCards() const noexcept {
+    return !inputEndpoints.empty() || !outputEndpoints.empty() ||
+           !sources.empty();
+  }
+
+  void ensurePreviewDataIfEmpty() {
+    if (hasAnyRailCards())
+      return;
+
+    TSystemRailEndpoint stereoIn;
+    stereoIn.endpointId = "audio-in-main";
+    stereoIn.railId = "input-rail";
+    stereoIn.displayName = "Audio In";
+    stereoIn.subtitle = "Host stereo";
+    stereoIn.kind = TSystemRailEndpointKind::audioInput;
+    stereoIn.stereo = true;
+    stereoIn.order = 0;
+    stereoIn.ports.push_back({"audio-in-l", "L", TPortDataType::Audio});
+    stereoIn.ports.push_back({"audio-in-r", "R", TPortDataType::Audio});
+    inputEndpoints.push_back(std::move(stereoIn));
+
+    TSystemRailEndpoint midiIn;
+    midiIn.endpointId = "midi-in-main";
+    midiIn.railId = "input-rail";
+    midiIn.displayName = "MIDI In";
+    midiIn.subtitle = "Device bridge";
+    midiIn.kind = TSystemRailEndpointKind::midiInput;
+    midiIn.order = 1;
+    midiIn.ports.push_back({"midi-in-port", "MIDI", TPortDataType::MIDI});
+    inputEndpoints.push_back(std::move(midiIn));
+
+    TSystemRailEndpoint stereoOut;
+    stereoOut.endpointId = "audio-out-main";
+    stereoOut.railId = "output-rail";
+    stereoOut.displayName = "Audio Out";
+    stereoOut.subtitle = "Main bus";
+    stereoOut.kind = TSystemRailEndpointKind::audioOutput;
+    stereoOut.stereo = true;
+    stereoOut.order = 0;
+    stereoOut.ports.push_back({"audio-out-l", "L", TPortDataType::Audio});
+    stereoOut.ports.push_back({"audio-out-r", "R", TPortDataType::Audio});
+    outputEndpoints.push_back(std::move(stereoOut));
+
+    TControlSource expression;
+    expression.sourceId = "exp-1";
+    expression.deviceProfileId = "preview-device";
+    expression.railId = "control-rail";
+    expression.displayName = "EXP 1";
+    expression.kind = TControlSourceKind::expression;
+    expression.mode = TControlSourceMode::continuous;
+    expression.autoDetected = true;
+    expression.confirmed = false;
+    expression.ports.push_back(
+        {"exp-1-value", "Value", TControlPortKind::value});
+    sources.push_back(std::move(expression));
+
+    TControlSource footswitch;
+    footswitch.sourceId = "fs-1";
+    footswitch.deviceProfileId = "preview-device";
+    footswitch.railId = "control-rail";
+    footswitch.displayName = "FS 1";
+    footswitch.kind = TControlSourceKind::footswitch;
+    footswitch.mode = TControlSourceMode::momentary;
+    footswitch.autoDetected = true;
+    footswitch.confirmed = false;
+    footswitch.ports.push_back({"fs-1-gate", "Gate", TControlPortKind::gate});
+    footswitch.ports.push_back(
+        {"fs-1-trigger", "Trigger", TControlPortKind::trigger});
+    sources.push_back(std::move(footswitch));
+  }
+
   TControlRailLayout *findRail(const juce::String &railId) noexcept {
     for (auto &rail : rails) {
       if (rail.railId == railId)
@@ -192,6 +290,35 @@ struct TControlSourceState {
     for (const auto &rail : rails) {
       if (rail.railId == railId)
         return &rail;
+    }
+
+    return nullptr;
+  }
+
+  TSystemRailEndpoint *findEndpoint(const juce::String &endpointId) noexcept {
+    for (auto &endpoint : inputEndpoints) {
+      if (endpoint.endpointId == endpointId)
+        return &endpoint;
+    }
+
+    for (auto &endpoint : outputEndpoints) {
+      if (endpoint.endpointId == endpointId)
+        return &endpoint;
+    }
+
+    return nullptr;
+  }
+
+  const TSystemRailEndpoint *
+  findEndpoint(const juce::String &endpointId) const noexcept {
+    for (const auto &endpoint : inputEndpoints) {
+      if (endpoint.endpointId == endpointId)
+        return &endpoint;
+    }
+
+    for (const auto &endpoint : outputEndpoints) {
+      if (endpoint.endpointId == endpointId)
+        return &endpoint;
     }
 
     return nullptr;
