@@ -109,6 +109,16 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
 
 void TGraphCanvas::beginConnectionDrag(const TPort &sourcePort,
                                        juce::Point<float> mousePosView) {
+  auto sourcePosView = mousePosView;
+  if (findPortComponent(sourcePort.ownerNodeId, sourcePort.portId) != nullptr)
+    sourcePosView = portCentreInCanvas(sourcePort.ownerNodeId, sourcePort.portId);
+
+  beginConnectionDragFromPoint(sourcePort, sourcePosView, mousePosView);
+}
+
+void TGraphCanvas::beginConnectionDragFromPoint(
+    const TPort &sourcePort, juce::Point<float> sourcePosView,
+    juce::Point<float> mousePosView) {
   if (sourcePort.direction != TPortDirection::Output)
     return;
 
@@ -117,13 +127,8 @@ void TGraphCanvas::beginConnectionDrag(const TPort &sourcePort,
   wireDragState.sourceNodeId = sourcePort.ownerNodeId;
   wireDragState.sourcePortId = sourcePort.portId;
   wireDragState.sourceType = sourcePort.dataType;
+  wireDragState.sourcePosView = sourcePosView;
   wireDragState.mousePosView = mousePosView;
-
-  if (findPortComponent(sourcePort.ownerNodeId, sourcePort.portId) != nullptr)
-    wireDragState.sourcePosView =
-        portCentreInCanvas(sourcePort.ownerNodeId, sourcePort.portId);
-  else
-    wireDragState.sourcePosView = mousePosView;
 
   selectedConnectionId = kInvalidConnectionId;
 

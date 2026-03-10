@@ -6,6 +6,7 @@
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
 #include "Teul/Editor/Panels/PresetBrowserPanel.h"
 #include "Teul/Registry/TNodeRegistry.h"
+#include "Teul/History/TCommands.h"
 #include "Teul/Serialization/TFileIo.h"
 #include "Teul/Serialization/TStatePresetIO.h"
 
@@ -105,6 +106,7 @@ juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
 enum class RailOrientation { vertical, horizontal };
 
 struct RailCardPortView {
+  juce::String portId;
   juce::String label;
   juce::Colour accent;
 };
@@ -307,7 +309,7 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
         const auto portAccent = port.dataType == TPortDataType::MIDI
                                     ? juce::Colour(0xff34d399)
                                     : juce::Colour(0xff2dd4bf);
-        card.ports.push_back({port.displayName, portAccent});
+        card.ports.push_back({port.portId, port.displayName, portAccent});
       }
       cards.push_back(std::move(card));
     }
@@ -324,7 +326,7 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
       card.accent = controlSourceAccent(source.kind);
       card.warning = source.missing;
       for (const auto &port : source.ports)
-        card.ports.push_back({port.displayName, controlPortAccent(port.kind)});
+        card.ports.push_back({port.portId, port.displayName, controlPortAccent(port.kind)});
       cards.push_back(std::move(card));
     }
   }
@@ -347,12 +349,151 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
   return cards;
 }
 
+juce::String inputEndpointNodeTypeKey(const TSystemRailEndpoint &endpoint) {
+  switch (endpoint.kind) {
+  case TSystemRailEndpointKind::audioInput:
+    return "Teul.Source.AudioInput";
+  case TSystemRailEndpointKind::midiInput:
+    return "Teul.Source.MidiInput";
+  case TSystemRailEndpointKind::audioOutput:
+  case TSystemRailEndpointKind::midiOutput:
+    break;
+  }
+
+  return {};
+}
+
+juce::String inputEndpointPortName(const TSystemRailEndpoint &endpoint,
+                                   const juce::String &endpointPortId) {
+  if (endpoint.kind == TSystemRailEndpointKind::midiInput)
+    return "MIDI Out";
+
+  const auto endpointPort = std::find_if(
+      endpoint.ports.begin(), endpoint.ports.end(),
+      [&endpointPortId](const TSystemRailPort &port) {
+        return port.portId == endpointPortId;
+      });
+  const auto portLabel = endpointPort != endpoint.ports.end()
+                             ? endpointPort->displayName.trim().toUpperCase()
+                             : endpointPortId.trim().toUpperCase();
+
+  if (portLabel == "R" || portLabel.contains("RIGHT"))
+    return "R Out";
+
+  return "L Out";
+}
+
+const TPort *findPortByName(const TNode &node, juce::StringRef portName,
+                            TPortDirection direction) {
+  for (const auto &port : node.ports) {
+    if (port.direction == direction && port.name == portName)
+      return &port;
+  }
+
+  return nullptr;
+}
+
+NodeId findSystemEndpointNodeId(const TGraphDocument &document,
+                                const TSystemRailEndpoint &endpoint,
+                                juce::StringRef typeKey) {
+  for (const auto &node : document.nodes) {
+    if (node.typeKey == typeKey && node.label == endpoint.displayName)
+      return node.nodeId;
+  }
+
+  return kInvalidNodeId;
+}
+
+NodeId createNodeFromDescriptor(TGraphDocument &document,
+                                const TNodeDescriptor &descriptor,
+                                juce::Point<float> worldPos,
+                                const juce::String &label) {
+  TNode node;
+  node.nodeId = document.allocNodeId();
+  node.typeKey = descriptor.typeKey;
+  node.label = label;
+  node.x = worldPos.x;
+  node.y = worldPos.y;
+
+  for (const auto &param : descriptor.paramSpecs)
+    node.params[param.key] = param.defaultValue;
+
+  for (const auto &portSpec : descriptor.portSpecs) {
+    TPort port;
+    port.portId = document.allocPortId();
+    port.direction = portSpec.direction;
+    port.dataType = portSpec.dataType;
+    port.name = portSpec.name;
+    port.ownerNodeId = node.nodeId;
+    if (portSpec.name.startsWithIgnoreCase("R"))
+      port.channelIndex = 1;
+    node.ports.push_back(port);
+  }
+
+  document.executeCommand(std::make_unique<AddNodeCommand>(node));
+  return node.nodeId;
+}
+
+bool beginInputRailPortDrag(TGraphDocument &document,
+                            const TNodeRegistry &registry,
+                            TGraphCanvas &canvas,
+                            const juce::String &endpointId,
+                            const juce::String &endpointPortId,
+                            juce::Point<float> sourceAnchorView,
+                            juce::Point<float> mousePosView) {
+  const auto *endpoint = document.controlState.findEndpoint(endpointId);
+  if (endpoint == nullptr || endpoint->railId != "input-rail")
+    return false;
+
+  const auto typeKey = inputEndpointNodeTypeKey(*endpoint);
+  if (typeKey.isEmpty())
+    return false;
+
+  NodeId nodeId = findSystemEndpointNodeId(document, *endpoint, typeKey);
+  if (nodeId == kInvalidNodeId) {
+    const auto *descriptor = registry.descriptorFor(typeKey);
+    if (descriptor == nullptr)
+      return false;
+
+    const float canvasHeight = juce::jmax(120.0f, (float)canvas.getHeight());
+    const float spawnY = juce::jlimit(72.0f, canvasHeight - 96.0f,
+                                      juce::jmax(72.0f, mousePosView.y));
+    nodeId = createNodeFromDescriptor(document, *descriptor,
+                                      canvas.viewToWorld({72.0f, spawnY}),
+                                      endpoint->displayName);
+    canvas.rebuildNodeComponents();
+  }
+
+  const auto *node = document.findNode(nodeId);
+  if (node == nullptr)
+    return false;
+
+  const auto portName = inputEndpointPortName(*endpoint, endpointPortId);
+  const auto *sourcePort = findPortByName(*node, portName, TPortDirection::Output);
+  if (sourcePort == nullptr)
+    return false;
+
+  const float anchorX = juce::jlimit(2.0f, juce::jmax(2.0f, (float)canvas.getWidth() - 2.0f),
+                                     sourceAnchorView.x);
+  const float mouseX = juce::jlimit(-48.0f, (float)canvas.getWidth() + 48.0f,
+                                    mousePosView.x);
+  canvas.beginConnectionDragFromPoint(*sourcePort, {anchorX, sourceAnchorView.y},
+                                      {mouseX, mousePosView.y});
+  return true;
+}
+
 } // namespace
 
 class RailPanel : public juce::Component {
 public:
   using CollapseHandler = std::function<void()>;
   using CardSelectionHandler = std::function<void(const juce::String &cardId)>;
+  using PortDragBeginHandler = std::function<bool(const juce::String &cardId,
+                                                  const juce::String &portId,
+                                                  juce::Point<float> sourceAnchorTarget,
+                                                  juce::Point<float> mousePosTarget)>;
+  using PortDragMotionHandler =
+      std::function<void(juce::Point<float> mousePosTarget)>;
 
   RailPanel(TGraphDocument &documentIn, juce::String railIdIn,
             RailOrientation orientationIn)
@@ -374,8 +515,25 @@ public:
       selectedCardId.clear();
       hoveredCardId.clear();
       cardHitZones.clear();
+      portHitZones.clear();
     }
     repaint();
+  }
+
+  void setPortDragTargetComponent(juce::Component *targetComponent) {
+    portDragTargetComponent = targetComponent;
+  }
+
+  void setPortDragHandlers(PortDragBeginHandler beginHandler,
+                           PortDragMotionHandler updateHandler,
+                           PortDragMotionHandler endHandler) {
+    portDragBeginHandler = std::move(beginHandler);
+    portDragUpdateHandler = std::move(updateHandler);
+    portDragEndHandler = std::move(endHandler);
+    if (portDragBeginHandler == nullptr) {
+      activePortDrag = {};
+      portHitZones.clear();
+    }
   }
 
   void setSelectedCardId(const juce::String &cardId) {
@@ -444,14 +602,48 @@ public:
   void focusLost(FocusChangeType) override { repaint(); }
 
   void mouseDown(const juce::MouseEvent &event) override {
-    if (cardSelectionHandler == nullptr || isRailCollapsed())
+    if (isRailCollapsed())
       return;
 
     grabKeyboardFocus();
 
-    const auto point = event.position.roundToInt();
+    const auto point = event.position;
+    for (auto it = portHitZones.rbegin(); it != portHitZones.rend(); ++it) {
+      if (!it->bounds.contains(point))
+        continue;
+
+      if (cardSelectionHandler != nullptr) {
+        if (selectedCardId != it->cardId)
+          selectedCardId = it->cardId;
+        repaint();
+        cardSelectionHandler(it->cardId);
+      }
+
+      if (portDragBeginHandler != nullptr && portDragTargetComponent != nullptr) {
+        const auto anchorPosTarget = localPointToPortDragTarget(
+            it->bounds.getCentre().roundToInt().toFloat());
+        const bool started = portDragBeginHandler(
+            it->cardId, it->portId, anchorPosTarget,
+            localPointToPortDragTarget(event.position));
+        if (started) {
+          activePortDrag.active = true;
+          activePortDrag.cardId = it->cardId;
+          activePortDrag.portId = it->portId;
+          activePortDrag.anchorPosTarget = anchorPosTarget;
+          repaint();
+        }
+        return;
+      }
+
+      return;
+    }
+
+    if (cardSelectionHandler == nullptr)
+      return;
+
+    const auto pointInt = point.roundToInt();
     for (auto it = cardHitZones.rbegin(); it != cardHitZones.rend(); ++it) {
-      if (!it->second.contains(point))
+      if (!it->second.contains(pointInt))
         continue;
 
       if (selectedCardId != it->first)
@@ -468,8 +660,27 @@ public:
     }
   }
 
+  void mouseDrag(const juce::MouseEvent &event) override {
+    if (!activePortDrag.active || portDragUpdateHandler == nullptr ||
+        portDragTargetComponent == nullptr)
+      return;
+
+    portDragUpdateHandler(localPointToPortDragTarget(event.position));
+  }
+
+  void mouseUp(const juce::MouseEvent &event) override {
+    if (!activePortDrag.active)
+      return;
+
+    if (portDragEndHandler != nullptr && portDragTargetComponent != nullptr)
+      portDragEndHandler(localPointToPortDragTarget(event.position));
+
+    activePortDrag = {};
+  }
+
   void paint(juce::Graphics &g) override {
     cardHitZones.clear();
+    portHitZones.clear();
 
     const auto kind = currentRailKind();
     const auto accent = railAccent(kind);
@@ -634,9 +845,16 @@ private:
       g.setColour(juce::Colours::white.withAlpha(0.82f));
       g.setFont(10.0f);
       g.drawText("L / R", labelArea, juce::Justification::centredLeft, false);
-      drawGroupedStereoSocket(
-          g, socketArea.toFloat().withSizeKeepingCentre(30.0f, 10.0f), accent,
-          portsOnRight);
+      auto groupedSocketBounds =
+          socketArea.toFloat().withSizeKeepingCentre(30.0f, 10.0f);
+      drawGroupedStereoSocket(g, groupedSocketBounds, accent, portsOnRight);
+      auto leftSocketBounds = groupedSocketBounds;
+      auto rightSocketBounds = groupedSocketBounds;
+      leftSocketBounds.setWidth(groupedSocketBounds.getWidth() * 0.5f);
+      rightSocketBounds.setX(leftSocketBounds.getRight());
+      rightSocketBounds.setWidth(groupedSocketBounds.getWidth() * 0.5f);
+      addPortHitZone(card.itemId, card.ports[0].portId, leftSocketBounds);
+      addPortHitZone(card.itemId, card.ports[1].portId, rightSocketBounds);
     } else {
       const int portCount = juce::jmin(3, (int)card.ports.size());
       if (portCount > 0) {
@@ -650,9 +868,12 @@ private:
           g.setFont(10.0f);
           g.drawText(card.ports[(size_t)index].label, labelArea,
                      juce::Justification::centredLeft, false);
-          drawSocket(g,
-                     socketArea.toFloat().withSizeKeepingCentre(14.0f, 8.0f),
-                     card.ports[(size_t)index].accent, portsOnRight);
+          const auto socketBounds =
+              socketArea.toFloat().withSizeKeepingCentre(14.0f, 8.0f);
+          drawSocket(g, socketBounds, card.ports[(size_t)index].accent,
+                     portsOnRight);
+          addPortHitZone(card.itemId, card.ports[(size_t)index].portId,
+                         socketBounds);
         }
       }
     }
@@ -725,10 +946,28 @@ private:
       g.setColour(port.accent.brighter(0.18f));
       g.setFont(10.0f);
       g.drawText(port.label, pill, juce::Justification::centred, false);
+      addPortHitZone(card.itemId, port.portId, pill.toFloat());
     }
 
     if (card.itemId.isNotEmpty())
       cardHitZones.push_back({card.itemId, area.toNearestInt()});
+  }
+
+  void addPortHitZone(const juce::String &cardId, const juce::String &portId,
+                      juce::Rectangle<float> bounds) {
+    if (cardId.isEmpty() || portId.isEmpty())
+      return;
+
+    portHitZones.push_back({cardId, portId, bounds.expanded(4.0f, 5.0f)});
+  }
+
+  juce::Point<float> localPointToPortDragTarget(juce::Point<float> localPoint) const {
+    if (portDragTargetComponent == nullptr)
+      return localPoint;
+
+    return portDragTargetComponent
+        ->getLocalPoint(this, localPoint.roundToInt())
+        .toFloat();
   }
 
   juce::String railTitle() const {
@@ -785,15 +1024,34 @@ private:
       collapseHandler();
   }
 
+  struct PortHitZone {
+    juce::String cardId;
+    juce::String portId;
+    juce::Rectangle<float> bounds;
+  };
+
+  struct ActivePortDragState {
+    bool active = false;
+    juce::String cardId;
+    juce::String portId;
+    juce::Point<float> anchorPosTarget;
+  };
+
   TGraphDocument &document;
   juce::String railId;
   RailOrientation orientation;
   juce::TextButton collapseButton;
   CollapseHandler collapseHandler;
   CardSelectionHandler cardSelectionHandler;
+  PortDragBeginHandler portDragBeginHandler;
+  PortDragMotionHandler portDragUpdateHandler;
+  PortDragMotionHandler portDragEndHandler;
+  juce::Component *portDragTargetComponent = nullptr;
   juce::String selectedCardId;
   juce::String hoveredCardId;
+  ActivePortDragState activePortDrag;
   std::vector<std::pair<juce::String, juce::Rectangle<int>>> cardHitZones;
+  std::vector<PortHitZone> portHitZones;
 };
 
 class ControlSourceInspectorPanel : public juce::Component {
@@ -1777,6 +2035,22 @@ EditorHandle::Impl::Impl(
   inputRail->setCollapseHandler([this] { refreshRailUi(true); });
   inputRail->setCardSelectionHandler(
       [this](const juce::String &endpointId) { inspectSystemEndpoint(endpointId); });
+  inputRail->setPortDragTargetComponent(canvas.get());
+  inputRail->setPortDragHandlers(
+      [this](const juce::String &endpointId, const juce::String &portId,
+             juce::Point<float> sourceAnchorView,
+             juce::Point<float> mousePosView) {
+        return beginInputRailPortDrag(doc, *registryStore, *canvas, endpointId,
+                                      portId, sourceAnchorView, mousePosView);
+      },
+      [this](juce::Point<float> mousePosView) {
+        if (canvas != nullptr)
+          canvas->updateConnectionDrag(mousePosView);
+      },
+      [this](juce::Point<float> mousePosView) {
+        if (canvas != nullptr)
+          canvas->endConnectionDrag(mousePosView);
+      });
   owner.addAndMakeVisible(*inputRail);
 
   outputRail = std::make_unique<RailPanel>(doc, "output-rail",

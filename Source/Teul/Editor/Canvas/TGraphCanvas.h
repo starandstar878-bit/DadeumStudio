@@ -71,6 +71,9 @@ public:
 
   void beginConnectionDrag(const TPort &sourcePort,
                            juce::Point<float> mousePosView);
+  void beginConnectionDragFromPoint(const TPort &sourcePort,
+                                    juce::Point<float> sourcePosView,
+                                    juce::Point<float> mousePosView);
   void updateConnectionDrag(juce::Point<float> mousePosView);
   void endConnectionDrag(juce::Point<float> mousePosView);
   void cancelConnectionDrag();
