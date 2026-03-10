@@ -69,10 +69,16 @@ public:
   void rebuildNodeComponents();
   void updateChildPositions();
 
+  enum class ExternalDragSourceKind {
+    GraphConnection,
+    Assignment,
+  };
+
   struct ExternalDragSource {
     juce::String sourceId;
     juce::String sourcePortId;
     TPortDataType dataType = TPortDataType::Control;
+    ExternalDragSourceKind kind = ExternalDragSourceKind::Assignment;
   };
 
   void beginConnectionDrag(const TPort &sourcePort,
@@ -122,6 +128,7 @@ public:
   using ExternalDragTargetChangedHandler =
       std::function<void(const juce::String &zoneId, bool canConnect)>;
   void setExternalDropZoneProvider(ExternalDropZoneProvider provider);
+  void setExternalEndpointAnchorProvider(ExternalDropZoneProvider provider);
   void setExternalConnectionCommitHandler(
       ExternalConnectionCommitHandler handler);
   void setExternalDragTargetChangedHandler(
@@ -230,6 +237,9 @@ private:
   juce::Colour colorForPortType(TPortDataType type) const;
 
   const TPort *findPortModel(NodeId nodeId, PortId portId) const;
+  const TPort *findPortModel(const TEndpoint &endpoint) const;
+  const TSystemRailPort *findRailPortModel(const TEndpoint &endpoint) const;
+  TPortDataType dataTypeForEndpoint(const TEndpoint &endpoint) const;
 
   TNodeComponent *findNodeComponent(NodeId nodeId) noexcept;
   const TNodeComponent *findNodeComponent(NodeId nodeId) const noexcept;
@@ -239,6 +249,7 @@ private:
                                           PortId portId) const noexcept;
 
   juce::Point<float> portCentreInCanvas(NodeId nodeId, PortId portId) const;
+  juce::Point<float> portCentreInCanvas(const TEndpoint &endpoint) const;
 
   ConnectionId hitTestConnection(juce::Point<float> pointView,
                                  float hitThickness = 7.0f) const;
@@ -383,6 +394,8 @@ private:
     PortId sourcePortId = kInvalidPortId;
     juce::String sourceExternalId;
     juce::String sourceExternalPortId;
+    ExternalDragSourceKind sourceExternalKind =
+        ExternalDragSourceKind::Assignment;
     TPortDataType sourceType = TPortDataType::Audio;
 
     juce::Point<float> sourcePosView;
@@ -415,6 +428,7 @@ private:
   PortLevelProvider portLevelProvider;
   BindingSummaryResolver bindingSummaryResolver;
   ExternalDropZoneProvider externalDropZoneProvider;
+  ExternalDropZoneProvider externalEndpointAnchorProvider;
   ExternalConnectionCommitHandler externalConnectionCommitHandler;
   ExternalDragTargetChangedHandler externalDragTargetChangedHandler;
   FrameSelectionChangedHandler frameSelectionChangedHandler;

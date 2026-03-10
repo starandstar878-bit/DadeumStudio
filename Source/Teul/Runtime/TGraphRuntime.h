@@ -104,6 +104,22 @@ private:
     TPortDataType dataType = TPortDataType::Audio;
   };
 
+  struct RailInputSource {
+    juce::String endpointId;
+    juce::String portId;
+    int channelIndex = -1;
+    int deviceChannelIndex = -1;
+    TPortDataType dataType = TPortDataType::Audio;
+  };
+
+  struct RailOutputTarget {
+    juce::String endpointId;
+    juce::String portId;
+    int sourceChannelIndex = -1;
+    int deviceChannelIndex = -1;
+    TPortDataType dataType = TPortDataType::Audio;
+  };
+
   struct ParamDispatch {
     NodeId nodeId = kInvalidNodeId;
     TNodeInstance *instance = nullptr;
@@ -122,6 +138,8 @@ private:
     std::vector<PortTelemetry> portTelemetry;
     std::map<PortId, std::size_t> portTelemetryIndex;
     std::unique_ptr<std::atomic<float>[]> portLevels;
+    std::vector<RailInputSource> railInputSources;
+    std::vector<RailOutputTarget> railOutputTargets;
     std::vector<ParamDispatch> paramDispatches;
     std::uint64_t generation = 0;
     int totalAllocatedChannels = 0;

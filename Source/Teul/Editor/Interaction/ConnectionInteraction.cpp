@@ -6,6 +6,51 @@
 #include "Teul/History/TCommands.h"
 
 namespace Teul {
+namespace {
+
+bool splitRailPortZoneId(const juce::String &zoneId,
+                         juce::String &endpointId,
+                         juce::String &portId) {
+  const int separatorIndex = zoneId.indexOf("::");
+  if (separatorIndex <= 0)
+    return false;
+
+  endpointId = zoneId.substring(0, separatorIndex);
+  portId = zoneId.substring(separatorIndex + 2);
+  return endpointId.isNotEmpty() && portId.isNotEmpty();
+}
+
+bool isOutputRailZone(const TGraphDocument &document, const juce::String &zoneId) {
+  juce::String endpointId;
+  juce::String portId;
+  if (!splitRailPortZoneId(zoneId, endpointId, portId))
+    return false;
+
+  const auto *endpoint = document.controlState.findEndpoint(endpointId);
+  return endpoint != nullptr && endpoint->railId == "output-rail" &&
+         document.findSystemRailPort(endpointId, portId) != nullptr;
+}
+
+bool connectionExists(const TGraphDocument &document,
+                      const TEndpoint &from,
+                      const TEndpoint &to) {
+  return std::any_of(document.connections.begin(), document.connections.end(),
+                     [&](const TConnection &connection) {
+                       return connection.from.ownerKind == from.ownerKind &&
+                              connection.from.nodeId == from.nodeId &&
+                              connection.from.portId == from.portId &&
+                              connection.from.railEndpointId ==
+                                  from.railEndpointId &&
+                              connection.from.railPortId == from.railPortId &&
+                              connection.to.ownerKind == to.ownerKind &&
+                              connection.to.nodeId == to.nodeId &&
+                              connection.to.portId == to.portId &&
+                              connection.to.railEndpointId == to.railEndpointId &&
+                              connection.to.railPortId == to.railPortId;
+                     });
+}
+
+} // namespace
 
 void TGraphCanvas::clearDragTargetHighlight() {
   for (auto &node : nodeComponents) {
@@ -40,9 +85,12 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
   }
 
   const bool sourceIsExternal = wireDragState.sourceExternalId.isNotEmpty();
+  const bool canTargetNodePorts =
+      !sourceIsExternal ||
+      wireDragState.sourceExternalKind == ExternalDragSourceKind::GraphConnection;
   const auto mousePosInt = mousePosView.roundToInt();
 
-  if (!sourceIsExternal) {
+  if (canTargetNodePorts) {
     for (auto &node : nodeComponents) {
       for (const auto &inputPort : node->getInputPorts()) {
         const auto hitArea =
@@ -57,8 +105,10 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
         wireDragState.targetTypeMatch =
             (candidatePort.dataType == wireDragState.sourceType);
         wireDragState.targetCycleFree =
-            !document.wouldCreateCycle(wireDragState.sourceNodeId,
-                                       candidatePort.ownerNodeId);
+            sourceIsExternal ? true
+                             : !document.wouldCreateCycle(
+                                   wireDragState.sourceNodeId,
+                                   candidatePort.ownerNodeId);
 
         inputPort->setDragTargetHighlight(true, isCurrentDragTargetConnectable());
         notifyExternalDragTarget();
@@ -100,16 +150,50 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
     return false;
 
   if (sourceIsExternal) {
-    return wireDragState.targetExternalZoneId.isNotEmpty() &&
-           externalConnectionCommitHandler != nullptr;
+    if (wireDragState.sourceExternalKind == ExternalDragSourceKind::Assignment) {
+      return wireDragState.targetExternalZoneId.isNotEmpty() &&
+             externalConnectionCommitHandler != nullptr;
+    }
+
+    if (wireDragState.targetNodeId == kInvalidNodeId ||
+        wireDragState.targetPortId == kInvalidPortId) {
+      return false;
+    }
+
+    const TPort *targetPort =
+        findPortModel(wireDragState.targetNodeId, wireDragState.targetPortId);
+    if (targetPort == nullptr || targetPort->direction != TPortDirection::Input)
+      return false;
+
+    const auto from = TEndpoint::makeRailPort(wireDragState.sourceExternalId,
+                                              wireDragState.sourceExternalPortId);
+    const auto to =
+        TEndpoint::makeNodePort(wireDragState.targetNodeId,
+                                wireDragState.targetPortId);
+    return !connectionExists(document, from, to);
   }
 
+  const TPort *sourcePort =
+      findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
+  if (!sourcePort || sourcePort->direction != TPortDirection::Output)
+    return false;
+
   if (wireDragState.targetExternalZoneId.isNotEmpty()) {
-    const TPort *sourcePort =
-        findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
-    return sourcePort != nullptr &&
-           sourcePort->direction == TPortDirection::Output &&
-           externalConnectionCommitHandler != nullptr;
+    if (!isOutputRailZone(document, wireDragState.targetExternalZoneId))
+      return false;
+
+    juce::String endpointId;
+    juce::String portId;
+    if (!splitRailPortZoneId(wireDragState.targetExternalZoneId, endpointId,
+                             portId)) {
+      return false;
+    }
+
+    const auto from =
+        TEndpoint::makeNodePort(wireDragState.sourceNodeId,
+                                wireDragState.sourcePortId);
+    const auto to = TEndpoint::makeRailPort(endpointId, portId);
+    return !connectionExists(document, from, to);
   }
 
   if (wireDragState.targetNodeId == kInvalidNodeId ||
@@ -120,28 +204,16 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
       wireDragState.sourcePortId == wireDragState.targetPortId)
     return false;
 
-  const TPort *sourcePort =
-      findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
   const TPort *targetPort =
       findPortModel(wireDragState.targetNodeId, wireDragState.targetPortId);
-
-  if (!sourcePort || !targetPort)
+  if (!targetPort || targetPort->direction != TPortDirection::Input)
     return false;
 
-  if (sourcePort->direction != TPortDirection::Output ||
-      targetPort->direction != TPortDirection::Input)
-    return false;
-
-  const bool duplicateExists =
-      std::any_of(document.connections.begin(), document.connections.end(),
-                  [&](const TConnection &conn) {
-                    return conn.from.nodeId == wireDragState.sourceNodeId &&
-                           conn.from.portId == wireDragState.sourcePortId &&
-                           conn.to.nodeId == wireDragState.targetNodeId &&
-                           conn.to.portId == wireDragState.targetPortId;
-                  });
-
-  return !duplicateExists;
+  const auto from = TEndpoint::makeNodePort(wireDragState.sourceNodeId,
+                                            wireDragState.sourcePortId);
+  const auto to = TEndpoint::makeNodePort(wireDragState.targetNodeId,
+                                          wireDragState.targetPortId);
+  return !connectionExists(document, from, to);
 }
 
 void TGraphCanvas::tryCreateConnectionFromDrag() {
@@ -149,34 +221,53 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
     return;
 
   if (wireDragState.targetExternalZoneId.isNotEmpty()) {
-    const TPort *sourcePort = nullptr;
-    ExternalDragSource externalSource;
-    const ExternalDragSource *externalSourcePtr = nullptr;
-    if (wireDragState.sourceExternalId.isNotEmpty()) {
+    if (wireDragState.sourceExternalKind == ExternalDragSourceKind::Assignment &&
+        wireDragState.sourceExternalId.isNotEmpty()) {
+      ExternalDragSource externalSource;
       externalSource.sourceId = wireDragState.sourceExternalId;
       externalSource.sourcePortId = wireDragState.sourceExternalPortId;
       externalSource.dataType = wireDragState.sourceType;
-      externalSourcePtr = &externalSource;
-    } else {
-      sourcePort =
-          findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
+      externalSource.kind = wireDragState.sourceExternalKind;
+      if (externalConnectionCommitHandler != nullptr)
+        externalConnectionCommitHandler(nullptr, &externalSource,
+                                        wireDragState.targetExternalZoneId);
+      return;
     }
 
-    if (externalConnectionCommitHandler != nullptr)
-      externalConnectionCommitHandler(sourcePort, externalSourcePtr,
+    juce::String endpointId;
+    juce::String portId;
+    if (splitRailPortZoneId(wireDragState.targetExternalZoneId, endpointId,
+                            portId)) {
+      TConnection conn;
+      conn.connectionId = document.allocConnectionId();
+      conn.from = TEndpoint::makeNodePort(wireDragState.sourceNodeId,
+                                          wireDragState.sourcePortId);
+      conn.to = TEndpoint::makeRailPort(endpointId, portId);
+      document.executeCommand(std::make_unique<AddConnectionCommand>(conn));
+      selectedConnectionId = conn.connectionId;
+      return;
+    }
+
+    if (externalConnectionCommitHandler != nullptr) {
+      const TPort *sourcePort =
+          findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
+      externalConnectionCommitHandler(sourcePort, nullptr,
                                       wireDragState.targetExternalZoneId);
+    }
     return;
   }
 
-  if (wireDragState.sourceExternalId.isNotEmpty())
-    return;
-
   TConnection conn;
   conn.connectionId = document.allocConnectionId();
-  conn.from.nodeId = wireDragState.sourceNodeId;
-  conn.from.portId = wireDragState.sourcePortId;
-  conn.to.nodeId = wireDragState.targetNodeId;
-  conn.to.portId = wireDragState.targetPortId;
+  if (wireDragState.sourceExternalId.isNotEmpty()) {
+    conn.from = TEndpoint::makeRailPort(wireDragState.sourceExternalId,
+                                        wireDragState.sourceExternalPortId);
+  } else {
+    conn.from = TEndpoint::makeNodePort(wireDragState.sourceNodeId,
+                                        wireDragState.sourcePortId);
+  }
+  conn.to = TEndpoint::makeNodePort(wireDragState.targetNodeId,
+                                    wireDragState.targetPortId);
 
   document.executeCommand(std::make_unique<AddConnectionCommand>(conn));
   selectedConnectionId = conn.connectionId;
@@ -221,6 +312,7 @@ void TGraphCanvas::beginExternalConnectionDragFromPoint(
   wireDragState.active = true;
   wireDragState.sourceExternalId = source.sourceId;
   wireDragState.sourceExternalPortId = source.sourcePortId;
+  wireDragState.sourceExternalKind = source.kind;
   wireDragState.sourceType = source.dataType;
   wireDragState.sourcePosView = sourcePosView;
   wireDragState.mousePosView = mousePosView;
@@ -278,17 +370,14 @@ void TGraphCanvas::deleteConnectionWithAnimation(ConnectionId connectionId,
   if (!conn)
     return;
 
-  const auto fromPos = portCentreInCanvas(conn->from.nodeId, conn->from.portId);
-  const auto toPos = portCentreInCanvas(conn->to.nodeId, conn->to.portId);
+  const auto fromPos = portCentreInCanvas(conn->from);
+  const auto toPos = portCentreInCanvas(conn->to);
 
   const float fromDistSq = fromPos.getDistanceSquaredFrom(breakPointView);
   const float toDistSq = toPos.getDistanceSquaredFrom(breakPointView);
 
   const juce::Point<float> anchorPos = (fromDistSq <= toDistSq) ? toPos : fromPos;
-
-  const TPort *sourcePort = findPortModel(conn->from.nodeId, conn->from.portId);
-  const TPortDataType sourceType =
-      sourcePort ? sourcePort->dataType : TPortDataType::Audio;
+  const TPortDataType sourceType = dataTypeForEndpoint(conn->from);
 
   startDisconnectAnimation(anchorPos, breakPointView, impulseView, sourceType);
 

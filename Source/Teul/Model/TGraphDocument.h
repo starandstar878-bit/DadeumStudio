@@ -324,6 +324,30 @@ struct TControlSourceState {
     return nullptr;
   }
 
+  TSystemRailPort *findEndpointPort(const juce::String &endpointId,
+                                    const juce::String &portId) noexcept {
+    if (auto *endpoint = findEndpoint(endpointId)) {
+      for (auto &port : endpoint->ports) {
+        if (port.portId == portId)
+          return &port;
+      }
+    }
+
+    return nullptr;
+  }
+
+  const TSystemRailPort *findEndpointPort(const juce::String &endpointId,
+                                          const juce::String &portId) const noexcept {
+    if (const auto *endpoint = findEndpoint(endpointId)) {
+      for (const auto &port : endpoint->ports) {
+        if (port.portId == portId)
+          return &port;
+      }
+    }
+
+    return nullptr;
+  }
+
   TControlSource *findSource(const juce::String &sourceId) noexcept {
     for (auto &source : sources) {
       if (source.sourceId == sourceId)
@@ -372,7 +396,7 @@ struct TGraphDocument {
   TGraphDocument(TGraphDocument &&other) noexcept;
   TGraphDocument &operator=(TGraphDocument &&other) noexcept;
 
-  int schemaVersion = 3;
+  int schemaVersion = 4;
   TGraphMeta meta;
 
   std::vector<TNode> nodes;
@@ -491,11 +515,25 @@ struct TGraphDocument {
                                                 PortId portId) noexcept {
     std::vector<TConnection *> result;
     for (auto &c : connections) {
-      if ((c.from.nodeId == nodeId && c.from.portId == portId) ||
-          (c.to.nodeId == nodeId && c.to.portId == portId))
+      if ((c.from.isNodePort() && c.from.nodeId == nodeId &&
+           c.from.portId == portId) ||
+          (c.to.isNodePort() && c.to.nodeId == nodeId &&
+           c.to.portId == portId)) {
         result.push_back(&c);
+      }
     }
     return result;
+  }
+
+  TSystemRailPort *findSystemRailPort(const juce::String &endpointId,
+                                      const juce::String &portId) noexcept {
+    return controlState.findEndpointPort(endpointId, portId);
+  }
+
+  const TSystemRailPort *findSystemRailPort(
+      const juce::String &endpointId,
+      const juce::String &portId) const noexcept {
+    return controlState.findEndpointPort(endpointId, portId);
   }
 
   bool wouldCreateCycle(NodeId fromNodeId, NodeId toNodeId) const noexcept;

@@ -21,6 +21,21 @@ juce::var coerceNumericValue(const juce::var &prototype, float value) {
   return value;
 }
 
+juce::String makeRailPortKey(const juce::String &endpointId,
+                             const juce::String &portId) {
+  return endpointId + "::" + portId;
+}
+
+int findRailPortIndex(const TSystemRailEndpoint &endpoint,
+                      const juce::String &portId) {
+  for (int index = 0; index < static_cast<int>(endpoint.ports.size()); ++index) {
+    if (endpoint.ports[static_cast<size_t>(index)].portId == portId)
+      return index;
+  }
+
+  return -1;
+}
+
 } // namespace
 
 TGraphRuntime::TGraphRuntime(const TNodeRegistry *registry)
@@ -39,13 +54,32 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
 
   std::map<NodeId, int> inDegree;
   std::map<NodeId, std::vector<NodeId>> adj;
+  std::set<juce::String> usedRailInputKeys;
+  std::set<juce::String> usedRailOutputKeys;
 
   for (const auto &node : doc.nodes)
     inDegree[node.nodeId] = 0;
 
   for (const auto &conn : doc.connections) {
-    adj[conn.from.nodeId].push_back(conn.to.nodeId);
-    inDegree[conn.to.nodeId]++;
+    if (!conn.isValid())
+      continue;
+
+    if (conn.from.isNodePort() && conn.to.isNodePort()) {
+      adj[conn.from.nodeId].push_back(conn.to.nodeId);
+      inDegree[conn.to.nodeId]++;
+      continue;
+    }
+
+    if (conn.from.isRailPort() && conn.to.isNodePort()) {
+      usedRailInputKeys.insert(
+          makeRailPortKey(conn.from.railEndpointId, conn.from.railPortId));
+      continue;
+    }
+
+    if (conn.from.isNodePort() && conn.to.isRailPort()) {
+      usedRailOutputKeys.insert(
+          makeRailPortKey(conn.to.railEndpointId, conn.to.railPortId));
+    }
   }
 
   std::queue<NodeId> q;
@@ -74,6 +108,9 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
 
   int portChannelCounter = 0;
   std::map<PortId, int> globalPortIndexMap;
+  std::map<juce::String, int> railInputChannelMap;
+  std::vector<RailInputSource> railInputSources;
+  std::vector<RailOutputTarget> railOutputTargets;
   const double sampleRate = currentSampleRate.load(std::memory_order_relaxed);
   const int blockSize = currentBlockSize.load(std::memory_order_relaxed);
 
@@ -109,31 +146,104 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
     newSortedNodes.push_back(std::move(entry));
   }
 
+  for (const auto &endpoint : doc.controlState.inputEndpoints) {
+    for (const auto &port : endpoint.ports) {
+      const auto key = makeRailPortKey(endpoint.endpointId, port.portId);
+      if (usedRailInputKeys.find(key) == usedRailInputKeys.end())
+        continue;
+
+      RailInputSource source;
+      source.endpointId = endpoint.endpointId;
+      source.portId = port.portId;
+      source.channelIndex = portChannelCounter;
+      source.deviceChannelIndex = endpoint.kind == TSystemRailEndpointKind::audioInput
+                                      ? juce::jmax(0, findRailPortIndex(endpoint, port.portId))
+                                      : -1;
+      source.dataType = port.dataType;
+      railInputChannelMap[key] = portChannelCounter;
+      railInputSources.push_back(std::move(source));
+      ++portChannelCounter;
+    }
+  }
+
   std::map<NodeId, std::size_t> entryIndexByNodeId;
   for (std::size_t index = 0; index < newSortedNodes.size(); ++index)
     entryIndexByNodeId[newSortedNodes[index].nodeId] = index;
 
   for (const auto &conn : doc.connections) {
-    const auto srcChannelIt = globalPortIndexMap.find(conn.from.portId);
-    const auto dstEntryIt = entryIndexByNodeId.find(conn.to.nodeId);
-    if (srcChannelIt == globalPortIndexMap.end() ||
-        dstEntryIt == entryIndexByNodeId.end()) {
+    if (!conn.isValid())
+      continue;
+
+    if (conn.from.isNodePort() && conn.to.isNodePort()) {
+      const auto srcChannelIt = globalPortIndexMap.find(conn.from.portId);
+      const auto dstEntryIt = entryIndexByNodeId.find(conn.to.nodeId);
+      if (srcChannelIt == globalPortIndexMap.end() ||
+          dstEntryIt == entryIndexByNodeId.end()) {
+        continue;
+      }
+
+      auto &dstEntry = newSortedNodes[dstEntryIt->second];
+      const auto dstChannelIt = dstEntry.portChannels.find(conn.to.portId);
+      if (dstChannelIt == dstEntry.portChannels.end())
+        continue;
+
+      dstEntry.preProcessMixes.push_back(
+          {srcChannelIt->second, dstChannelIt->second});
       continue;
     }
 
-    auto &dstEntry = newSortedNodes[dstEntryIt->second];
-    const auto dstChannelIt = dstEntry.portChannels.find(conn.to.portId);
-    if (dstChannelIt == dstEntry.portChannels.end())
-      continue;
+    if (conn.from.isRailPort() && conn.to.isNodePort()) {
+      const auto srcChannelIt = railInputChannelMap.find(
+          makeRailPortKey(conn.from.railEndpointId, conn.from.railPortId));
+      const auto dstEntryIt = entryIndexByNodeId.find(conn.to.nodeId);
+      if (srcChannelIt == railInputChannelMap.end() ||
+          dstEntryIt == entryIndexByNodeId.end()) {
+        continue;
+      }
 
-    dstEntry.preProcessMixes.push_back(
-        {srcChannelIt->second, dstChannelIt->second});
+      auto &dstEntry = newSortedNodes[dstEntryIt->second];
+      const auto dstChannelIt = dstEntry.portChannels.find(conn.to.portId);
+      if (dstChannelIt == dstEntry.portChannels.end())
+        continue;
+
+      dstEntry.preProcessMixes.push_back(
+          {srcChannelIt->second, dstChannelIt->second});
+      continue;
+    }
+
+    if (conn.from.isNodePort() && conn.to.isRailPort()) {
+      const auto srcChannelIt = globalPortIndexMap.find(conn.from.portId);
+      const auto *endpoint =
+          doc.controlState.findEndpoint(conn.to.railEndpointId);
+      if (srcChannelIt == globalPortIndexMap.end() || endpoint == nullptr ||
+          endpoint->kind != TSystemRailEndpointKind::audioOutput) {
+        continue;
+      }
+
+      const int deviceChannelIndex =
+          findRailPortIndex(*endpoint, conn.to.railPortId);
+      if (deviceChannelIndex < 0)
+        continue;
+
+      RailOutputTarget target;
+      target.endpointId = endpoint->endpointId;
+      target.portId = conn.to.railPortId;
+      target.sourceChannelIndex = srcChannelIt->second;
+      target.deviceChannelIndex = deviceChannelIndex;
+      if (const auto *sourceNode = doc.findNode(conn.from.nodeId)) {
+        if (const auto *sourcePort = sourceNode->findPort(conn.from.portId))
+          target.dataType = sourcePort->dataType;
+      }
+      railOutputTargets.push_back(std::move(target));
+    }
   }
 
   auto newState = new RenderState();
   newState->generation =
       buildGenerationCounter.fetch_add(1, std::memory_order_relaxed) + 1;
   newState->sortedNodes = std::move(newSortedNodes);
+  newState->railInputSources = std::move(railInputSources);
+  newState->railOutputTargets = std::move(railOutputTargets);
   newState->globalPortBuffer.setSize(
       portChannelCounter > 0 ? portChannelCounter : 1, juce::jmax(1, blockSize),
       false, false, true);
@@ -350,6 +460,26 @@ void TGraphRuntime::processBlockInternal(
   mutedFallbackActive.store(false, std::memory_order_relaxed);
   state->globalPortBuffer.clear();
 
+  for (const auto &railInput : state->railInputSources) {
+    if (railInput.channelIndex < 0 ||
+        railInput.channelIndex >= state->globalPortBuffer.getNumChannels()) {
+      continue;
+    }
+
+    auto *destination =
+        state->globalPortBuffer.getWritePointer(railInput.channelIndex);
+    if (railInput.dataType == TPortDataType::Audio && inputBufferOverride != nullptr &&
+        railInput.deviceChannelIndex >= 0 &&
+        railInput.deviceChannelIndex < inputBufferOverride->getNumChannels()) {
+      juce::FloatVectorOperations::copy(
+          destination,
+          inputBufferOverride->getReadPointer(railInput.deviceChannelIndex),
+          numSamples);
+    } else {
+      juce::FloatVectorOperations::clear(destination, numSamples);
+    }
+  }
+
   int start1 = 0, size1 = 0, start2 = 0, size2 = 0;
   paramQueueFifo.prepareToRead(paramQueueFifo.getNumReady(), start1, size1,
                                start2, size2);
@@ -444,6 +574,20 @@ void TGraphRuntime::processBlockInternal(
       ctx.paramValueReporter = this;
       entry.instance->processSamples(ctx);
     }
+  }
+
+  for (const auto &railOutput : state->railOutputTargets) {
+    if (railOutput.dataType != TPortDataType::Audio ||
+        railOutput.sourceChannelIndex < 0 ||
+        railOutput.sourceChannelIndex >= state->globalPortBuffer.getNumChannels() ||
+        railOutput.deviceChannelIndex < 0 ||
+        railOutput.deviceChannelIndex >= deviceBuffer.getNumChannels()) {
+      continue;
+    }
+
+    deviceBuffer.addFrom(railOutput.deviceChannelIndex, 0,
+                         state->globalPortBuffer,
+                         railOutput.sourceChannelIndex, 0, numSamples);
   }
 
   if (outputFadeSamplesRemaining > 0) {

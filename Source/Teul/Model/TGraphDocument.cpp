@@ -115,6 +115,9 @@ bool TGraphDocument::wouldCreateCycle(NodeId fromNodeId,
       continue;
 
     for (const auto &connection : connections) {
+      if (!connection.from.isNodePort() || !connection.to.isNodePort())
+        continue;
+
       if (connection.from.nodeId == current &&
           visited.find(connection.to.nodeId) == visited.end()) {
         queue.push(connection.to.nodeId);

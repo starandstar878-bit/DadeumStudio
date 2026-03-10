@@ -664,7 +664,7 @@ juce::var migrateControlStateJson(const juce::var &json) {
 
 } // namespace
 
-int TSerializer::currentSchemaVersion() noexcept { return 3; }
+int TSerializer::currentSchemaVersion() noexcept { return 4; }
 
 bool TSerializer::usesLegacyDocumentAliases(const juce::var &json) {
   const auto *root = json.getDynamicObject();
@@ -1033,12 +1033,26 @@ juce::var TSerializer::migrateConnectionJson(const juce::var &json) {
   auto migrateEndpoint = [](const juce::var &endpointVar) {
     auto *endpoint = new juce::DynamicObject();
     if (auto *sourceEndpoint = endpointVar.getDynamicObject()) {
+      endpoint->setProperty("owner_kind",
+                            propertyOrAlias(sourceEndpoint,
+                                            {"owner_kind", "ownerKind"},
+                                            "node"));
       endpoint->setProperty(
           "node_id",
           propertyOrAlias(sourceEndpoint, {"node_id", "nodeId"}, 0));
       endpoint->setProperty(
           "port_id",
           propertyOrAlias(sourceEndpoint, {"port_id", "portId"}, 0));
+      endpoint->setProperty(
+          "rail_endpoint_id",
+          propertyOrAlias(sourceEndpoint,
+                          {"rail_endpoint_id", "railEndpointId",
+                           "endpoint_id", "endpointId"},
+                          juce::String()));
+      endpoint->setProperty(
+          "rail_port_id",
+          propertyOrAlias(sourceEndpoint, {"rail_port_id", "railPortId"},
+                          juce::String()));
     }
     return juce::var(endpoint);
   };
@@ -1215,15 +1229,19 @@ juce::var TSerializer::connectionToJson(const TConnection &conn) {
   auto *obj = new juce::DynamicObject();
   obj->setProperty("id", (int64_t)conn.connectionId);
 
-  auto *fromObj = new juce::DynamicObject();
-  fromObj->setProperty("node_id", (int64_t)conn.from.nodeId);
-  fromObj->setProperty("port_id", (int64_t)conn.from.portId);
-  obj->setProperty("from", fromObj);
+  auto writeEndpoint = [](const TEndpoint &endpoint) {
+    auto *endpointObj = new juce::DynamicObject();
+    endpointObj->setProperty("owner_kind",
+                             endpoint.isRailPort() ? "rail" : "node");
+    endpointObj->setProperty("node_id", (int64_t)endpoint.nodeId);
+    endpointObj->setProperty("port_id", (int64_t)endpoint.portId);
+    endpointObj->setProperty("rail_endpoint_id", endpoint.railEndpointId);
+    endpointObj->setProperty("rail_port_id", endpoint.railPortId);
+    return juce::var(endpointObj);
+  };
 
-  auto *toObj = new juce::DynamicObject();
-  toObj->setProperty("node_id", (int64_t)conn.to.nodeId);
-  toObj->setProperty("port_id", (int64_t)conn.to.portId);
-  obj->setProperty("to", toObj);
+  obj->setProperty("from", writeEndpoint(conn.from));
+  obj->setProperty("to", writeEndpoint(conn.to));
 
   return juce::var(obj);
 }
@@ -1451,18 +1469,47 @@ bool TSerializer::jsonToConnection(TConnection &conn, const juce::var &json) {
   if (!json.isObject())
     return false;
 
+  conn = {};
   conn.connectionId = (ConnectionId)(int64_t)json.getProperty("id", 0);
 
-  if (auto *fromObj =
-          json.getProperty("from", juce::var()).getDynamicObject()) {
-    conn.from.nodeId = (NodeId)(int64_t)fromObj->getProperty("node_id");
-    conn.from.portId = (PortId)(int64_t)fromObj->getProperty("port_id");
-  }
+  auto readEndpoint = [](TEndpoint &endpoint, const juce::var &endpointVar) {
+    auto *endpointObj = endpointVar.getDynamicObject();
+    if (endpointObj == nullptr)
+      return;
 
-  if (auto *toObj = json.getProperty("to", juce::var()).getDynamicObject()) {
-    conn.to.nodeId = (NodeId)(int64_t)toObj->getProperty("node_id");
-    conn.to.portId = (PortId)(int64_t)toObj->getProperty("port_id");
-  }
+    const auto ownerKind =
+        propertyOrAlias(endpointObj, {"owner_kind", "ownerKind"}, "node")
+            .toString()
+            .trim()
+            .toLowerCase();
+
+    endpoint.nodeId =
+        (NodeId)(int64_t)propertyOrAlias(endpointObj, {"node_id", "nodeId"}, 0);
+    endpoint.portId =
+        (PortId)(int64_t)propertyOrAlias(endpointObj, {"port_id", "portId"}, 0);
+    endpoint.railEndpointId = propertyOrAlias(
+        endpointObj, {"rail_endpoint_id", "railEndpointId", "endpoint_id",
+                      "endpointId"},
+        juce::String())
+                                  .toString();
+    endpoint.railPortId =
+        propertyOrAlias(endpointObj, {"rail_port_id", "railPortId"},
+                        juce::String())
+            .toString();
+
+    endpoint.ownerKind =
+        ownerKind == "rail" ? TEndpointOwnerKind::RailPort
+                              : TEndpointOwnerKind::NodePort;
+
+    if (endpoint.ownerKind == TEndpointOwnerKind::NodePort &&
+        endpoint.nodeId == kInvalidNodeId && endpoint.portId == kInvalidPortId &&
+        endpoint.railEndpointId.isNotEmpty() && endpoint.railPortId.isNotEmpty()) {
+      endpoint.ownerKind = TEndpointOwnerKind::RailPort;
+    }
+  };
+
+  readEndpoint(conn.from, json.getProperty("from", juce::var()));
+  readEndpoint(conn.to, json.getProperty("to", juce::var()));
 
   return conn.isValid();
 }

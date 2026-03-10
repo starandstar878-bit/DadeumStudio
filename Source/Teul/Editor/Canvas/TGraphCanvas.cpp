@@ -44,6 +44,7 @@ TGraphCanvas::~TGraphCanvas() {
   connectionLevelProvider = {};
   portLevelProvider = {};
   bindingSummaryResolver = {};
+  externalEndpointAnchorProvider = {};
   document.meta.canvasOffsetX = viewOriginWorld.x;
   document.meta.canvasOffsetY = viewOriginWorld.y;
   document.meta.canvasZoom = zoomLevel;
@@ -64,6 +65,11 @@ void TGraphCanvas::setBindingSummaryResolver(BindingSummaryResolver resolver) {
 void TGraphCanvas::setExternalDropZoneProvider(
     ExternalDropZoneProvider provider) {
   externalDropZoneProvider = std::move(provider);
+}
+
+void TGraphCanvas::setExternalEndpointAnchorProvider(
+    ExternalDropZoneProvider provider) {
+  externalEndpointAnchorProvider = std::move(provider);
 }
 
 void TGraphCanvas::setExternalConnectionCommitHandler(

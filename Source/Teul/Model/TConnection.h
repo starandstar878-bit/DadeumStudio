@@ -4,28 +4,59 @@
 
 namespace Teul {
 
-// =============================================================================
-//  TEndpoint — 연결의 한쪽 끝 (노드 + 포트)
-// =============================================================================
+enum class TEndpointOwnerKind {
+  NodePort,
+  RailPort,
+};
+
 struct TEndpoint {
   NodeId nodeId = kInvalidNodeId;
   PortId portId = kInvalidPortId;
+  TEndpointOwnerKind ownerKind = TEndpointOwnerKind::NodePort;
+  juce::String railEndpointId;
+  juce::String railPortId;
+
+  static TEndpoint makeNodePort(NodeId nodeIdIn, PortId portIdIn) {
+    TEndpoint endpoint;
+    endpoint.nodeId = nodeIdIn;
+    endpoint.portId = portIdIn;
+    endpoint.ownerKind = TEndpointOwnerKind::NodePort;
+    return endpoint;
+  }
+
+  static TEndpoint makeRailPort(const juce::String &endpointId,
+                                const juce::String &portIdIn) {
+    TEndpoint endpoint;
+    endpoint.ownerKind = TEndpointOwnerKind::RailPort;
+    endpoint.railEndpointId = endpointId;
+    endpoint.railPortId = portIdIn;
+    return endpoint;
+  }
+
+  bool isNodePort() const noexcept {
+    return ownerKind == TEndpointOwnerKind::NodePort;
+  }
+
+  bool isRailPort() const noexcept {
+    return ownerKind == TEndpointOwnerKind::RailPort;
+  }
 
   bool isValid() const noexcept {
-    return nodeId != kInvalidNodeId && portId != kInvalidPortId;
+    if (isNodePort())
+      return nodeId != kInvalidNodeId && portId != kInvalidPortId;
+
+    return railEndpointId.isNotEmpty() && railPortId.isNotEmpty();
+  }
+
+  bool referencesNode(NodeId id) const noexcept {
+    return isNodePort() && nodeId == id;
   }
 };
 
-// =============================================================================
-//  TConnection — 두 포트를 잇는 연결선 데이터 모델
-//
-//  방향: from (Output 포트) → to (Input 포트)
-//  타입 호환성 검증은 TGraphDocument 또는 팩토리 레이어에서 수행한다.
-// =============================================================================
 struct TConnection {
   ConnectionId connectionId = kInvalidConnectionId;
-  TEndpoint from; // 소스: 출력 포트
-  TEndpoint to;   // 대상: 입력 포트
+  TEndpoint from;
+  TEndpoint to;
 
   bool isValid() const noexcept {
     return connectionId != kInvalidConnectionId && from.isValid() &&

@@ -58,7 +58,7 @@ public:
     }
 
     for (auto it = doc.connections.begin(); it != doc.connections.end();) {
-      if (it->from.nodeId == targetId || it->to.nodeId == targetId) {
+      if (it->from.referencesNode(targetId) || it->to.referencesNode(targetId)) {
         connBackup.push_back(*it);
         it = doc.connections.erase(it);
       } else {

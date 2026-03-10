@@ -908,20 +908,44 @@ private:
     juce::StringArray outgoing;
     juce::StringArray controls;
 
+    auto railPortLabel = [this](const TEndpoint &endpoint) {
+      if (!endpoint.isRailPort())
+        return juce::String();
+
+      const auto *railEndpoint =
+          document.controlState.findEndpoint(endpoint.railEndpointId);
+      const auto *railPort =
+          document.findSystemRailPort(endpoint.railEndpointId, endpoint.railPortId);
+      if (railEndpoint == nullptr || railPort == nullptr)
+        return endpoint.railEndpointId + " / " + endpoint.railPortId;
+
+      return railEndpoint->displayName + " / " + railPort->displayName;
+    };
+
     for (const auto &conn : document.connections) {
-      if (conn.to.nodeId == node.nodeId) {
-        if (const auto *sourceNode = document.findNode(conn.from.nodeId)) {
-          incoming.add(nodeNameForSummary(*sourceNode) + " / " +
-                       portNameForSummary(*sourceNode, conn.from.portId) +
-                       " -> " + portNameForSummary(node, conn.to.portId));
+      if (conn.to.isNodePort() && conn.to.nodeId == node.nodeId) {
+        if (conn.from.isNodePort()) {
+          if (const auto *sourceNode = document.findNode(conn.from.nodeId)) {
+            incoming.add(nodeNameForSummary(*sourceNode) + " / " +
+                         portNameForSummary(*sourceNode, conn.from.portId) +
+                         " -> " + portNameForSummary(node, conn.to.portId));
+          }
+        } else if (conn.from.isRailPort()) {
+          incoming.add(railPortLabel(conn.from) + " -> " +
+                       portNameForSummary(node, conn.to.portId));
         }
       }
 
-      if (conn.from.nodeId == node.nodeId) {
-        if (const auto *targetNode = document.findNode(conn.to.nodeId)) {
+      if (conn.from.isNodePort() && conn.from.nodeId == node.nodeId) {
+        if (conn.to.isNodePort()) {
+          if (const auto *targetNode = document.findNode(conn.to.nodeId)) {
+            outgoing.add(portNameForSummary(node, conn.from.portId) + " -> " +
+                         nodeNameForSummary(*targetNode) + " / " +
+                         portNameForSummary(*targetNode, conn.to.portId));
+          }
+        } else if (conn.to.isRailPort()) {
           outgoing.add(portNameForSummary(node, conn.from.portId) + " -> " +
-                       nodeNameForSummary(*targetNode) + " / " +
-                       portNameForSummary(*targetNode, conn.to.portId));
+                       railPortLabel(conn.to));
         }
       }
     }

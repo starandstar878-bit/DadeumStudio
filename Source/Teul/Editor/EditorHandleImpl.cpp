@@ -350,173 +350,6 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
   return cards;
 }
 
-juce::String inputEndpointNodeTypeKey(const TSystemRailEndpoint &endpoint) {
-  switch (endpoint.kind) {
-  case TSystemRailEndpointKind::audioInput:
-    return "Teul.Source.AudioInput";
-  case TSystemRailEndpointKind::midiInput:
-    return "Teul.Source.MidiInput";
-  case TSystemRailEndpointKind::audioOutput:
-  case TSystemRailEndpointKind::midiOutput:
-    break;
-  }
-
-  return {};
-}
-
-juce::String inputEndpointPortName(const TSystemRailEndpoint &endpoint,
-                                   const juce::String &endpointPortId) {
-  if (endpoint.kind == TSystemRailEndpointKind::midiInput)
-    return "MIDI Out";
-
-  const auto endpointPort = std::find_if(
-      endpoint.ports.begin(), endpoint.ports.end(),
-      [&endpointPortId](const TSystemRailPort &port) {
-        return port.portId == endpointPortId;
-      });
-  const auto portLabel = endpointPort != endpoint.ports.end()
-                             ? endpointPort->displayName.trim().toUpperCase()
-                             : endpointPortId.trim().toUpperCase();
-
-  if (portLabel == "R" || portLabel.contains("RIGHT"))
-    return "R Out";
-
-  return "L Out";
-}
-
-const TPort *findPortByName(const TNode &node, juce::StringRef portName,
-                            TPortDirection direction) {
-  for (const auto &port : node.ports) {
-    if (port.direction == direction && port.name == portName)
-      return &port;
-  }
-
-  return nullptr;
-}
-
-NodeId findSystemEndpointNodeId(const TGraphDocument &document,
-                                const TSystemRailEndpoint &endpoint,
-                                juce::StringRef typeKey) {
-  for (const auto &node : document.nodes) {
-    if (node.typeKey == typeKey && node.label == endpoint.displayName)
-      return node.nodeId;
-  }
-
-  return kInvalidNodeId;
-}
-
-NodeId createNodeFromDescriptor(TGraphDocument &document,
-                                const TNodeDescriptor &descriptor,
-                                juce::Point<float> worldPos,
-                                const juce::String &label) {
-  TNode node;
-  node.nodeId = document.allocNodeId();
-  node.typeKey = descriptor.typeKey;
-  node.label = label;
-  node.x = worldPos.x;
-  node.y = worldPos.y;
-
-  for (const auto &param : descriptor.paramSpecs)
-    node.params[param.key] = param.defaultValue;
-
-  for (const auto &portSpec : descriptor.portSpecs) {
-    TPort port;
-    port.portId = document.allocPortId();
-    port.direction = portSpec.direction;
-    port.dataType = portSpec.dataType;
-    port.name = portSpec.name;
-    port.ownerNodeId = node.nodeId;
-    if (portSpec.name.startsWithIgnoreCase("R"))
-      port.channelIndex = 1;
-    node.ports.push_back(port);
-  }
-
-  document.executeCommand(std::make_unique<AddNodeCommand>(node));
-  return node.nodeId;
-}
-
-bool beginInputRailPortDrag(TGraphDocument &document,
-                            const TNodeRegistry &registry,
-                            TGraphCanvas &canvas,
-                            const juce::String &endpointId,
-                            const juce::String &endpointPortId,
-                            juce::Point<float> sourceAnchorView,
-                            juce::Point<float> mousePosView) {
-  const auto *endpoint = document.controlState.findEndpoint(endpointId);
-  if (endpoint == nullptr || endpoint->railId != "input-rail")
-    return false;
-
-  const auto typeKey = inputEndpointNodeTypeKey(*endpoint);
-  if (typeKey.isEmpty())
-    return false;
-
-  NodeId nodeId = findSystemEndpointNodeId(document, *endpoint, typeKey);
-  if (nodeId == kInvalidNodeId) {
-    const auto *descriptor = registry.descriptorFor(typeKey);
-    if (descriptor == nullptr)
-      return false;
-
-    const float canvasHeight = juce::jmax(120.0f, (float)canvas.getHeight());
-    const float spawnY = juce::jlimit(72.0f, canvasHeight - 96.0f,
-                                      juce::jmax(72.0f, mousePosView.y));
-    nodeId = createNodeFromDescriptor(document, *descriptor,
-                                      canvas.viewToWorld({72.0f, spawnY}),
-                                      endpoint->displayName);
-    canvas.rebuildNodeComponents();
-  }
-
-  const auto *node = document.findNode(nodeId);
-  if (node == nullptr)
-    return false;
-
-  const auto portName = inputEndpointPortName(*endpoint, endpointPortId);
-  const auto *sourcePort = findPortByName(*node, portName, TPortDirection::Output);
-  if (sourcePort == nullptr)
-    return false;
-
-  const float anchorX = juce::jlimit(2.0f, juce::jmax(2.0f, (float)canvas.getWidth() - 2.0f),
-                                     sourceAnchorView.x);
-  const float mouseX = juce::jlimit(-48.0f, (float)canvas.getWidth() + 48.0f,
-                                    mousePosView.x);
-  canvas.beginConnectionDragFromPoint(*sourcePort, {anchorX, sourceAnchorView.y},
-                                      {mouseX, mousePosView.y});
-  return true;
-}
-
-juce::String outputEndpointNodeTypeKey(const TSystemRailEndpoint &endpoint) {
-  switch (endpoint.kind) {
-  case TSystemRailEndpointKind::audioOutput:
-    return "Teul.Routing.AudioOut";
-  case TSystemRailEndpointKind::midiOutput:
-    return "Teul.Midi.MidiOut";
-  case TSystemRailEndpointKind::audioInput:
-  case TSystemRailEndpointKind::midiInput:
-    break;
-  }
-
-  return {};
-}
-
-juce::String outputEndpointPortName(const TSystemRailEndpoint &endpoint,
-                                    const juce::String &endpointPortId) {
-  if (endpoint.kind == TSystemRailEndpointKind::midiOutput)
-    return "MIDI In";
-
-  const auto endpointPort = std::find_if(
-      endpoint.ports.begin(), endpoint.ports.end(),
-      [&endpointPortId](const TSystemRailPort &port) {
-        return port.portId == endpointPortId;
-      });
-  const auto portLabel = endpointPort != endpoint.ports.end()
-                             ? endpointPort->displayName.trim().toUpperCase()
-                             : endpointPortId.trim().toUpperCase();
-
-  if (portLabel == "R" || portLabel.contains("RIGHT"))
-    return "R In";
-
-  return "L In";
-}
-
 juce::String makeRailPortZoneId(const juce::String &cardId,
                                 const juce::String &portId) {
   return cardId + "::" + portId;
@@ -533,72 +366,28 @@ bool splitRailPortZoneId(const juce::String &zoneId, juce::String &cardId,
   return cardId.isNotEmpty() && portId.isNotEmpty();
 }
 
-bool connectSourcePortToOutputEndpoint(TGraphDocument &document,
-                                       const TNodeRegistry &registry,
-                                       TGraphCanvas &canvas,
-                                       const TPort &sourcePort,
-                                       const juce::String &zoneId) {
-  juce::String endpointId;
-  juce::String endpointPortId;
-  if (!splitRailPortZoneId(zoneId, endpointId, endpointPortId))
-    return false;
-
+bool beginInputRailPortDrag(TGraphDocument &document, TGraphCanvas &canvas,
+                            const juce::String &endpointId,
+                            const juce::String &endpointPortId,
+                            juce::Point<float> sourceAnchorView,
+                            juce::Point<float> mousePosView) {
   const auto *endpoint = document.controlState.findEndpoint(endpointId);
-  if (endpoint == nullptr || endpoint->railId != "output-rail")
+  if (endpoint == nullptr || endpoint->railId != "input-rail")
     return false;
 
-  const auto typeKey = outputEndpointNodeTypeKey(*endpoint);
-  if (typeKey.isEmpty())
+  if (document.findSystemRailPort(endpointId, endpointPortId) == nullptr)
     return false;
 
-  NodeId nodeId = findSystemEndpointNodeId(document, *endpoint, typeKey);
-  if (nodeId == kInvalidNodeId) {
-    const auto *descriptor = registry.descriptorFor(typeKey);
-    if (descriptor == nullptr)
-      return false;
-
-    const auto *sourceNode = document.findNode(sourcePort.ownerNodeId);
-    const float sourceY = sourceNode != nullptr
-                              ? canvas.worldToView({sourceNode->x, sourceNode->y}).y
-                              : (float)canvas.getHeight() * 0.5f;
-    const float canvasHeight = juce::jmax(120.0f, (float)canvas.getHeight());
-    const float spawnY = juce::jlimit(72.0f, canvasHeight - 96.0f, sourceY);
-    const float spawnX = juce::jmax(96.0f, (float)canvas.getWidth() - 108.0f);
-    nodeId = createNodeFromDescriptor(document, *descriptor,
-                                      canvas.viewToWorld({spawnX, spawnY}),
-                                      endpoint->displayName);
-    canvas.rebuildNodeComponents();
-  }
-
-  const auto *targetNode = document.findNode(nodeId);
-  if (targetNode == nullptr)
-    return false;
-
-  const auto portName = outputEndpointPortName(*endpoint, endpointPortId);
-  const auto *targetPort = findPortByName(*targetNode, portName, TPortDirection::Input);
-  if (targetPort == nullptr)
-    return false;
-
-  const bool duplicateExists =
-      std::any_of(document.connections.begin(), document.connections.end(),
-                  [&](const TConnection &conn) {
-                    return conn.from.nodeId == sourcePort.ownerNodeId &&
-                           conn.from.portId == sourcePort.portId &&
-                           conn.to.nodeId == targetNode->nodeId &&
-                           conn.to.portId == targetPort->portId;
-                  });
-  if (duplicateExists)
-    return false;
-
-  TConnection conn;
-  conn.connectionId = document.allocConnectionId();
-  conn.from = {sourcePort.ownerNodeId, sourcePort.portId};
-  conn.to = {targetNode->nodeId, targetPort->portId};
-  document.executeCommand(std::make_unique<AddConnectionCommand>(conn));
-  canvas.repaint();
+  TGraphCanvas::ExternalDragSource externalSource;
+  externalSource.sourceId = endpointId;
+  externalSource.sourcePortId = endpointPortId;
+  if (const auto *port = document.findSystemRailPort(endpointId, endpointPortId))
+    externalSource.dataType = port->dataType;
+  externalSource.kind = TGraphCanvas::ExternalDragSourceKind::GraphConnection;
+  canvas.beginExternalConnectionDragFromPoint(externalSource, sourceAnchorView,
+                                              mousePosView);
   return true;
 }
-
 
 bool beginControlRailPortDrag(TGraphDocument &document, TGraphCanvas &canvas,
                               const juce::String &sourceId,
@@ -619,6 +408,7 @@ bool beginControlRailPortDrag(TGraphDocument &document, TGraphCanvas &canvas,
   externalSource.sourceId = sourceId;
   externalSource.sourcePortId = portId;
   externalSource.dataType = TPortDataType::Control;
+  externalSource.kind = TGraphCanvas::ExternalDragSourceKind::Assignment;
   canvas.beginExternalConnectionDragFromPoint(externalSource, sourceAnchorView,
                                               mousePosView);
   return true;
@@ -2177,7 +1967,8 @@ EditorHandle::Impl::Impl(
       bindingRevisionProvider(std::move(bindingRevisionProviderIn)) {
   canvas = std::make_unique<TGraphCanvas>(doc, *registryStore);
   canvas->setConnectionLevelProvider([this](const TConnection &connection) {
-    return runtime.getPortLevel(connection.from.portId);
+    return connection.from.isNodePort() ? runtime.getPortLevel(connection.from.portId)
+                                        : 0.0f;
   });
   canvas->setPortLevelProvider(
       [this](PortId portId) { return runtime.getPortLevel(portId); });
@@ -2374,8 +2165,8 @@ EditorHandle::Impl::Impl(
       [this](const juce::String &endpointId, const juce::String &portId,
              juce::Point<float> sourceAnchorView,
              juce::Point<float> mousePosView) {
-        return beginInputRailPortDrag(doc, *registryStore, *canvas, endpointId,
-                                      portId, sourceAnchorView, mousePosView);
+        return beginInputRailPortDrag(doc, *canvas, endpointId, portId,
+                                      sourceAnchorView, mousePosView);
       },
       [this](juce::Point<float> mousePosView) {
         if (canvas != nullptr)
@@ -2432,14 +2223,26 @@ EditorHandle::Impl::Impl(
     }
     return zones;
   });
+  canvas->setExternalEndpointAnchorProvider([this] {
+    if (canvas == nullptr)
+      return std::vector<TGraphCanvas::ExternalDropZone>{};
+
+    std::vector<TGraphCanvas::ExternalDropZone> zones;
+    if (inputRail != nullptr) {
+      auto railZones = inputRail->portDropTargetsIn(*canvas);
+      zones.insert(zones.end(), railZones.begin(), railZones.end());
+    }
+    if (outputRail != nullptr) {
+      auto railZones = outputRail->portDropTargetsIn(*canvas);
+      zones.insert(zones.end(), railZones.begin(), railZones.end());
+    }
+    return zones;
+  });
   canvas->setExternalConnectionCommitHandler(
       [this](const TPort *sourcePort,
              const TGraphCanvas::ExternalDragSource *externalSource,
              const juce::String &zoneId) {
-        if (sourcePort != nullptr) {
-          return connectSourcePortToOutputEndpoint(doc, *registryStore, *canvas,
-                                                   *sourcePort, zoneId);
-        }
+        juce::ignoreUnused(sourcePort);
         if (externalSource != nullptr) {
           const bool connected =
               connectControlSourcePortToParam(doc, *externalSource, zoneId);

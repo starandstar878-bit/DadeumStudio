@@ -8,6 +8,16 @@
 #include <cmath>
 
 namespace Teul {
+namespace {
+
+juce::String railZoneIdForEndpoint(const TEndpoint &endpoint) {
+  if (!endpoint.isRailPort())
+    return {};
+
+  return endpoint.railEndpointId + "::" + endpoint.railPortId;
+}
+
+} // namespace
 
 void TGraphCanvas::drawInfiniteGrid(juce::Graphics &g) {
   g.saveState();
@@ -99,6 +109,30 @@ const TPort *TGraphCanvas::findPortModel(NodeId nodeId, PortId portId) const {
   return nullptr;
 }
 
+const TPort *TGraphCanvas::findPortModel(const TEndpoint &endpoint) const {
+  if (!endpoint.isNodePort())
+    return nullptr;
+
+  return findPortModel(endpoint.nodeId, endpoint.portId);
+}
+
+const TSystemRailPort *
+TGraphCanvas::findRailPortModel(const TEndpoint &endpoint) const {
+  if (!endpoint.isRailPort())
+    return nullptr;
+
+  return document.findSystemRailPort(endpoint.railEndpointId,
+                                     endpoint.railPortId);
+}
+
+TPortDataType TGraphCanvas::dataTypeForEndpoint(const TEndpoint &endpoint) const {
+  if (const auto *port = findPortModel(endpoint))
+    return port->dataType;
+  if (const auto *railPort = findRailPortModel(endpoint))
+    return railPort->dataType;
+  return TPortDataType::Audio;
+}
+
 TNodeComponent *TGraphCanvas::findNodeComponent(NodeId nodeId) noexcept {
   for (auto &n : nodeComponents) {
     if (n->getNodeId() == nodeId)
@@ -133,7 +167,7 @@ TGraphCanvas::findPortComponent(NodeId nodeId, PortId portId) const noexcept {
 }
 
 juce::Point<float> TGraphCanvas::portCentreInCanvas(NodeId nodeId,
-                                                     PortId portId) const {
+                                                    PortId portId) const {
   if (const auto *portComp = findPortComponent(nodeId, portId)) {
     const auto localCentre = portComp->getLocalBounds().getCentre();
     return getLocalPoint(portComp, localCentre).toFloat();
@@ -145,12 +179,28 @@ juce::Point<float> TGraphCanvas::portCentreInCanvas(NodeId nodeId,
   return {};
 }
 
+juce::Point<float> TGraphCanvas::portCentreInCanvas(const TEndpoint &endpoint) const {
+  if (endpoint.isNodePort())
+    return portCentreInCanvas(endpoint.nodeId, endpoint.portId);
+
+  if (!endpoint.isRailPort() || externalEndpointAnchorProvider == nullptr)
+    return {};
+
+  const auto zoneId = railZoneIdForEndpoint(endpoint);
+  for (const auto &zone : externalEndpointAnchorProvider()) {
+    if (zone.zoneId == zoneId)
+      return zone.boundsView.getCentre();
+  }
+
+  return {};
+}
+
 ConnectionId TGraphCanvas::hitTestConnection(juce::Point<float> pointView,
                                              float hitThickness) const {
   for (auto it = document.connections.rbegin(); it != document.connections.rend();
        ++it) {
-    const auto fromPos = portCentreInCanvas(it->from.nodeId, it->from.portId);
-    const auto toPos = portCentreInCanvas(it->to.nodeId, it->to.portId);
+    const auto fromPos = portCentreInCanvas(it->from);
+    const auto toPos = portCentreInCanvas(it->to);
 
     juce::Path hitPath;
     juce::PathStrokeType(hitThickness).createStrokedPath(
@@ -165,13 +215,13 @@ ConnectionId TGraphCanvas::hitTestConnection(juce::Point<float> pointView,
 
 void TGraphCanvas::drawConnections(juce::Graphics &g) {
   for (const auto &conn : document.connections) {
-    const auto fromPos = portCentreInCanvas(conn.from.nodeId, conn.from.portId);
-    const auto toPos = portCentreInCanvas(conn.to.nodeId, conn.to.portId);
+    const auto fromPos = portCentreInCanvas(conn.from);
+    const auto toPos = portCentreInCanvas(conn.to);
+    if (fromPos.isOrigin() && toPos.isOrigin())
+      continue;
 
     const juce::Path wirePath = makeWirePath(fromPos, toPos);
-    const TPort *sourcePort = findPortModel(conn.from.nodeId, conn.from.portId);
-    const TPortDataType sourceType =
-        sourcePort ? sourcePort->dataType : TPortDataType::Audio;
+    const TPortDataType sourceType = dataTypeForEndpoint(conn.from);
 
     const float level =
         connectionLevelProvider
