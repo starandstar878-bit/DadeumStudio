@@ -700,6 +700,8 @@ public:
     if (cardSelectionHandler == nullptr) {
       selectedCardId.clear();
       hoveredCardId.clear();
+      hoveredPortCardId.clear();
+      hoveredPortId.clear();
       cardHitZones.clear();
       portHitZones.clear();
     }
@@ -718,7 +720,10 @@ public:
     portDragEndHandler = std::move(endHandler);
     if (portDragBeginHandler == nullptr) {
       activePortDrag = {};
+      hoveredPortCardId.clear();
+      hoveredPortId.clear();
       portHitZones.clear();
+      repaint();
     }
   }
 
@@ -780,37 +785,60 @@ public:
 
   void mouseMove(const juce::MouseEvent &event) override {
     if (isRailCollapsed()) {
-      if (hoveredCardId.isNotEmpty()) {
+      if (hoveredCardId.isNotEmpty() || hoveredPortCardId.isNotEmpty() ||
+          hoveredPortId.isNotEmpty()) {
         hoveredCardId.clear();
+        hoveredPortCardId.clear();
+        hoveredPortId.clear();
         repaint();
       }
       return;
     }
 
-    const auto point = event.position.roundToInt();
-    juce::String hoveredId;
-    for (auto it = cardHitZones.rbegin(); it != cardHitZones.rend(); ++it) {
-      if (it->second.contains(point)) {
-        hoveredId = it->first;
-        break;
+    const auto point = event.position;
+    juce::String hoveredPortCard;
+    juce::String hoveredPort;
+    for (auto it = portHitZones.rbegin(); it != portHitZones.rend(); ++it) {
+      if (!it->bounds.contains(point))
+        continue;
+      hoveredPortCard = it->cardId;
+      hoveredPort = it->portId;
+      break;
+    }
+
+    juce::String hoveredId = hoveredPortCard;
+    if (hoveredId.isEmpty()) {
+      const auto pointInt = point.roundToInt();
+      for (auto it = cardHitZones.rbegin(); it != cardHitZones.rend(); ++it) {
+        if (it->second.contains(pointInt)) {
+          hoveredId = it->first;
+          break;
+        }
       }
     }
 
-    if (hoveredCardId != hoveredId) {
+    if (hoveredCardId != hoveredId || hoveredPortCardId != hoveredPortCard ||
+        hoveredPortId != hoveredPort) {
       hoveredCardId = hoveredId;
+      hoveredPortCardId = hoveredPortCard;
+      hoveredPortId = hoveredPort;
       repaint();
     }
   }
 
   void mouseExit(const juce::MouseEvent &) override {
-    if (hoveredCardId.isEmpty())
+    if (hoveredCardId.isEmpty() && hoveredPortCardId.isEmpty() &&
+        hoveredPortId.isEmpty())
       return;
 
     hoveredCardId.clear();
+    hoveredPortCardId.clear();
+    hoveredPortId.clear();
     repaint();
   }
 
   void focusGained(FocusChangeType) override { repaint(); }
+
   void focusLost(FocusChangeType) override { repaint(); }
 
   void mouseDown(const juce::MouseEvent &event) override {
@@ -888,6 +916,7 @@ public:
       portDragEndHandler(localPointToPortDragTarget(event.position));
 
     activePortDrag = {};
+    repaint();
   }
 
   void paint(juce::Graphics &g) override {
@@ -994,6 +1023,38 @@ private:
                   inner.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
   }
 
+  bool isHoveredPort(const juce::String &cardId,
+                     const juce::String &portId) const {
+    return cardId.isNotEmpty() && portId.isNotEmpty() &&
+           hoveredPortCardId == cardId && hoveredPortId == portId;
+  }
+
+  bool isActivePort(const juce::String &cardId,
+                    const juce::String &portId) const {
+    return activePortDrag.active && activePortDrag.cardId == cardId &&
+           activePortDrag.portId == portId;
+  }
+
+  void drawPortStateOverlay(juce::Graphics &g, juce::Rectangle<float> bounds,
+                            juce::Colour accent, bool hovered,
+                            bool active) const {
+    if (!hovered && !active)
+      return;
+
+    const auto overlayBounds = bounds.reduced(active ? 0.4f : 0.8f,
+                                              active ? 0.4f : 0.8f);
+    const auto radius = juce::jmax(
+        3.0f,
+        juce::jmin(overlayBounds.getWidth(), overlayBounds.getHeight()) * 0.45f);
+    const auto fill = active ? accent.withAlpha(0.28f)
+                             : accent.withAlpha(0.16f);
+    const auto outline = active ? accent.brighter(0.3f).withAlpha(0.98f)
+                                : accent.withAlpha(0.72f);
+    g.setColour(fill);
+    g.fillRoundedRectangle(overlayBounds, radius);
+    g.setColour(outline);
+    g.drawRoundedRectangle(overlayBounds, radius, active ? 1.6f : 1.1f);
+  }
   bool isDropTargetPort(const juce::String &cardId,
                         const juce::String &portId) const {
     return cardId.isNotEmpty() && portId.isNotEmpty() &&
@@ -1090,6 +1151,14 @@ private:
       leftSocketBounds.setWidth(groupedSocketBounds.getWidth() * 0.5f);
       rightSocketBounds.setX(leftSocketBounds.getRight());
       rightSocketBounds.setWidth(groupedSocketBounds.getWidth() * 0.5f);
+      drawPortStateOverlay(g, leftSocketBounds.reduced(0.5f, 0.0f),
+                           card.ports[0].accent,
+                           isHoveredPort(card.itemId, card.ports[0].portId),
+                           isActivePort(card.itemId, card.ports[0].portId));
+      drawPortStateOverlay(g, rightSocketBounds.reduced(0.5f, 0.0f),
+                           card.ports[1].accent,
+                           isHoveredPort(card.itemId, card.ports[1].portId),
+                           isActivePort(card.itemId, card.ports[1].portId));
       if (isDropTargetPort(card.itemId, card.ports[0].portId))
         drawDropTargetOverlay(g, leftSocketBounds.reduced(0.5f, 0.0f),
                               card.ports[0].accent);
@@ -1117,6 +1186,12 @@ private:
               socketArea.toFloat().withSizeKeepingCentre(14.0f, 8.0f);
           drawSocket(g, socketBounds, card.ports[(size_t)index].accent,
                      portsOnRight);
+          drawPortStateOverlay(g, socketBounds,
+                               card.ports[(size_t)index].accent,
+                               isHoveredPort(card.itemId,
+                                             card.ports[(size_t)index].portId),
+                               isActivePort(card.itemId,
+                                            card.ports[(size_t)index].portId));
           if (isDropTargetPort(card.itemId, card.ports[(size_t)index].portId))
             drawDropTargetOverlay(g, socketBounds,
                                   card.ports[(size_t)index].accent);
@@ -1191,6 +1266,9 @@ private:
       g.fillRoundedRectangle(pill.toFloat(), 8.0f);
       g.setColour(port.accent.withAlpha(0.88f));
       g.drawRoundedRectangle(pill.toFloat(), 8.0f, 1.0f);
+      drawPortStateOverlay(g, pill.toFloat(), port.accent,
+                           isHoveredPort(card.itemId, port.portId),
+                           isActivePort(card.itemId, port.portId));
       g.setColour(port.accent.brighter(0.18f));
       g.setFont(10.0f);
       g.drawText(port.label, pill, juce::Justification::centred, false);
@@ -1300,6 +1378,8 @@ private:
   juce::Component *portDragTargetComponent = nullptr;
   juce::String selectedCardId;
   juce::String hoveredCardId;
+  juce::String hoveredPortCardId;
+  juce::String hoveredPortId;
   ActivePortDragState activePortDrag;
   juce::String dropTargetCardId;
   juce::String dropTargetPortId;

@@ -134,6 +134,7 @@ public:
     addAndMakeVisible(applyButton);
     addAndMakeVisible(closeButton);
     addAndMakeVisible(paramViewport);
+    addAndMakeVisible(nodeConnectionsBox);
     addAndMakeVisible(frameSummaryBox);
     addAndMakeVisible(frameCaptureButton);
     addAndMakeVisible(frameReleaseButton);
@@ -173,6 +174,17 @@ public:
     paramsContent = std::make_unique<juce::Component>();
     paramViewport.setViewedComponent(paramsContent.get(), false);
     paramViewport.setScrollBarsShown(true, false);
+
+    nodeConnectionsBox.setMultiLine(true);
+    nodeConnectionsBox.setReadOnly(true);
+    nodeConnectionsBox.setScrollbarsShown(true);
+    nodeConnectionsBox.setColour(juce::TextEditor::backgroundColourId,
+                                 juce::Colour(0x66111827));
+    nodeConnectionsBox.setColour(juce::TextEditor::outlineColourId,
+                                 juce::Colour(0xff324154));
+    nodeConnectionsBox.setColour(juce::TextEditor::textColourId,
+                                 juce::Colours::white.withAlpha(0.78f));
+    nodeConnectionsBox.setVisible(false);
 
     frameSummaryBox.setMultiLine(true);
     frameSummaryBox.setReadOnly(true);
@@ -291,8 +303,12 @@ public:
   }
 
   void refreshBindingSummaries() {
-    if (isPanelOpen())
-      updateRuntimeValueLabels();
+    if (!isPanelOpen())
+      return;
+
+    updateRuntimeValueLabels();
+    if (!isInspectingFrame())
+      refreshNodeConnectionSummary();
   }
 
   std::vector<AssignmentDropTarget>
@@ -337,6 +353,7 @@ public:
     inspectedFrameId = 0;
     assignmentDropTargetId.clear();
     assignmentDropTargetCanConnect = false;
+    nodeConnectionsBox.clear();
     clearParamEditors();
     frameSummaryBox.clear();
     setVisible(false);
@@ -367,7 +384,12 @@ public:
     auto overview = area.removeFromTop(112);
     area.removeFromTop(10);
     auto state = area.removeFromTop(72);
+    juce::Rectangle<int> connections;
     area.removeFromTop(12);
+    if (!isInspectingFrame()) {
+      connections = area.removeFromTop(108);
+      area.removeFromTop(12);
+    }
     auto params = area;
 
     auto drawSection = [&](juce::Rectangle<int> rect, const juce::String &title,
@@ -377,11 +399,12 @@ public:
       g.setColour(accent.withAlpha(0.32f));
       g.drawRoundedRectangle(rect.toFloat(), 10.0f, 1.0f);
 
-      auto header = rect.reduced(12, 8).removeFromTop(subtitle.isNotEmpty() ? 28 : 18);
+      auto header = rect.reduced(12, 8)
+                        .removeFromTop(subtitle.isNotEmpty() ? 28 : 18);
       g.setColour(juce::Colours::white.withAlpha(0.9f));
       g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-      g.drawText(title, header.removeFromTop(16), juce::Justification::centredLeft,
-                 false);
+      g.drawText(title, header.removeFromTop(16),
+                 juce::Justification::centredLeft, false);
       if (subtitle.isNotEmpty()) {
         g.setColour(juce::Colours::white.withAlpha(0.48f));
         g.setFont(10.0f);
@@ -391,13 +414,16 @@ public:
 
     drawSection(overview, "Overview", juce::Colour(0xff60a5fa), {});
     drawSection(state, "State", juce::Colour(0xfff59e0b), {});
-    drawSection(params, isInspectingFrame() ? "Group" : "Parameters",
+    if (!isInspectingFrame()) {
+      drawSection(connections, "Connection Setup", juce::Colour(0xfffbbf24),
+                  "Signal routes and control assignments for the current node.");
+    }
+    drawSection(params, isInspectingFrame() ? "Group" : "Audio Parameters",
                 juce::Colour(0xff22c55e),
                 isInspectingFrame()
                     ? "Stored membership and identity metadata for this frame group."
                     : "Runtime and binding metadata appear only when relevant.");
   }
-
   void paintOverChildren(juce::Graphics &g) override {
     if (!isPanelOpen() || isInspectingFrame() || paramsContent == nullptr ||
         assignmentDropTargetId.isEmpty())
@@ -449,10 +475,17 @@ public:
     state.removeFromTop(10);
     applyButton.setBounds(state.removeFromTop(24).removeFromLeft(88));
 
+    juce::Rectangle<int> connections;
     area.removeFromTop(12);
+    if (!isInspectingFrame())
+      connections = area.removeFromTop(108).reduced(12, 28);
+    if (!isInspectingFrame())
+      area.removeFromTop(12);
     auto params = area;
     params.removeFromTop(34);
     if (isInspectingFrame()) {
+      nodeConnectionsBox.setBounds(0, 0, 0, 0);
+      nodeConnectionsBox.setVisible(false);
       paramViewport.setBounds(0, 0, 0, 0);
       paramViewport.setVisible(false);
       frameSummaryBox.setVisible(true);
@@ -488,6 +521,8 @@ public:
       frameSavePresetButton.setBounds(0, 0, 0, 0);
       frameSummaryBox.setBounds(0, 0, 0, 0);
       frameSummaryBox.setVisible(false);
+      nodeConnectionsBox.setVisible(true);
+      nodeConnectionsBox.setBounds(connections);
       paramViewport.setVisible(true);
       paramViewport.setBounds(params);
       layoutParamEditors();
@@ -611,6 +646,8 @@ private:
     bypassToggle.setToggleState(node->bypassed, juce::dontSendNotification);
     collapsedToggle.setButtonText("Collapsed");
     collapsedToggle.setToggleState(node->collapsed, juce::dontSendNotification);
+
+    refreshNodeConnectionSummary();
 
     rebuildParamEditors(*node, desc);
     resized();
@@ -856,6 +893,101 @@ private:
     return text;
   }
 
+  juce::String nodeNameForSummary(const TNode &node) const {
+    return nodeLabelForInspector(node, registry);
+  }
+
+  juce::String portNameForSummary(const TNode &node, PortId portId) const {
+    if (const auto *port = node.findPort(portId))
+      return port->name;
+    return "Port";
+  }
+
+  juce::String buildNodeConnectionSummary(const TNode &node) const {
+    juce::StringArray incoming;
+    juce::StringArray outgoing;
+    juce::StringArray controls;
+
+    for (const auto &conn : document.connections) {
+      if (conn.to.nodeId == node.nodeId) {
+        if (const auto *sourceNode = document.findNode(conn.from.nodeId)) {
+          incoming.add(nodeNameForSummary(*sourceNode) + " / " +
+                       portNameForSummary(*sourceNode, conn.from.portId) +
+                       " -> " + portNameForSummary(node, conn.to.portId));
+        }
+      }
+
+      if (conn.from.nodeId == node.nodeId) {
+        if (const auto *targetNode = document.findNode(conn.to.nodeId)) {
+          outgoing.add(portNameForSummary(node, conn.from.portId) + " -> " +
+                       nodeNameForSummary(*targetNode) + " / " +
+                       portNameForSummary(*targetNode, conn.to.portId));
+        }
+      }
+    }
+
+    for (const auto &assignment : document.controlState.assignments) {
+      if (assignment.targetNodeId != node.nodeId)
+        continue;
+
+      juce::String sourceLabel = assignment.sourceId;
+      juce::String portLabel = assignment.portId;
+      if (const auto *source = document.controlState.findSource(assignment.sourceId)) {
+        sourceLabel = source->displayName.isNotEmpty() ? source->displayName
+                                                       : source->sourceId;
+        for (const auto &port : source->ports) {
+          if (port.portId == assignment.portId) {
+            portLabel = port.displayName;
+            break;
+          }
+        }
+      }
+
+      NodeId parsedNodeId = kInvalidNodeId;
+      juce::String paramKey;
+      juce::String targetLabel = assignment.targetParamId;
+      if (parseTeulParamId(assignment.targetParamId, parsedNodeId, paramKey) &&
+          parsedNodeId == node.nodeId && paramKey.isNotEmpty())
+        targetLabel = paramKey;
+
+      controls.add(sourceLabel + " / " + portLabel + " -> " + targetLabel);
+    }
+
+    auto joinSection = [](const juce::String &title,
+                          const juce::StringArray &lines,
+                          const juce::String &emptyText) {
+      juce::String text = title + "\n";
+      if (lines.isEmpty()) {
+        text << "- " << emptyText;
+      } else {
+        for (const auto &line : lines)
+          text << "- " << line << "\n";
+        text = text.trimEnd();
+      }
+      return text;
+    };
+
+    juce::StringArray sections;
+    sections.add(joinSection("Incoming Wires", incoming, "No incoming wires"));
+    sections.add(joinSection("Outgoing Wires", outgoing, "No outgoing wires"));
+    sections.add(joinSection("Control Assignments", controls,
+                             "Drag a control source onto a parameter row"));
+    return sections.joinIntoString("\n\n");
+  }
+
+  void refreshNodeConnectionSummary() {
+    if (isInspectingFrame() || inspectedNodeId == kInvalidNodeId) {
+      nodeConnectionsBox.clear();
+      return;
+    }
+
+    if (const auto *node = document.findNode(inspectedNodeId)) {
+      nodeConnectionsBox.setText(buildNodeConnectionSummary(*node), false);
+      return;
+    }
+
+    nodeConnectionsBox.clear();
+  }
   void updateRuntimeValueLabels() {
     for (auto &entry : paramEditors) {
       juce::String runtimeText;
@@ -1042,6 +1174,7 @@ private:
   juce::TextButton applyButton;
   juce::TextButton closeButton;
   juce::Viewport paramViewport;
+  juce::TextEditor nodeConnectionsBox;
   juce::TextEditor frameSummaryBox;
   juce::TextButton frameCaptureButton;
   juce::TextButton frameReleaseButton;
