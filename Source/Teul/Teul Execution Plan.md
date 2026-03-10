@@ -715,3 +715,45 @@
 - `Selected + Missing`, `Hover + InvalidConfig`, `Connected + Degraded` 같은 상태 조합의 우선순위
 - `Bus` 포트가 많은 채널을 가질 때(예: 6ch 이상) 라벨과 세그먼트를 기본 노출할지, hover/expand에서만 보여줄지
 - hover, drag target, missing/degraded pulse 같은 애니메이션 강도를 어디까지 허용할지
+**Additional Decisions (Rendering Order / Bus Visibility / Animation Rules)**
+- Port rendering order is fixed as:
+  1. port interior
+  2. port border
+  3. outer status ring / outer error indicator
+- `Bus` channels and labels stay visible by default rather than hiding behind hover-only disclosure.
+- Interaction animations should be clear and noticeable, while still respecting the difference between temporary interaction feedback and longer-lived error feedback.
+- `Hover`
+  - Fast response.
+  - Slight interior brightening and a short border glow.
+  - Target feel: quick, light, immediate.
+- `Selected`
+  - Stable persistent emphasis.
+  - Prefer a mostly static interior/border highlight rather than a repeating pulse.
+  - Selection should remain readable even when combined with outer warning states.
+- `Focus`
+  - Lighter than `Selected`.
+  - Use a subtle focus ring or border emphasis intended for keyboard/navigation clarity.
+- `DragSource`
+  - Stronger than hover.
+  - The port should feel actively engaged as the cable origin.
+  - A mild pulse is acceptable.
+- `DragTarget (Valid)`
+  - Clearly stronger than hover.
+  - Use a readable glow/breathing highlight to show that the drop is accepted.
+- `DragTarget (Invalid)`
+  - Immediate warning response.
+  - Use a stronger invalid tint / alert flash than the valid target state.
+- `Missing`
+  - Use the outer dashed ring with a slow, persistent pulse.
+  - It should remain visible over time without feeling like a constant alarm.
+- `Degraded`
+  - Similar outer-ring treatment, but weaker than `Missing`.
+  - Keep it clearly noticeable while less aggressive than a fully missing state.
+- `InvalidConfig`
+  - Outer warning state with the strongest error emphasis.
+  - Stronger than `Degraded`, and generally more urgent than `Missing`.
+- `Partial` / `Asymmetric`
+  - Keep the emphasis intentionally subtle.
+  - These states should read as informative routing detail, not as hard warnings.
+- Tooltip rule:
+  - Hovering the outer dashed warning ring should explain the current issue state such as `Missing`, `Degraded`, or `Invalid Config`.
