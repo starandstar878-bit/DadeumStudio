@@ -16,6 +16,16 @@ void TGraphCanvas::clearDragTargetHighlight() {
 }
 
 void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
+  const auto notifyExternalDragTarget = [this]() {
+    if (externalDragTargetChangedHandler == nullptr)
+      return;
+
+    externalDragTargetChangedHandler(
+        wireDragState.targetExternalZoneId,
+        wireDragState.targetExternalZoneId.isNotEmpty() &&
+            isCurrentDragTargetConnectable());
+  };
+
   clearDragTargetHighlight();
 
   wireDragState.targetNodeId = kInvalidNodeId;
@@ -24,8 +34,10 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
   wireDragState.targetTypeMatch = false;
   wireDragState.targetCycleFree = false;
 
-  if (!wireDragState.active)
+  if (!wireDragState.active) {
+    notifyExternalDragTarget();
     return;
+  }
 
   const auto mousePosInt = mousePosView.roundToInt();
 
@@ -47,12 +59,15 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
                                      candidatePort.ownerNodeId);
 
       inputPort->setDragTargetHighlight(true, isCurrentDragTargetConnectable());
+      notifyExternalDragTarget();
       return;
     }
   }
 
-  if (!externalDropZoneProvider)
+  if (!externalDropZoneProvider) {
+    notifyExternalDragTarget();
     return;
+  }
 
   for (const auto &zone : externalDropZoneProvider()) {
     if (!zone.boundsView.contains(mousePosView))
@@ -61,8 +76,11 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
     wireDragState.targetExternalZoneId = zone.zoneId;
     wireDragState.targetTypeMatch = (zone.dataType == wireDragState.sourceType);
     wireDragState.targetCycleFree = true;
+    notifyExternalDragTarget();
     return;
   }
+
+  notifyExternalDragTarget();
 }
 
 bool TGraphCanvas::isCurrentDragTargetConnectable() const {
@@ -190,6 +208,8 @@ void TGraphCanvas::endConnectionDrag(juce::Point<float> mousePosView) {
 void TGraphCanvas::cancelConnectionDrag() {
   clearDragTargetHighlight();
   wireDragState = WireDragState{};
+  if (externalDragTargetChangedHandler != nullptr)
+    externalDragTargetChangedHandler({}, false);
   repaint();
 }
 

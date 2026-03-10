@@ -108,9 +108,13 @@ public:
       std::function<std::vector<ExternalDropZone>()>;
   using ExternalConnectionCommitHandler =
       std::function<bool(const TPort &sourcePort, const juce::String &zoneId)>;
+  using ExternalDragTargetChangedHandler =
+      std::function<void(const juce::String &zoneId, bool canConnect)>;
   void setExternalDropZoneProvider(ExternalDropZoneProvider provider);
   void setExternalConnectionCommitHandler(
       ExternalConnectionCommitHandler handler);
+  void setExternalDragTargetChangedHandler(
+      ExternalDragTargetChangedHandler handler);
 
   struct RuntimeOverlayState {
     double sampleRate = 0.0;
@@ -399,6 +403,7 @@ private:
   BindingSummaryResolver bindingSummaryResolver;
   ExternalDropZoneProvider externalDropZoneProvider;
   ExternalConnectionCommitHandler externalConnectionCommitHandler;
+  ExternalDragTargetChangedHandler externalDragTargetChangedHandler;
   FrameSelectionChangedHandler frameSelectionChangedHandler;
 
   std::vector<juce::String> recentNodeTypes;

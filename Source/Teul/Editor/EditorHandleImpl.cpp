@@ -675,6 +675,18 @@ public:
     repaint();
   }
 
+  void setDropTargetPort(const juce::String &cardId, const juce::String &portId,
+                         bool canConnect) {
+    if (dropTargetCardId == cardId && dropTargetPortId == portId &&
+        dropTargetCanConnect == canConnect)
+      return;
+
+    dropTargetCardId = cardId;
+    dropTargetPortId = portId;
+    dropTargetCanConnect = canConnect;
+    repaint();
+  }
+
   void refreshFromDocument() {
     const auto accent = railAccent(currentRailKind());
     const auto collapsed = isRailCollapsed();
@@ -913,6 +925,31 @@ private:
                   inner.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
   }
 
+  bool isDropTargetPort(const juce::String &cardId,
+                        const juce::String &portId) const {
+    return cardId.isNotEmpty() && portId.isNotEmpty() &&
+           cardId == dropTargetCardId && portId == dropTargetPortId;
+  }
+
+  juce::Colour dropTargetColour(juce::Colour accent) const {
+    return dropTargetCanConnect ? accent.brighter(0.45f).interpolatedWith(
+                                      juce::Colour(0xff22c55e), 0.35f)
+                                : juce::Colour(0xfff97316);
+  }
+
+  void drawDropTargetOverlay(juce::Graphics &g, juce::Rectangle<float> bounds,
+                             juce::Colour accent) const {
+    const auto overlay = dropTargetColour(accent);
+    const auto rounded = juce::jmax(3.0f, juce::jmin(bounds.getWidth(),
+                                                     bounds.getHeight()) *
+                                              0.45f);
+    g.setColour(overlay.withAlpha(dropTargetCanConnect ? 0.20f : 0.18f));
+    g.fillRoundedRectangle(bounds.expanded(1.5f), rounded);
+    g.setColour(overlay.withAlpha(0.96f));
+    g.drawRoundedRectangle(bounds.expanded(1.5f), rounded,
+                           dropTargetCanConnect ? 2.0f : 1.6f);
+  }
+
   void drawVerticalCards(juce::Graphics &g, juce::Rectangle<int> area,
                          const std::vector<RailCardView> &cards) {
     const bool portsOnRight = currentRailKind() != TRailKind::output;
@@ -984,6 +1021,12 @@ private:
       leftSocketBounds.setWidth(groupedSocketBounds.getWidth() * 0.5f);
       rightSocketBounds.setX(leftSocketBounds.getRight());
       rightSocketBounds.setWidth(groupedSocketBounds.getWidth() * 0.5f);
+      if (isDropTargetPort(card.itemId, card.ports[0].portId))
+        drawDropTargetOverlay(g, leftSocketBounds.reduced(0.5f, 0.0f),
+                              card.ports[0].accent);
+      if (isDropTargetPort(card.itemId, card.ports[1].portId))
+        drawDropTargetOverlay(g, rightSocketBounds.reduced(0.5f, 0.0f),
+                              card.ports[1].accent);
       addPortHitZone(card.itemId, card.ports[0].portId,
                      card.ports[0].dataType, leftSocketBounds);
       addPortHitZone(card.itemId, card.ports[1].portId,
@@ -1005,6 +1048,9 @@ private:
               socketArea.toFloat().withSizeKeepingCentre(14.0f, 8.0f);
           drawSocket(g, socketBounds, card.ports[(size_t)index].accent,
                      portsOnRight);
+          if (isDropTargetPort(card.itemId, card.ports[(size_t)index].portId))
+            drawDropTargetOverlay(g, socketBounds,
+                                  card.ports[(size_t)index].accent);
           addPortHitZone(card.itemId, card.ports[(size_t)index].portId,
                          card.ports[(size_t)index].dataType, socketBounds);
         }
@@ -1079,6 +1125,8 @@ private:
       g.setColour(port.accent.brighter(0.18f));
       g.setFont(10.0f);
       g.drawText(port.label, pill, juce::Justification::centred, false);
+      if (isDropTargetPort(card.itemId, port.portId))
+        drawDropTargetOverlay(g, pill.toFloat(), port.accent);
       addPortHitZone(card.itemId, port.portId, port.dataType, pill.toFloat());
     }
 
@@ -1184,6 +1232,9 @@ private:
   juce::String selectedCardId;
   juce::String hoveredCardId;
   ActivePortDragState activePortDrag;
+  juce::String dropTargetCardId;
+  juce::String dropTargetPortId;
+  bool dropTargetCanConnect = false;
   std::vector<std::pair<juce::String, juce::Rectangle<int>>> cardHitZones;
   std::vector<PortHitZone> portHitZones;
 };
@@ -2210,6 +2261,20 @@ EditorHandle::Impl::Impl(
       [this](const TPort &sourcePort, const juce::String &zoneId) {
         return connectSourcePortToOutputEndpoint(doc, *registryStore, *canvas,
                                                  sourcePort, zoneId);
+      });
+  canvas->setExternalDragTargetChangedHandler(
+      [this](const juce::String &zoneId, bool canConnect) {
+        if (outputRail == nullptr)
+          return;
+
+        juce::String cardId;
+        juce::String portId;
+        if (!splitRailPortZoneId(zoneId, cardId, portId)) {
+          outputRail->setDropTargetPort({}, {}, false);
+          return;
+        }
+
+        outputRail->setDropTargetPort(cardId, portId, canConnect);
       });
 
   canvas->setNodeSelectionChangedHandler(

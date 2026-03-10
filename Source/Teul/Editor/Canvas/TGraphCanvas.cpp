@@ -71,6 +71,11 @@ void TGraphCanvas::setExternalConnectionCommitHandler(
   externalConnectionCommitHandler = std::move(handler);
 }
 
+void TGraphCanvas::setExternalDragTargetChangedHandler(
+    ExternalDragTargetChangedHandler handler) {
+  externalDragTargetChangedHandler = std::move(handler);
+}
+
 void TGraphCanvas::setRuntimeOverlayState(const RuntimeOverlayState &state) {
   runtimeOverlayState = state;
   repaint();
