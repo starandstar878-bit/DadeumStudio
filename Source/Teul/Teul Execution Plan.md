@@ -656,3 +656,47 @@
 3. `Input/Output` 카드 선택 + Inspector 연결
 4. 자동 채널 변환 규칙 확정
 5. `Bus` 포트 확장 규칙 확정
+**추가 합의 사항 (포트/케이블 UI)**
+- `SignalShape`는 `Mono`, `Stereo`, `Bus` 세 종류로 유지한다.
+- `Multi`는 별도 포트 종류가 아니라 같은 타입 포트를 여러 개 배치하는 연결 정책으로 본다.
+  - `Multi Mono` = 원형 포트 여러 개
+  - `Multi Stereo` = 아령형 포트 여러 개
+  - `Multi Bus` = 긴 캡슐형 포트 여러 개
+- 긴 캡슐형 포트는 `Bus` 포트의 기본 실루엣으로 사용한다.
+- `Stereo` 포트의 hit test는 영역별로 나눈다.
+  - 좌측 원 클릭 = `L` 채널 개별 선
+  - 우측 원 클릭 = `R` 채널 개별 선
+  - 가운데 손잡이 클릭 = `Stereo` 통합 선
+- `Bus` 포트도 같은 원칙을 따른다.
+  - 채널에 대응하는 세그먼트/원 영역 클릭 = 해당 채널 개별 선
+  - 나머지 바디 영역 클릭 = 전체 `Bus` 통합 선
+- 통합 선은 완전히 다른 문법의 새 선으로 만들지 않고, 개별 채널 선이 묶인 bundle처럼 보이게 한다.
+- 한 포트 안에서 통합 선과 개별 채널 선은 공존 가능하다.
+  - 단, 해당 포트의 입력 수용량(capacity) 안에서만 허용한다.
+- `MultiStereo`는 stereo 슬롯 수보다 mono channel unit 총량 기준으로 해석한다.
+  - 예: `MultiStereo x4` = 총 `8 mono channel units`
+  - stereo 통합 연결 1개 = `2 units`
+  - mono 개별 채널 연결 1개 = `1 unit`
+  - 따라서 stereo 4개, mono 8개, stereo 3개 + mono 2개 같은 혼합이 가능하다.
+- 비대칭 채널 사용은 시스템 차원에서 허용한다.
+  - 예: `L`만 여러 개 사용하거나 `R`만 여러 개 사용하는 구성이 가능하다.
+  - 대신 UI에서 partial/asymmetric 상태가 명확히 드러나야 한다.
+- `Mono -> Stereo` 자동 연결은 사용자가 꽂은 채널(`L` 또는 `R`)에만 입력한다.
+- `Stereo -> Mono`는 기본 downmix(버퍼 합치기)로 처리한다.
+- `Bus -> Stereo/Mono`는 사용자가 꽂은 채널만 입력으로 받는다.
+  - 예: `Bus 1 -> Stereo L`, `Bus 2 -> Stereo R`
+  - 사용하지 않은 다른 bus channel은 자동 연결하지 않는다.
+- `Input/Output/Control` 카드 상호작용은 다음 기준을 따른다.
+  - 카드 클릭 = Inspector에 내부 정보 표시
+  - 포트 클릭 = 연결선 드래그 시작
+- Inspector는 최소한 아래 두 섹션으로 분리한다.
+  - 연결 설정부
+  - 오디오 파라미터 편집부
+- I/O 및 Control 포트 디자인은 일반 노드 포트 문법을 공유하되, 시스템 경계 포트처럼 약간 더 꾸민다.
+
+**아직 남은 결정 사항**
+- stereo/bus bundle 케이블의 실제 두께, 외곽선, 내부 결합 힌트를 어떤 수준으로 줄지
+- partial/asymmetric 상태를 포트에서 어느 강도로 강조할지
+- `Selected + Missing`, `Hover + InvalidConfig`, `Connected + Degraded` 같은 상태 조합의 우선순위
+- `Bus` 포트가 많은 채널을 가질 때(예: 6ch 이상) 라벨과 세그먼트를 기본 노출할지, hover/expand에서만 보여줄지
+- hover, drag target, missing/degraded pulse 같은 애니메이션 강도를 어디까지 허용할지
