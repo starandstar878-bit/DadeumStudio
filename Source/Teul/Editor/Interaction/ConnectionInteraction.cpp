@@ -39,28 +39,31 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
     return;
   }
 
+  const bool sourceIsExternal = wireDragState.sourceExternalId.isNotEmpty();
   const auto mousePosInt = mousePosView.roundToInt();
 
-  for (auto &node : nodeComponents) {
-    for (const auto &inputPort : node->getInputPorts()) {
-      const auto hitArea =
-          getLocalArea(inputPort.get(), inputPort->getLocalBounds()).expanded(4);
+  if (!sourceIsExternal) {
+    for (auto &node : nodeComponents) {
+      for (const auto &inputPort : node->getInputPorts()) {
+        const auto hitArea =
+            getLocalArea(inputPort.get(), inputPort->getLocalBounds()).expanded(4);
 
-      if (!hitArea.contains(mousePosInt))
-        continue;
+        if (!hitArea.contains(mousePosInt))
+          continue;
 
-      const auto &candidatePort = inputPort->getPortData();
-      wireDragState.targetNodeId = candidatePort.ownerNodeId;
-      wireDragState.targetPortId = candidatePort.portId;
-      wireDragState.targetTypeMatch =
-          (candidatePort.dataType == wireDragState.sourceType);
-      wireDragState.targetCycleFree =
-          !document.wouldCreateCycle(wireDragState.sourceNodeId,
-                                     candidatePort.ownerNodeId);
+        const auto &candidatePort = inputPort->getPortData();
+        wireDragState.targetNodeId = candidatePort.ownerNodeId;
+        wireDragState.targetPortId = candidatePort.portId;
+        wireDragState.targetTypeMatch =
+            (candidatePort.dataType == wireDragState.sourceType);
+        wireDragState.targetCycleFree =
+            !document.wouldCreateCycle(wireDragState.sourceNodeId,
+                                       candidatePort.ownerNodeId);
 
-      inputPort->setDragTargetHighlight(true, isCurrentDragTargetConnectable());
-      notifyExternalDragTarget();
-      return;
+        inputPort->setDragTargetHighlight(true, isCurrentDragTargetConnectable());
+        notifyExternalDragTarget();
+        return;
+      }
     }
   }
 
@@ -87,18 +90,26 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
   if (!wireDragState.active)
     return false;
 
-  if (wireDragState.sourceNodeId == kInvalidNodeId ||
-      wireDragState.sourcePortId == kInvalidPortId)
+  const bool sourceIsNode = wireDragState.sourceNodeId != kInvalidNodeId &&
+                            wireDragState.sourcePortId != kInvalidPortId;
+  const bool sourceIsExternal = wireDragState.sourceExternalId.isNotEmpty();
+  if (!sourceIsNode && !sourceIsExternal)
     return false;
 
   if (!wireDragState.targetTypeMatch || !wireDragState.targetCycleFree)
     return false;
 
+  if (sourceIsExternal) {
+    return wireDragState.targetExternalZoneId.isNotEmpty() &&
+           externalConnectionCommitHandler != nullptr;
+  }
+
   if (wireDragState.targetExternalZoneId.isNotEmpty()) {
     const TPort *sourcePort =
         findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
     return sourcePort != nullptr &&
-           sourcePort->direction == TPortDirection::Output;
+           sourcePort->direction == TPortDirection::Output &&
+           externalConnectionCommitHandler != nullptr;
   }
 
   if (wireDragState.targetNodeId == kInvalidNodeId ||
@@ -138,13 +149,27 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
     return;
 
   if (wireDragState.targetExternalZoneId.isNotEmpty()) {
-    const TPort *sourcePort =
-        findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
-    if (sourcePort != nullptr && externalConnectionCommitHandler != nullptr)
-      externalConnectionCommitHandler(*sourcePort,
+    const TPort *sourcePort = nullptr;
+    ExternalDragSource externalSource;
+    const ExternalDragSource *externalSourcePtr = nullptr;
+    if (wireDragState.sourceExternalId.isNotEmpty()) {
+      externalSource.sourceId = wireDragState.sourceExternalId;
+      externalSource.sourcePortId = wireDragState.sourceExternalPortId;
+      externalSource.dataType = wireDragState.sourceType;
+      externalSourcePtr = &externalSource;
+    } else {
+      sourcePort =
+          findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
+    }
+
+    if (externalConnectionCommitHandler != nullptr)
+      externalConnectionCommitHandler(sourcePort, externalSourcePtr,
                                       wireDragState.targetExternalZoneId);
     return;
   }
+
+  if (wireDragState.sourceExternalId.isNotEmpty())
+    return;
 
   TConnection conn;
   conn.connectionId = document.allocConnectionId();
@@ -177,6 +202,26 @@ void TGraphCanvas::beginConnectionDragFromPoint(
   wireDragState.sourceNodeId = sourcePort.ownerNodeId;
   wireDragState.sourcePortId = sourcePort.portId;
   wireDragState.sourceType = sourcePort.dataType;
+  wireDragState.sourcePosView = sourcePosView;
+  wireDragState.mousePosView = mousePosView;
+
+  selectedConnectionId = kInvalidConnectionId;
+
+  updateDragTargetFromMouse(mousePosView);
+  repaint();
+}
+
+void TGraphCanvas::beginExternalConnectionDragFromPoint(
+    const ExternalDragSource &source, juce::Point<float> sourcePosView,
+    juce::Point<float> mousePosView) {
+  if (source.sourceId.isEmpty() || source.sourcePortId.isEmpty())
+    return;
+
+  wireDragState = WireDragState{};
+  wireDragState.active = true;
+  wireDragState.sourceExternalId = source.sourceId;
+  wireDragState.sourceExternalPortId = source.sourcePortId;
+  wireDragState.sourceType = source.dataType;
   wireDragState.sourcePosView = sourcePosView;
   wireDragState.mousePosView = mousePosView;
 

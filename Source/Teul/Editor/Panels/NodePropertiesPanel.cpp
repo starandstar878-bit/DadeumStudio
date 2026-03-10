@@ -295,6 +295,39 @@ public:
       updateRuntimeValueLabels();
   }
 
+  std::vector<AssignmentDropTarget>
+  assignmentDropTargetsIn(juce::Component &target) const override {
+    std::vector<AssignmentDropTarget> targets;
+    if (!isPanelOpen() || isInspectingFrame() || paramsContent == nullptr)
+      return targets;
+
+    for (const auto &entry : paramEditors) {
+      if (!isAssignableParam(*entry))
+        continue;
+
+      const auto bounds = boundsForParamEditor(*entry);
+      if (bounds.isEmpty())
+        continue;
+
+      targets.push_back(
+          {entry->paramId,
+           target.getLocalArea(paramsContent.get(), bounds).toFloat()});
+    }
+
+    return targets;
+  }
+
+  void setAssignmentDropTarget(const juce::String &zoneId,
+                               bool canConnect) override {
+    if (assignmentDropTargetId == zoneId &&
+        assignmentDropTargetCanConnect == canConnect)
+      return;
+
+    assignmentDropTargetId = zoneId;
+    assignmentDropTargetCanConnect = canConnect;
+    repaint();
+  }
+
   void hidePanel() {
     if (!isVisible() && inspectedNodeId == kInvalidNodeId &&
         inspectedFrameId == 0)
@@ -302,6 +335,8 @@ public:
 
     inspectedNodeId = kInvalidNodeId;
     inspectedFrameId = 0;
+    assignmentDropTargetId.clear();
+    assignmentDropTargetCanConnect = false;
     clearParamEditors();
     frameSummaryBox.clear();
     setVisible(false);
@@ -362,6 +397,34 @@ public:
                     ? "Stored membership and identity metadata for this frame group."
                     : "Runtime and binding metadata appear only when relevant.");
   }
+
+  void paintOverChildren(juce::Graphics &g) override {
+    if (!isPanelOpen() || isInspectingFrame() || paramsContent == nullptr ||
+        assignmentDropTargetId.isEmpty())
+      return;
+
+    const auto it = std::find_if(paramEditors.begin(), paramEditors.end(),
+                                 [this](const auto &entry) {
+                                   return entry->paramId == assignmentDropTargetId;
+                                 });
+    if (it == paramEditors.end())
+      return;
+
+    const auto bounds =
+        getLocalArea(paramsContent.get(), boundsForParamEditor(*(*it))).toFloat();
+    if (bounds.isEmpty())
+      return;
+
+    const auto accent = assignmentDropTargetCanConnect
+                            ? juce::Colour(0xff22c55e)
+                            : juce::Colour(0xfff97316);
+    g.setColour(accent.withAlpha(assignmentDropTargetCanConnect ? 0.12f : 0.10f));
+    g.fillRoundedRectangle(bounds.expanded(3.0f), 8.0f);
+    g.setColour(accent.withAlpha(0.96f));
+    g.drawRoundedRectangle(bounds.expanded(3.0f), 8.0f,
+                           assignmentDropTargetCanConnect ? 2.0f : 1.6f);
+  }
+
   void resized() override {
     auto area = getLocalBounds().reduced(12);
     auto header = area.removeFromTop(24);
@@ -443,6 +506,7 @@ private:
     std::unique_ptr<juce::Label> runtimeValueLabel;
     std::unique_ptr<juce::Label> bindingInfoLabel;
     std::unique_ptr<juce::Label> gyeolBindingLabel;
+    std::unique_ptr<juce::Label> controlAssignmentLabel;
     std::unique_ptr<juce::Component> editor;
   };
 
@@ -632,6 +696,16 @@ private:
       entry->gyeolBindingLabel->setBorderSize(juce::BorderSize<int>(1, 6, 1, 6));
       paramsContent->addAndMakeVisible(entry->gyeolBindingLabel.get());
 
+      entry->controlAssignmentLabel = std::make_unique<juce::Label>();
+      entry->controlAssignmentLabel->setJustificationType(
+          juce::Justification::centredLeft);
+      entry->controlAssignmentLabel->setColour(juce::Label::textColourId,
+                                               juce::Colour(0xfffbbf24));
+      entry->controlAssignmentLabel->setFont(juce::FontOptions(9.8f));
+      entry->controlAssignmentLabel->setBorderSize(
+          juce::BorderSize<int>(1, 6, 1, 6));
+      paramsContent->addAndMakeVisible(entry->controlAssignmentLabel.get());
+
       paramsContent->addAndMakeVisible(entry->editor.get());
       paramEditors.push_back(std::move(entry));
     };
@@ -708,6 +782,13 @@ private:
         entry->gyeolBindingLabel->setBounds(0, 0, 0, 0);
       }
 
+      if (entry->controlAssignmentLabel->isVisible()) {
+        entry->controlAssignmentLabel->setBounds(0, y, width, 18);
+        y += 22;
+      } else {
+        entry->controlAssignmentLabel->setBounds(0, 0, 0, 0);
+      }
+
       y += 8;
     }
 
@@ -715,6 +796,64 @@ private:
   }
   juce::var readEditorValue(const ParamEditor &entry) const {
     return Teul::readEditorValue(*entry.editor, entry.spec, entry.originalValue);
+  }
+
+  bool isAssignableParam(const ParamEditor &entry) const {
+    return entry.paramId.isNotEmpty() && !entry.spec.isReadOnly &&
+           (entry.spec.isAutomatable || entry.spec.isModulatable);
+  }
+
+  juce::Rectangle<int> boundsForParamEditor(const ParamEditor &entry) const {
+    juce::Rectangle<int> bounds;
+    auto unionWith = [&](const juce::Component *component) {
+      if (component == nullptr || !component->isVisible())
+        return;
+      bounds = bounds.isEmpty() ? component->getBounds()
+                               : bounds.getUnion(component->getBounds());
+    };
+
+    unionWith(entry.caption.get());
+    unionWith(entry.editor.get());
+    unionWith(entry.descriptionLabel.get());
+    unionWith(entry.runtimeValueLabel.get());
+    unionWith(entry.bindingInfoLabel.get());
+    unionWith(entry.gyeolBindingLabel.get());
+    unionWith(entry.controlAssignmentLabel.get());
+    return bounds.expanded(4, 4);
+  }
+
+  juce::String controlAssignmentSummaryForParam(const ParamEditor &entry) const {
+    if (entry.paramId.isEmpty())
+      return {};
+
+    juce::StringArray labels;
+    for (const auto &assignment : document.controlState.assignments) {
+      if (assignment.targetParamId != entry.paramId)
+        continue;
+
+      juce::String sourceLabel = assignment.sourceId;
+      juce::String portLabel = assignment.portId;
+      if (const auto *source = document.controlState.findSource(assignment.sourceId)) {
+        sourceLabel = source->displayName.isNotEmpty() ? source->displayName
+                                                       : source->sourceId;
+        for (const auto &port : source->ports) {
+          if (port.portId == assignment.portId) {
+            portLabel = port.displayName;
+            break;
+          }
+        }
+      }
+
+      labels.add(sourceLabel + " / " + portLabel);
+    }
+
+    if (labels.isEmpty())
+      return {};
+
+    juce::String text = "Control: " + labels[0];
+    if (labels.size() > 1)
+      text << " +" << juce::String(labels.size() - 1);
+    return text;
   }
 
   void updateRuntimeValueLabels() {
@@ -766,6 +905,17 @@ private:
       entry->gyeolBindingLabel->setText(showGyeol ? gyeolBinding.text
                                                   : juce::String(),
                                         juce::dontSendNotification);
+
+      const auto controlAssignmentText = controlAssignmentSummaryForParam(*entry);
+      const bool showControlAssignment = controlAssignmentText.isNotEmpty();
+      entry->controlAssignmentLabel->setVisible(showControlAssignment);
+      entry->controlAssignmentLabel->setColour(
+          juce::Label::backgroundColourId,
+          showControlAssignment ? juce::Colour(0x16f59e0b)
+                                : juce::Colours::transparentBlack);
+      entry->controlAssignmentLabel->setText(
+          showControlAssignment ? controlAssignmentText : juce::String(),
+          juce::dontSendNotification);
     }
 
     layoutParamEditors();
@@ -899,6 +1049,8 @@ private:
   juce::TextButton frameSavePresetButton;
   std::unique_ptr<juce::Component> paramsContent;
   std::vector<std::unique_ptr<ParamEditor>> paramEditors;
+  juce::String assignmentDropTargetId;
+  bool assignmentDropTargetCanConnect = false;
   std::map<juce::String, TTeulExposedParam> runtimeParamsById;
 };
 

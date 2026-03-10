@@ -69,11 +69,20 @@ public:
   void rebuildNodeComponents();
   void updateChildPositions();
 
+  struct ExternalDragSource {
+    juce::String sourceId;
+    juce::String sourcePortId;
+    TPortDataType dataType = TPortDataType::Control;
+  };
+
   void beginConnectionDrag(const TPort &sourcePort,
                            juce::Point<float> mousePosView);
   void beginConnectionDragFromPoint(const TPort &sourcePort,
                                     juce::Point<float> sourcePosView,
                                     juce::Point<float> mousePosView);
+  void beginExternalConnectionDragFromPoint(
+      const ExternalDragSource &source, juce::Point<float> sourcePosView,
+      juce::Point<float> mousePosView);
   void updateConnectionDrag(juce::Point<float> mousePosView);
   void endConnectionDrag(juce::Point<float> mousePosView);
   void cancelConnectionDrag();
@@ -107,7 +116,9 @@ public:
   using ExternalDropZoneProvider =
       std::function<std::vector<ExternalDropZone>()>;
   using ExternalConnectionCommitHandler =
-      std::function<bool(const TPort &sourcePort, const juce::String &zoneId)>;
+      std::function<bool(const TPort *sourcePort,
+                         const ExternalDragSource *externalSource,
+                         const juce::String &zoneId)>;
   using ExternalDragTargetChangedHandler =
       std::function<void(const juce::String &zoneId, bool canConnect)>;
   void setExternalDropZoneProvider(ExternalDropZoneProvider provider);
@@ -370,6 +381,8 @@ private:
     bool active = false;
     NodeId sourceNodeId = kInvalidNodeId;
     PortId sourcePortId = kInvalidPortId;
+    juce::String sourceExternalId;
+    juce::String sourceExternalPortId;
     TPortDataType sourceType = TPortDataType::Audio;
 
     juce::Point<float> sourcePosView;

@@ -599,6 +599,75 @@ bool connectSourcePortToOutputEndpoint(TGraphDocument &document,
   return true;
 }
 
+
+bool beginControlRailPortDrag(TGraphDocument &document, TGraphCanvas &canvas,
+                              const juce::String &sourceId,
+                              const juce::String &portId,
+                              juce::Point<float> sourceAnchorView,
+                              juce::Point<float> mousePosView) {
+  const auto *source = document.controlState.findSource(sourceId);
+  if (source == nullptr || source->railId != "control-rail")
+    return false;
+
+  const auto portIt = std::find_if(
+      source->ports.begin(), source->ports.end(),
+      [&portId](const TControlSourcePort &port) { return port.portId == portId; });
+  if (portIt == source->ports.end())
+    return false;
+
+  TGraphCanvas::ExternalDragSource externalSource;
+  externalSource.sourceId = sourceId;
+  externalSource.sourcePortId = portId;
+  externalSource.dataType = TPortDataType::Control;
+  canvas.beginExternalConnectionDragFromPoint(externalSource, sourceAnchorView,
+                                              mousePosView);
+  return true;
+}
+
+bool connectControlSourcePortToParam(
+    TGraphDocument &document, const TGraphCanvas::ExternalDragSource &source,
+    const juce::String &zoneId) {
+  const auto *controlSource = document.controlState.findSource(source.sourceId);
+  if (controlSource == nullptr)
+    return false;
+
+  const auto portIt = std::find_if(
+      controlSource->ports.begin(), controlSource->ports.end(),
+      [&source](const TControlSourcePort &port) {
+        return port.portId == source.sourcePortId;
+      });
+  if (portIt == controlSource->ports.end())
+    return false;
+
+  NodeId targetNodeId = kInvalidNodeId;
+  juce::String paramKey;
+  if (!parseTeulParamId(zoneId, targetNodeId, paramKey))
+    return false;
+
+  if (document.findNode(targetNodeId) == nullptr)
+    return false;
+
+  const bool duplicateExists = std::any_of(
+      document.controlState.assignments.begin(),
+      document.controlState.assignments.end(),
+      [&](const TControlSourceAssignment &assignment) {
+        return assignment.sourceId == source.sourceId &&
+               assignment.portId == source.sourcePortId &&
+               assignment.targetNodeId == targetNodeId &&
+               assignment.targetParamId == zoneId;
+      });
+  if (duplicateExists)
+    return false;
+
+  TControlSourceAssignment assignment;
+  assignment.sourceId = source.sourceId;
+  assignment.portId = source.sourcePortId;
+  assignment.targetNodeId = targetNodeId;
+  assignment.targetParamId = zoneId;
+  document.controlState.assignments.push_back(std::move(assignment));
+  document.touch(false);
+  return true;
+}
 } // namespace
 
 class RailPanel : public juce::Component {
@@ -2250,31 +2319,79 @@ EditorHandle::Impl::Impl(
   controlRail->setCollapseHandler([this] { refreshRailUi(true); });
   controlRail->setCardSelectionHandler(
       [this](const juce::String &sourceId) { inspectControlSource(sourceId); });
+  controlRail->setPortDragTargetComponent(canvas.get());
+  controlRail->setPortDragHandlers(
+      [this](const juce::String &sourceId, const juce::String &portId,
+             juce::Point<float> sourceAnchorView,
+             juce::Point<float> mousePosView) {
+        return beginControlRailPortDrag(doc, *canvas, sourceId, portId,
+                                        sourceAnchorView, mousePosView);
+      },
+      [this](juce::Point<float> mousePosView) {
+        if (canvas != nullptr)
+          canvas->updateConnectionDrag(mousePosView);
+      },
+      [this](juce::Point<float> mousePosView) {
+        if (canvas != nullptr)
+          canvas->endConnectionDrag(mousePosView);
+      });
   owner.addAndMakeVisible(*controlRail);
 
   canvas->setExternalDropZoneProvider([this] {
-    if (outputRail == nullptr || canvas == nullptr)
+    if (canvas == nullptr)
       return std::vector<TGraphCanvas::ExternalDropZone>{};
-    return outputRail->portDropTargetsIn(*canvas);
+
+    std::vector<TGraphCanvas::ExternalDropZone> zones;
+    if (outputRail != nullptr) {
+      auto railZones = outputRail->portDropTargetsIn(*canvas);
+      zones.insert(zones.end(), railZones.begin(), railZones.end());
+    }
+    if (propertiesPanel != nullptr) {
+      for (const auto &zone : propertiesPanel->assignmentDropTargetsIn(*canvas))
+        zones.push_back({zone.zoneId, zone.boundsTarget, TPortDataType::Control});
+    }
+    return zones;
   });
   canvas->setExternalConnectionCommitHandler(
-      [this](const TPort &sourcePort, const juce::String &zoneId) {
-        return connectSourcePortToOutputEndpoint(doc, *registryStore, *canvas,
-                                                 sourcePort, zoneId);
+      [this](const TPort *sourcePort,
+             const TGraphCanvas::ExternalDragSource *externalSource,
+             const juce::String &zoneId) {
+        if (sourcePort != nullptr) {
+          return connectSourcePortToOutputEndpoint(doc, *registryStore, *canvas,
+                                                   *sourcePort, zoneId);
+        }
+        if (externalSource != nullptr) {
+          const bool connected =
+              connectControlSourcePortToParam(doc, *externalSource, zoneId);
+          if (connected) {
+            if (propertiesPanel != nullptr)
+              propertiesPanel->refreshBindingSummaries();
+            if (controlSourceInspector != nullptr)
+              controlSourceInspector->refreshFromDocument();
+          }
+          return connected;
+        }
+        return false;
       });
   canvas->setExternalDragTargetChangedHandler(
       [this](const juce::String &zoneId, bool canConnect) {
-        if (outputRail == nullptr)
+        if (outputRail != nullptr)
+          outputRail->setDropTargetPort({}, {}, false);
+        if (propertiesPanel != nullptr)
+          propertiesPanel->setAssignmentDropTarget({}, false);
+        if (zoneId.isEmpty())
           return;
 
         juce::String cardId;
         juce::String portId;
-        if (!splitRailPortZoneId(zoneId, cardId, portId)) {
-          outputRail->setDropTargetPort({}, {}, false);
+        if (splitRailPortZoneId(zoneId, cardId, portId)) {
+          if (outputRail != nullptr)
+            outputRail->setDropTargetPort(cardId, portId, canConnect);
           return;
         }
 
-        outputRail->setDropTargetPort(cardId, portId, canConnect);
+        if (propertiesPanel != nullptr)
+          propertiesPanel->setAssignmentDropTarget(zoneId, canConnect);
       });
 
   canvas->setNodeSelectionChangedHandler(
