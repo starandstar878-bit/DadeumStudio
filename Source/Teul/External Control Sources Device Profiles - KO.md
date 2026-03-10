@@ -101,3 +101,89 @@
 - autosave 복구 경로가 실제로 동작
 - 구버전 문서/프리셋을 migration 후 다시 열 수 있음
 - recovery/migration 실패가 사용자에게 설명 가능한 상태로 노출됨
+---
+
+## 로드맵
+
+### Milestone 3 구현 순서
+
+1. **Rail 상호작용 완성**
+   - `Input / Output / Control` 카드 선택 규칙 통일
+   - 카드 클릭 시 Inspector 열기
+   - 포트 클릭 시 케이블 드래그 시작
+   - hover / selected / focus 상태 연결
+
+2. **포트 타입 / 상태 모델 고정**
+   - `SignalShape`: `Mono / Stereo / Bus`
+   - `ConnectionPolicy`: `Single / Multi`
+   - `SignalDomain`: `Audio / Midi / CV / Control`
+   - 장기 유지 상태 / 단기 일시 상태 정리
+   - 상태 조합 우선순위 정리
+
+3. **포트 렌더러 구현**
+   - mono 원형
+   - stereo 아령형
+   - bus 긴 캡슐형
+   - 내부 fill, 도메인 테두리, 외부 점선 링 렌더 반영
+
+4. **포트 hit test / 케이블 시작 규칙 구현**
+   - stereo:
+     - 좌측 원 = `L`
+     - 우측 원 = `R`
+     - 손잡이 = bundle
+   - bus:
+     - 채널 세그먼트 = 개별 채널
+     - 바디 = bundle
+   - drag source / valid target / invalid target 시각화
+
+5. **케이블 렌더러 확장**
+   - mono 케이블
+   - stereo / bus bundle 케이블
+   - bundle은 다발부를 얇게 유지
+   - 포트 연결부는 포트 길이와 비슷한 폭으로 맞춤
+   - split / merge 지점 표현
+   - partial / asymmetric는 약하게만 강조
+
+6. **Bus / Multi 수용량 규칙 구현**
+   - `Multi`는 동일 타입 포트 반복 배치
+   - `MultiStereo xN`은 mono unit 총량으로 해석
+   - 비대칭 허용
+   - capacity 계산과 연결 제한 적용
+
+7. **자동 채널 변환 규칙 구현**
+   - `Mono -> Stereo`: 꽂은 채널에만 입력
+   - `Stereo -> Mono`: downmix
+   - `Bus -> Stereo/Mono`: 꽂은 채널만 입력
+   - 자동 변환 불가 케이스는 `InvalidConfig`
+
+8. **Inspector 1차 완성**
+   - 연결 설정부
+   - 오디오 파라미터 편집부
+   - 카드 / 포트 메타 정보 표시
+   - `Missing`, `Degraded`, `InvalidConfig` tooltip / 상세 메시지 연결
+
+9. **Rail UI polish**
+   - spacing / padding / typography 정리
+   - Input / Output / Control 포트 스타일 통일
+   - Bus 6ch 이상 압축 규칙 반영
+   - 애니메이션 강도 조정
+
+10. **Control Source / Device Profile 로직 연결**
+    - dynamic device detection
+    - learn + confirm
+    - profile persist / restore
+    - preset / state / recovery 연동
+    - missing controller / degraded state 처리
+
+11. **검증**
+    - rail selection / cable drag / invalid drop
+    - stereo / bus / multi routing
+    - asymmetric routing
+    - device reconnect / profile mismatch
+    - preset reload / recovery / degraded state
+
+### 작업 묶음 제안
+
+- `3A`: Rail 선택 / 포트 / 기본 상호작용
+- `3B`: 케이블 / 수용량 / 채널 변환 / Inspector
+- `3C`: polish / device profile / recovery / test
