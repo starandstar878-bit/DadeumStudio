@@ -178,6 +178,9 @@ private:
   std::array<PendingParamNotification, kMaxParamNotificationQueueSize>
       paramNotificationData;
 
+  void processBlockInternal(juce::AudioBuffer<float> &deviceBuffer,
+                            juce::MidiBuffer &midiMessages,
+                            const juce::AudioBuffer<float> *inputBufferOverride);
   void rebuildParamSurfaceLocked(const TGraphDocument &doc);
   bool updateParamSurfaceValueLocked(NodeId nodeId,
                                      const juce::String &paramKey,
@@ -259,6 +262,7 @@ private:
   std::atomic<bool> mutedFallbackActive{false};
 
   juce::MidiBuffer deviceCallbackMidiScratch;
+  juce::AudioBuffer<float> deviceInputCaptureBuffer;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TGraphRuntime)
 };

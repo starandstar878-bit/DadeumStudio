@@ -280,6 +280,29 @@ void TGraphRuntime::setCurrentChannelLayout(int inputChannels,
 
 void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
                                  juce::MidiBuffer &midiMessages) {
+  const int inputChannels = juce::jmin(
+      lastInputChannels.load(std::memory_order_relaxed), deviceBuffer.getNumChannels());
+  if (inputChannels > 0 && deviceBuffer.getNumSamples() > 0) {
+    deviceInputCaptureBuffer.setSize(inputChannels, deviceBuffer.getNumSamples(),
+                                     false, false, true);
+    for (int channelIndex = 0; channelIndex < inputChannels; ++channelIndex) {
+      deviceInputCaptureBuffer.copyFrom(channelIndex, 0, deviceBuffer,
+                                        channelIndex, 0,
+                                        deviceBuffer.getNumSamples());
+    }
+  } else {
+    deviceInputCaptureBuffer.setSize(1, juce::jmax(1, deviceBuffer.getNumSamples()),
+                                     false, false, true);
+    deviceInputCaptureBuffer.clear();
+  }
+
+  processBlockInternal(deviceBuffer, midiMessages,
+                       inputChannels > 0 ? &deviceInputCaptureBuffer : nullptr);
+}
+
+void TGraphRuntime::processBlockInternal(
+    juce::AudioBuffer<float> &deviceBuffer, juce::MidiBuffer &midiMessages,
+    const juce::AudioBuffer<float> *inputBufferOverride) {
   juce::ScopedNoDenormals noDenormals;
   const auto processStartTicks = juce::Time::getHighResolutionTicks();
 
@@ -413,6 +436,7 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
     if (entry.instance && !entry.nodeSnapshot.bypassed) {
       TProcessContext ctx;
       ctx.globalPortBuffer = &state->globalPortBuffer;
+      ctx.inputAudioBuffer = inputBufferOverride;
       ctx.deviceAudioBuffer = &deviceBuffer;
       ctx.midiMessages = &midiMessages;
       ctx.portToChannel = &entry.portChannels;
@@ -575,11 +599,31 @@ void TGraphRuntime::audioDeviceIOCallbackWithContext(
     const juce::AudioIODeviceCallbackContext &context) {
   juce::AudioBuffer<float> buffer(outputChannelData, numOutputChannels,
                                   numSamples);
-  juce::ignoreUnused(inputChannelData, context);
+  juce::ignoreUnused(context);
 
   setCurrentChannelLayout(numInputChannels, numOutputChannels);
   deviceCallbackMidiScratch.clear();
-  processBlock(buffer, deviceCallbackMidiScratch);
+
+  if (numInputChannels > 0 && numSamples > 0) {
+    deviceInputCaptureBuffer.setSize(numInputChannels, numSamples, false, false,
+                                     true);
+    deviceInputCaptureBuffer.clear();
+    for (int channelIndex = 0; channelIndex < numInputChannels; ++channelIndex) {
+      const float *source = inputChannelData != nullptr ? inputChannelData[channelIndex]
+                                                        : nullptr;
+      if (source == nullptr)
+        continue;
+
+      deviceInputCaptureBuffer.copyFrom(channelIndex, 0, source, numSamples);
+    }
+  } else {
+    deviceInputCaptureBuffer.setSize(1, juce::jmax(1, numSamples), false, false,
+                                     true);
+    deviceInputCaptureBuffer.clear();
+  }
+
+  processBlockInternal(buffer, deviceCallbackMidiScratch,
+                       numInputChannels > 0 ? &deviceInputCaptureBuffer : nullptr);
 }
 
 void TGraphRuntime::queueParameterChange(NodeId nodeId,

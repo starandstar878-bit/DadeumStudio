@@ -251,6 +251,72 @@ public:
 };
 TEUL_NODE_AUTOREGISTER(Mixer2Node);
 
+class AudioInputNode final : public TNodeClass {
+public:
+  TNodeDescriptor makeDescriptor() const override {
+    TNodeDescriptor desc;
+    desc.typeKey = "Teul.Source.AudioInput";
+    desc.displayName = "Audio Input";
+    desc.category = "Source";
+
+    desc.capabilities.canMute = false;
+    desc.capabilities.canBypass = false;
+
+    desc.portSpecs = {{TPortDirection::Output, TPortDataType::Audio, "L Out"},
+                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    return desc;
+  }
+
+  std::unique_ptr<TNodeInstance> createInstance() const override {
+    class Implementation final : public TNodeInstance {
+    public:
+      void processSamples(const TProcessContext &ctx) override {
+        if (ctx.globalPortBuffer == nullptr || ctx.inputAudioBuffer == nullptr ||
+            ctx.nodeData == nullptr || ctx.portToChannel == nullptr) {
+          return;
+        }
+
+        const int leftChannel = MixerNodeHelpers::findPortChannel(ctx, "L Out");
+        const int rightChannel = MixerNodeHelpers::findPortChannel(ctx, "R Out");
+        if (leftChannel < 0 && rightChannel < 0)
+          return;
+
+        const int availableInputChannels = ctx.inputAudioBuffer->getNumChannels();
+        const int numSamples = juce::jmin(ctx.globalPortBuffer->getNumSamples(),
+                                          ctx.inputAudioBuffer->getNumSamples());
+        if (numSamples <= 0 || availableInputChannels <= 0)
+          return;
+
+        const float *leftInput = availableInputChannels > 0
+                                     ? ctx.inputAudioBuffer->getReadPointer(0)
+                                     : nullptr;
+        const float *rightInput = availableInputChannels > 1
+                                      ? ctx.inputAudioBuffer->getReadPointer(1)
+                                      : leftInput;
+
+        if (leftChannel >= 0) {
+          auto *leftOutput = ctx.globalPortBuffer->getWritePointer(leftChannel);
+          if (leftInput != nullptr)
+            juce::FloatVectorOperations::copy(leftOutput, leftInput, numSamples);
+          else
+            juce::FloatVectorOperations::clear(leftOutput, numSamples);
+        }
+
+        if (rightChannel >= 0) {
+          auto *rightOutput = ctx.globalPortBuffer->getWritePointer(rightChannel);
+          if (rightInput != nullptr)
+            juce::FloatVectorOperations::copy(rightOutput, rightInput, numSamples);
+          else
+            juce::FloatVectorOperations::clear(rightOutput, numSamples);
+        }
+      }
+    };
+
+    return std::make_unique<Implementation>();
+  }
+};
+TEUL_NODE_AUTOREGISTER(AudioInputNode);
+
 class AudioOutputNode final : public TNodeClass {
 public:
   TNodeDescriptor makeDescriptor() const override {
