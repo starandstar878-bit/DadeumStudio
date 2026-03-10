@@ -227,16 +227,22 @@ void TGraphCanvas::paint(juce::Graphics &g) {
   g.fillAll(TeulPalette::CanvasBackground);
   drawInfiniteGrid(g);
   drawFrames(g);
-  drawConnections(g);
-  drawRuntimeOverlay(g);
-  drawMiniMap(g);
   drawLibraryDropPreview(g);
-  drawZoomIndicator(g);
-  drawStatusHint(g);
 }
 
 void TGraphCanvas::paintOverChildren(juce::Graphics &g) {
   drawSelectionOverlay(g);
+}
+
+void TGraphCanvas::paintConnectionLayer(juce::Graphics &g) {
+  drawConnections(g);
+}
+
+void TGraphCanvas::paintHudLayer(juce::Graphics &g) {
+  drawRuntimeOverlay(g);
+  drawMiniMap(g);
+  drawZoomIndicator(g);
+  drawStatusHint(g);
 }
 
 void TGraphCanvas::resized() {

@@ -63,6 +63,7 @@ private:
   std::unique_ptr<TNodeRegistry> registryStore;
   TGraphRuntime runtime;
   std::unique_ptr<TGraphCanvas> canvas;
+  std::unique_ptr<juce::Component> canvasOverlayLayer;
   std::unique_ptr<NodeLibraryPanel> libraryPanel;
   std::unique_ptr<NodePropertiesPanel> propertiesPanel;
   std::unique_ptr<DiagnosticsDrawer> diagnosticsDrawer;

@@ -1178,6 +1178,36 @@ private:
   std::vector<PortHitZone> portHitZones;
 };
 
+class CanvasOverlayLayer final : public juce::Component,
+                                private juce::Timer {
+public:
+  explicit CanvasOverlayLayer(TGraphCanvas &canvasIn) : canvas(canvasIn) {
+    setInterceptsMouseClicks(false, false);
+    startTimerHz(30);
+  }
+
+  ~CanvasOverlayLayer() override { stopTimer(); }
+
+  void paint(juce::Graphics &g) override {
+    if (!canvas.isShowing())
+      return;
+
+    const auto canvasBounds = canvas.getBounds();
+    g.saveState();
+    g.addTransform(juce::AffineTransform::translation(
+        (float)(canvasBounds.getX() - getX()),
+        (float)(canvasBounds.getY() - getY())));
+    canvas.paintConnectionLayer(g);
+    canvas.paintHudLayer(g);
+    g.restoreState();
+  }
+
+private:
+  void timerCallback() override { repaint(); }
+
+  TGraphCanvas &canvas;
+};
+
 class ControlSourceInspectorPanel : public juce::Component {
 public:
   ControlSourceInspectorPanel(TGraphDocument &documentIn,
@@ -2208,6 +2238,9 @@ EditorHandle::Impl::Impl(
       });
   owner.addAndMakeVisible(*controlRail);
 
+  canvasOverlayLayer = std::make_unique<CanvasOverlayLayer>(*canvas);
+  owner.addAndMakeVisible(*canvasOverlayLayer);
+
   canvas->setExternalDropZoneProvider([this] {
     if (canvas == nullptr)
       return std::vector<TGraphCanvas::ExternalDropZone>{};
@@ -2379,6 +2412,21 @@ EditorHandle::Impl::Impl(
   };
 
   syncRuntimeViewButtons();
+
+  if (canvasOverlayLayer != nullptr)
+    canvasOverlayLayer->toFront(false);
+  if (propertiesPanel != nullptr)
+    propertiesPanel->toFront(false);
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->toFront(false);
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->toFront(false);
+  if (diagnosticsDrawer != nullptr)
+    diagnosticsDrawer->toFront(false);
+  if (presetBrowserPanel != nullptr)
+    presetBrowserPanel->toFront(false);
+  if (documentNoticeBanner != nullptr)
+    documentNoticeBanner->toFront(false);
 
   rebuildAll(true);
 
@@ -2584,6 +2632,19 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
 
   if (canvas != nullptr)
     canvas->setBounds(area.reduced(0, 2));
+
+  if (canvasOverlayLayer != nullptr) {
+    juce::Rectangle<int> overlayBounds;
+    if (canvas != nullptr)
+      overlayBounds = canvas->getBounds();
+    if (inputRail != nullptr)
+      overlayBounds = overlayBounds.getUnion(inputRail->getBounds());
+    if (outputRail != nullptr)
+      overlayBounds = overlayBounds.getUnion(outputRail->getBounds());
+    if (controlRail != nullptr)
+      overlayBounds = overlayBounds.getUnion(controlRail->getBounds());
+    canvasOverlayLayer->setBounds(overlayBounds);
+  }
 }
 
 void EditorHandle::Impl::timerCallback() {

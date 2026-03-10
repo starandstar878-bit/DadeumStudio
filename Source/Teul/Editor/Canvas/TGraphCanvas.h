@@ -29,6 +29,8 @@ public:
   void paint(juce::Graphics &g) override;
   void paintOverChildren(juce::Graphics &g) override;
   void resized() override;
+  void paintConnectionLayer(juce::Graphics &g);
+  void paintHudLayer(juce::Graphics &g);
 
   void mouseDown(const juce::MouseEvent &event) override;
   void mouseDrag(const juce::MouseEvent &event) override;
