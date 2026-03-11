@@ -189,6 +189,8 @@ TPortComponent::HitResult TPortComponent::hitTestLocal(juce::Point<float> point)
   }
 
   if (isBus() && interactionBounds().contains(point)) {
+    if (!busOuterBounds().contains(point))
+      return result;
     result.hit = true;
     result.bundle = true;
     result.portId = portGroup.front().portId;
@@ -196,7 +198,7 @@ TPortComponent::HitResult TPortComponent::hitTestLocal(juce::Point<float> point)
     return result;
   }
 
-  if (!isBus() && interactionBounds().contains(point)) {
+  if (!isBus() && containsEllipse(monoBounds(), point)) {
     result.hit = true;
     result.bundle = false;
     result.portId = portGroup.front().portId;
@@ -268,6 +270,8 @@ void TPortComponent::paint(juce::Graphics &g) {
   const auto baseColor = getPortColor();
   const juce::Colour targetColor =
       isDragTargetTypeValid ? baseColor.brighter(0.35f) : juce::Colours::red;
+  const bool sourceChannelActive = dragActive && hoveredPortId != kInvalidPortId;
+  const bool sourceBundleActive = dragActive && hoveredBundle;
 
   if (!isBus()) {
     const auto circle = monoBounds();
@@ -276,7 +280,7 @@ void TPortComponent::paint(juce::Graphics &g) {
       g.fillEllipse(circle);
       g.setColour(targetColor.withAlpha(0.92f));
       g.drawEllipse(circle, juce::jmax(1.0f, 1.6f * scaleFactor));
-    } else if (hoveredPortId != kInvalidPortId) {
+    } else if (hoveredPortId != kInvalidPortId || sourceChannelActive) {
       g.setColour(baseColor.withAlpha(0.10f));
       g.fillEllipse(circle);
       g.setColour(baseColor.withAlpha(0.42f));
@@ -297,8 +301,10 @@ void TPortComponent::paint(juce::Graphics &g) {
 
   const auto outer = busOuterBounds();
   const float radius = juce::jmin(outer.getWidth(), outer.getHeight()) * 0.42f;
-  const bool bundleHover = !isDragTargetHighlighted && hoveredBundle;
-  const bool channelHover = !isDragTargetHighlighted && hoveredPortId != kInvalidPortId;
+  const bool bundleHover =
+      !isDragTargetHighlighted && (hoveredBundle || sourceBundleActive);
+  const bool channelHover =
+      !isDragTargetHighlighted && (hoveredPortId != kInvalidPortId || sourceChannelActive);
   const bool bundleTarget = isDragTargetHighlighted &&
                             (highlightBundle || highlightedPortId == kInvalidPortId);
   const bool channelTarget = isDragTargetHighlighted && !highlightBundle &&
@@ -368,6 +374,8 @@ void TPortComponent::mouseMove(const juce::MouseEvent &e) {
 }
 
 void TPortComponent::mouseExit(const juce::MouseEvent &) {
+  if (dragActive)
+    return;
   hoveredPortId = kInvalidPortId;
   hoveredBundle = false;
   repaint();
@@ -385,13 +393,21 @@ void TPortComponent::mouseDown(const juce::MouseEvent &e) {
     return;
 
   dragActive = true;
+  hoveredPortId = hit.bundle ? kInvalidPortId : hit.portId;
+  hoveredBundle = hit.bundle;
+  repaint();
   auto &canvas = ownerNode.getOwnerCanvas();
   const auto posInCanvas = e.getEventRelativeTo(&canvas).position;
+  const auto sourceAnchorLocal =
+      hit.bundle ? busOuterBounds().getCentre() : localAnchorForPort(hit.portId);
+  const auto sourceAnchorCanvas =
+      canvas.getLocalPoint(this, sourceAnchorLocal.roundToInt()).toFloat();
   auto it = std::find_if(portGroup.begin(), portGroup.end(),
                          [&](const TPort &port) { return port.portId == hit.portId; });
   if (it == portGroup.end())
     it = portGroup.begin();
-  canvas.beginConnectionDrag(*it, posInCanvas, hit.bundle ? hit.channelCount : 1);
+  canvas.beginConnectionDragFromPoint(*it, sourceAnchorCanvas, posInCanvas,
+                                      hit.bundle ? hit.channelCount : 1);
 }
 
 void TPortComponent::mouseDrag(const juce::MouseEvent &e) {
@@ -412,6 +428,7 @@ void TPortComponent::mouseUp(const juce::MouseEvent &e) {
   dragActive = false;
   auto &canvas = ownerNode.getOwnerCanvas();
   canvas.endConnectionDrag(e.getEventRelativeTo(&canvas).position);
+  updateHoverState(e.position);
 }
 
 } // namespace Teul
