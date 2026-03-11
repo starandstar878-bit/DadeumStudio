@@ -120,7 +120,7 @@ struct RailCardView {
   juce::Colour accent = juce::Colour(0xff64748b);
   std::vector<RailCardPortView> ports;
   bool warning = false;
-  bool groupedStereo = false;
+  bool groupedBus = false;
 };
 
 TRailKind fallbackRailKind(const juce::String &railId) {
@@ -305,7 +305,7 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
       card.badge = endpointBadgeText(*endpoint);
       card.accent = endpointAccent(*endpoint);
       card.warning = endpoint->missing;
-      card.groupedStereo = endpoint->stereo && endpoint->ports.size() >= 2;
+      card.groupedBus = endpoint->ports.size() >= 2;
       for (const auto &port : endpoint->ports) {
         const auto portAccent = port.dataType == TPortDataType::MIDI
                                     ? juce::Colour(0xff34d399)
@@ -350,6 +350,39 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
   return cards;
 }
 
+constexpr auto kRailBundlePortPrefix = "bundle:";
+
+juce::String makeRailBundlePortToken(const std::vector<RailCardPortView> &ports) {
+  juce::StringArray ids;
+  for (const auto &port : ports) {
+    if (port.portId.isNotEmpty())
+      ids.add(port.portId);
+  }
+
+  if (ids.isEmpty())
+    return {};
+
+  return juce::String(kRailBundlePortPrefix) + ids.joinIntoString("|");
+}
+
+bool isRailBundlePortToken(juce::StringRef token) {
+  return juce::String(token).startsWith(kRailBundlePortPrefix);
+}
+
+juce::StringArray railPortIdsFromToken(juce::StringRef token) {
+  const juce::String text(token);
+  if (!isRailBundlePortToken(text))
+    return {text};
+
+  return juce::StringArray::fromTokens(
+      text.substring((int)juce::String(kRailBundlePortPrefix).length()), "|", {});
+}
+
+juce::String primaryRailPortIdFromToken(juce::StringRef token) {
+  auto ids = railPortIdsFromToken(token);
+  return ids.isEmpty() ? juce::String{} : ids[0];
+}
+
 juce::String makeRailPortZoneId(const juce::String &cardId,
                                 const juce::String &portId) {
   return cardId + "::" + portId;
@@ -375,13 +408,15 @@ bool beginInputRailPortDrag(TGraphDocument &document, TGraphCanvas &canvas,
   if (endpoint == nullptr || endpoint->railId != "input-rail")
     return false;
 
-  if (document.findSystemRailPort(endpointId, endpointPortId) == nullptr)
+  const auto primaryPortId = primaryRailPortIdFromToken(endpointPortId);
+  if (primaryPortId.isEmpty() ||
+      document.findSystemRailPort(endpointId, primaryPortId) == nullptr)
     return false;
 
   TGraphCanvas::ExternalDragSource externalSource;
   externalSource.sourceId = endpointId;
   externalSource.sourcePortId = endpointPortId;
-  if (const auto *port = document.findSystemRailPort(endpointId, endpointPortId))
+  if (const auto *port = document.findSystemRailPort(endpointId, primaryPortId))
     externalSource.dataType = port->dataType;
   externalSource.kind = TGraphCanvas::ExternalDragSourceKind::GraphConnection;
   canvas.beginExternalConnectionDragFromPoint(externalSource, sourceAnchorView,
@@ -526,7 +561,7 @@ public:
                                                 zone.bounds.getSmallestIntegerContainer())
                                 .toFloat();
       zones.push_back({makeRailPortZoneId(zone.cardId, zone.portId),
-                       boundsInTarget, zone.dataType});
+                       boundsInTarget, zone.dataType, zone.elliptical});
     }
     return zones;
   }
@@ -573,12 +608,18 @@ public:
       return {};
 
     if (const auto *endpoint = document.controlState.findEndpoint(cardId)) {
+      if (isRailBundlePortToken(portId))
+        return endpoint->displayName + " / All channels";
+
       if (const auto *port = document.findSystemRailPort(cardId, portId))
         return endpoint->displayName + " / " + port->displayName;
       return endpoint->displayName;
     }
 
     if (const auto *source = document.controlState.findSource(cardId)) {
+      if (isRailBundlePortToken(portId))
+        return source->displayName + " / All channels";
+
       for (const auto &port : source->ports) {
         if (port.portId == portId)
           return source->displayName + " / " + port.displayName;
@@ -608,7 +649,7 @@ public:
     juce::String hoveredPortCard;
     juce::String hoveredPort;
     for (auto it = portHitZones.rbegin(); it != portHitZones.rend(); ++it) {
-      if (!it->bounds.contains(point))
+      if (!hitTestPortZone(*it, point))
         continue;
       hoveredPortCard = it->cardId;
       hoveredPort = it->portId;
@@ -660,7 +701,7 @@ public:
 
     const auto point = event.position;
     for (auto it = portHitZones.rbegin(); it != portHitZones.rend(); ++it) {
-      if (!it->bounds.contains(point))
+      if (!hitTestPortZone(*it, point))
         continue;
 
       if (cardSelectionHandler != nullptr) {
@@ -786,6 +827,8 @@ public:
   }
 
 private:
+  struct PortHitZone;
+
   static void drawBadge(juce::Graphics &g, juce::Rectangle<int> area,
                         const juce::String &text, juce::Colour accent) {
     g.setColour(accent.withAlpha(0.16f));
@@ -797,91 +840,125 @@ private:
     g.drawText(text, area, juce::Justification::centred, false);
   }
 
-  static void drawSocket(juce::Graphics &g, juce::Rectangle<float> area,
-                         juce::Colour accent, bool capOnRight) {
-    g.setColour(juce::Colour(0xff0f172a));
-    g.fillRoundedRectangle(area, area.getHeight() * 0.45f);
-    g.setColour(accent.withAlpha(0.92f));
-    g.drawRoundedRectangle(area, area.getHeight() * 0.45f, 1.0f);
+  static juce::Rectangle<float> monoSocketCircleBounds(
+      juce::Rectangle<float> area) {
+    const auto outer = area.reduced(0.5f, 0.5f);
+    const float diameter = juce::jmax(8.0f,
+                                      juce::jmin(outer.getWidth(), outer.getHeight()));
+    return juce::Rectangle<float>(diameter, diameter).withCentre(outer.getCentre());
+  }
 
+  static std::vector<juce::Rectangle<float>> busSocketChannelBounds(
+      juce::Rectangle<float> area, int channelCount) {
+    std::vector<juce::Rectangle<float>> bounds;
+    if (channelCount <= 0)
+      return bounds;
+
+    if (channelCount == 1) {
+      bounds.push_back(monoSocketCircleBounds(area));
+      return bounds;
+    }
+
+    const auto outer = area.reduced(0.5f, 0.5f);
+    const float circleDiameter = juce::jmax(8.0f, outer.getWidth() - 4.0f);
+    const float radius = circleDiameter * 0.5f;
+    const float firstCentreY = outer.getY() + radius + 2.0f;
+    const float lastCentreY = outer.getBottom() - radius - 2.0f;
+    const float step = channelCount > 1
+                           ? (lastCentreY - firstCentreY) /
+                                 (float)(channelCount - 1)
+                           : 0.0f;
+    const float centreX = outer.getCentreX();
+    bounds.reserve((size_t)channelCount);
+    for (int index = 0; index < channelCount; ++index) {
+      const float centreY = firstCentreY + step * (float)index;
+      bounds.push_back(juce::Rectangle<float>(circleDiameter, circleDiameter)
+                           .withCentre({centreX, centreY}));
+    }
+    return bounds;
+  }
+
+  static juce::Rectangle<float> busSocketOuterBounds(juce::Rectangle<float> area,
+                                                     int channelCount) {
+    if (channelCount <= 1)
+      return monoSocketCircleBounds(area);
+    return area.reduced(0.5f, 0.5f);
+  }
+
+  static void drawMonoSocketShape(juce::Graphics &g,
+                                  juce::Rectangle<float> area,
+                                  juce::Colour accent,
+                                  bool capOnRight) {
+    const auto circle = monoSocketCircleBounds(area).reduced(0.5f);
+    g.setColour(juce::Colour(0xff0f172a));
+    g.fillEllipse(circle);
+    g.setColour(accent.withAlpha(0.92f));
+    g.drawEllipse(circle, 1.0f);
+
+    const float dotSize = juce::jmax(4.0f, circle.getWidth() * 0.28f);
+    g.fillEllipse(circle.getCentreX() - dotSize * 0.5f,
+                  circle.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
+
+    const float capWidth = juce::jmin(4.0f, circle.getWidth() * 0.22f);
+    const float capHeight = juce::jmax(6.0f, circle.getHeight() * 0.32f);
     juce::Rectangle<float> cap;
     if (capOnRight) {
-      cap = juce::Rectangle<float>(area.getRight() - 4.0f, area.getY() + 1.0f,
-                                   4.0f, area.getHeight() - 2.0f);
+      cap = juce::Rectangle<float>(circle.getRight() - capWidth,
+                                   circle.getCentreY() - capHeight * 0.5f,
+                                   capWidth, capHeight);
     } else {
-      cap = juce::Rectangle<float>(area.getX(), area.getY() + 1.0f, 4.0f,
-                                   area.getHeight() - 2.0f);
+      cap = juce::Rectangle<float>(circle.getX(),
+                                   circle.getCentreY() - capHeight * 0.5f,
+                                   capWidth, capHeight);
     }
 
     g.setColour(accent.withAlpha(0.78f));
-    g.fillRoundedRectangle(cap, cap.getHeight() * 0.45f);
+    g.fillRoundedRectangle(cap, cap.getWidth() * 0.5f);
   }
 
-  static void groupedStereoSocketSections(juce::Rectangle<float> area,
-                                          juce::Rectangle<float> &topZone,
-                                          juce::Rectangle<float> &bottomZone,
-                                          juce::Rectangle<float> &bridge) {
-    const auto outer = area.reduced(0.5f, 0.5f);
-    const float overlap = juce::jmax(1.0f, outer.getHeight() * 0.08f);
-    const float halfHeight = outer.getHeight() * 0.5f;
-    topZone = juce::Rectangle<float>(outer.getX(), outer.getY(), outer.getWidth(),
-                                     halfHeight + overlap);
-    bottomZone = juce::Rectangle<float>(outer.getX(),
-                                        outer.getBottom() - halfHeight - overlap,
-                                        outer.getWidth(), halfHeight + overlap);
-    const float bridgeHeight = juce::jmax(8.0f, outer.getHeight() * 0.28f);
-    bridge = juce::Rectangle<float>(
-        outer.getX(), outer.getCentreY() - bridgeHeight * 0.5f, outer.getWidth(),
-        bridgeHeight);
-  }
+  static void drawBusSocketShape(juce::Graphics &g,
+                                 juce::Rectangle<float> area,
+                                 juce::Colour accent,
+                                 bool capOnRight,
+                                 int channelCount) {
+    if (channelCount <= 1) {
+      drawMonoSocketShape(g, area, accent, capOnRight);
+      return;
+    }
 
-  static void drawGroupedStereoSocket(juce::Graphics &g,
-                                      juce::Rectangle<float> area,
-                                      juce::Colour accent,
-                                      bool capOnRight) {
-    const auto outer = area.reduced(0.5f, 0.5f);
-    juce::Rectangle<float> topZone;
-    juce::Rectangle<float> bottomZone;
-    juce::Rectangle<float> bridge;
-    groupedStereoSocketSections(outer, topZone, bottomZone, bridge);
-
+    const auto outer = busSocketOuterBounds(area, channelCount);
+    const auto channelBounds = busSocketChannelBounds(outer, channelCount);
     const float radius = outer.getWidth() * 0.5f;
     g.setColour(juce::Colour(0xff0f172a));
     g.fillRoundedRectangle(outer, radius);
     g.setColour(accent.withAlpha(0.92f));
     g.drawRoundedRectangle(outer, radius, 1.0f);
 
-    const float laneInsetX = juce::jmax(1.2f, outer.getWidth() * 0.18f);
-    const float laneInsetY = juce::jmax(1.4f, outer.getHeight() * 0.08f);
-    const auto topLane = topZone.reduced(laneInsetX, laneInsetY);
-    const auto bottomLane = bottomZone.reduced(laneInsetX, laneInsetY);
-    const auto bridgeLane = bridge.reduced(laneInsetX * 0.8f, 0.8f);
+    for (const auto &channel : channelBounds) {
+      const auto lane = channel.reduced(channel.getWidth() * 0.12f,
+                                        channel.getHeight() * 0.12f);
+      g.setColour(accent.withAlpha(0.12f));
+      g.fillEllipse(lane);
+      g.setColour(accent.withAlpha(0.32f));
+      g.drawEllipse(lane, 1.0f);
 
-    g.setColour(accent.withAlpha(0.12f));
-    g.fillRoundedRectangle(topLane, juce::jmax(3.0f, topLane.getWidth() * 0.45f));
-    g.fillRoundedRectangle(bottomLane,
-                           juce::jmax(3.0f, bottomLane.getWidth() * 0.45f));
-    g.setColour(accent.withAlpha(0.26f));
-    g.fillRoundedRectangle(bridgeLane,
-                           juce::jmax(3.0f, bridgeLane.getWidth() * 0.45f));
+      const float dotSize = juce::jmax(4.0f, lane.getWidth() * 0.24f);
+      g.setColour(accent.withAlpha(0.95f));
+      g.fillEllipse(lane.getCentreX() - dotSize * 0.5f,
+                    lane.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
+    }
 
-    const float dotSize = juce::jmax(4.0f, outer.getWidth() * 0.34f);
-    const float centreX = outer.getCentreX() - dotSize * 0.5f;
-    g.setColour(accent.withAlpha(0.95f));
-    g.fillEllipse(centreX, topZone.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
-    g.fillEllipse(centreX, bottomZone.getCentreY() - dotSize * 0.5f, dotSize,
-                  dotSize);
-
+    const float capWidth = juce::jmin(4.0f, outer.getWidth() * 0.24f);
+    const float capHeight = juce::jmax(8.0f, outer.getHeight() * 0.22f);
     juce::Rectangle<float> cap;
-    const float capWidth = juce::jmin(4.0f, area.getWidth() * 0.3f);
     if (capOnRight) {
       cap = juce::Rectangle<float>(outer.getRight() - capWidth,
-                                   outer.getCentreY() - bridge.getHeight() * 0.5f,
-                                   capWidth, bridge.getHeight());
+                                   outer.getCentreY() - capHeight * 0.5f,
+                                   capWidth, capHeight);
     } else {
       cap = juce::Rectangle<float>(outer.getX(),
-                                   outer.getCentreY() - bridge.getHeight() * 0.5f,
-                                   capWidth, bridge.getHeight());
+                                   outer.getCentreY() - capHeight * 0.5f,
+                                   capWidth, capHeight);
     }
 
     g.setColour(accent.withAlpha(0.78f));
@@ -902,7 +979,7 @@ private:
 
   void drawPortStateOverlay(juce::Graphics &g, juce::Rectangle<float> bounds,
                             juce::Colour accent, bool hovered,
-                            bool active) const {
+                            bool active, bool elliptical = false) const {
     if (!hovered && !active)
       return;
 
@@ -916,9 +993,15 @@ private:
     const auto outline = active ? accent.brighter(0.3f).withAlpha(0.98f)
                                 : accent.withAlpha(0.72f);
     g.setColour(fill);
-    g.fillRoundedRectangle(overlayBounds, radius);
+    if (elliptical)
+      g.fillEllipse(overlayBounds);
+    else
+      g.fillRoundedRectangle(overlayBounds, radius);
     g.setColour(outline);
-    g.drawRoundedRectangle(overlayBounds, radius, active ? 1.6f : 1.1f);
+    if (elliptical)
+      g.drawEllipse(overlayBounds, active ? 1.6f : 1.1f);
+    else
+      g.drawRoundedRectangle(overlayBounds, radius, active ? 1.6f : 1.1f);
   }
   bool isDropTargetPort(const juce::String &cardId,
                         const juce::String &portId) const {
@@ -933,47 +1016,71 @@ private:
   }
 
   void drawDropTargetOverlay(juce::Graphics &g, juce::Rectangle<float> bounds,
-                             juce::Colour accent) const {
+                             juce::Colour accent,
+                             bool elliptical = false) const {
     const auto overlay = dropTargetColour(accent);
-    const auto rounded = juce::jmax(3.0f, juce::jmin(bounds.getWidth(),
-                                                     bounds.getHeight()) *
+    const auto expanded = bounds.expanded(1.5f);
+    const auto rounded = juce::jmax(3.0f, juce::jmin(expanded.getWidth(),
+                                                     expanded.getHeight()) *
                                               0.45f);
     g.setColour(overlay.withAlpha(dropTargetCanConnect ? 0.20f : 0.18f));
-    g.fillRoundedRectangle(bounds.expanded(1.5f), rounded);
+    if (elliptical)
+      g.fillEllipse(expanded);
+    else
+      g.fillRoundedRectangle(expanded, rounded);
     g.setColour(overlay.withAlpha(0.96f));
-    g.drawRoundedRectangle(bounds.expanded(1.5f), rounded,
-                           dropTargetCanConnect ? 2.0f : 1.6f);
+    if (elliptical)
+      g.drawEllipse(expanded, dropTargetCanConnect ? 2.0f : 1.6f);
+    else
+      g.drawRoundedRectangle(expanded, rounded,
+                             dropTargetCanConnect ? 2.0f : 1.6f);
   }
 
-  static void drawVerticalSingleSocket(juce::Graphics &g,
-                                       juce::Rectangle<float> area,
-                                       juce::Colour accent,
-                                       bool capOnRight) {
-    const auto outer = area.reduced(0.5f, 0.5f);
-    const float radius = outer.getWidth() * 0.5f;
-    g.setColour(juce::Colour(0xff0f172a));
-    g.fillRoundedRectangle(outer, radius);
-    g.setColour(accent.withAlpha(0.92f));
-    g.drawRoundedRectangle(outer, radius, 1.0f);
+  void drawMonoPortSlot(juce::Graphics &g, const juce::String &cardId,
+                        const RailCardPortView &port,
+                        juce::Rectangle<float> area, bool capOnRight) {
+    const auto circle = monoSocketCircleBounds(area);
+    drawMonoSocketShape(g, area, port.accent, capOnRight);
+    drawPortStateOverlay(g, circle, port.accent,
+                         isHoveredPort(cardId, port.portId),
+                         isActivePort(cardId, port.portId), true);
+    if (isDropTargetPort(cardId, port.portId))
+      drawDropTargetOverlay(g, circle, port.accent, true);
+    addPortHitZone(cardId, port.portId, port.dataType, circle, true);
+  }
 
-    const float dotSize = juce::jmax(4.0f, outer.getWidth() * 0.34f);
-    g.fillEllipse(outer.getCentreX() - dotSize * 0.5f,
-                  outer.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
+  void drawBusPortSlot(juce::Graphics &g, const RailCardView &card,
+                       juce::Rectangle<float> area, bool capOnRight) {
+    if (card.ports.empty())
+      return;
 
-    juce::Rectangle<float> cap;
-    const float capWidth = juce::jmin(4.0f, outer.getWidth() * 0.3f);
-    if (capOnRight) {
-      cap = juce::Rectangle<float>(outer.getRight() - capWidth,
-                                   outer.getCentreY() - outer.getHeight() * 0.18f,
-                                   capWidth, outer.getHeight() * 0.36f);
-    } else {
-      cap = juce::Rectangle<float>(outer.getX(),
-                                   outer.getCentreY() - outer.getHeight() * 0.18f,
-                                   capWidth, outer.getHeight() * 0.36f);
+    const auto bundleToken = makeRailBundlePortToken(card.ports);
+    const auto outer = busSocketOuterBounds(area, (int)card.ports.size());
+    drawBusSocketShape(g, area, card.accent, capOnRight, (int)card.ports.size());
+
+    if (bundleToken.isNotEmpty()) {
+      drawPortStateOverlay(g, outer, card.accent,
+                           isHoveredPort(card.itemId, bundleToken),
+                           isActivePort(card.itemId, bundleToken));
+      if (isDropTargetPort(card.itemId, bundleToken))
+        drawDropTargetOverlay(g, outer, card.accent);
+      addPortHitZone(card.itemId, bundleToken, card.ports.front().dataType, outer,
+                     false);
     }
 
-    g.setColour(accent.withAlpha(0.78f));
-    g.fillRoundedRectangle(cap, cap.getWidth() * 0.5f);
+    const auto channelBounds = busSocketChannelBounds(outer, (int)card.ports.size());
+    const int channelCount = juce::jmin((int)card.ports.size(),
+                                        (int)channelBounds.size());
+    for (int index = 0; index < channelCount; ++index) {
+      const auto &port = card.ports[(size_t)index];
+      const auto &channel = channelBounds[(size_t)index];
+      drawPortStateOverlay(g, channel, port.accent,
+                           isHoveredPort(card.itemId, port.portId),
+                           isActivePort(card.itemId, port.portId), true);
+      if (isDropTargetPort(card.itemId, port.portId))
+        drawDropTargetOverlay(g, channel, port.accent, true);
+      addPortHitZone(card.itemId, port.portId, port.dataType, channel, true);
+    }
   }
 
   void drawCollapsedVerticalPorts(juce::Graphics &g, juce::Rectangle<int> area,
@@ -981,46 +1088,23 @@ private:
     const bool portsOnRight = currentRailKind() != TRailKind::output;
     const int gap = 8;
     const int count = juce::jmax(1, (int)cards.size());
-    const int slotHeight = juce::jlimit(20, 40,
+    const int slotHeight = juce::jlimit(18, 44,
                                         (area.getHeight() - gap * (count - 1)) /
                                             count);
 
-    for (int index = 0; index < count && area.getHeight() >= 18; ++index) {
+    for (int index = 0; index < count && area.getHeight() >= 16; ++index) {
       auto slot = area.removeFromTop(slotHeight).toFloat();
       area.removeFromTop(gap);
       const auto &card = cards[(size_t)index];
-      auto socketBounds = slot.reduced(4.0f, 1.0f);
+      auto socketBounds = slot.reduced(3.0f, 1.0f);
       socketBounds = socketBounds.withSizeKeepingCentre(
-          juce::jmin(18.0f, socketBounds.getWidth()), socketBounds.getHeight());
+          juce::jmin(20.0f, socketBounds.getWidth()), socketBounds.getHeight());
 
-      if (card.groupedStereo && card.ports.size() >= 2) {
-        drawGroupedStereoSocket(g, socketBounds, card.accent, portsOnRight);
-        juce::Rectangle<float> topSocketBounds;
-        juce::Rectangle<float> bottomSocketBounds;
-        juce::Rectangle<float> bridgeBounds;
-        groupedStereoSocketSections(socketBounds, topSocketBounds,
-                                    bottomSocketBounds, bridgeBounds);
-        drawPortStateOverlay(g, topSocketBounds.reduced(0.4f),
-                             card.ports[0].accent,
-                             isHoveredPort(card.itemId, card.ports[0].portId),
-                             isActivePort(card.itemId, card.ports[0].portId));
-        drawPortStateOverlay(g, bottomSocketBounds.reduced(0.4f),
-                             card.ports[1].accent,
-                             isHoveredPort(card.itemId, card.ports[1].portId),
-                             isActivePort(card.itemId, card.ports[1].portId));
-        addPortHitZone(card.itemId, card.ports[0].portId,
-                       card.ports[0].dataType, topSocketBounds);
-        addPortHitZone(card.itemId, card.ports[1].portId,
-                       card.ports[1].dataType, bottomSocketBounds);
-      } else if (!card.ports.empty()) {
-        drawVerticalSingleSocket(g, socketBounds, card.ports.front().accent,
-                                 portsOnRight);
-        drawPortStateOverlay(g, socketBounds, card.ports.front().accent,
-                             isHoveredPort(card.itemId, card.ports.front().portId),
-                             isActivePort(card.itemId, card.ports.front().portId));
-        addPortHitZone(card.itemId, card.ports.front().portId,
-                       card.ports.front().dataType, socketBounds);
-      }
+      if (card.groupedBus)
+        drawBusPortSlot(g, card, socketBounds, portsOnRight);
+      else if (!card.ports.empty())
+        drawMonoPortSlot(g, card.itemId, card.ports.front(), socketBounds,
+                         portsOnRight);
     }
   }
 
@@ -1031,19 +1115,27 @@ private:
     const int height = juce::jmax(12, area.getHeight() - 6);
 
     for (const auto &card : cards) {
-      for (const auto &port : card.ports) {
-        if (x + 22 > area.getRight())
+      if (card.groupedBus) {
+        const int width = 20;
+        if (x + width > area.getRight())
           return;
-
         auto socketBounds = juce::Rectangle<float>((float)x,
                                                    (float)(area.getCentreY() - height / 2),
-                                                   18.0f, (float)height);
-        drawVerticalSingleSocket(g, socketBounds, port.accent, true);
-        drawPortStateOverlay(g, socketBounds, port.accent,
-                             isHoveredPort(card.itemId, port.portId),
-                             isActivePort(card.itemId, port.portId));
-        addPortHitZone(card.itemId, port.portId, port.dataType, socketBounds);
-        x += 18 + gap;
+                                                   (float)width, (float)height);
+        drawBusPortSlot(g, card, socketBounds, true);
+        x += width + gap;
+        continue;
+      }
+
+      for (const auto &port : card.ports) {
+        const int width = 18;
+        if (x + width > area.getRight())
+          return;
+        auto socketBounds = juce::Rectangle<float>((float)x,
+                                                   (float)(area.getCentreY() - height / 2),
+                                                   (float)width, (float)height);
+        drawMonoPortSlot(g, card.itemId, port, socketBounds, true);
+        x += width + gap;
       }
     }
   }
@@ -1098,8 +1190,9 @@ private:
     g.fillRoundedRectangle(strip, 2.0f);
 
     auto content = area.toNearestInt().reduced(10, 7);
-    auto portColumn = portsOnRight ? content.removeFromRight(28)
-                                   : content.removeFromLeft(28);
+    const int portColumnWidth = card.groupedBus ? 30 : 18;
+    auto portColumn = portsOnRight ? content.removeFromRight(portColumnWidth)
+                                   : content.removeFromLeft(portColumnWidth);
     if (portsOnRight)
       content.removeFromRight(6);
     else
@@ -1122,61 +1215,12 @@ private:
                        juce::Justification::centredLeft, 1, 0.9f);
     }
 
-    auto portArea = portColumn.toFloat().reduced(1.5f, 0.5f);
-    if (card.groupedStereo && card.ports.size() >= 2) {
-      auto groupedSocketBounds = portArea.reduced(2.0f, 0.0f);
-      drawGroupedStereoSocket(g, groupedSocketBounds, accent, portsOnRight);
-      juce::Rectangle<float> topSocketBounds;
-      juce::Rectangle<float> bottomSocketBounds;
-      juce::Rectangle<float> bridgeBounds;
-      groupedStereoSocketSections(groupedSocketBounds, topSocketBounds,
-                                  bottomSocketBounds, bridgeBounds);
-      drawPortStateOverlay(g, topSocketBounds.reduced(0.4f),
-                           card.ports[0].accent,
-                           isHoveredPort(card.itemId, card.ports[0].portId),
-                           isActivePort(card.itemId, card.ports[0].portId));
-      drawPortStateOverlay(g, bottomSocketBounds.reduced(0.4f),
-                           card.ports[1].accent,
-                           isHoveredPort(card.itemId, card.ports[1].portId),
-                           isActivePort(card.itemId, card.ports[1].portId));
-      if (isDropTargetPort(card.itemId, card.ports[0].portId))
-        drawDropTargetOverlay(g, topSocketBounds.reduced(0.4f),
-                              card.ports[0].accent);
-      if (isDropTargetPort(card.itemId, card.ports[1].portId))
-        drawDropTargetOverlay(g, bottomSocketBounds.reduced(0.4f),
-                              card.ports[1].accent);
-      addPortHitZone(card.itemId, card.ports[0].portId,
-                     card.ports[0].dataType, topSocketBounds);
-      addPortHitZone(card.itemId, card.ports[1].portId,
-                     card.ports[1].dataType, bottomSocketBounds);
-    } else {
-      const int portCount = juce::jmin(3, (int)card.ports.size());
-      if (portCount > 0) {
-        const float gap = 4.0f;
-        const float slotHeight =
-            (portArea.getHeight() - gap * (float)(portCount - 1)) / (float)portCount;
-        float y = portArea.getY();
-        for (int index = 0; index < portCount; ++index) {
-          auto socketBounds = juce::Rectangle<float>(
-              portArea.getX(), y, portArea.getWidth(), slotHeight)
-                                  .reduced(2.0f, 0.5f);
-          y += slotHeight + gap;
-          drawVerticalSingleSocket(g, socketBounds,
-                                   card.ports[(size_t)index].accent,
-                                   portsOnRight);
-          drawPortStateOverlay(g, socketBounds,
-                               card.ports[(size_t)index].accent,
-                               isHoveredPort(card.itemId,
-                                             card.ports[(size_t)index].portId),
-                               isActivePort(card.itemId,
-                                            card.ports[(size_t)index].portId));
-          if (isDropTargetPort(card.itemId, card.ports[(size_t)index].portId))
-            drawDropTargetOverlay(g, socketBounds,
-                                  card.ports[(size_t)index].accent);
-          addPortHitZone(card.itemId, card.ports[(size_t)index].portId,
-                         card.ports[(size_t)index].dataType, socketBounds);
-        }
-      }
+    auto portArea = portColumn.toFloat().reduced(0.5f, 0.5f);
+    if (card.groupedBus) {
+      drawBusPortSlot(g, card, portArea, portsOnRight);
+    } else if (!card.ports.empty()) {
+      drawMonoPortSlot(g, card.itemId, card.ports.front(), portArea,
+                       portsOnRight);
     }
 
     if (card.itemId.isNotEmpty())
@@ -1259,12 +1303,29 @@ private:
       cardHitZones.push_back({card.itemId, area.toNearestInt()});
   }
 
+  static bool hitTestPortZone(const PortHitZone &zone,
+                              juce::Point<float> point) {
+    if (!zone.elliptical)
+      return zone.bounds.contains(point);
+
+    const auto bounds = zone.bounds;
+    const auto radiusX = bounds.getWidth() * 0.5f;
+    const auto radiusY = bounds.getHeight() * 0.5f;
+    if (radiusX <= 0.0f || radiusY <= 0.0f)
+      return false;
+
+    const auto dx = (point.x - bounds.getCentreX()) / radiusX;
+    const auto dy = (point.y - bounds.getCentreY()) / radiusY;
+    return dx * dx + dy * dy <= 1.0f;
+  }
+
   void addPortHitZone(const juce::String &cardId, const juce::String &portId,
-                      TPortDataType dataType, juce::Rectangle<float> bounds) {
+                      TPortDataType dataType, juce::Rectangle<float> bounds,
+                      bool elliptical = false) {
     if (cardId.isEmpty() || portId.isEmpty())
       return;
 
-    portHitZones.push_back({cardId, portId, dataType, bounds.expanded(4.0f, 5.0f)});
+    portHitZones.push_back({cardId, portId, dataType, bounds, elliptical});
   }
 
   juce::Point<float> localPointToPortDragTarget(juce::Point<float> localPoint) const {
@@ -1335,6 +1396,7 @@ private:
     juce::String portId;
     TPortDataType dataType = TPortDataType::Audio;
     juce::Rectangle<float> bounds;
+    bool elliptical = false;
   };
 
   struct ActivePortDragState {

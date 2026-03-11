@@ -8,6 +8,8 @@
 namespace Teul {
 namespace {
 
+constexpr auto kRailBundlePortPrefix = "bundle:";
+
 bool splitRailPortZoneId(const juce::String &zoneId,
                          juce::String &endpointId,
                          juce::String &portId) {
@@ -20,15 +22,134 @@ bool splitRailPortZoneId(const juce::String &zoneId,
   return endpointId.isNotEmpty() && portId.isNotEmpty();
 }
 
-bool isOutputRailZone(const TGraphDocument &document, const juce::String &zoneId) {
-  juce::String endpointId;
-  juce::String portId;
-  if (!splitRailPortZoneId(zoneId, endpointId, portId))
+bool isRailBundlePortToken(juce::StringRef token) {
+  return juce::String(token).startsWith(kRailBundlePortPrefix);
+}
+
+juce::StringArray railPortIdsFromToken(juce::StringRef token) {
+  const juce::String text(token);
+  if (!isRailBundlePortToken(text))
+    return {text};
+
+  return juce::StringArray::fromTokens(
+      text.substring((int)juce::String(kRailBundlePortPrefix).length()), "|", {});
+}
+
+bool externalZoneContains(const TGraphCanvas::ExternalDropZone &zone,
+                          juce::Point<float> pointView) {
+  if (!zone.elliptical)
+    return zone.boundsView.contains(pointView);
+
+  const auto bounds = zone.boundsView;
+  const auto radiusX = bounds.getWidth() * 0.5f;
+  const auto radiusY = bounds.getHeight() * 0.5f;
+  if (radiusX <= 0.0f || radiusY <= 0.0f)
     return false;
 
-  const auto *endpoint = document.controlState.findEndpoint(endpointId);
-  return endpoint != nullptr && endpoint->railId == "output-rail" &&
-         document.findSystemRailPort(endpointId, portId) != nullptr;
+  const auto dx = (pointView.x - bounds.getCentreX()) / radiusX;
+  const auto dy = (pointView.y - bounds.getCentreY()) / radiusY;
+  return dx * dx + dy * dy <= 1.0f;
+}
+
+bool splitStereoLabel(juce::StringRef name, bool &isLeft, juce::String &suffix) {
+  const juce::String trimmed = juce::String(name).trim();
+  if (trimmed.equalsIgnoreCase("L")) {
+    isLeft = true;
+    suffix.clear();
+    return true;
+  }
+  if (trimmed.equalsIgnoreCase("R")) {
+    isLeft = false;
+    suffix.clear();
+    return true;
+  }
+  if (trimmed.startsWithIgnoreCase("L ")) {
+    isLeft = true;
+    suffix = trimmed.substring(2).trim();
+    return true;
+  }
+  if (trimmed.startsWithIgnoreCase("R ")) {
+    isLeft = false;
+    suffix = trimmed.substring(2).trim();
+    return true;
+  }
+  return false;
+}
+
+bool buildNodeBundleEndpoints(const TGraphDocument &document, NodeId nodeId,
+                              PortId anchorPortId, int channelCount,
+                              std::vector<TEndpoint> &endpointsOut) {
+  endpointsOut.clear();
+  if (channelCount <= 0)
+    return false;
+
+  const auto *node = document.findNode(nodeId);
+  const auto *anchorPort = node != nullptr ? node->findPort(anchorPortId) : nullptr;
+  if (anchorPort == nullptr)
+    return false;
+
+  if (channelCount == 1) {
+    endpointsOut.push_back(TEndpoint::makeNodePort(nodeId, anchorPortId));
+    return true;
+  }
+
+  if (channelCount != 2 || anchorPort->dataType != TPortDataType::Audio)
+    return false;
+
+  bool anchorIsLeft = false;
+  juce::String suffix;
+  if (!splitStereoLabel(anchorPort->name, anchorIsLeft, suffix))
+    return false;
+
+  const TPort *siblingPort = nullptr;
+  for (const auto &candidate : node->ports) {
+    if (candidate.portId == anchorPort->portId ||
+        candidate.direction != anchorPort->direction ||
+        candidate.dataType != anchorPort->dataType) {
+      continue;
+    }
+
+    bool candidateIsLeft = false;
+    juce::String candidateSuffix;
+    if (!splitStereoLabel(candidate.name, candidateIsLeft, candidateSuffix) ||
+        candidateIsLeft == anchorIsLeft || candidateSuffix != suffix) {
+      continue;
+    }
+
+    siblingPort = &candidate;
+    break;
+  }
+
+  if (siblingPort == nullptr)
+    return false;
+
+  endpointsOut.resize(2);
+  if (anchorIsLeft) {
+    endpointsOut[0] = TEndpoint::makeNodePort(nodeId, anchorPort->portId);
+    endpointsOut[1] = TEndpoint::makeNodePort(nodeId, siblingPort->portId);
+  } else {
+    endpointsOut[0] = TEndpoint::makeNodePort(nodeId, siblingPort->portId);
+    endpointsOut[1] = TEndpoint::makeNodePort(nodeId, anchorPort->portId);
+  }
+  return true;
+}
+
+bool buildRailBundleEndpoints(const TGraphDocument &document,
+                              const juce::String &endpointId,
+                              const juce::String &portToken,
+                              std::vector<TEndpoint> &endpointsOut) {
+  endpointsOut.clear();
+  const auto portIds = railPortIdsFromToken(portToken);
+  if (portIds.isEmpty())
+    return false;
+
+  for (const auto &portId : portIds) {
+    if (document.findSystemRailPort(endpointId, portId) == nullptr)
+      return false;
+    endpointsOut.push_back(TEndpoint::makeRailPort(endpointId, portId));
+  }
+
+  return true;
 }
 
 bool connectionExists(const TGraphDocument &document,
@@ -48,6 +169,34 @@ bool connectionExists(const TGraphDocument &document,
                               connection.to.railEndpointId == to.railEndpointId &&
                               connection.to.railPortId == to.railPortId;
                      });
+}
+
+bool canConnectEndpointVectors(const TGraphDocument &document,
+                               const std::vector<TEndpoint> &fromEndpoints,
+                               const std::vector<TEndpoint> &toEndpoints) {
+  if (fromEndpoints.empty() || fromEndpoints.size() != toEndpoints.size())
+    return false;
+
+  for (size_t index = 0; index < fromEndpoints.size(); ++index) {
+    if (connectionExists(document, fromEndpoints[index], toEndpoints[index]))
+      return false;
+  }
+
+  return true;
+}
+
+bool isOutputRailZone(const TGraphDocument &document, const juce::String &zoneId) {
+  juce::String endpointId;
+  juce::String portToken;
+  if (!splitRailPortZoneId(zoneId, endpointId, portToken))
+    return false;
+
+  const auto *endpoint = document.controlState.findEndpoint(endpointId);
+  if (endpoint == nullptr || endpoint->railId != "output-rail")
+    return false;
+
+  std::vector<TEndpoint> endpoints;
+  return buildRailBundleEndpoints(document, endpointId, portToken, endpoints);
 }
 
 } // namespace
@@ -123,7 +272,7 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
   }
 
   for (const auto &zone : externalDropZoneProvider()) {
-    if (!zone.boundsView.contains(mousePosView))
+    if (!externalZoneContains(zone, mousePosView))
       continue;
 
     wireDragState.targetExternalZoneId = zone.zoneId;
@@ -165,12 +314,19 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
     if (targetPort == nullptr || targetPort->direction != TPortDirection::Input)
       return false;
 
-    const auto from = TEndpoint::makeRailPort(wireDragState.sourceExternalId,
-                                              wireDragState.sourceExternalPortId);
-    const auto to =
-        TEndpoint::makeNodePort(wireDragState.targetNodeId,
-                                wireDragState.targetPortId);
-    return !connectionExists(document, from, to);
+    std::vector<TEndpoint> fromEndpoints;
+    std::vector<TEndpoint> toEndpoints;
+    if (!buildRailBundleEndpoints(document, wireDragState.sourceExternalId,
+                                  wireDragState.sourceExternalPortId,
+                                  fromEndpoints)) {
+      return false;
+    }
+    if (!buildNodeBundleEndpoints(document, wireDragState.targetNodeId,
+                                  wireDragState.targetPortId,
+                                  (int)fromEndpoints.size(), toEndpoints)) {
+      return false;
+    }
+    return canConnectEndpointVectors(document, fromEndpoints, toEndpoints);
   }
 
   const TPort *sourcePort =
@@ -183,17 +339,23 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
       return false;
 
     juce::String endpointId;
-    juce::String portId;
+    juce::String portToken;
     if (!splitRailPortZoneId(wireDragState.targetExternalZoneId, endpointId,
-                             portId)) {
+                             portToken)) {
       return false;
     }
 
-    const auto from =
-        TEndpoint::makeNodePort(wireDragState.sourceNodeId,
-                                wireDragState.sourcePortId);
-    const auto to = TEndpoint::makeRailPort(endpointId, portId);
-    return !connectionExists(document, from, to);
+    std::vector<TEndpoint> fromEndpoints;
+    std::vector<TEndpoint> toEndpoints;
+    if (!buildNodeBundleEndpoints(document, wireDragState.sourceNodeId,
+                                  wireDragState.sourcePortId,
+                                  railPortIdsFromToken(portToken).size(),
+                                  fromEndpoints)) {
+      return false;
+    }
+    if (!buildRailBundleEndpoints(document, endpointId, portToken, toEndpoints))
+      return false;
+    return canConnectEndpointVectors(document, fromEndpoints, toEndpoints);
   }
 
   if (wireDragState.targetNodeId == kInvalidNodeId ||
@@ -220,6 +382,18 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
   if (!isCurrentDragTargetConnectable())
     return;
 
+  const auto commitEndpointVectors = [this](const std::vector<TEndpoint> &froms,
+                                            const std::vector<TEndpoint> &tos) {
+    for (size_t index = 0; index < froms.size() && index < tos.size(); ++index) {
+      TConnection conn;
+      conn.connectionId = document.allocConnectionId();
+      conn.from = froms[index];
+      conn.to = tos[index];
+      document.executeCommand(std::make_unique<AddConnectionCommand>(conn));
+      selectedConnectionId = conn.connectionId;
+    }
+  };
+
   if (wireDragState.targetExternalZoneId.isNotEmpty()) {
     if (wireDragState.sourceExternalKind == ExternalDragSourceKind::Assignment &&
         wireDragState.sourceExternalId.isNotEmpty()) {
@@ -235,17 +409,19 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
     }
 
     juce::String endpointId;
-    juce::String portId;
+    juce::String portToken;
     if (splitRailPortZoneId(wireDragState.targetExternalZoneId, endpointId,
-                            portId)) {
-      TConnection conn;
-      conn.connectionId = document.allocConnectionId();
-      conn.from = TEndpoint::makeNodePort(wireDragState.sourceNodeId,
-                                          wireDragState.sourcePortId);
-      conn.to = TEndpoint::makeRailPort(endpointId, portId);
-      document.executeCommand(std::make_unique<AddConnectionCommand>(conn));
-      selectedConnectionId = conn.connectionId;
-      return;
+                            portToken)) {
+      std::vector<TEndpoint> fromEndpoints;
+      std::vector<TEndpoint> toEndpoints;
+      if (buildNodeBundleEndpoints(document, wireDragState.sourceNodeId,
+                                   wireDragState.sourcePortId,
+                                   railPortIdsFromToken(portToken).size(),
+                                   fromEndpoints) &&
+          buildRailBundleEndpoints(document, endpointId, portToken, toEndpoints)) {
+        commitEndpointVectors(fromEndpoints, toEndpoints);
+        return;
+      }
     }
 
     if (externalConnectionCommitHandler != nullptr) {
@@ -255,6 +431,20 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
                                       wireDragState.targetExternalZoneId);
     }
     return;
+  }
+
+  if (wireDragState.sourceExternalId.isNotEmpty()) {
+    std::vector<TEndpoint> fromEndpoints;
+    std::vector<TEndpoint> toEndpoints;
+    if (buildRailBundleEndpoints(document, wireDragState.sourceExternalId,
+                                 wireDragState.sourceExternalPortId,
+                                 fromEndpoints) &&
+        buildNodeBundleEndpoints(document, wireDragState.targetNodeId,
+                                 wireDragState.targetPortId,
+                                 (int)fromEndpoints.size(), toEndpoints)) {
+      commitEndpointVectors(fromEndpoints, toEndpoints);
+      return;
+    }
   }
 
   TConnection conn;

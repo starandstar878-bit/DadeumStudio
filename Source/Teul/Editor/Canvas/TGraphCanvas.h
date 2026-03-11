@@ -119,6 +119,7 @@ public:
     juce::String zoneId;
     juce::Rectangle<float> boundsView;
     TPortDataType dataType = TPortDataType::Audio;
+    bool elliptical = false;
   };
 
   using ExternalDropZoneProvider =
