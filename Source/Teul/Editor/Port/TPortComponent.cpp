@@ -40,12 +40,12 @@ TPortComponent::~TPortComponent() = default;
 
 void TPortComponent::setScaleFactor(float newScale) {
   scaleFactor = juce::jmax(0.1f, newScale);
-  const int laneWidth = juce::jmax(20, juce::roundToInt(36.0f * scaleFactor));
+  const int laneWidth = juce::jmax(20, juce::roundToInt(34.0f * scaleFactor));
   const int monoHeight = juce::jmax(18, juce::roundToInt(22.0f * scaleFactor));
   if (isBus()) {
     const int height = juce::jmax(
-        monoHeight + juce::roundToInt(4.0f * scaleFactor),
-        juce::roundToInt((20.0f + 12.0f * (float)(portGroup.size() - 1)) * scaleFactor));
+        monoHeight + juce::roundToInt(8.0f * scaleFactor),
+        juce::roundToInt((26.0f + 15.0f * (float)(portGroup.size() - 1)) * scaleFactor));
     setSize(laneWidth, height);
   } else {
     setSize(laneWidth, monoHeight);
@@ -95,7 +95,15 @@ juce::Rectangle<float> TPortComponent::monoBounds() const {
 }
 
 juce::Rectangle<float> TPortComponent::busOuterBounds() const {
-  return interactionBounds();
+  const auto lane = interactionBounds();
+  const float width = juce::jmax(
+      10.0f, juce::jmin(lane.getWidth() - 10.0f, 15.0f * scaleFactor));
+  const float height = juce::jmax(
+      18.0f, juce::jmin(lane.getHeight() - 2.0f, lane.getHeight()));
+  const float centreX = isInput() ? lane.getX() + width * 0.5f + 4.0f
+                                  : lane.getRight() - width * 0.5f - 4.0f;
+  return juce::Rectangle<float>(width, height)
+      .withCentre(juce::Point<float>(centreX, lane.getCentreY()));
 }
 
 std::vector<juce::Rectangle<float>> TPortComponent::channelBounds() const {
@@ -108,7 +116,7 @@ std::vector<juce::Rectangle<float>> TPortComponent::channelBounds() const {
   const auto outer = busOuterBounds();
   const int channelCount = (int)portGroup.size();
   const float diameter = juce::jmax(
-      7.0f, juce::jmin(outer.getWidth() - 10.0f, 12.0f * scaleFactor));
+      7.0f, juce::jmin(outer.getWidth() - 4.0f, 10.0f * scaleFactor));
   const float radius = diameter * 0.5f;
   const float firstCentreY = outer.getY() + radius + 3.0f;
   const float lastCentreY = outer.getBottom() - radius - 3.0f;
@@ -233,26 +241,31 @@ void TPortComponent::paint(juce::Graphics &g) {
     return;
   }
 
+  const auto lane = interactionBounds();
   const auto outer = busOuterBounds();
-  const float radius = juce::jmin(outer.getWidth(), outer.getHeight()) * 0.28f;
+  const float laneRadius = juce::jmin(lane.getWidth(), lane.getHeight()) * 0.3f;
+  const float radius = juce::jmin(outer.getWidth(), outer.getHeight()) * 0.42f;
   const bool anyBusHover = hoveredBundle || hoveredPortId != kInvalidPortId;
   const bool anyBusTarget = isDragTargetHighlighted;
+
+  if (anyBusTarget) {
+    g.setColour(targetColor.withAlpha(0.14f));
+    g.fillRoundedRectangle(lane, laneRadius);
+    g.setColour(targetColor.withAlpha(0.92f));
+    g.drawRoundedRectangle(lane, laneRadius,
+                           juce::jmax(1.2f, 1.8f * scaleFactor));
+  } else if (anyBusHover) {
+    g.setColour(baseColor.withAlpha(0.10f));
+    g.fillRoundedRectangle(lane, laneRadius);
+    g.setColour(baseColor.withAlpha(0.42f));
+    g.drawRoundedRectangle(lane, laneRadius,
+                           juce::jmax(1.0f, 1.2f * scaleFactor));
+  }
+
   g.setColour(juce::Colour(0xff0f172a));
   g.fillRoundedRectangle(outer, radius);
   g.setColour(baseColor.withAlpha(0.88f));
   g.drawRoundedRectangle(outer, radius, 1.0f);
-
-  if (anyBusTarget) {
-    g.setColour(targetColor.withAlpha(0.16f));
-    g.fillRoundedRectangle(outer, radius);
-    g.setColour(targetColor.withAlpha(0.92f));
-    g.drawRoundedRectangle(outer, radius, juce::jmax(1.2f, 1.8f * scaleFactor));
-  } else if (anyBusHover) {
-    g.setColour(baseColor.withAlpha(0.12f));
-    g.fillRoundedRectangle(outer, radius);
-    g.setColour(baseColor.withAlpha(0.42f));
-    g.drawRoundedRectangle(outer, radius, juce::jmax(1.0f, 1.2f * scaleFactor));
-  }
 
   const auto circles = channelBounds();
   for (size_t index = 0; index < circles.size() && index < portGroup.size(); ++index) {
@@ -268,16 +281,17 @@ void TPortComponent::paint(juce::Graphics &g) {
                                           : juce::jmax(1.0f, 1.2f * scaleFactor));
     }
 
-    const auto lane = circle.reduced(circle.getWidth() * 0.16f, circle.getHeight() * 0.16f);
+    const auto channelLane = circle.reduced(circle.getWidth() * 0.16f,
+                                            circle.getHeight() * 0.16f);
     g.setColour(baseColor.withAlpha(channelHovered ? 0.26f : 0.12f));
-    g.fillEllipse(lane);
+    g.fillEllipse(channelLane);
     g.setColour(baseColor.withAlpha(0.36f));
-    g.drawEllipse(lane, 1.0f);
+    g.drawEllipse(channelLane, 1.0f);
 
-    const float dotSize = juce::jmax(3.5f, lane.getWidth() * 0.24f);
+    const float dotSize = juce::jmax(3.5f, channelLane.getWidth() * 0.24f);
     g.setColour(baseColor.withAlpha(0.95f));
-    g.fillEllipse(lane.getCentreX() - dotSize * 0.5f,
-                  lane.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
+    g.fillEllipse(channelLane.getCentreX() - dotSize * 0.5f,
+                  channelLane.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
   }
 }
 
