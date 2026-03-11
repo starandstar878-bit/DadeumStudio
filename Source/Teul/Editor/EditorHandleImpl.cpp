@@ -1569,6 +1569,12 @@ public:
     addAndMakeVisible(headerLabel);
     addAndMakeVisible(kindLabel);
     addAndMakeVisible(statusLabel);
+    addAndMakeVisible(sourceNameLabel);
+    addAndMakeVisible(sourceNameEditor);
+    addAndMakeVisible(profileNameLabel);
+    addAndMakeVisible(profileNameEditor);
+    addAndMakeVisible(confirmedToggle);
+    addAndMakeVisible(autoDetectedToggle);
     addAndMakeVisible(portsLabel);
     addAndMakeVisible(assignmentsLabel);
     addAndMakeVisible(portsBox);
@@ -1587,15 +1593,32 @@ public:
     statusLabel.setColour(juce::Label::textColourId,
                           juce::Colours::white.withAlpha(0.58f));
 
-    portsLabel.setText("Ports", juce::dontSendNotification);
-    portsLabel.setJustificationType(juce::Justification::centredLeft);
-    portsLabel.setColour(juce::Label::textColourId,
-                         juce::Colours::white.withAlpha(0.78f));
+    configureFieldLabel(sourceNameLabel, "Source Name");
+    configureFieldLabel(profileNameLabel, "Profile Name");
+    configureFieldLabel(portsLabel, "Ports");
+    configureFieldLabel(assignmentsLabel, "Assignments");
 
-    assignmentsLabel.setText("Assignments", juce::dontSendNotification);
-    assignmentsLabel.setJustificationType(juce::Justification::centredLeft);
-    assignmentsLabel.setColour(juce::Label::textColourId,
-                               juce::Colours::white.withAlpha(0.78f));
+    configureEditableField(sourceNameEditor);
+    sourceNameEditor.onFocusLost = [this] { commitSourceDisplayName(); };
+    sourceNameEditor.onReturnKey = [this] { commitSourceDisplayName(); };
+    sourceNameEditor.onEscapeKey = [this] { refreshFromDocument(); };
+
+    configureEditableField(profileNameEditor);
+    profileNameEditor.onFocusLost = [this] { commitProfileDisplayName(); };
+    profileNameEditor.onReturnKey = [this] { commitProfileDisplayName(); };
+    profileNameEditor.onEscapeKey = [this] { refreshFromDocument(); };
+
+    configureToggle(confirmedToggle, "Confirmed");
+    confirmedToggle.onClick = [this] {
+      if (!suppressEditorCallbacks)
+        setSourceConfirmed(confirmedToggle.getToggleState());
+    };
+
+    configureToggle(autoDetectedToggle, "Auto");
+    autoDetectedToggle.onClick = [this] {
+      if (!suppressEditorCallbacks)
+        setSourceAutoDetected(autoDetectedToggle.getToggleState());
+    };
 
     configureReadOnlyBox(portsBox);
     configureReadOnlyBox(assignmentsBox);
@@ -1607,6 +1630,10 @@ public:
 
   void setLayoutChangedCallback(std::function<void()> callback) {
     onLayoutChanged = std::move(callback);
+  }
+
+  void setDocumentChangedCallback(std::function<void()> callback) {
+    onDocumentChanged = std::move(callback);
   }
 
   bool isPanelOpen() const noexcept {
@@ -1642,6 +1669,10 @@ public:
       return;
     }
 
+    const auto *profile = source->deviceProfileId.isNotEmpty()
+                              ? document.controlState.findDeviceProfile(source->deviceProfileId)
+                              : nullptr;
+
     headerLabel.setText(source->displayName, juce::dontSendNotification);
     kindLabel.setText(sourceKindLabel(source->kind) + " / " +
                           sourceModeLabel(source->mode),
@@ -1649,6 +1680,23 @@ public:
     statusLabel.setText(buildStatusLine(*source), juce::dontSendNotification);
     portsBox.setText(buildPortSummary(*source), false);
     assignmentsBox.setText(buildAssignmentSummary(*source), false);
+
+    suppressEditorCallbacks = true;
+    sourceNameEditor.setText(source->displayName.isNotEmpty() ? source->displayName
+                                                              : source->sourceId,
+                             juce::dontSendNotification);
+    const juce::String profileText =
+        profile != nullptr
+            ? (profile->displayName.isNotEmpty() ? profile->displayName
+                                                 : profile->profileId)
+            : juce::String("(Missing profile)");
+    profileNameEditor.setText(profileText, juce::dontSendNotification);
+    profileNameEditor.setEnabled(profile != nullptr);
+    confirmedToggle.setToggleState(source->confirmed, juce::dontSendNotification);
+    autoDetectedToggle.setToggleState(source->autoDetected,
+                                      juce::dontSendNotification);
+    suppressEditorCallbacks = false;
+
     repaint();
   }
 
@@ -1685,14 +1733,32 @@ public:
     kindLabel.setBounds(area.removeFromTop(18));
     statusLabel.setBounds(area.removeFromTop(18));
     area.removeFromTop(8);
+    sourceNameLabel.setBounds(area.removeFromTop(18));
+    sourceNameEditor.setBounds(area.removeFromTop(24));
+    area.removeFromTop(6);
+    profileNameLabel.setBounds(area.removeFromTop(18));
+    profileNameEditor.setBounds(area.removeFromTop(24));
+    area.removeFromTop(8);
+    auto toggleRow = area.removeFromTop(24);
+    confirmedToggle.setBounds(toggleRow.removeFromLeft(110));
+    toggleRow.removeFromLeft(8);
+    autoDetectedToggle.setBounds(toggleRow.removeFromLeft(80));
+    area.removeFromTop(8);
     portsLabel.setBounds(area.removeFromTop(18));
-    portsBox.setBounds(area.removeFromTop(116));
+    portsBox.setBounds(area.removeFromTop(92));
     area.removeFromTop(8);
     assignmentsLabel.setBounds(area.removeFromTop(18));
     assignmentsBox.setBounds(area);
   }
 
 private:
+  static void configureFieldLabel(juce::Label &label, const juce::String &text) {
+    label.setText(text, juce::dontSendNotification);
+    label.setJustificationType(juce::Justification::centredLeft);
+    label.setColour(juce::Label::textColourId,
+                    juce::Colours::white.withAlpha(0.78f));
+  }
+
   static void configureReadOnlyBox(juce::TextEditor &box) {
     box.setMultiLine(true);
     box.setReadOnly(true);
@@ -1703,6 +1769,29 @@ private:
                   juce::Colour(0xff324154));
     box.setColour(juce::TextEditor::textColourId,
                   juce::Colours::white.withAlpha(0.82f));
+  }
+
+  static void configureEditableField(juce::TextEditor &editor) {
+    editor.setMultiLine(false);
+    editor.setReturnKeyStartsNewLine(false);
+    editor.setScrollbarsShown(false);
+    editor.setColour(juce::TextEditor::backgroundColourId,
+                     juce::Colour(0x66111827));
+    editor.setColour(juce::TextEditor::outlineColourId,
+                     juce::Colour(0xff324154));
+    editor.setColour(juce::TextEditor::textColourId,
+                     juce::Colours::white.withAlpha(0.92f));
+    editor.setColour(juce::TextEditor::highlightColourId,
+                     juce::Colour(0x6638bdf8));
+    editor.setColour(juce::CaretComponent::caretColourId,
+                     juce::Colours::white.withAlpha(0.92f));
+  }
+
+  static void configureToggle(juce::ToggleButton &button,
+                              const juce::String &text) {
+    button.setButtonText(text);
+    button.setColour(juce::ToggleButton::textColourId,
+                     juce::Colours::white.withAlpha(0.86f));
   }
 
   static juce::String sourceKindLabel(TControlSourceKind kind) {
@@ -1748,6 +1837,85 @@ private:
     }
 
     return "Port";
+  }
+
+  void notifyDocumentChanged() {
+    if (onDocumentChanged != nullptr)
+      onDocumentChanged();
+  }
+
+  TControlSource *findEditableSource() noexcept {
+    return currentSourceId.isNotEmpty()
+               ? document.controlState.findSource(currentSourceId)
+               : nullptr;
+  }
+
+  TDeviceProfile *findEditableProfile() noexcept {
+    const auto *source = document.controlState.findSource(currentSourceId);
+    if (source == nullptr || source->deviceProfileId.isEmpty())
+      return nullptr;
+    return document.controlState.findDeviceProfile(source->deviceProfileId);
+  }
+
+  void commitSourceDisplayName() {
+    auto *source = findEditableSource();
+    if (source == nullptr)
+      return;
+
+    auto newName = sourceNameEditor.getText().trim();
+    if (newName.isEmpty())
+      newName = source->sourceId;
+
+    if (source->displayName == newName)
+      return;
+
+    source->displayName = newName;
+    if (auto *profileSource = document.controlState.findDeviceSourceProfile(
+            source->deviceProfileId, source->sourceId)) {
+      profileSource->displayName = newName;
+    }
+
+    document.controlState.reconcileDeviceProfilesAndSources();
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  void commitProfileDisplayName() {
+    auto *profile = findEditableProfile();
+    if (profile == nullptr)
+      return;
+
+    auto newName = profileNameEditor.getText().trim();
+    if (newName.isEmpty())
+      newName = profile->profileId;
+
+    if (profile->displayName == newName)
+      return;
+
+    profile->displayName = newName;
+    document.controlState.reconcileDeviceProfilesAndSources();
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  void setSourceConfirmed(bool confirmed) {
+    auto *source = findEditableSource();
+    if (source == nullptr || source->confirmed == confirmed)
+      return;
+
+    source->confirmed = confirmed;
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  void setSourceAutoDetected(bool autoDetected) {
+    auto *source = findEditableSource();
+    if (source == nullptr || source->autoDetected == autoDetected)
+      return;
+
+    source->autoDetected = autoDetected;
+    notifyDocumentChanged();
+    refreshFromDocument();
   }
 
   juce::String buildStatusLine(const TControlSource &source) const {
@@ -1831,12 +1999,20 @@ private:
   juce::Label headerLabel;
   juce::Label kindLabel;
   juce::Label statusLabel;
+  juce::Label sourceNameLabel;
+  juce::Label profileNameLabel;
   juce::Label portsLabel;
   juce::Label assignmentsLabel;
+  juce::TextEditor sourceNameEditor;
+  juce::TextEditor profileNameEditor;
   juce::TextEditor portsBox;
   juce::TextEditor assignmentsBox;
+  juce::ToggleButton confirmedToggle;
+  juce::ToggleButton autoDetectedToggle;
   juce::TextButton closeButton;
   std::function<void()> onLayoutChanged;
+  std::function<void()> onDocumentChanged;
+  bool suppressEditorCallbacks = false;
 };
 
 class SystemEndpointInspectorPanel : public juce::Component {
@@ -2537,6 +2713,13 @@ EditorHandle::Impl::Impl(
         owner.resized();
         refreshRailUi();
       });
+  controlSourceInspector->setDocumentChangedCallback(
+      [this] {
+        doc.touch(false);
+        if (controlSourceInspector != nullptr)
+          controlSourceInspector->refreshFromDocument();
+        refreshRailUi();
+      });
   owner.addAndMakeVisible(*controlSourceInspector);
   controlSourceInspector->setVisible(false);
 
@@ -2833,8 +3016,10 @@ EditorHandle::Impl::~Impl() {
   if (documentNoticeBanner != nullptr)
     documentNoticeBanner->setDismissHandler({});
 
-  if (controlSourceInspector != nullptr)
+  if (controlSourceInspector != nullptr) {
     controlSourceInspector->setLayoutChangedCallback({});
+    controlSourceInspector->setDocumentChangedCallback({});
+  }
   if (systemEndpointInspector != nullptr)
     systemEndpointInspector->setLayoutChangedCallback({});
 
