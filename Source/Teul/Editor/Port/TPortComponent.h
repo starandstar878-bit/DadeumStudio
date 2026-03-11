@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Teul/Editor/TIssueState.h"
 #include "Teul/Model/TPort.h"
 #include <JuceHeader.h>
 #include <vector>
@@ -15,6 +16,15 @@ public:
     bool bundle = false;
     PortId portId = kInvalidPortId;
     int channelCount = 1;
+  };
+
+  struct PortIssueState {
+    PortId portId = kInvalidPortId;
+    TIssueState state = TIssueState::none;
+
+    bool operator==(const PortIssueState &other) const noexcept {
+      return portId == other.portId && state == other.state;
+    }
   };
 
   TPortComponent(TNodeComponent &owner, const TPort &port);
@@ -40,8 +50,8 @@ public:
   void setDragTargetHighlight(bool enabled, bool validType,
                               PortId highlightedPortId = kInvalidPortId,
                               bool highlightBundle = false);
-  void setWarningState(std::vector<PortId> warningPortIds,
-                       bool warningBundle = false);
+  void setIssueState(std::vector<PortIssueState> issueStates,
+                     TIssueState bundleIssueState = TIssueState::none);
   void setScaleFactor(float newScale);
 
 private:
@@ -55,8 +65,8 @@ private:
   bool isDragTargetTypeValid = true;
   PortId highlightedPortId = kInvalidPortId;
   bool highlightBundle = false;
-  std::vector<PortId> warningPortIds;
-  bool warningBundle = false;
+  std::vector<PortIssueState> issueStates;
+  TIssueState bundleIssueState = TIssueState::none;
   bool dragActive = false;
 
   bool isBus() const noexcept { return portGroup.size() > 1; }
@@ -68,7 +78,7 @@ private:
   juce::Rectangle<float> monoBounds() const;
   juce::Rectangle<float> busOuterBounds() const;
   std::vector<juce::Rectangle<float>> channelBounds() const;
-  bool hasWarningForPort(PortId portId) const noexcept;
+  TIssueState issueStateForPort(PortId portId) const noexcept;
   void updateHoverState(juce::Point<float> point);
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TPortComponent)

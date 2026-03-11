@@ -1,5 +1,6 @@
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
 
+#include "Teul/Editor/TIssueState.h"
 #include "Teul/Editor/Panels/Property/BindingSummaryPresenter.h"
 #include "Teul/Editor/Panels/Property/ParamEditorFactory.h"
 #include "Teul/Editor/Panels/Property/ParamValueFormatter.h"
@@ -94,12 +95,12 @@ static juce::String frameTypeSummary(const TFrameRegion &frame) {
 }
 
 static juce::String frameSummaryText(const TFrameRegion &frame) {
-  return "UUID: " + frame.frameUuid + "\nMembers: " +
-         juce::String((int)frame.memberNodeIds.size()) + "\nMembership: " +
+  return "UUID: " + frame.frameUuid + "\r\nMembers: " +
+         juce::String((int)frame.memberNodeIds.size()) + "\r\nMembership: " +
          (frame.membershipExplicit ? "Explicit list" : "Bounds-derived") +
-         "\nLocked: " + (frame.locked ? "Yes" : "No") +
-         "\nCollapsed: " + (frame.collapsed ? "Yes" : "No") +
-         "\nBounds: " +
+         "\r\nLocked: " + (frame.locked ? "Yes" : "No") +
+         "\r\nCollapsed: " + (frame.collapsed ? "Yes" : "No") +
+         "\r\nBounds: " +
          juce::String::formatted("%.0f, %.0f / %.0f x %.0f", frame.x, frame.y,
                                  frame.width, frame.height);
 }
@@ -113,6 +114,49 @@ static bool shouldShowIeumBindingLine(const TParamSpec &spec,
 
 static bool shouldShowGyeolBindingLine(const juce::String &text) {
   return text.isNotEmpty() && text != "Gyeol: hidden";
+}
+
+static TIssueState issueStateForRailEndpointLabel(const TControlSourceState &state,
+                                             const TEndpoint &endpoint,
+                                             const TSystemRailPort **railPortOut = nullptr) {
+  if (railPortOut != nullptr)
+    *railPortOut = nullptr;
+
+  const auto *railEndpoint = state.findEndpoint(endpoint.railEndpointId);
+  if (railEndpoint == nullptr)
+    return TIssueState::invalidConfig;
+  if (railEndpoint->missing)
+    return TIssueState::missing;
+  if (railEndpoint->degraded)
+    return TIssueState::degraded;
+
+  const auto *railPort = state.findEndpointPort(endpoint.railEndpointId, endpoint.railPortId);
+  if (railPortOut != nullptr)
+    *railPortOut = railPort;
+  return railPort != nullptr ? TIssueState::none : TIssueState::invalidConfig;
+}
+
+static TIssueState issueStateForControlAssignment(const TControlSourceState &state,
+                                                  const TControlSourceAssignment &assignment,
+                                                  const TControlSource **sourceOut = nullptr) {
+  if (sourceOut != nullptr)
+    *sourceOut = nullptr;
+
+  const auto *source = state.findSource(assignment.sourceId);
+  if (sourceOut != nullptr)
+    *sourceOut = source;
+  if (source == nullptr)
+    return TIssueState::invalidConfig;
+  if (source->missing)
+    return TIssueState::missing;
+  if (source->degraded)
+    return TIssueState::degraded;
+
+  const bool hasPort = std::any_of(source->ports.begin(), source->ports.end(),
+                                   [&](const TControlSourcePort &port) {
+                                     return port.portId == assignment.portId;
+                                   });
+  return hasPort ? TIssueState::none : TIssueState::invalidConfig;
 }
 
 class NodePropertiesPanelImpl final : public NodePropertiesPanel,
@@ -891,14 +935,14 @@ private:
   }
 
   juce::String controlAssignmentSummaryForParam(const ParamEditor &entry,
-                                             bool *hasMissing = nullptr) const {
-    if (hasMissing != nullptr)
-      *hasMissing = false;
+                                             TIssueState *issueStateOut = nullptr) const {
+    if (issueStateOut != nullptr)
+      *issueStateOut = TIssueState::none;
 
     if (entry.paramId.isEmpty())
       return {};
 
-    bool anyMissing = false;
+    TIssueState issueState = TIssueState::none;
     juce::StringArray labels;
     for (const auto &assignment : document.controlState.assignments) {
       if (assignment.targetParamId != entry.paramId)
@@ -906,30 +950,29 @@ private:
 
       juce::String sourceLabel = assignment.sourceId;
       juce::String portLabel = assignment.portId;
-      bool assignmentMissing = false;
-      if (const auto *source = document.controlState.findSource(assignment.sourceId)) {
+      const TControlSource *source = nullptr;
+      const auto assignmentIssue =
+          issueStateForControlAssignment(document.controlState, assignment, &source);
+      if (source != nullptr) {
         sourceLabel = source->displayName.isNotEmpty() ? source->displayName
                                                        : source->sourceId;
-        assignmentMissing = source->missing;
         for (const auto &port : source->ports) {
           if (port.portId == assignment.portId) {
             portLabel = port.displayName;
             break;
           }
         }
-      } else {
-        assignmentMissing = true;
       }
 
-      anyMissing = anyMissing || assignmentMissing;
+      issueState = mergeIssueState(issueState, assignmentIssue);
       juce::String label = sourceLabel + " / " + portLabel;
-      if (assignmentMissing)
-        label << " / Missing";
+      if (hasIssueState(assignmentIssue))
+        label << " / " << issueStateLabel(assignmentIssue);
       labels.add(std::move(label));
     }
 
-    if (hasMissing != nullptr)
-      *hasMissing = anyMissing;
+    if (issueStateOut != nullptr)
+      *issueStateOut = issueState;
 
     if (labels.isEmpty())
       return {};
@@ -980,16 +1023,19 @@ private:
       if (!endpoint.isRailPort())
         return juce::String();
 
+      const TSystemRailPort *railPort = nullptr;
+      const auto issueState = issueStateForRailEndpointLabel(
+          document.controlState, endpoint, &railPort);
       const auto *railEndpoint =
           document.controlState.findEndpoint(endpoint.railEndpointId);
-      const auto *railPort =
-          document.findSystemRailPort(endpoint.railEndpointId, endpoint.railPortId);
       if (railEndpoint == nullptr || railPort == nullptr)
-        return endpoint.railEndpointId + " / " + endpoint.railPortId;
+        return endpoint.railEndpointId + " / " + endpoint.railPortId +
+               (hasIssueState(issueState) ? " / " + issueStateLabel(issueState)
+                                          : juce::String());
 
       juce::String text = railEndpoint->displayName + " / " + railPort->displayName;
-      if (railEndpoint->missing)
-        text << " / Missing";
+      if (hasIssueState(issueState))
+        text << " / " << issueStateLabel(issueState);
       return text;
     };
 
@@ -1027,19 +1073,18 @@ private:
 
       juce::String sourceLabel = assignment.sourceId;
       juce::String portLabel = assignment.portId;
-      bool assignmentMissing = false;
-      if (const auto *source = document.controlState.findSource(assignment.sourceId)) {
+      const TControlSource *source = nullptr;
+      const auto assignmentIssue =
+          issueStateForControlAssignment(document.controlState, assignment, &source);
+      if (source != nullptr) {
         sourceLabel = source->displayName.isNotEmpty() ? source->displayName
                                                        : source->sourceId;
-        assignmentMissing = source->missing;
         for (const auto &port : source->ports) {
           if (port.portId == assignment.portId) {
             portLabel = port.displayName;
             break;
           }
         }
-      } else {
-        assignmentMissing = true;
       }
 
       NodeId parsedNodeId = kInvalidNodeId;
@@ -1050,20 +1095,20 @@ private:
         targetLabel = paramKey;
 
       juce::String line = sourceLabel + " / " + portLabel + " -> " + targetLabel;
-      if (assignmentMissing)
-        line << " / Missing";
+      if (hasIssueState(assignmentIssue))
+        line << " / " << issueStateLabel(assignmentIssue);
       controls.add(std::move(line));
     }
 
     auto joinSection = [](const juce::String &title,
                           const juce::StringArray &lines,
                           const juce::String &emptyText) {
-      juce::String text = title + "\n";
+      juce::String text = title + "\r\n";
       if (lines.isEmpty()) {
         text << "- " << emptyText;
       } else {
         for (const auto &line : lines)
-          text << "- " << line << "\n";
+          text << "- " << line << "\r\n";
         text = text.trimEnd();
       }
       return text;
@@ -1074,7 +1119,7 @@ private:
     sections.add(joinSection("Outgoing Wires", outgoing, "No outgoing wires"));
     sections.add(joinSection("Control Assignments", controls,
                              "Drag a control source onto a parameter row"));
-    return sections.joinIntoString("\n\n");
+    return sections.joinIntoString("\r\n\r\n");
   }
 
   void refreshNodeConnectionSummary() {
@@ -1140,24 +1185,26 @@ private:
                                                   : juce::String(),
                                         juce::dontSendNotification);
 
-      bool hasMissingControlAssignment = false;
+      TIssueState controlAssignmentIssue = TIssueState::none;
       const auto controlAssignmentText =
-          controlAssignmentSummaryForParam(*entry, &hasMissingControlAssignment);
+          controlAssignmentSummaryForParam(*entry, &controlAssignmentIssue);
       const bool showControlAssignment = controlAssignmentText.isNotEmpty();
       entry->controlAssignmentLabel->setVisible(showControlAssignment);
       entry->controlAssignmentLabel->setColour(
           juce::Label::backgroundColourId,
           showControlAssignment
-              ? (hasMissingControlAssignment ? juce::Colour(0x22f97316)
-                                             : juce::Colour(0x16f59e0b))
+              ? (hasIssueState(controlAssignmentIssue)
+                     ? issueStateAccent(controlAssignmentIssue).withAlpha(0.16f)
+                     : juce::Colour(0x16f59e0b))
               : juce::Colours::transparentBlack);
       entry->controlAssignmentLabel->setColour(
           juce::Label::textColourId,
-          hasMissingControlAssignment ? juce::Colour(0xfffdba74)
-                                      : juce::Colour(0xfffbbf24));
+          hasIssueState(controlAssignmentIssue)
+              ? issueStateAccent(controlAssignmentIssue).brighter(0.22f)
+              : juce::Colour(0xfffbbf24));
       entry->controlAssignmentLabel->setTooltip(
-          hasMissingControlAssignment
-              ? "Assigned control source is currently missing"
+          hasIssueState(controlAssignmentIssue)
+              ? "Assigned control source is " + issueStateLabel(controlAssignmentIssue).toLowerCase()
               : juce::String());
       entry->controlAssignmentLabel->setText(
           showControlAssignment ? controlAssignmentText : juce::String(),

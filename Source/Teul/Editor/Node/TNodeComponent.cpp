@@ -159,7 +159,7 @@ void TNodeComponent::updateFromModel() {
   for (auto &port : outPorts)
     addAndMakeVisible(port.get());
 
-  updatePortWarnings();
+  updatePortIssueStates();
   recalculateHeight();
 }
 
@@ -216,45 +216,89 @@ void TNodeComponent::setViewScale(float newScale) {
   resized();
 }
 
-void TNodeComponent::updatePortWarnings() {
+void TNodeComponent::updatePortIssueStates() {
   const auto &document = ownerCanvas.getDocument();
-  const auto collectWarnings = [&](const TPortComponent &component) {
-    std::vector<PortId> warningIds;
-    for (const auto &port : component.getPortGroup()) {
-      const bool warned = std::any_of(
-          document.connections.begin(), document.connections.end(),
-          [&](const TConnection &connection) {
-            if (connection.from.isNodePort() && connection.from.nodeId == nodeId &&
-                connection.from.portId == port.portId && connection.to.isRailPort()) {
-              if (const auto *endpoint =
-                      document.controlState.findEndpoint(connection.to.railEndpointId))
-                return endpoint->missing;
-            }
-            if (connection.to.isNodePort() && connection.to.nodeId == nodeId &&
-                connection.to.portId == port.portId && connection.from.isRailPort()) {
-              if (const auto *endpoint =
-                      document.controlState.findEndpoint(connection.from.railEndpointId))
-                return endpoint->missing;
-            }
-            return false;
-          });
-      if (warned)
-        warningIds.push_back(port.portId);
+  const auto connectionIssueForPort =
+      [&](const TPort &port, const TConnection &connection) -> TIssueState {
+    const TEndpoint *otherEndpoint = nullptr;
+    if (connection.from.isNodePort() && connection.from.nodeId == nodeId &&
+        connection.from.portId == port.portId) {
+      otherEndpoint = &connection.to;
+    } else if (connection.to.isNodePort() && connection.to.nodeId == nodeId &&
+               connection.to.portId == port.portId) {
+      otherEndpoint = &connection.from;
     }
 
-    const bool bundleWarning = component.getPortGroup().size() > 1 &&
-                               warningIds.size() == component.getPortGroup().size();
-    return std::pair<std::vector<PortId>, bool>(std::move(warningIds), bundleWarning);
+    if (otherEndpoint == nullptr)
+      return TIssueState::none;
+
+    if (otherEndpoint->isRailPort()) {
+      const auto *endpoint =
+          document.controlState.findEndpoint(otherEndpoint->railEndpointId);
+      if (endpoint == nullptr)
+        return TIssueState::invalidConfig;
+      if (endpoint->missing)
+        return TIssueState::missing;
+      if (endpoint->degraded)
+        return TIssueState::degraded;
+
+      const auto *railPort = document.findSystemRailPort(
+          otherEndpoint->railEndpointId, otherEndpoint->railPortId);
+      if (railPort == nullptr)
+        return TIssueState::invalidConfig;
+      if (railPort->dataType != port.dataType)
+        return TIssueState::invalidConfig;
+      return TIssueState::none;
+    }
+
+    const auto *otherNode = document.findNode(otherEndpoint->nodeId);
+    if (otherNode == nullptr)
+      return TIssueState::invalidConfig;
+
+    const auto *otherPort = otherNode->findPort(otherEndpoint->portId);
+    if (otherPort == nullptr)
+      return TIssueState::invalidConfig;
+    if (otherPort->dataType != port.dataType ||
+        otherPort->direction == port.direction) {
+      return TIssueState::invalidConfig;
+    }
+
+    return TIssueState::none;
+  };
+
+  const auto collectIssues = [&](const TPortComponent &component) {
+    std::vector<TPortComponent::PortIssueState> portIssues;
+    TIssueState bundleIssue = TIssueState::none;
+    bool allPortsAffected = !component.getPortGroup().empty();
+
+    for (const auto &port : component.getPortGroup()) {
+      TIssueState issueState = TIssueState::none;
+      for (const auto &connection : document.connections)
+        issueState = mergeIssueState(issueState, connectionIssueForPort(port, connection));
+
+      if (hasIssueState(issueState))
+        portIssues.push_back({port.portId, issueState});
+      else
+        allPortsAffected = false;
+
+      bundleIssue = mergeIssueState(bundleIssue, issueState);
+    }
+
+    if (!allPortsAffected)
+      bundleIssue = TIssueState::none;
+
+    return std::pair<std::vector<TPortComponent::PortIssueState>, TIssueState>(
+        std::move(portIssues), bundleIssue);
   };
 
   for (auto &port : inPorts) {
-    auto [warningIds, bundleWarning] = collectWarnings(*port);
-    port->setWarningState(std::move(warningIds), bundleWarning);
+    auto [portIssues, bundleIssue] = collectIssues(*port);
+    port->setIssueState(std::move(portIssues), bundleIssue);
   }
 
   for (auto &port : outPorts) {
-    auto [warningIds, bundleWarning] = collectWarnings(*port);
-    port->setWarningState(std::move(warningIds), bundleWarning);
+    auto [portIssues, bundleIssue] = collectIssues(*port);
+    port->setIssueState(std::move(portIssues), bundleIssue);
   }
 }
 

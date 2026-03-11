@@ -510,6 +510,7 @@ juce::var systemRailEndpointToJson(const TSystemRailEndpoint &endpoint) {
   object->setProperty("kind", systemRailEndpointKindToString(endpoint.kind));
   object->setProperty("stereo", endpoint.stereo);
   object->setProperty("missing", endpoint.missing);
+  object->setProperty("degraded", endpoint.degraded);
   object->setProperty("order", endpoint.order);
 
   juce::Array<juce::var> portsArray;
@@ -538,6 +539,7 @@ bool jsonToSystemRailEndpoint(TSystemRailEndpoint &endpoint,
       propertyOrAlias(object, {"kind", "endpoint_kind", "endpointKind"}, "audio_input"));
   endpoint.stereo = (bool)propertyOrAlias(object, {"stereo"}, false);
   endpoint.missing = (bool)propertyOrAlias(object, {"missing"}, false);
+  endpoint.degraded = (bool)propertyOrAlias(object, {"degraded"}, false);
   endpoint.order = (int)propertyOrAlias(object, {"order"}, 0);
   endpoint.ports.clear();
 
@@ -710,6 +712,7 @@ juce::var controlSourceToJson(const TControlSource &source) {
   object->setProperty("auto_detected", source.autoDetected);
   object->setProperty("confirmed", source.confirmed);
   object->setProperty("missing", source.missing);
+  object->setProperty("degraded", source.degraded);
 
   juce::Array<juce::var> portsArray;
   for (const auto &port : source.ports)
@@ -739,6 +742,7 @@ bool jsonToControlSource(TControlSource &source, const juce::var &json) {
   source.autoDetected = (bool)propertyOrAlias(object, {"auto_detected", "autoDetected"}, false);
   source.confirmed = (bool)propertyOrAlias(object, {"confirmed"}, false);
   source.missing = (bool)propertyOrAlias(object, {"missing"}, false);
+  source.degraded = (bool)propertyOrAlias(object, {"degraded"}, false);
   source.ports.clear();
 
   if (auto *portsArray = propertyOrAlias(object, {"ports"}).getArray()) {

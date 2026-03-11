@@ -94,6 +94,7 @@ struct TSystemRailEndpoint {
   TSystemRailEndpointKind kind = TSystemRailEndpointKind::audioInput;
   bool stereo = false;
   bool missing = false;
+  bool degraded = false;
   int order = 0;
   std::vector<TSystemRailPort> ports;
 };
@@ -161,6 +162,7 @@ struct TControlSource {
   bool autoDetected = false;
   bool confirmed = false;
   bool missing = false;
+  bool degraded = false;
 };
 
 struct TControlSourceAssignment {

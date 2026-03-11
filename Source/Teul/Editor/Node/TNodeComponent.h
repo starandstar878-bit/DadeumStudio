@@ -73,7 +73,7 @@ private:
   void applyViewScale();
   int scaledInt(int value) const noexcept;
   float scaledFloat(float value) const noexcept;
-  void updatePortWarnings();
+  void updatePortIssueStates();
   int inputLaneWidthPx() const noexcept;
   int outputLaneWidthPx() const noexcept;
 

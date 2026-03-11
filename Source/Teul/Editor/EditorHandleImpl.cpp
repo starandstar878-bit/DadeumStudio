@@ -1,5 +1,6 @@
 #include "Teul/Editor/EditorHandleImpl.h"
 
+#include "Teul/Editor/TIssueState.h"
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
 #include "Teul/Editor/Panels/DiagnosticsDrawer.h"
 #include "Teul/Editor/Panels/NodeLibraryPanel.h"
@@ -72,9 +73,9 @@ juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
 
   detailText = parts.joinIntoString("  |  ");
   if (nameChanged)
-    detailText << "\r\nGraph: " << currentName << " -> " << recoveryName;
+    detailText << "\r\r\r\r\nGraph: " << currentName << " -> " << recoveryName;
   else
-    detailText << "\r\nGraph: " << currentName;
+    detailText << "\r\r\r\r\nGraph: " << currentName;
 
   juce::StringArray compatibilityParts;
   if (migrationReport.migrated)
@@ -84,17 +85,17 @@ juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
   if (migrationReport.degraded)
     compatibilityParts.add("degraded");
   if (!compatibilityParts.isEmpty())
-    detailText << "\r\nCompatibility: "
+    detailText << "\r\r\r\r\nCompatibility: "
                << compatibilityParts.joinIntoString(" | ");
 
   if (!migrationReport.warnings.isEmpty())
-    detailText << "\r\nWarnings: "
+    detailText << "\r\r\r\r\nWarnings: "
                << migrationReport.warnings.joinIntoString(" | ");
 
   if (!nameChanged && !nodeCountChanged && !connectionCountChanged &&
       !frameCountChanged && !migrationReport.degraded &&
       migrationReport.warnings.isEmpty()) {
-    detailText << "\r\nStructure matches the current document.";
+    detailText << "\r\r\r\r\nStructure matches the current document.";
   }
 
   warning = nameChanged || nodeCountChanged || connectionCountChanged ||
@@ -119,7 +120,7 @@ struct RailCardView {
   juce::String badge;
   juce::Colour accent = juce::Colour(0xff64748b);
   std::vector<RailCardPortView> ports;
-  bool warning = false;
+  TIssueState issueState = TIssueState::none;
   bool groupedBus = false;
 };
 
@@ -215,6 +216,47 @@ juce::Colour controlPortAccent(TControlPortKind kind) {
   return juce::Colour(0xff94a3b8);
 }
 
+static bool hasIncompleteRailPort(const TSystemRailPort &port) {
+  return port.portId.isEmpty() || port.displayName.isEmpty();
+}
+
+static TIssueState issueStateForEndpoint(const TSystemRailEndpoint &endpoint) {
+  TIssueState state = TIssueState::none;
+  if (endpoint.degraded)
+    state = mergeIssueState(state, TIssueState::degraded);
+  if (endpoint.stereo && endpoint.ports.size() == 1)
+    state = mergeIssueState(state, TIssueState::degraded);
+  if (endpoint.ports.empty() ||
+      std::any_of(endpoint.ports.begin(), endpoint.ports.end(), hasIncompleteRailPort)) {
+    state = mergeIssueState(state, TIssueState::invalidConfig);
+  }
+  if (endpoint.missing)
+    state = mergeIssueState(state, TIssueState::missing);
+  return state;
+}
+
+static TIssueState issueStateForControlSource(const TControlSource &source) {
+  TIssueState state = TIssueState::none;
+  if (source.degraded)
+    state = mergeIssueState(state, TIssueState::degraded);
+  if (source.ports.empty() ||
+      std::any_of(source.ports.begin(), source.ports.end(), [](const TControlSourcePort &port) {
+        return port.portId.isEmpty() || port.displayName.isEmpty();
+      })) {
+    state = mergeIssueState(state, TIssueState::invalidConfig);
+  }
+  if (source.missing)
+    state = mergeIssueState(state, TIssueState::missing);
+  return state;
+}
+
+static juce::String appendIssueStateSuffix(juce::String text, TIssueState issueState) {
+  const auto label = issueStateLabel(issueState);
+  if (label.isNotEmpty())
+    text << " | " << label;
+  return text;
+}
+
 juce::String controlSourceBadgeText(const TControlSource &source) {
   switch (source.kind) {
   case TControlSourceKind::expression:
@@ -235,6 +277,7 @@ juce::String controlSourceBadgeText(const TControlSource &source) {
 }
 
 juce::String describeControlSource(const TControlSource &source) {
+  const auto issueState = issueStateForControlSource(source);
   juce::String text;
   switch (source.kind) {
   case TControlSourceKind::expression:
@@ -258,12 +301,14 @@ juce::String describeControlSource(const TControlSource &source) {
     break;
   }
 
-  if (source.missing)
-    text << " | Missing";
-  else if (!source.confirmed)
-    text << " | Learn pending";
-  else if (source.autoDetected)
-    text << " | Auto";
+  if (issueState == TIssueState::none) {
+    if (!source.confirmed)
+      text << " | Learn pending";
+    else if (source.autoDetected)
+      text << " | Auto";
+  } else {
+    text = appendIssueStateSuffix(std::move(text), issueState);
+  }
 
   return text;
 }
@@ -304,7 +349,7 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
                           : juce::String("System endpoint");
       card.badge = endpointBadgeText(*endpoint);
       card.accent = endpointAccent(*endpoint);
-      card.warning = endpoint->missing;
+      card.issueState = issueStateForEndpoint(*endpoint);
       card.groupedBus = endpoint->ports.size() >= 2;
       for (const auto &port : endpoint->ports) {
         const auto portAccent = port.dataType == TPortDataType::MIDI
@@ -325,7 +370,7 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
       card.subtitle = describeControlSource(source);
       card.badge = controlSourceBadgeText(source);
       card.accent = controlSourceAccent(source.kind);
-      card.warning = source.missing;
+      card.issueState = issueStateForControlSource(source);
       for (const auto &port : source.ports)
         card.ports.push_back({port.portId, port.displayName, controlPortAccent(port.kind), TPortDataType::Control});
       cards.push_back(std::move(card));
@@ -614,8 +659,9 @@ public:
       } else if (const auto *port = document.findSystemRailPort(cardId, portId)) {
         text << " / " << port->displayName;
       }
-      if (endpoint->missing)
-        text << " / Missing";
+      const auto issueState = issueStateForEndpoint(*endpoint);
+      if (hasIssueState(issueState))
+        text << " / " << issueStateLabel(issueState);
       return text;
     }
 
@@ -631,8 +677,9 @@ public:
           }
         }
       }
-      if (source->missing)
-        text << " / Missing";
+      const auto issueState = issueStateForControlSource(*source);
+      if (hasIssueState(issueState))
+        text << " / " << issueStateLabel(issueState);
       return text;
     }
 
@@ -1044,8 +1091,11 @@ private:
       g.drawRoundedRectangle(expanded, rounded,
                              dropTargetCanConnect ? 2.0f : 1.6f);
   }
-  void drawWarningRing(juce::Graphics &g, juce::Rectangle<float> bounds,
-                       juce::Colour accent, bool elliptical = false) const {
+  void drawIssueRing(juce::Graphics &g, juce::Rectangle<float> bounds,
+                     TIssueState issueState, bool elliptical = false) const {
+    const auto accent = issueStateAccent(issueState);
+    if (!hasIssueState(issueState))
+      return;
     const auto ring = bounds.expanded(2.0f);
     const auto rounded = juce::jmax(
         3.0f,
@@ -1074,11 +1124,11 @@ private:
   void drawMonoPortSlot(juce::Graphics &g, const juce::String &cardId,
                         const RailCardPortView &port,
                         juce::Rectangle<float> area, bool capOnRight,
-                        bool warning = false) {
+                        TIssueState issueState = TIssueState::none) {
     const auto circle = monoSocketCircleBounds(area);
     drawMonoSocketShape(g, area, port.accent, capOnRight);
-    if (warning)
-      drawWarningRing(g, circle, juce::Colour(0xfff59e0b), true);
+    if (hasIssueState(issueState))
+      drawIssueRing(g, circle, issueState, true);
     drawPortStateOverlay(g, circle, port.accent,
                          isHoveredPort(cardId, port.portId),
                          isActivePort(cardId, port.portId), true);
@@ -1089,15 +1139,15 @@ private:
 
   void drawBusPortSlot(juce::Graphics &g, const RailCardView &card,
                        juce::Rectangle<float> area, bool capOnRight,
-                       bool warning = false) {
+                       TIssueState issueState = TIssueState::none) {
     if (card.ports.empty())
       return;
 
     const auto bundleToken = makeRailBundlePortToken(card.ports);
     const auto outer = busSocketOuterBounds(area, (int)card.ports.size());
     drawBusSocketShape(g, area, card.accent, capOnRight, (int)card.ports.size());
-    if (warning)
-      drawWarningRing(g, outer, juce::Colour(0xfff59e0b));
+    if (hasIssueState(issueState))
+      drawIssueRing(g, outer, issueState);
 
     if (bundleToken.isNotEmpty()) {
       drawPortStateOverlay(g, outer, card.accent,
@@ -1142,10 +1192,10 @@ private:
           juce::jmin(20.0f, socketBounds.getWidth()), socketBounds.getHeight());
 
       if (card.groupedBus)
-        drawBusPortSlot(g, card, socketBounds, portsOnRight, card.warning);
+        drawBusPortSlot(g, card, socketBounds, portsOnRight, card.issueState);
       else if (!card.ports.empty())
         drawMonoPortSlot(g, card.itemId, card.ports.front(), socketBounds,
-                         portsOnRight, card.warning);
+                         portsOnRight, card.issueState);
     }
   }
 
@@ -1163,7 +1213,7 @@ private:
         auto socketBounds = juce::Rectangle<float>((float)x,
                                                    (float)(area.getCentreY() - height / 2),
                                                    (float)width, (float)height);
-        drawBusPortSlot(g, card, socketBounds, true, card.warning);
+        drawBusPortSlot(g, card, socketBounds, true, card.issueState);
         x += width + gap;
         continue;
       }
@@ -1176,7 +1226,7 @@ private:
                                                    (float)(area.getCentreY() - height / 2),
                                                    (float)width, (float)height);
         drawMonoPortSlot(g, card.itemId, port, socketBounds, true,
-                         card.warning);
+                         card.issueState);
         x += width + gap;
       }
     }
@@ -1208,7 +1258,7 @@ private:
 
   void drawVerticalCard(juce::Graphics &g, juce::Rectangle<float> area,
                         const RailCardView &card, bool portsOnRight) {
-    const auto accent = card.warning ? juce::Colour(0xffef4444) : card.accent;
+    const auto accent = hasIssueState(card.issueState) ? issueStateAccent(card.issueState) : card.accent;
     const bool selected = card.itemId.isNotEmpty() && card.itemId == selectedCardId;
     const bool hovered = card.itemId.isNotEmpty() && card.itemId == hoveredCardId;
     const bool focused = selected && hasKeyboardFocus(true);
@@ -1259,10 +1309,10 @@ private:
 
     auto portArea = portColumn.toFloat().reduced(0.5f, 0.5f);
     if (card.groupedBus) {
-      drawBusPortSlot(g, card, portArea, portsOnRight, card.warning);
+      drawBusPortSlot(g, card, portArea, portsOnRight, card.issueState);
     } else if (!card.ports.empty()) {
       drawMonoPortSlot(g, card.itemId, card.ports.front(), portArea,
-                       portsOnRight, card.warning);
+                       portsOnRight, card.issueState);
     }
 
     if (card.itemId.isNotEmpty())
@@ -1286,7 +1336,7 @@ private:
 
   void drawHorizontalCard(juce::Graphics &g, juce::Rectangle<float> area,
                           const RailCardView &card) {
-    const auto accent = card.warning ? juce::Colour(0xffef4444) : card.accent;
+    const auto accent = hasIssueState(card.issueState) ? issueStateAccent(card.issueState) : card.accent;
     const bool selected = card.itemId.isNotEmpty() && card.itemId == selectedCardId;
     const bool hovered = card.itemId.isNotEmpty() && card.itemId == hoveredCardId;
     const bool focused = selected && hasKeyboardFocus(true);
@@ -1691,8 +1741,13 @@ private:
 
   juce::String buildStatusLine(const TControlSource &source) const {
     juce::String text;
-    if (source.missing)
+    const auto issueState = issueStateForControlSource(source);
+    if (issueState == TIssueState::missing)
       text = "Status: Missing";
+    else if (issueState == TIssueState::degraded)
+      text = "Status: Degraded";
+    else if (issueState == TIssueState::invalidConfig)
+      text = "Status: Invalid";
     else if (!source.confirmed)
       text = "Status: Learn pending";
     else if (source.autoDetected)
@@ -1713,7 +1768,7 @@ private:
 
     if (lines.isEmpty())
       lines.add("No ports available.");
-    return lines.joinIntoString("\n");
+    return lines.joinIntoString("\r\r\r\n");
   }
 
   juce::String portNameForId(const TControlSource &source,
@@ -1755,7 +1810,7 @@ private:
 
     if (lines.isEmpty())
       lines.add("No assignments yet.");
-    return lines.joinIntoString("\n");
+    return lines.joinIntoString("\r\r\r\n");
   }
 
   TGraphDocument &document;
@@ -1947,8 +2002,11 @@ private:
   }
 
   juce::Colour currentAccent() const {
-    if (const auto *endpoint = document.controlState.findEndpoint(currentEndpointId))
-      return endpointAccent(*endpoint);
+    if (const auto *endpoint = document.controlState.findEndpoint(currentEndpointId)) {
+      const auto issueState = issueStateForEndpoint(*endpoint);
+      return hasIssueState(issueState) ? issueStateAccent(issueState)
+                                       : endpointAccent(*endpoint);
+    }
     return juce::Colour(0xff60a5fa);
   }
 
@@ -1964,7 +2022,10 @@ private:
   }
 
   juce::String buildStatusLine(const TSystemRailEndpoint &endpoint) const {
-    juce::String line = endpoint.missing ? "Status: Missing" : "Status: Ready";
+    const auto issueState = issueStateForEndpoint(endpoint);
+    juce::String line = hasIssueState(issueState)
+                            ? "Status: " + issueStateLabel(issueState)
+                            : juce::String("Status: Ready");
     if (const auto *rail = document.controlState.findRail(endpoint.railId))
       line << " | Rail: " << rail->title;
     return line;
@@ -1979,7 +2040,7 @@ private:
 
     if (lines.isEmpty())
       lines.add("No ports available.");
-    return lines.joinIntoString("\n");
+    return lines.joinIntoString("\r\r\r\n");
   }
 
   juce::String buildDetailSummary(const TSystemRailEndpoint &endpoint) const {
@@ -1991,7 +2052,7 @@ private:
     lines.add("Port count: " + juce::String((int)endpoint.ports.size()));
     if (endpoint.subtitle.isNotEmpty())
       lines.add("Detail: " + endpoint.subtitle);
-    return lines.joinIntoString("\n");
+    return lines.joinIntoString("\r\r\r\n");
   }
 
   TGraphDocument &document;
@@ -2431,13 +2492,13 @@ EditorHandle::Impl::Impl(
           auto names = preview.changedNodeLabels;
           if (names.size() > 4)
             names.removeRange(4, names.size() - 4);
-          detailText << "\r\nTargets: " << names.joinIntoString(", ");
+          detailText << "\r\r\r\r\nTargets: " << names.joinIntoString(", ");
           if (preview.changedNodeLabels.size() > names.size())
             detailText << " +" << juce::String(preview.changedNodeLabels.size() - names.size())
                        << " more";
         }
         if (!preview.warnings.isEmpty())
-          detailText << "\r\nWarnings: " << preview.warnings.joinIntoString(" | ");
+          detailText << "\r\r\r\r\nWarnings: " << preview.warnings.joinIntoString(" | ");
         warning = preview.degraded || preview.missingNodeCount > 0;
       });
   owner.addAndMakeVisible(*presetBrowserPanel);

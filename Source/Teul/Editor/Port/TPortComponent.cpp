@@ -25,8 +25,11 @@ juce::String groupedDisplayName(const std::vector<TPort> &ports) {
   return label.isNotEmpty() ? label : ports.front().name;
 }
 
-void drawWarningRing(juce::Graphics &g, juce::Rectangle<float> bounds,
-                     juce::Colour accent, bool elliptical = false) {
+void drawIssueRing(juce::Graphics &g, juce::Rectangle<float> bounds,
+                   TIssueState issueState, bool elliptical = false) {
+  const auto accent = issueStateAccent(issueState);
+  if (!hasIssueState(issueState))
+    return;
   const auto ring = bounds.expanded(2.0f);
   const auto rounded = juce::jmax(
       3.0f, juce::jmin(ring.getWidth(), ring.getHeight()) * 0.46f);
@@ -227,20 +230,26 @@ void TPortComponent::setDragTargetHighlight(bool enabled, bool validType,
   repaint();
 }
 
-void TPortComponent::setWarningState(std::vector<PortId> newWarningPortIds,
-                                     bool newWarningBundle) {
-  std::sort(newWarningPortIds.begin(), newWarningPortIds.end());
-  if (warningPortIds == newWarningPortIds && warningBundle == newWarningBundle)
+void TPortComponent::setIssueState(std::vector<PortIssueState> newIssueStates,
+                                  TIssueState newBundleIssueState) {
+  std::sort(newIssueStates.begin(), newIssueStates.end(),
+            [](const PortIssueState &lhs, const PortIssueState &rhs) {
+              return lhs.portId < rhs.portId;
+            });
+  if (issueStates == newIssueStates && bundleIssueState == newBundleIssueState)
     return;
 
-  warningPortIds = std::move(newWarningPortIds);
-  warningBundle = newWarningBundle;
+  issueStates = std::move(newIssueStates);
+  bundleIssueState = newBundleIssueState;
   repaint();
 }
 
-bool TPortComponent::hasWarningForPort(PortId portId) const noexcept {
-  return std::find(warningPortIds.begin(), warningPortIds.end(), portId) !=
-         warningPortIds.end();
+TIssueState TPortComponent::issueStateForPort(PortId portId) const noexcept {
+  const auto it = std::find_if(issueStates.begin(), issueStates.end(),
+                               [portId](const PortIssueState &issue) {
+                                 return issue.portId == portId;
+                               });
+  return it != issueStates.end() ? it->state : TIssueState::none;
 }
 
 void TPortComponent::updateHoverState(juce::Point<float> point) {
@@ -274,8 +283,10 @@ void TPortComponent::paint(juce::Graphics &g) {
       g.drawEllipse(circle, juce::jmax(1.0f, 1.1f * scaleFactor));
     }
 
-    if (warningBundle || hasWarningForPort(getPortData().portId))
-      drawWarningRing(g, circle, juce::Colour(0xfff59e0b), true);
+    const auto issueState =
+        mergeIssueState(bundleIssueState, issueStateForPort(getPortData().portId));
+    if (hasIssueState(issueState))
+      drawIssueRing(g, circle, issueState, true);
 
     g.setColour(baseColor.withAlpha(0.95f));
     g.fillEllipse(circle.reduced(1.0f));
@@ -307,8 +318,8 @@ void TPortComponent::paint(juce::Graphics &g) {
                            juce::jmax(1.0f, 1.2f * scaleFactor));
   }
 
-  if (warningBundle)
-    drawWarningRing(g, outer, juce::Colour(0xfff59e0b));
+  if (hasIssueState(bundleIssueState))
+    drawIssueRing(g, outer, bundleIssueState);
 
   g.setColour(juce::Colour(0xff0f172a));
   g.fillRoundedRectangle(outer, radius);
@@ -318,9 +329,9 @@ void TPortComponent::paint(juce::Graphics &g) {
   const auto circles = channelBounds();
   for (size_t index = 0; index < circles.size() && index < portGroup.size(); ++index) {
     const auto &circle = circles[index];
-    const bool channelWarning = hasWarningForPort(portGroup[index].portId);
-    if (channelWarning)
-      drawWarningRing(g, circle, juce::Colour(0xfff59e0b), true);
+    const auto channelIssue = issueStateForPort(portGroup[index].portId);
+    if (hasIssueState(channelIssue))
+      drawIssueRing(g, circle, channelIssue, true);
 
     const bool activeChannel = (channelTarget && highlightedPortId == portGroup[index].portId) ||
                                (channelHover && hoveredPortId == portGroup[index].portId);
