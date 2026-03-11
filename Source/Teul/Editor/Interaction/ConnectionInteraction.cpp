@@ -204,7 +204,7 @@ bool isOutputRailZone(const TGraphDocument &document, const juce::String &zoneId
 void TGraphCanvas::clearDragTargetHighlight() {
   for (auto &node : nodeComponents) {
     for (const auto &port : node->getInputPorts()) {
-      port->setDragTargetHighlight(false, true);
+      port->setDragTargetHighlight(false, true, kInvalidPortId, false);
     }
   }
 }
@@ -227,6 +227,7 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
   wireDragState.targetExternalZoneId.clear();
   wireDragState.targetTypeMatch = false;
   wireDragState.targetCycleFree = false;
+  wireDragState.targetBundleCount = 1;
 
   if (!wireDragState.active) {
     notifyExternalDragTarget();
@@ -244,22 +245,32 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
       for (const auto &inputPort : node->getInputPorts()) {
         const auto hitArea =
             getLocalArea(inputPort.get(), inputPort->getLocalBounds()).expanded(4);
-
         if (!hitArea.contains(mousePosInt))
           continue;
 
-        const auto &candidatePort = inputPort->getPortData();
-        wireDragState.targetNodeId = candidatePort.ownerNodeId;
-        wireDragState.targetPortId = candidatePort.portId;
+        const auto localPoint = inputPort->getLocalPoint(this, mousePosInt).toFloat();
+        const auto hit = inputPort->hitTestLocal(localPoint);
+        if (!hit.hit)
+          continue;
+
+        const TPort *candidatePort =
+            findPortModel(node->getNodeId(), hit.portId);
+        if (candidatePort == nullptr)
+          continue;
+
+        wireDragState.targetNodeId = candidatePort->ownerNodeId;
+        wireDragState.targetPortId = candidatePort->portId;
         wireDragState.targetTypeMatch =
-            (candidatePort.dataType == wireDragState.sourceType);
+            (candidatePort->dataType == wireDragState.sourceType);
         wireDragState.targetCycleFree =
             sourceIsExternal ? true
                              : !document.wouldCreateCycle(
                                    wireDragState.sourceNodeId,
-                                   candidatePort.ownerNodeId);
+                                   candidatePort->ownerNodeId);
+        wireDragState.targetBundleCount = hit.bundle ? hit.channelCount : 1;
 
-        inputPort->setDragTargetHighlight(true, isCurrentDragTargetConnectable());
+        inputPort->setDragTargetHighlight(true, isCurrentDragTargetConnectable(),
+                                          hit.portId, hit.bundle);
         notifyExternalDragTarget();
         return;
       }
@@ -321,9 +332,14 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
                                   fromEndpoints)) {
       return false;
     }
+
+    const int targetCount = juce::jmax(1, wireDragState.targetBundleCount);
+    if ((int)fromEndpoints.size() != targetCount)
+      return false;
+
     if (!buildNodeBundleEndpoints(document, wireDragState.targetNodeId,
-                                  wireDragState.targetPortId,
-                                  (int)fromEndpoints.size(), toEndpoints)) {
+                                  wireDragState.targetPortId, targetCount,
+                                  toEndpoints)) {
       return false;
     }
     return canConnectEndpointVectors(document, fromEndpoints, toEndpoints);
@@ -333,6 +349,8 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
       findPortModel(wireDragState.sourceNodeId, wireDragState.sourcePortId);
   if (!sourcePort || sourcePort->direction != TPortDirection::Output)
     return false;
+
+  const int sourceCount = juce::jmax(1, wireDragState.sourceBundleCount);
 
   if (wireDragState.targetExternalZoneId.isNotEmpty()) {
     if (!isOutputRailZone(document, wireDragState.targetExternalZoneId))
@@ -345,11 +363,14 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
       return false;
     }
 
+    const int targetCount = railPortIdsFromToken(portToken).size();
+    if (targetCount != sourceCount)
+      return false;
+
     std::vector<TEndpoint> fromEndpoints;
     std::vector<TEndpoint> toEndpoints;
     if (!buildNodeBundleEndpoints(document, wireDragState.sourceNodeId,
-                                  wireDragState.sourcePortId,
-                                  railPortIdsFromToken(portToken).size(),
+                                  wireDragState.sourcePortId, sourceCount,
                                   fromEndpoints)) {
       return false;
     }
@@ -370,6 +391,26 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
       findPortModel(wireDragState.targetNodeId, wireDragState.targetPortId);
   if (!targetPort || targetPort->direction != TPortDirection::Input)
     return false;
+
+  const int targetCount = juce::jmax(1, wireDragState.targetBundleCount);
+  if (sourceCount > 1 || targetCount > 1) {
+    if (sourceCount != targetCount)
+      return false;
+
+    std::vector<TEndpoint> fromEndpoints;
+    std::vector<TEndpoint> toEndpoints;
+    if (!buildNodeBundleEndpoints(document, wireDragState.sourceNodeId,
+                                  wireDragState.sourcePortId, sourceCount,
+                                  fromEndpoints)) {
+      return false;
+    }
+    if (!buildNodeBundleEndpoints(document, wireDragState.targetNodeId,
+                                  wireDragState.targetPortId, targetCount,
+                                  toEndpoints)) {
+      return false;
+    }
+    return canConnectEndpointVectors(document, fromEndpoints, toEndpoints);
+  }
 
   const auto from = TEndpoint::makeNodePort(wireDragState.sourceNodeId,
                                             wireDragState.sourcePortId);
@@ -414,9 +455,11 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
                             portToken)) {
       std::vector<TEndpoint> fromEndpoints;
       std::vector<TEndpoint> toEndpoints;
-      if (buildNodeBundleEndpoints(document, wireDragState.sourceNodeId,
+      const int targetCount = railPortIdsFromToken(portToken).size();
+      if (targetCount == juce::jmax(1, wireDragState.sourceBundleCount) &&
+          buildNodeBundleEndpoints(document, wireDragState.sourceNodeId,
                                    wireDragState.sourcePortId,
-                                   railPortIdsFromToken(portToken).size(),
+                                   juce::jmax(1, wireDragState.sourceBundleCount),
                                    fromEndpoints) &&
           buildRailBundleEndpoints(document, endpointId, portToken, toEndpoints)) {
         commitEndpointVectors(fromEndpoints, toEndpoints);
@@ -439,9 +482,29 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
     if (buildRailBundleEndpoints(document, wireDragState.sourceExternalId,
                                  wireDragState.sourceExternalPortId,
                                  fromEndpoints) &&
+        (int)fromEndpoints.size() == juce::jmax(1, wireDragState.targetBundleCount) &&
         buildNodeBundleEndpoints(document, wireDragState.targetNodeId,
                                  wireDragState.targetPortId,
-                                 (int)fromEndpoints.size(), toEndpoints)) {
+                                 juce::jmax(1, wireDragState.targetBundleCount),
+                                 toEndpoints)) {
+      commitEndpointVectors(fromEndpoints, toEndpoints);
+      return;
+    }
+  }
+
+  if (juce::jmax(1, wireDragState.sourceBundleCount) > 1 ||
+      juce::jmax(1, wireDragState.targetBundleCount) > 1) {
+    std::vector<TEndpoint> fromEndpoints;
+    std::vector<TEndpoint> toEndpoints;
+    if (buildNodeBundleEndpoints(document, wireDragState.sourceNodeId,
+                                 wireDragState.sourcePortId,
+                                 juce::jmax(1, wireDragState.sourceBundleCount),
+                                 fromEndpoints) &&
+        buildNodeBundleEndpoints(document, wireDragState.targetNodeId,
+                                 wireDragState.targetPortId,
+                                 juce::jmax(1, wireDragState.targetBundleCount),
+                                 toEndpoints) &&
+        fromEndpoints.size() == toEndpoints.size()) {
       commitEndpointVectors(fromEndpoints, toEndpoints);
       return;
     }
@@ -464,17 +527,19 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
 }
 
 void TGraphCanvas::beginConnectionDrag(const TPort &sourcePort,
-                                       juce::Point<float> mousePosView) {
+                                       juce::Point<float> mousePosView,
+                                       int bundleChannelCount) {
   auto sourcePosView = mousePosView;
   if (findPortComponent(sourcePort.ownerNodeId, sourcePort.portId) != nullptr)
     sourcePosView = portCentreInCanvas(sourcePort.ownerNodeId, sourcePort.portId);
 
-  beginConnectionDragFromPoint(sourcePort, sourcePosView, mousePosView);
+  beginConnectionDragFromPoint(sourcePort, sourcePosView, mousePosView,
+                               bundleChannelCount);
 }
 
 void TGraphCanvas::beginConnectionDragFromPoint(
     const TPort &sourcePort, juce::Point<float> sourcePosView,
-    juce::Point<float> mousePosView) {
+    juce::Point<float> mousePosView, int bundleChannelCount) {
   if (sourcePort.direction != TPortDirection::Output)
     return;
 
@@ -483,6 +548,7 @@ void TGraphCanvas::beginConnectionDragFromPoint(
   wireDragState.sourceNodeId = sourcePort.ownerNodeId;
   wireDragState.sourcePortId = sourcePort.portId;
   wireDragState.sourceType = sourcePort.dataType;
+  wireDragState.sourceBundleCount = juce::jmax(1, bundleChannelCount);
   wireDragState.sourcePosView = sourcePosView;
   wireDragState.mousePosView = mousePosView;
 
@@ -504,6 +570,10 @@ void TGraphCanvas::beginExternalConnectionDragFromPoint(
   wireDragState.sourceExternalPortId = source.sourcePortId;
   wireDragState.sourceExternalKind = source.kind;
   wireDragState.sourceType = source.dataType;
+  wireDragState.sourceBundleCount =
+      source.kind == ExternalDragSourceKind::GraphConnection
+          ? juce::jmax(1, railPortIdsFromToken(source.sourcePortId).size())
+          : 1;
   wireDragState.sourcePosView = sourcePosView;
   wireDragState.mousePosView = mousePosView;
 

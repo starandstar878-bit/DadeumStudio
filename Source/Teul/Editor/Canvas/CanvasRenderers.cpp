@@ -314,8 +314,8 @@ TGraphCanvas::findPortComponent(NodeId nodeId, PortId portId) const noexcept {
 juce::Point<float> TGraphCanvas::portCentreInCanvas(NodeId nodeId,
                                                     PortId portId) const {
   if (const auto *portComp = findPortComponent(nodeId, portId)) {
-    const auto localCentre = portComp->getLocalBounds().getCentre();
-    return getLocalPoint(portComp, localCentre).toFloat();
+    const auto localCentre = portComp->localAnchorForPort(portId);
+    return getLocalPoint(portComp, localCentre.roundToInt()).toFloat();
   }
 
   if (const auto *node = document.findNode(nodeId))

@@ -45,6 +45,94 @@ static juce::Colour heatColourForLevel(float heatLevel) {
                         juce::jlimit(0.0f, 1.0f, heatLevel * 1.1f));
 }
 
+static bool splitStereoPortLabel(juce::StringRef name, bool &isLeft,
+                                 juce::String &suffix) {
+  const juce::String trimmed = juce::String(name).trim();
+  if (trimmed.equalsIgnoreCase("L")) {
+    isLeft = true;
+    suffix.clear();
+    return true;
+  }
+  if (trimmed.equalsIgnoreCase("R")) {
+    isLeft = false;
+    suffix.clear();
+    return true;
+  }
+  if (trimmed.startsWithIgnoreCase("L ")) {
+    isLeft = true;
+    suffix = trimmed.substring(2).trim();
+    return true;
+  }
+  if (trimmed.startsWithIgnoreCase("R ")) {
+    isLeft = false;
+    suffix = trimmed.substring(2).trim();
+    return true;
+  }
+  return false;
+}
+
+static std::vector<std::unique_ptr<TPortComponent>> buildPortComponents(
+    TNodeComponent &owner, const std::vector<TPort> &ports,
+    TPortDirection direction, float viewScale) {
+  std::vector<TPort> directionalPorts;
+  for (const auto &port : ports) {
+    if (port.direction == direction)
+      directionalPorts.push_back(port);
+  }
+
+  std::vector<std::unique_ptr<TPortComponent>> result;
+  std::vector<bool> used(directionalPorts.size(), false);
+  for (size_t index = 0; index < directionalPorts.size(); ++index) {
+    if (used[index])
+      continue;
+
+    const auto &port = directionalPorts[index];
+    std::vector<TPort> group;
+    group.push_back(port);
+
+    if (port.dataType == TPortDataType::Audio) {
+      bool isLeft = false;
+      juce::String suffix;
+      if (splitStereoPortLabel(port.name, isLeft, suffix)) {
+        for (size_t candidateIndex = index + 1; candidateIndex < directionalPorts.size(); ++candidateIndex) {
+          if (used[candidateIndex])
+            continue;
+
+          const auto &candidate = directionalPorts[candidateIndex];
+          if (candidate.dataType != port.dataType ||
+              candidate.direction != port.direction)
+            continue;
+
+          bool candidateIsLeft = false;
+          juce::String candidateSuffix;
+          if (!splitStereoPortLabel(candidate.name, candidateIsLeft, candidateSuffix) ||
+              candidateIsLeft == isLeft || candidateSuffix != suffix) {
+            continue;
+          }
+
+          group.clear();
+          if (isLeft) {
+            group.push_back(port);
+            group.push_back(candidate);
+          } else {
+            group.push_back(candidate);
+            group.push_back(port);
+          }
+          used[candidateIndex] = true;
+          break;
+        }
+      }
+    }
+
+    used[index] = true;
+    auto component = std::make_unique<TPortComponent>(owner, std::move(group));
+    component->setScaleFactor(viewScale);
+    result.push_back(std::move(component));
+  }
+
+  return result;
+}
+
 } // namespace
 
 TNodeComponent::TNodeComponent(TGraphCanvas &canvas, NodeId id,
@@ -61,22 +149,17 @@ void TNodeComponent::updateFromModel() {
   if (!nodePtr)
     return;
 
-  inPorts.clear();
-  outPorts.clear();
+  inPorts = buildPortComponents(*this, nodePtr->ports, TPortDirection::Input,
+                                viewScale);
+  outPorts = buildPortComponents(*this, nodePtr->ports, TPortDirection::Output,
+                                 viewScale);
 
-  for (const auto &portData : nodePtr->ports) {
-    auto comp = std::make_unique<TPortComponent>(*this, portData);
-    comp->setScaleFactor(viewScale);
-    addAndMakeVisible(comp.get());
-
-    if (portData.direction == TPortDirection::Input)
-      inPorts.push_back(std::move(comp));
-    else
-      outPorts.push_back(std::move(comp));
-  }
+  for (auto &port : inPorts)
+    addAndMakeVisible(port.get());
+  for (auto &port : outPorts)
+    addAndMakeVisible(port.get());
 
   recalculateHeight();
-
 }
 
 void TNodeComponent::recalculateHeight() {
@@ -120,34 +203,36 @@ void TNodeComponent::resized() {
   const TNode *nodePtr = ownerCanvas.getDocument().findNode(nodeId);
   const bool collapsed = nodePtr ? nodePtr->collapsed : false;
   const int headerHeightPx = scaledInt(headerHeight);
-  const int portRowHeightPx = scaledInt(portRowHeight);
-  const int portSizePx = juce::jmax(4, scaledInt(14));
-  const int portHalf = portSizePx / 2;
+  const int rowGapPx = scaledInt(6);
   const int portYInset = scaledInt(8);
 
   int y = headerHeightPx + portYInset;
   for (auto &p : inPorts) {
-    p->setBounds(-portHalf, y, portSizePx, portSizePx);
+    const int portWidth = p->getWidth();
+    const int portHeight = p->getHeight();
+    p->setBounds(-(portWidth / 2), y, portWidth, portHeight);
     p->setVisible(!collapsed);
-    y += portRowHeightPx;
+    y += portHeight + rowGapPx;
   }
 
   y = headerHeightPx + portYInset;
   for (auto &p : outPorts) {
-    p->setBounds(getWidth() - portHalf, y, portSizePx, portSizePx);
+    const int portWidth = p->getWidth();
+    const int portHeight = p->getHeight();
+    p->setBounds(getWidth() - portWidth + portWidth / 2, y, portWidth, portHeight);
     p->setVisible(!collapsed);
-    y += portRowHeightPx;
+    y += portHeight + rowGapPx;
   }
 }
 
 TPortComponent *TNodeComponent::findPortComponent(PortId portId) noexcept {
   for (auto &p : inPorts) {
-    if (p->getPortData().portId == portId)
+    if (p->containsPort(portId))
       return p.get();
   }
 
   for (auto &p : outPorts) {
-    if (p->getPortData().portId == portId)
+    if (p->containsPort(portId))
       return p.get();
   }
 
@@ -157,12 +242,12 @@ TPortComponent *TNodeComponent::findPortComponent(PortId portId) noexcept {
 const TPortComponent *
 TNodeComponent::findPortComponent(PortId portId) const noexcept {
   for (const auto &p : inPorts) {
-    if (p->getPortData().portId == portId)
+    if (p->containsPort(portId))
       return p.get();
   }
 
   for (const auto &p : outPorts) {
-    if (p->getPortData().portId == portId)
+    if (p->containsPort(portId))
       return p.get();
   }
 
@@ -189,8 +274,6 @@ void TNodeComponent::paint(juce::Graphics &g) {
   const int labelInsetPx = juce::jmax(4, scaledInt(12));
   const int labelWidthPx = juce::jmax(24, scaledInt(72));
   const int portTextHeightPx = juce::jmax(8, scaledInt(14));
-  const int portTextStartYPx = scaledInt(headerHeight + 8) - scaledInt(1);
-  const int portRowHeightPx = scaledInt(portRowHeight);
   const float borderThicknessPx = juce::jmax(1.0f, 1.0f * viewScale);
   const float borderSelectedThicknessPx = juce::jmax(1.2f, 1.5f * viewScale);
   const float errorGlowExpandPx = juce::jmax(1.0f, 2.0f * viewScale);
@@ -269,19 +352,17 @@ void TNodeComponent::paint(juce::Graphics &g) {
     g.setColour(juce::Colours::lightgrey);
     g.setFont(juce::FontOptions(bodyFontPx));
 
-    int yIn = portTextStartYPx;
     for (auto &p : inPorts) {
-      g.drawText(p->getPortData().name, labelInsetPx, yIn, labelWidthPx,
+      const auto labelY = p->getBounds().getCentreY() - portTextHeightPx / 2;
+      g.drawText(p->getDisplayName(), labelInsetPx, labelY, labelWidthPx,
                  portTextHeightPx, juce::Justification::centredLeft);
-      yIn += portRowHeightPx;
     }
 
-    int yOut = portTextStartYPx;
     for (auto &p : outPorts) {
-      g.drawText(p->getPortData().name,
-                 getWidth() - labelInsetPx - labelWidthPx, yOut, labelWidthPx,
+      const auto labelY = p->getBounds().getCentreY() - portTextHeightPx / 2;
+      g.drawText(p->getDisplayName(),
+                 getWidth() - labelInsetPx - labelWidthPx, labelY, labelWidthPx,
                  portTextHeightPx, juce::Justification::centredRight);
-      yOut += portRowHeightPx;
     }
 
     if (nodePtr != nullptr) {
@@ -309,12 +390,12 @@ void TNodeComponent::paint(juce::Graphics &g) {
       const float railWidth = juce::jmax(4.0f, scaledFloat(isSelected ? 7.0f : 5.0f));
       const float railInset = scaledFloat(7.0f);
       const float railHeight = juce::jmax(10.0f, scaledFloat(12.0f));
-      float railY = (float)portTextStartYPx + scaledFloat(1.0f);
 
       for (const auto &port : outPorts) {
         const auto &portData = port->getPortData();
         const float level = ownerCanvas.getPortLevel(portData.portId);
         const juce::Colour probeColour = probeColourForPortType(portData.dataType);
+        const float railY = (float)port->getBounds().getCentreY() - railHeight * 0.5f;
         auto railRect = juce::Rectangle<float>(getWidth() - railInset - railWidth,
                                                railY, railWidth, railHeight);
         g.setColour(juce::Colour(0xaa0f172a));
@@ -330,7 +411,6 @@ void TNodeComponent::paint(juce::Graphics &g) {
 
         g.setColour(probeColour.withAlpha(isSelected ? 0.82f : 0.48f));
         g.drawRoundedRectangle(railRect, railWidth * 0.5f, 0.9f);
-        railY += (float)portRowHeightPx;
       }
     }
 
@@ -339,12 +419,12 @@ void TNodeComponent::paint(juce::Graphics &g) {
       const float probeHeight = juce::jmax(10.0f, scaledFloat(12.0f));
       const float probeInset = scaledFloat(12.0f);
       const float barInset = scaledFloat(2.0f);
-      float probeY = (float)portTextStartYPx + scaledFloat(1.0f);
 
       for (const auto &port : outPorts) {
         const auto &portData = port->getPortData();
         const float level = ownerCanvas.getPortLevel(portData.portId);
         const juce::Colour probeColour = probeColourForPortType(portData.dataType);
+        const float probeY = (float)port->getBounds().getCentreY() - probeHeight * 0.5f;
         auto probeRect = juce::Rectangle<float>(
             getWidth() - labelInsetPx - labelWidthPx - probeWidth - probeInset,
             probeY, probeWidth, probeHeight);
@@ -361,7 +441,6 @@ void TNodeComponent::paint(juce::Graphics &g) {
         g.setFont(juce::FontOptions(juce::jmax(6.0f, scaledFloat(9.0f))));
         g.drawText(juce::String(level, 2), probeRect.toNearestInt(),
                    juce::Justification::centred, false);
-        probeY += (float)portRowHeightPx;
       }
     }
   }

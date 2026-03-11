@@ -2,6 +2,7 @@
 
 #include "Teul/Model/TPort.h"
 #include <JuceHeader.h>
+#include <vector>
 
 namespace Teul {
 
@@ -9,31 +10,57 @@ class TNodeComponent;
 
 class TPortComponent : public juce::Component {
 public:
+  struct HitResult {
+    bool hit = false;
+    bool bundle = false;
+    PortId portId = kInvalidPortId;
+    int channelCount = 1;
+  };
+
   TPortComponent(TNodeComponent &owner, const TPort &port);
+  TPortComponent(TNodeComponent &owner, std::vector<TPort> ports);
   ~TPortComponent() override;
 
   void paint(juce::Graphics &g) override;
 
   void mouseEnter(const juce::MouseEvent &e) override;
+  void mouseMove(const juce::MouseEvent &e) override;
   void mouseExit(const juce::MouseEvent &e) override;
   void mouseDown(const juce::MouseEvent &e) override;
   void mouseDrag(const juce::MouseEvent &e) override;
   void mouseUp(const juce::MouseEvent &e) override;
 
-  const TPort &getPortData() const { return portData; }
-  void setDragTargetHighlight(bool enabled, bool validType);
+  const TPort &getPortData() const { return portGroup.front(); }
+  const std::vector<TPort> &getPortGroup() const noexcept { return portGroup; }
+  bool containsPort(PortId portId) const noexcept;
+  juce::Point<float> localAnchorForPort(PortId portId) const;
+  juce::String getDisplayName() const;
+  HitResult hitTestLocal(juce::Point<float> point) const;
+
+  void setDragTargetHighlight(bool enabled, bool validType,
+                              PortId highlightedPortId = kInvalidPortId,
+                              bool highlightBundle = false);
   void setScaleFactor(float newScale);
 
 private:
   TNodeComponent &ownerNode;
-  TPort portData;
+  std::vector<TPort> portGroup;
 
   float scaleFactor = 1.0f;
-  bool isHovered = false;
+  PortId hoveredPortId = kInvalidPortId;
+  bool hoveredBundle = false;
   bool isDragTargetHighlighted = false;
   bool isDragTargetTypeValid = true;
+  PortId highlightedPortId = kInvalidPortId;
+  bool highlightBundle = false;
+  bool dragActive = false;
 
+  bool isBus() const noexcept { return portGroup.size() > 1; }
   juce::Colour getPortColor() const;
+  juce::Rectangle<float> monoBounds() const;
+  juce::Rectangle<float> busOuterBounds() const;
+  std::vector<juce::Rectangle<float>> channelBounds() const;
+  void updateHoverState(juce::Point<float> point);
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TPortComponent)
 };

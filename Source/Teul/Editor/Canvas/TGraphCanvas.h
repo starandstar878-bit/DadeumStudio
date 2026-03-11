@@ -84,10 +84,12 @@ public:
   };
 
   void beginConnectionDrag(const TPort &sourcePort,
-                           juce::Point<float> mousePosView);
+                           juce::Point<float> mousePosView,
+                           int bundleChannelCount = 1);
   void beginConnectionDragFromPoint(const TPort &sourcePort,
                                     juce::Point<float> sourcePosView,
-                                    juce::Point<float> mousePosView);
+                                    juce::Point<float> mousePosView,
+                                    int bundleChannelCount = 1);
   void beginExternalConnectionDragFromPoint(
       const ExternalDragSource &source, juce::Point<float> sourcePosView,
       juce::Point<float> mousePosView);
@@ -400,6 +402,7 @@ private:
     ExternalDragSourceKind sourceExternalKind =
         ExternalDragSourceKind::Assignment;
     TPortDataType sourceType = TPortDataType::Audio;
+    int sourceBundleCount = 1;
 
     juce::Point<float> sourcePosView;
     juce::Point<float> mousePosView;
@@ -410,6 +413,7 @@ private:
 
     bool targetTypeMatch = false;
     bool targetCycleFree = false;
+    int targetBundleCount = 1;
   } wireDragState;
 
   ConnectionId selectedConnectionId = kInvalidConnectionId;
