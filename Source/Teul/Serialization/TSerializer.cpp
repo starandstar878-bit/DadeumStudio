@@ -762,6 +762,10 @@ juce::var controlAssignmentToJson(const TControlSourceAssignment &assignment) {
   object->setProperty("port_id", assignment.portId);
   object->setProperty("target_node_id", (int64_t)assignment.targetNodeId);
   object->setProperty("target_param_id", assignment.targetParamId);
+  object->setProperty("enabled", assignment.enabled);
+  object->setProperty("inverted", assignment.inverted);
+  object->setProperty("range_min", assignment.rangeMin);
+  object->setProperty("range_max", assignment.rangeMax);
   return juce::var(object);
 }
 
@@ -777,6 +781,10 @@ bool jsonToControlAssignment(TControlSourceAssignment &assignment,
       (NodeId)(int64_t)propertyOrAlias(object, {"target_node_id", "targetNodeId"}, 0);
   assignment.targetParamId =
       propertyOrAlias(object, {"target_param_id", "targetParamId"}).toString();
+  assignment.enabled = (bool)propertyOrAlias(object, {"enabled"}, true);
+  assignment.inverted = (bool)propertyOrAlias(object, {"inverted"}, false);
+  assignment.rangeMin = (float)(double)propertyOrAlias(object, {"range_min", "rangeMin"}, 0.0);
+  assignment.rangeMax = (float)(double)propertyOrAlias(object, {"range_max", "rangeMax"}, 1.0);
   return assignment.sourceId.isNotEmpty() && assignment.portId.isNotEmpty();
 }
 

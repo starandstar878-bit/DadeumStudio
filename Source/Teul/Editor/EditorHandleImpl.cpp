@@ -256,6 +256,17 @@ static juce::String appendIssueStateSuffix(juce::String text, TIssueState issueS
     text << " | " << label;
   return text;
 }
+static juce::String controlAssignmentSettingsText(const TControlSourceAssignment &assignment) {
+  juce::StringArray parts;
+  parts.add("Range " + juce::String(assignment.rangeMin, 2) + ".." +
+            juce::String(assignment.rangeMax, 2));
+  if (!assignment.enabled)
+    parts.add("Off");
+  if (assignment.inverted)
+    parts.add("Inv");
+  return parts.joinIntoString(" | ");
+}
+
 
 juce::String controlSourceBadgeText(const TControlSource &source) {
   switch (source.kind) {
@@ -1805,7 +1816,8 @@ private:
         continue;
 
       lines.add(portNameForId(source, assignment.portId) + " -> " +
-                targetNameForAssignment(assignment));
+                targetNameForAssignment(assignment) + " | " +
+                controlAssignmentSettingsText(assignment));
     }
 
     if (lines.isEmpty())

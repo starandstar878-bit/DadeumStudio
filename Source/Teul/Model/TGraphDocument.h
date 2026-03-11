@@ -170,6 +170,10 @@ struct TControlSourceAssignment {
   juce::String portId;
   NodeId targetNodeId = kInvalidNodeId;
   juce::String targetParamId;
+  bool enabled = true;
+  bool inverted = false;
+  float rangeMin = 0.0f;
+  float rangeMax = 1.0f;
 };
 
 struct TControlSourceState {

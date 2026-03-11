@@ -159,6 +159,21 @@ static TIssueState issueStateForControlAssignment(const TControlSourceState &sta
   return hasPort ? TIssueState::none : TIssueState::invalidConfig;
 }
 
+static juce::String formatControlAssignmentRange(float value) {
+  return juce::String(value, 2);
+}
+
+static juce::String controlAssignmentSettingsText(const TControlSourceAssignment &assignment) {
+  juce::StringArray parts;
+  parts.add("Range " + formatControlAssignmentRange(assignment.rangeMin) + ".." +
+            formatControlAssignmentRange(assignment.rangeMax));
+  if (!assignment.enabled)
+    parts.add("Off");
+  if (assignment.inverted)
+    parts.add("Inv");
+  return parts.joinIntoString(" | ");
+}
+
 class NodePropertiesPanelImpl final : public NodePropertiesPanel,
                             private juce::Timer,
                             private ITeulParamProvider::Listener {
@@ -586,8 +601,14 @@ private:
     std::unique_ptr<juce::Label> bindingInfoLabel;
     std::unique_ptr<juce::Label> gyeolBindingLabel;
     std::unique_ptr<juce::Label> controlAssignmentLabel;
+    std::unique_ptr<juce::Label> controlAssignmentSettingsLabel;
+    std::unique_ptr<juce::TextButton> controlAssignmentEnabledButton;
+    std::unique_ptr<juce::TextButton> controlAssignmentInvertButton;
     std::unique_ptr<juce::TextButton> clearControlAssignmentButton;
     std::unique_ptr<juce::Component> editor;
+    juce::String editableAssignmentSourceId;
+    juce::String editableAssignmentPortId;
+    NodeId editableAssignmentTargetNodeId = kInvalidNodeId;
   };
 
   void timerCallback() override {
@@ -788,6 +809,61 @@ private:
           juce::BorderSize<int>(1, 6, 1, 6));
       paramsContent->addAndMakeVisible(entry->controlAssignmentLabel.get());
 
+      entry->controlAssignmentSettingsLabel = std::make_unique<juce::Label>();
+      entry->controlAssignmentSettingsLabel->setJustificationType(
+          juce::Justification::centredLeft);
+      entry->controlAssignmentSettingsLabel->setColour(
+          juce::Label::textColourId, juce::Colours::white.withAlpha(0.58f));
+      entry->controlAssignmentSettingsLabel->setFont(juce::FontOptions(9.4f));
+      entry->controlAssignmentSettingsLabel->setBorderSize(
+          juce::BorderSize<int>(1, 6, 1, 6));
+      entry->controlAssignmentSettingsLabel->setVisible(false);
+      paramsContent->addAndMakeVisible(entry->controlAssignmentSettingsLabel.get());
+
+      entry->controlAssignmentEnabledButton =
+          std::make_unique<juce::TextButton>("On");
+      entry->controlAssignmentEnabledButton->setClickingTogglesState(true);
+      entry->controlAssignmentEnabledButton->setColour(
+          juce::TextButton::buttonColourId, juce::Colour(0x2222c55e));
+      entry->controlAssignmentEnabledButton->setColour(
+          juce::TextButton::buttonOnColourId, juce::Colour(0x4422c55e));
+      entry->controlAssignmentEnabledButton->setColour(
+          juce::TextButton::textColourOffId,
+          juce::Colours::white.withAlpha(0.84f));
+      entry->controlAssignmentEnabledButton->setVisible(false);
+      entry->controlAssignmentEnabledButton->setTooltip(
+          "Enable or disable this control assignment");
+      const auto enabledParamId = entry->paramId;
+      auto *enabledButton = entry->controlAssignmentEnabledButton.get();
+      entry->controlAssignmentEnabledButton->onClick =
+          [this, enabledParamId, enabledButton] {
+            setControlAssignmentEnabledForParam(enabledParamId,
+                                                enabledButton->getToggleState());
+          };
+      paramsContent->addAndMakeVisible(entry->controlAssignmentEnabledButton.get());
+
+      entry->controlAssignmentInvertButton =
+          std::make_unique<juce::TextButton>("Inv");
+      entry->controlAssignmentInvertButton->setClickingTogglesState(true);
+      entry->controlAssignmentInvertButton->setColour(
+          juce::TextButton::buttonColourId, juce::Colour(0x223b82f6));
+      entry->controlAssignmentInvertButton->setColour(
+          juce::TextButton::buttonOnColourId, juce::Colour(0x443b82f6));
+      entry->controlAssignmentInvertButton->setColour(
+          juce::TextButton::textColourOffId,
+          juce::Colours::white.withAlpha(0.84f));
+      entry->controlAssignmentInvertButton->setVisible(false);
+      entry->controlAssignmentInvertButton->setTooltip(
+          "Invert this control assignment");
+      const auto invertParamId = entry->paramId;
+      auto *invertButton = entry->controlAssignmentInvertButton.get();
+      entry->controlAssignmentInvertButton->onClick =
+          [this, invertParamId, invertButton] {
+            setControlAssignmentInvertedForParam(invertParamId,
+                                                 invertButton->getToggleState());
+          };
+      paramsContent->addAndMakeVisible(entry->controlAssignmentInvertButton.get());
+
       entry->clearControlAssignmentButton =
           std::make_unique<juce::TextButton>("Clear");
       entry->clearControlAssignmentButton->setTooltip(
@@ -894,8 +970,44 @@ private:
         }
         entry->controlAssignmentLabel->setBounds(assignmentRow);
         y += 22;
+
+        if (entry->controlAssignmentSettingsLabel != nullptr &&
+            entry->controlAssignmentSettingsLabel->isVisible()) {
+          auto settingsRow = juce::Rectangle<int>(0, y, width, 20);
+          if (entry->controlAssignmentInvertButton != nullptr &&
+              entry->controlAssignmentInvertButton->isVisible()) {
+            auto invertBounds = settingsRow.removeFromRight(44);
+            entry->controlAssignmentInvertButton->setBounds(invertBounds);
+            settingsRow.removeFromRight(6);
+          } else if (entry->controlAssignmentInvertButton != nullptr) {
+            entry->controlAssignmentInvertButton->setBounds(0, 0, 0, 0);
+          }
+          if (entry->controlAssignmentEnabledButton != nullptr &&
+              entry->controlAssignmentEnabledButton->isVisible()) {
+            auto enabledBounds = settingsRow.removeFromRight(44);
+            entry->controlAssignmentEnabledButton->setBounds(enabledBounds);
+            settingsRow.removeFromRight(6);
+          } else if (entry->controlAssignmentEnabledButton != nullptr) {
+            entry->controlAssignmentEnabledButton->setBounds(0, 0, 0, 0);
+          }
+          entry->controlAssignmentSettingsLabel->setBounds(settingsRow);
+          y += 24;
+        } else {
+          if (entry->controlAssignmentSettingsLabel != nullptr)
+            entry->controlAssignmentSettingsLabel->setBounds(0, 0, 0, 0);
+          if (entry->controlAssignmentEnabledButton != nullptr)
+            entry->controlAssignmentEnabledButton->setBounds(0, 0, 0, 0);
+          if (entry->controlAssignmentInvertButton != nullptr)
+            entry->controlAssignmentInvertButton->setBounds(0, 0, 0, 0);
+        }
       } else {
         entry->controlAssignmentLabel->setBounds(0, 0, 0, 0);
+        if (entry->controlAssignmentSettingsLabel != nullptr)
+          entry->controlAssignmentSettingsLabel->setBounds(0, 0, 0, 0);
+        if (entry->controlAssignmentEnabledButton != nullptr)
+          entry->controlAssignmentEnabledButton->setBounds(0, 0, 0, 0);
+        if (entry->controlAssignmentInvertButton != nullptr)
+          entry->controlAssignmentInvertButton->setBounds(0, 0, 0, 0);
         if (entry->clearControlAssignmentButton != nullptr)
           entry->clearControlAssignmentButton->setBounds(0, 0, 0, 0);
       }
@@ -930,6 +1042,9 @@ private:
     unionWith(entry.bindingInfoLabel.get());
     unionWith(entry.gyeolBindingLabel.get());
     unionWith(entry.controlAssignmentLabel.get());
+    unionWith(entry.controlAssignmentSettingsLabel.get());
+    unionWith(entry.controlAssignmentEnabledButton.get());
+    unionWith(entry.controlAssignmentInvertButton.get());
     unionWith(entry.clearControlAssignmentButton.get());
     return bounds.expanded(4, 4);
   }
@@ -965,7 +1080,8 @@ private:
       }
 
       issueState = mergeIssueState(issueState, assignmentIssue);
-      juce::String label = sourceLabel + " / " + portLabel;
+      juce::String label = sourceLabel + " / " + portLabel + " / " +
+                           controlAssignmentSettingsText(assignment);
       if (hasIssueState(assignmentIssue))
         label << " / " << issueStateLabel(assignmentIssue);
       labels.add(std::move(label));
@@ -982,6 +1098,76 @@ private:
       text << " +" << juce::String(labels.size() - 1);
     return text;
   }
+  ParamEditor *findParamEditorById(const juce::String &paramId) {
+    const auto it = std::find_if(paramEditors.begin(), paramEditors.end(),
+                                 [&](const auto &entry) {
+                                   return entry->paramId == paramId;
+                                 });
+    return it != paramEditors.end() ? it->get() : nullptr;
+  }
+
+  TControlSourceAssignment *findEditableControlAssignment(ParamEditor &entry) {
+    if (entry.editableAssignmentSourceId.isEmpty() ||
+        entry.editableAssignmentPortId.isEmpty() ||
+        entry.editableAssignmentTargetNodeId == kInvalidNodeId ||
+        entry.paramId.isEmpty()) {
+      return nullptr;
+    }
+
+    const auto it = std::find_if(
+        document.controlState.assignments.begin(),
+        document.controlState.assignments.end(),
+        [&](TControlSourceAssignment &assignment) {
+          return assignment.sourceId == entry.editableAssignmentSourceId &&
+                 assignment.portId == entry.editableAssignmentPortId &&
+                 assignment.targetNodeId == entry.editableAssignmentTargetNodeId &&
+                 assignment.targetParamId == entry.paramId;
+        });
+    return it != document.controlState.assignments.end() ? &*it : nullptr;
+  }
+
+  void mutateSingleControlAssignmentForParam(
+      const juce::String &paramId,
+      const std::function<bool(TControlSourceAssignment &)> &mutate) {
+    auto *entry = findParamEditorById(paramId);
+    if (entry == nullptr)
+      return;
+
+    auto *assignment = findEditableControlAssignment(*entry);
+    if (assignment == nullptr)
+      return;
+
+    if (!mutate(*assignment))
+      return;
+
+    document.touch(false);
+    refreshNodeConnectionSummary();
+    updateRuntimeValueLabels();
+    canvas.repaint();
+  }
+
+  void setControlAssignmentEnabledForParam(const juce::String &paramId,
+                                           bool enabled) {
+    mutateSingleControlAssignmentForParam(
+        paramId, [enabled](TControlSourceAssignment &assignment) {
+          if (assignment.enabled == enabled)
+            return false;
+          assignment.enabled = enabled;
+          return true;
+        });
+  }
+
+  void setControlAssignmentInvertedForParam(const juce::String &paramId,
+                                            bool inverted) {
+    mutateSingleControlAssignmentForParam(
+        paramId, [inverted](TControlSourceAssignment &assignment) {
+          if (assignment.inverted == inverted)
+            return false;
+          assignment.inverted = inverted;
+          return true;
+        });
+  }
+
   void clearControlAssignmentsForParam(const juce::String &paramId) {
     if (paramId.isEmpty())
       return;
@@ -1095,6 +1281,7 @@ private:
         targetLabel = paramKey;
 
       juce::String line = sourceLabel + " / " + portLabel + " -> " + targetLabel;
+      line << " / " << controlAssignmentSettingsText(assignment);
       if (hasIssueState(assignmentIssue))
         line << " / " << issueStateLabel(assignmentIssue);
       controls.add(std::move(line));
@@ -1211,6 +1398,48 @@ private:
           juce::dontSendNotification);
       if (entry->clearControlAssignmentButton != nullptr)
         entry->clearControlAssignmentButton->setVisible(showControlAssignment);
+
+      std::vector<const TControlSourceAssignment *> matchingAssignments;
+      for (const auto &assignment : document.controlState.assignments) {
+        if (assignment.targetParamId == entry->paramId)
+          matchingAssignments.push_back(&assignment);
+      }
+
+      const bool showSingleAssignmentControls = matchingAssignments.size() == 1;
+      entry->editableAssignmentSourceId.clear();
+      entry->editableAssignmentPortId.clear();
+      entry->editableAssignmentTargetNodeId = kInvalidNodeId;
+      if (showSingleAssignmentControls) {
+        const auto &assignment = *matchingAssignments.front();
+        entry->editableAssignmentSourceId = assignment.sourceId;
+        entry->editableAssignmentPortId = assignment.portId;
+        entry->editableAssignmentTargetNodeId = assignment.targetNodeId;
+      }
+
+      if (entry->controlAssignmentSettingsLabel != nullptr) {
+        entry->controlAssignmentSettingsLabel->setVisible(showSingleAssignmentControls);
+        entry->controlAssignmentSettingsLabel->setColour(
+            juce::Label::backgroundColourId,
+            showSingleAssignmentControls ? juce::Colour(0x16182232)
+                                         : juce::Colours::transparentBlack);
+        entry->controlAssignmentSettingsLabel->setText(
+            showSingleAssignmentControls
+                ? controlAssignmentSettingsText(*matchingAssignments.front())
+                : juce::String(),
+            juce::dontSendNotification);
+      }
+      if (entry->controlAssignmentEnabledButton != nullptr) {
+        entry->controlAssignmentEnabledButton->setVisible(showSingleAssignmentControls);
+        if (showSingleAssignmentControls)
+          entry->controlAssignmentEnabledButton->setToggleState(
+              matchingAssignments.front()->enabled, juce::dontSendNotification);
+      }
+      if (entry->controlAssignmentInvertButton != nullptr) {
+        entry->controlAssignmentInvertButton->setVisible(showSingleAssignmentControls);
+        if (showSingleAssignmentControls)
+          entry->controlAssignmentInvertButton->setToggleState(
+              matchingAssignments.front()->inverted, juce::dontSendNotification);
+      }
     }
 
     layoutParamEditors();
