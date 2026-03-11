@@ -1,4 +1,5 @@
 #include "Teul/Editor/Port/TPortComponent.h"
+#include "Teul/Editor/Port/TPortShapeLayout.h"
 #include "Teul/Editor/Theme/TeulPalette.h"
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
 #include "Teul/Editor/Node/TNodeComponent.h"
@@ -111,100 +112,41 @@ juce::String TPortComponent::getDisplayName() const {
 juce::Rectangle<float> TPortComponent::interactionBounds() const {
   return getLocalBounds().toFloat().reduced(1.0f, 1.0f);
 }
+juce::Rectangle<float> TPortComponent::socketArea() const {
+  const auto lane = interactionBounds();
+  const float width = juce::jmax(
+      14.0f, juce::jmin(lane.getWidth() - 6.0f, 18.0f * scaleFactor));
+  auto area = juce::Rectangle<float>(width, lane.getHeight());
+  area.setY(lane.getY());
+  area.setX(isInput() ? lane.getX() + 2.0f : lane.getRight() - width - 2.0f);
+  return area.reduced(0.5f, 0.0f);
+}
 
 juce::Rectangle<float> TPortComponent::monoBounds() const {
-  const auto bounds = interactionBounds();
-  const float diameter = juce::jmax(
-      8.0f, juce::jmin(bounds.getHeight() - 4.0f, 14.0f * scaleFactor));
-  const float radius = diameter * 0.5f;
-  const float centreX = isInput() ? bounds.getX() + radius + 3.0f
-                                  : bounds.getRight() - radius - 3.0f;
-  return juce::Rectangle<float>(diameter, diameter)
-      .withCentre(juce::Point<float>(centreX, bounds.getCentreY()));
+  return TPortShapeLayout::monoCircleBounds(socketArea());
 }
 
 juce::Rectangle<float> TPortComponent::busOuterBounds() const {
-  const auto lane = interactionBounds();
-  const float width = juce::jmax(
-      10.0f, juce::jmin(lane.getWidth() - 10.0f, 15.0f * scaleFactor));
-  const float height = juce::jmax(
-      18.0f, juce::jmin(lane.getHeight() - 2.0f, lane.getHeight()));
-  const float centreX = isInput() ? lane.getX() + width * 0.5f + 4.0f
-                                  : lane.getRight() - width * 0.5f - 4.0f;
-  return juce::Rectangle<float>(width, height)
-      .withCentre(juce::Point<float>(centreX, lane.getCentreY()));
+  return TPortShapeLayout::busOuterBounds(socketArea(), (int)portGroup.size());
 }
 
 std::vector<juce::Rectangle<float>> TPortComponent::channelBounds() const {
-  std::vector<juce::Rectangle<float>> bounds;
-  if (!isBus()) {
-    bounds.push_back(monoBounds());
-    return bounds;
-  }
-
-  const auto outer = busOuterBounds();
-  const int channelCount = (int)portGroup.size();
-  const float diameter = juce::jmax(
-      7.0f, juce::jmin(outer.getWidth() - 4.0f, 10.0f * scaleFactor));
-  const float radius = diameter * 0.5f;
-  const float firstCentreY = outer.getY() + radius + 3.0f;
-  const float lastCentreY = outer.getBottom() - radius - 3.0f;
-  const float step = channelCount > 1
-                         ? (lastCentreY - firstCentreY) / (float)(channelCount - 1)
-                         : 0.0f;
-  const float centreX = isInput() ? outer.getX() + radius + 3.0f
-                                  : outer.getRight() - radius - 3.0f;
-  bounds.reserve((size_t)channelCount);
-  for (int index = 0; index < channelCount; ++index) {
-    bounds.push_back(juce::Rectangle<float>(diameter, diameter)
-                         .withCentre(juce::Point<float>(centreX, firstCentreY + step * (float)index)));
-  }
-  return bounds;
+  return TPortShapeLayout::busChannelBounds(socketArea(), (int)portGroup.size());
 }
 
 TPortComponent::HitResult TPortComponent::hitTestLocal(juce::Point<float> point) const {
-  const auto containsEllipse = [](juce::Rectangle<float> bounds,
-                                  juce::Point<float> p) {
-    const auto radiusX = bounds.getWidth() * 0.5f;
-    const auto radiusY = bounds.getHeight() * 0.5f;
-    if (radiusX <= 0.0f || radiusY <= 0.0f)
-      return false;
-
-    const auto dx = (p.x - bounds.getCentreX()) / radiusX;
-    const auto dy = (p.y - bounds.getCentreY()) / radiusY;
-    return dx * dx + dy * dy <= 1.0f;
-  };
-
   HitResult result;
-  const auto bounds = channelBounds();
-  for (size_t index = 0; index < bounds.size() && index < portGroup.size(); ++index) {
-    const auto &circle = bounds[index];
-    if (containsEllipse(circle, point)) {
-      result.hit = true;
-      result.bundle = false;
-      result.portId = portGroup[index].portId;
-      result.channelCount = 1;
-      return result;
-    }
-  }
-
-  if (isBus() && interactionBounds().contains(point)) {
-    if (!busOuterBounds().contains(point))
-      return result;
-    result.hit = true;
-    result.bundle = true;
-    result.portId = portGroup.front().portId;
-    result.channelCount = (int)portGroup.size();
+  const auto hit =
+      TPortShapeLayout::hitTest(socketArea(), (int)portGroup.size(), point);
+  if (!hit.hit)
     return result;
-  }
-
-  if (!isBus() && containsEllipse(monoBounds(), point)) {
-    result.hit = true;
-    result.bundle = false;
+  result.hit = true;
+  result.bundle = hit.bundle;
+  result.channelCount = hit.channelCount;
+  if (hit.channelIndex >= 0 && hit.channelIndex < (int)portGroup.size())
+    result.portId = portGroup[(size_t)hit.channelIndex].portId;
+  else if (!portGroup.empty())
     result.portId = portGroup.front().portId;
-    result.channelCount = 1;
-  }
-
   return result;
 }
 

@@ -75,6 +75,7 @@ private:
   }
   juce::Colour getPortColor() const;
   juce::Rectangle<float> interactionBounds() const;
+  juce::Rectangle<float> socketArea() const;
   juce::Rectangle<float> monoBounds() const;
   juce::Rectangle<float> busOuterBounds() const;
   std::vector<juce::Rectangle<float>> channelBounds() const;
