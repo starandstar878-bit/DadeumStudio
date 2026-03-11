@@ -56,7 +56,11 @@ private:
   bool dragActive = false;
 
   bool isBus() const noexcept { return portGroup.size() > 1; }
+  bool isInput() const noexcept {
+    return getPortData().direction == TPortDirection::Input;
+  }
   juce::Colour getPortColor() const;
+  juce::Rectangle<float> interactionBounds() const;
   juce::Rectangle<float> monoBounds() const;
   juce::Rectangle<float> busOuterBounds() const;
   std::vector<juce::Rectangle<float>> channelBounds() const;

@@ -167,6 +167,36 @@ void TNodeComponent::recalculateHeight() {
   const bool collapsed = nodePtr ? nodePtr->collapsed : false;
   logicalSize = measureNodeSize(descriptor, (int)inPorts.size(),
                                 (int)outPorts.size(), collapsed);
+
+  if (!collapsed) {
+    const auto stackHeightForPorts = [this](const auto &ports) {
+      if (ports.empty())
+        return 0;
+
+      constexpr int rowGap = 6;
+      int total = 0;
+      for (size_t index = 0; index < ports.size(); ++index) {
+        total += juce::roundToInt((float)ports[index]->getHeight() / viewScale);
+        if (index + 1 < ports.size())
+          total += rowGap;
+      }
+      return total;
+    };
+
+    const int stackHeight = juce::jmax(stackHeightForPorts(inPorts),
+                                       stackHeightForPorts(outPorts));
+    const auto previewKind = inlinePreviewKindFor(descriptor);
+    const int desiredHeight = headerHeight + 8 + stackHeight + 12 +
+                              previewHeightForKind(previewKind);
+    logicalSize.y = juce::jmax(logicalSize.y, desiredHeight);
+
+    const int desiredWidth = juce::jmax(
+        logicalSize.x,
+        juce::roundToInt((float)(inputLaneWidthPx() + outputLaneWidthPx()) /
+                         viewScale) + 96);
+    logicalSize.x = juce::jmax(logicalSize.x, desiredWidth);
+  }
+
   applyViewScale();
 }
 
@@ -205,21 +235,21 @@ void TNodeComponent::resized() {
   const int headerHeightPx = scaledInt(headerHeight);
   const int rowGapPx = scaledInt(6);
   const int portYInset = scaledInt(8);
+  const int inputLaneWidth = inputLaneWidthPx();
+  const int outputLaneWidth = outputLaneWidthPx();
 
   int y = headerHeightPx + portYInset;
   for (auto &p : inPorts) {
-    const int portWidth = p->getWidth();
     const int portHeight = p->getHeight();
-    p->setBounds(-(portWidth / 2), y, portWidth, portHeight);
+    p->setBounds(0, y, inputLaneWidth, portHeight);
     p->setVisible(!collapsed);
     y += portHeight + rowGapPx;
   }
 
   y = headerHeightPx + portYInset;
   for (auto &p : outPorts) {
-    const int portWidth = p->getWidth();
     const int portHeight = p->getHeight();
-    p->setBounds(getWidth() - portWidth + portWidth / 2, y, portWidth, portHeight);
+    p->setBounds(getWidth() - outputLaneWidth, y, outputLaneWidth, portHeight);
     p->setVisible(!collapsed);
     y += portHeight + rowGapPx;
   }
@@ -259,6 +289,20 @@ void TNodeComponent::setPortDragHighlight(PortId portId, bool enabled,
   if (auto *portComp = findPortComponent(portId)) {
     portComp->setDragTargetHighlight(enabled, validType);
   }
+}
+
+int TNodeComponent::inputLaneWidthPx() const noexcept {
+  int width = 0;
+  for (const auto &port : inPorts)
+    width = juce::jmax(width, port->getWidth());
+  return width;
+}
+
+int TNodeComponent::outputLaneWidthPx() const noexcept {
+  int width = 0;
+  for (const auto &port : outPorts)
+    width = juce::jmax(width, port->getWidth());
+  return width;
 }
 
 void TNodeComponent::paint(juce::Graphics &g) {
@@ -352,16 +396,25 @@ void TNodeComponent::paint(juce::Graphics &g) {
     g.setColour(juce::Colours::lightgrey);
     g.setFont(juce::FontOptions(bodyFontPx));
 
+    const int inputLaneWidth = inputLaneWidthPx();
+    const int outputLaneWidth = outputLaneWidthPx();
+    const int labelPaddingPx = scaledInt(8);
+    const int inputLabelX = juce::jmax(labelInsetPx, inputLaneWidth + labelPaddingPx);
+    const int outputLabelRight =
+        juce::jmax(inputLabelX + labelWidthPx + scaledInt(8),
+                   getWidth() - outputLaneWidth - labelPaddingPx);
+    const int outputLabelX = juce::jmax(inputLabelX + scaledInt(8),
+                                        outputLabelRight - labelWidthPx);
+
     for (auto &p : inPorts) {
       const auto labelY = p->getBounds().getCentreY() - portTextHeightPx / 2;
-      g.drawText(p->getDisplayName(), labelInsetPx, labelY, labelWidthPx,
+      g.drawText(p->getDisplayName(), inputLabelX, labelY, labelWidthPx,
                  portTextHeightPx, juce::Justification::centredLeft);
     }
 
     for (auto &p : outPorts) {
       const auto labelY = p->getBounds().getCentreY() - portTextHeightPx / 2;
-      g.drawText(p->getDisplayName(),
-                 getWidth() - labelInsetPx - labelWidthPx, labelY, labelWidthPx,
+      g.drawText(p->getDisplayName(), outputLabelX, labelY, labelWidthPx,
                  portTextHeightPx, juce::Justification::centredRight);
     }
 
@@ -388,15 +441,16 @@ void TNodeComponent::paint(juce::Graphics &g) {
 
     if (runtimeViewOptions.liveProbeEnabled && !outPorts.empty()) {
       const float railWidth = juce::jmax(4.0f, scaledFloat(isSelected ? 7.0f : 5.0f));
-      const float railInset = scaledFloat(7.0f);
+      const float railInset = scaledFloat(6.0f);
       const float railHeight = juce::jmax(10.0f, scaledFloat(12.0f));
+      const float outputLaneLeft = (float)(getWidth() - outputLaneWidthPx());
 
       for (const auto &port : outPorts) {
         const auto &portData = port->getPortData();
         const float level = ownerCanvas.getPortLevel(portData.portId);
         const juce::Colour probeColour = probeColourForPortType(portData.dataType);
         const float railY = (float)port->getBounds().getCentreY() - railHeight * 0.5f;
-        auto railRect = juce::Rectangle<float>(getWidth() - railInset - railWidth,
+        auto railRect = juce::Rectangle<float>(outputLaneLeft + railInset,
                                                railY, railWidth, railHeight);
         g.setColour(juce::Colour(0xaa0f172a));
         g.fillRoundedRectangle(railRect, railWidth * 0.5f);
@@ -417,8 +471,9 @@ void TNodeComponent::paint(juce::Graphics &g) {
     if (runtimeViewOptions.liveProbeEnabled && isSelected && !outPorts.empty()) {
       const float probeWidth = juce::jmax(34.0f, scaledFloat(40.0f));
       const float probeHeight = juce::jmax(10.0f, scaledFloat(12.0f));
-      const float probeInset = scaledFloat(12.0f);
+      const float probeInset = scaledFloat(8.0f);
       const float barInset = scaledFloat(2.0f);
+      const float outputProbeRight = (float)(getWidth() - outputLaneWidthPx()) - probeInset;
 
       for (const auto &port : outPorts) {
         const auto &portData = port->getPortData();
@@ -426,8 +481,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
         const juce::Colour probeColour = probeColourForPortType(portData.dataType);
         const float probeY = (float)port->getBounds().getCentreY() - probeHeight * 0.5f;
         auto probeRect = juce::Rectangle<float>(
-            getWidth() - labelInsetPx - labelWidthPx - probeWidth - probeInset,
-            probeY, probeWidth, probeHeight);
+            outputProbeRight - probeWidth, probeY, probeWidth, probeHeight);
         auto barRect = probeRect.reduced(barInset, barInset);
         barRect.setWidth(barRect.getWidth() * juce::jlimit(0.0f, 1.0f, level));
 

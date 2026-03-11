@@ -249,9 +249,16 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
           continue;
 
         const auto localPoint = inputPort->getLocalPoint(this, mousePosInt).toFloat();
-        const auto hit = inputPort->hitTestLocal(localPoint);
+        auto hit = inputPort->hitTestLocal(localPoint);
         if (!hit.hit)
           continue;
+
+        if (wireDragState.sourceBundleCount > 1 && !hit.bundle &&
+            (int)inputPort->getPortGroup().size() == wireDragState.sourceBundleCount) {
+          hit.bundle = true;
+          hit.portId = inputPort->getPortGroup().front().portId;
+          hit.channelCount = (int)inputPort->getPortGroup().size();
+        }
 
         const TPort *candidatePort =
             findPortModel(node->getNodeId(), hit.portId);

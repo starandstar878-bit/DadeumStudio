@@ -73,6 +73,8 @@ private:
   void applyViewScale();
   int scaledInt(int value) const noexcept;
   float scaledFloat(float value) const noexcept;
+  int inputLaneWidthPx() const noexcept;
+  int outputLaneWidthPx() const noexcept;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TNodeComponent)
 };
