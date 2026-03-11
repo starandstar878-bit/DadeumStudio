@@ -286,16 +286,20 @@ void TPortComponent::paint(juce::Graphics &g) {
 
   const auto outer = busOuterBounds();
   const float radius = juce::jmin(outer.getWidth(), outer.getHeight()) * 0.42f;
-  const bool anyBusHover = hoveredBundle || hoveredPortId != kInvalidPortId;
-  const bool anyBusTarget = isDragTargetHighlighted;
+  const bool bundleHover = !isDragTargetHighlighted && hoveredBundle;
+  const bool channelHover = !isDragTargetHighlighted && hoveredPortId != kInvalidPortId;
+  const bool bundleTarget = isDragTargetHighlighted &&
+                            (highlightBundle || highlightedPortId == kInvalidPortId);
+  const bool channelTarget = isDragTargetHighlighted && !highlightBundle &&
+                             highlightedPortId != kInvalidPortId;
 
-  if (anyBusTarget) {
+  if (bundleTarget) {
     g.setColour(targetColor.withAlpha(0.14f));
     g.fillRoundedRectangle(outer, radius);
     g.setColour(targetColor.withAlpha(0.92f));
     g.drawRoundedRectangle(outer, radius,
                            juce::jmax(1.2f, 1.8f * scaleFactor));
-  } else if (anyBusHover) {
+  } else if (bundleHover) {
     g.setColour(baseColor.withAlpha(0.10f));
     g.fillRoundedRectangle(outer, radius);
     g.setColour(baseColor.withAlpha(0.42f));
@@ -317,6 +321,18 @@ void TPortComponent::paint(juce::Graphics &g) {
     const bool channelWarning = hasWarningForPort(portGroup[index].portId);
     if (channelWarning)
       drawWarningRing(g, circle, juce::Colour(0xfff59e0b), true);
+
+    const bool activeChannel = (channelTarget && highlightedPortId == portGroup[index].portId) ||
+                               (channelHover && hoveredPortId == portGroup[index].portId);
+    if (activeChannel) {
+      const auto overlay = channelTarget ? targetColor : baseColor;
+      g.setColour(overlay.withAlpha(channelTarget ? 0.16f : 0.10f));
+      g.fillEllipse(circle);
+      g.setColour(overlay.withAlpha(channelTarget ? 0.92f : 0.42f));
+      g.drawEllipse(circle,
+                    channelTarget ? juce::jmax(1.2f, 1.8f * scaleFactor)
+                                  : juce::jmax(1.0f, 1.2f * scaleFactor));
+    }
 
     const auto channelLane = circle.reduced(circle.getWidth() * 0.16f,
                                             circle.getHeight() * 0.16f);

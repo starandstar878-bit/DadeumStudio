@@ -253,11 +253,15 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
         if (!hit.hit)
           continue;
 
+        const int targetPortCount = (int)inputPort->getPortGroup().size();
+        if (wireDragState.sourceBundleCount == 1 && targetPortCount > 1 && hit.bundle)
+          continue;
+
         if (wireDragState.sourceBundleCount > 1 && !hit.bundle &&
-            (int)inputPort->getPortGroup().size() == wireDragState.sourceBundleCount) {
+            targetPortCount == wireDragState.sourceBundleCount) {
           hit.bundle = true;
           hit.portId = inputPort->getPortGroup().front().portId;
-          hit.channelCount = (int)inputPort->getPortGroup().size();
+          hit.channelCount = targetPortCount;
         }
 
         const TPort *candidatePort =
@@ -296,6 +300,17 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
   for (const auto &zone : zones) {
     if (!externalZoneContains(zone, mousePosView))
       continue;
+
+    juce::String endpointId;
+    juce::String portToken;
+    if (splitRailPortZoneId(zone.zoneId, endpointId, portToken)) {
+      const int zoneChannelCount = railPortIdsFromToken(portToken).size();
+      const bool zoneIsBundle = isRailBundlePortToken(portToken);
+      if (wireDragState.sourceBundleCount == 1 && zoneChannelCount > 1 && zoneIsBundle)
+        continue;
+      if (wireDragState.sourceBundleCount > 1 && zoneChannelCount > 1 && !zoneIsBundle)
+        continue;
+    }
 
     const float area = zone.boundsView.getWidth() * zone.boundsView.getHeight();
     if (bestZone == nullptr ||
