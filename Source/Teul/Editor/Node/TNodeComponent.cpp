@@ -159,6 +159,7 @@ void TNodeComponent::updateFromModel() {
   for (auto &port : outPorts)
     addAndMakeVisible(port.get());
 
+  updatePortWarnings();
   recalculateHeight();
 }
 
@@ -213,6 +214,48 @@ void TNodeComponent::setViewScale(float newScale) {
 
   applyViewScale();
   resized();
+}
+
+void TNodeComponent::updatePortWarnings() {
+  const auto &document = ownerCanvas.getDocument();
+  const auto collectWarnings = [&](const TPortComponent &component) {
+    std::vector<PortId> warningIds;
+    for (const auto &port : component.getPortGroup()) {
+      const bool warned = std::any_of(
+          document.connections.begin(), document.connections.end(),
+          [&](const TConnection &connection) {
+            if (connection.from.isNodePort() && connection.from.nodeId == nodeId &&
+                connection.from.portId == port.portId && connection.to.isRailPort()) {
+              if (const auto *endpoint =
+                      document.controlState.findEndpoint(connection.to.railEndpointId))
+                return endpoint->missing;
+            }
+            if (connection.to.isNodePort() && connection.to.nodeId == nodeId &&
+                connection.to.portId == port.portId && connection.from.isRailPort()) {
+              if (const auto *endpoint =
+                      document.controlState.findEndpoint(connection.from.railEndpointId))
+                return endpoint->missing;
+            }
+            return false;
+          });
+      if (warned)
+        warningIds.push_back(port.portId);
+    }
+
+    const bool bundleWarning = component.getPortGroup().size() > 1 &&
+                               warningIds.size() == component.getPortGroup().size();
+    return std::pair<std::vector<PortId>, bool>(std::move(warningIds), bundleWarning);
+  };
+
+  for (auto &port : inPorts) {
+    auto [warningIds, bundleWarning] = collectWarnings(*port);
+    port->setWarningState(std::move(warningIds), bundleWarning);
+  }
+
+  for (auto &port : outPorts) {
+    auto [warningIds, bundleWarning] = collectWarnings(*port);
+    port->setWarningState(std::move(warningIds), bundleWarning);
+  }
 }
 
 void TNodeComponent::applyViewScale() {

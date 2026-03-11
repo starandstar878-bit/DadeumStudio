@@ -25,6 +25,32 @@ juce::String groupedDisplayName(const std::vector<TPort> &ports) {
   return label.isNotEmpty() ? label : ports.front().name;
 }
 
+void drawWarningRing(juce::Graphics &g, juce::Rectangle<float> bounds,
+                     juce::Colour accent, bool elliptical = false) {
+  const auto ring = bounds.expanded(2.0f);
+  const auto rounded = juce::jmax(
+      3.0f, juce::jmin(ring.getWidth(), ring.getHeight()) * 0.46f);
+  g.setColour(accent.withAlpha(0.16f));
+  if (elliptical)
+    g.fillEllipse(ring);
+  else
+    g.fillRoundedRectangle(ring, rounded);
+
+  juce::Path outline;
+  if (elliptical)
+    outline.addEllipse(ring);
+  else
+    outline.addRoundedRectangle(ring, rounded);
+
+  juce::Path dashed;
+  const float dashes[2] = {3.5f, 3.0f};
+  juce::PathStrokeType(1.2f, juce::PathStrokeType::curved,
+                       juce::PathStrokeType::rounded)
+      .createDashedStroke(dashed, outline, dashes, 2);
+  g.setColour(accent.withAlpha(0.92f));
+  g.fillPath(dashed);
+}
+
 } // namespace
 
 TPortComponent::TPortComponent(TNodeComponent &owner, const TPort &port)
@@ -201,6 +227,22 @@ void TPortComponent::setDragTargetHighlight(bool enabled, bool validType,
   repaint();
 }
 
+void TPortComponent::setWarningState(std::vector<PortId> newWarningPortIds,
+                                     bool newWarningBundle) {
+  std::sort(newWarningPortIds.begin(), newWarningPortIds.end());
+  if (warningPortIds == newWarningPortIds && warningBundle == newWarningBundle)
+    return;
+
+  warningPortIds = std::move(newWarningPortIds);
+  warningBundle = newWarningBundle;
+  repaint();
+}
+
+bool TPortComponent::hasWarningForPort(PortId portId) const noexcept {
+  return std::find(warningPortIds.begin(), warningPortIds.end(), portId) !=
+         warningPortIds.end();
+}
+
 void TPortComponent::updateHoverState(juce::Point<float> point) {
   const auto hit = hitTestLocal(point);
   const PortId newHoveredPortId = hit.hit && !hit.bundle ? hit.portId : kInvalidPortId;
@@ -234,6 +276,9 @@ void TPortComponent::paint(juce::Graphics &g) {
       g.drawRoundedRectangle(lane, laneRadius, juce::jmax(1.0f, 1.1f * scaleFactor));
     }
 
+    if (warningBundle || hasWarningForPort(getPortData().portId))
+      drawWarningRing(g, circle, juce::Colour(0xfff59e0b), true);
+
     g.setColour(baseColor.withAlpha(0.95f));
     g.fillEllipse(circle.reduced(1.0f));
     g.setColour(juce::Colours::black.withAlpha(0.62f));
@@ -262,6 +307,9 @@ void TPortComponent::paint(juce::Graphics &g) {
                            juce::jmax(1.0f, 1.2f * scaleFactor));
   }
 
+  if (warningBundle)
+    drawWarningRing(g, outer, juce::Colour(0xfff59e0b));
+
   g.setColour(juce::Colour(0xff0f172a));
   g.fillRoundedRectangle(outer, radius);
   g.setColour(baseColor.withAlpha(0.88f));
@@ -272,6 +320,9 @@ void TPortComponent::paint(juce::Graphics &g) {
     const auto &circle = circles[index];
     const bool channelHovered = hoveredPortId == portGroup[index].portId;
     const bool channelTarget = isDragTargetHighlighted && highlightedPortId == portGroup[index].portId;
+    const bool channelWarning = hasWarningForPort(portGroup[index].portId);
+    if (channelWarning)
+      drawWarningRing(g, circle, juce::Colour(0xfff59e0b), true);
     if (channelHovered || channelTarget) {
       const auto overlay = channelTarget ? targetColor : baseColor;
       g.setColour(overlay.withAlpha(channelTarget ? 0.24f : 0.16f));

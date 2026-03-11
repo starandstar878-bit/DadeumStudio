@@ -40,6 +40,8 @@ public:
   void setDragTargetHighlight(bool enabled, bool validType,
                               PortId highlightedPortId = kInvalidPortId,
                               bool highlightBundle = false);
+  void setWarningState(std::vector<PortId> warningPortIds,
+                       bool warningBundle = false);
   void setScaleFactor(float newScale);
 
 private:
@@ -53,6 +55,8 @@ private:
   bool isDragTargetTypeValid = true;
   PortId highlightedPortId = kInvalidPortId;
   bool highlightBundle = false;
+  std::vector<PortId> warningPortIds;
+  bool warningBundle = false;
   bool dragActive = false;
 
   bool isBus() const noexcept { return portGroup.size() > 1; }
@@ -64,6 +68,7 @@ private:
   juce::Rectangle<float> monoBounds() const;
   juce::Rectangle<float> busOuterBounds() const;
   std::vector<juce::Rectangle<float>> channelBounds() const;
+  bool hasWarningForPort(PortId portId) const noexcept;
   void updateHoverState(juce::Point<float> point);
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TPortComponent)
