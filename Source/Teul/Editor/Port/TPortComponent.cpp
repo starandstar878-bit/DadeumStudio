@@ -301,10 +301,8 @@ void TPortComponent::paint(juce::Graphics &g) {
 
   const auto outer = busOuterBounds();
   const float radius = juce::jmin(outer.getWidth(), outer.getHeight()) * 0.42f;
-  const bool bundleHover =
-      !isDragTargetHighlighted && (hoveredBundle || sourceBundleActive);
-  const bool channelHover =
-      !isDragTargetHighlighted && (hoveredPortId != kInvalidPortId || sourceChannelActive);
+  const bool bundleHover = hoveredBundle || sourceBundleActive;
+  const bool channelHover = hoveredPortId != kInvalidPortId || sourceChannelActive;
   const bool bundleTarget = isDragTargetHighlighted &&
                             (highlightBundle || highlightedPortId == kInvalidPortId);
   const bool channelTarget = isDragTargetHighlighted && !highlightBundle &&
@@ -339,8 +337,10 @@ void TPortComponent::paint(juce::Graphics &g) {
     if (hasIssueState(channelIssue))
       drawIssueRing(g, circle, channelIssue, true);
 
-    const bool activeChannel = (channelTarget && highlightedPortId == portGroup[index].portId) ||
-                               (channelHover && hoveredPortId == portGroup[index].portId);
+    const bool activeChannel =
+        !bundleHover && !bundleTarget &&
+        ((channelTarget && highlightedPortId == portGroup[index].portId) ||
+         (channelHover && hoveredPortId == portGroup[index].portId));
     if (activeChannel) {
       const auto overlay = channelTarget ? targetColor : baseColor;
       g.setColour(overlay.withAlpha(channelTarget ? 0.16f : 0.10f));
