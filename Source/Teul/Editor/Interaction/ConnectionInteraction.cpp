@@ -171,6 +171,20 @@ bool connectionExists(const TGraphDocument &document,
                      });
 }
 
+bool endpointsEqual(const TEndpoint &lhs, const TEndpoint &rhs) {
+  return lhs.ownerKind == rhs.ownerKind && lhs.nodeId == rhs.nodeId &&
+         lhs.portId == rhs.portId && lhs.railEndpointId == rhs.railEndpointId &&
+         lhs.railPortId == rhs.railPortId;
+}
+
+bool endpointHasIncomingConnection(const TGraphDocument &document,
+                                   const TEndpoint &target) {
+  return std::any_of(document.connections.begin(), document.connections.end(),
+                     [&](const TConnection &connection) {
+                       return endpointsEqual(connection.to, target);
+                     });
+}
+
 bool canConnectEndpointVectors(const TGraphDocument &document,
                                const std::vector<TEndpoint> &fromEndpoints,
                                const std::vector<TEndpoint> &toEndpoints) {
@@ -180,6 +194,15 @@ bool canConnectEndpointVectors(const TGraphDocument &document,
   for (size_t index = 0; index < fromEndpoints.size(); ++index) {
     if (connectionExists(document, fromEndpoints[index], toEndpoints[index]))
       return false;
+    if (endpointHasIncomingConnection(document, toEndpoints[index]))
+      return false;
+  }
+
+  for (size_t i = 0; i < toEndpoints.size(); ++i) {
+    for (size_t j = i + 1; j < toEndpoints.size(); ++j) {
+      if (endpointsEqual(toEndpoints[i], toEndpoints[j]))
+        return false;
+    }
   }
 
   return true;
@@ -453,7 +476,8 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
                                             wireDragState.sourcePortId);
   const auto to = TEndpoint::makeNodePort(wireDragState.targetNodeId,
                                           wireDragState.targetPortId);
-  return !connectionExists(document, from, to);
+  return !connectionExists(document, from, to) &&
+         !endpointHasIncomingConnection(document, to);
 }
 
 void TGraphCanvas::tryCreateConnectionFromDrag() {
