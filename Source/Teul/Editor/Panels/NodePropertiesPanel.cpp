@@ -542,6 +542,7 @@ private:
     std::unique_ptr<juce::Label> bindingInfoLabel;
     std::unique_ptr<juce::Label> gyeolBindingLabel;
     std::unique_ptr<juce::Label> controlAssignmentLabel;
+    std::unique_ptr<juce::TextButton> clearControlAssignmentButton;
     std::unique_ptr<juce::Component> editor;
   };
 
@@ -743,6 +744,24 @@ private:
           juce::BorderSize<int>(1, 6, 1, 6));
       paramsContent->addAndMakeVisible(entry->controlAssignmentLabel.get());
 
+      entry->clearControlAssignmentButton =
+          std::make_unique<juce::TextButton>("Clear");
+      entry->clearControlAssignmentButton->setTooltip(
+          "Remove control assignments from this parameter");
+      entry->clearControlAssignmentButton->setColour(
+          juce::TextButton::buttonColourId, juce::Colour(0x22f59e0b));
+      entry->clearControlAssignmentButton->setColour(
+          juce::TextButton::buttonOnColourId, juce::Colour(0x33f59e0b));
+      entry->clearControlAssignmentButton->setColour(
+          juce::TextButton::textColourOffId,
+          juce::Colours::white.withAlpha(0.84f));
+      entry->clearControlAssignmentButton->setVisible(false);
+      const auto targetParamId = entry->paramId;
+      entry->clearControlAssignmentButton->onClick = [this, targetParamId] {
+        clearControlAssignmentsForParam(targetParamId);
+      };
+      paramsContent->addAndMakeVisible(entry->clearControlAssignmentButton.get());
+
       paramsContent->addAndMakeVisible(entry->editor.get());
       paramEditors.push_back(std::move(entry));
     };
@@ -820,10 +839,21 @@ private:
       }
 
       if (entry->controlAssignmentLabel->isVisible()) {
-        entry->controlAssignmentLabel->setBounds(0, y, width, 18);
+        auto assignmentRow = juce::Rectangle<int>(0, y, width, 18);
+        if (entry->clearControlAssignmentButton != nullptr &&
+            entry->clearControlAssignmentButton->isVisible()) {
+          auto buttonBounds = assignmentRow.removeFromRight(52);
+          entry->clearControlAssignmentButton->setBounds(buttonBounds);
+          assignmentRow.removeFromRight(6);
+        } else if (entry->clearControlAssignmentButton != nullptr) {
+          entry->clearControlAssignmentButton->setBounds(0, 0, 0, 0);
+        }
+        entry->controlAssignmentLabel->setBounds(assignmentRow);
         y += 22;
       } else {
         entry->controlAssignmentLabel->setBounds(0, 0, 0, 0);
+        if (entry->clearControlAssignmentButton != nullptr)
+          entry->clearControlAssignmentButton->setBounds(0, 0, 0, 0);
       }
 
       y += 8;
@@ -856,6 +886,7 @@ private:
     unionWith(entry.bindingInfoLabel.get());
     unionWith(entry.gyeolBindingLabel.get());
     unionWith(entry.controlAssignmentLabel.get());
+    unionWith(entry.clearControlAssignmentButton.get());
     return bounds.expanded(4, 4);
   }
 
@@ -891,6 +922,27 @@ private:
     if (labels.size() > 1)
       text << " +" << juce::String(labels.size() - 1);
     return text;
+  }
+  void clearControlAssignmentsForParam(const juce::String &paramId) {
+    if (paramId.isEmpty())
+      return;
+
+    const auto beforeCount = document.controlState.assignments.size();
+    document.controlState.assignments.erase(
+        std::remove_if(document.controlState.assignments.begin(),
+                       document.controlState.assignments.end(),
+                       [&](const TControlSourceAssignment &assignment) {
+                         return assignment.targetParamId == paramId;
+                       }),
+        document.controlState.assignments.end());
+
+    if (document.controlState.assignments.size() == beforeCount)
+      return;
+
+    document.touch(false);
+    refreshNodeConnectionSummary();
+    updateRuntimeValueLabels();
+    canvas.repaint();
   }
 
   juce::String nodeNameForSummary(const TNode &node) const {
@@ -1072,6 +1124,8 @@ private:
       entry->controlAssignmentLabel->setText(
           showControlAssignment ? controlAssignmentText : juce::String(),
           juce::dontSendNotification);
+      if (entry->clearControlAssignmentButton != nullptr)
+        entry->clearControlAssignmentButton->setVisible(showControlAssignment);
     }
 
     layoutParamEditors();

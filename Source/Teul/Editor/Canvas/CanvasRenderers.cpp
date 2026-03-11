@@ -447,21 +447,37 @@ void TGraphCanvas::drawConnections(juce::Graphics &g) {
       if (isSelected)
         wireColor = wireColor.brighter(0.2f);
 
-      const float capWidth = isSelected ? 8.0f : 6.5f;
+      const float capWidth = isSelected ? 8.8f : 7.0f;
       const auto fromCap = makeBundleCap(fromA, fromB, capWidth);
       const auto toCap = makeBundleCap(toA, toB, capWidth);
-      const float capRadius = juce::jmax(3.0f, capWidth * 0.5f);
-      g.setColour(wireColor.withAlpha(isSelected ? 0.34f : 0.26f));
+      const float capRadius = juce::jmax(3.2f, capWidth * 0.5f);
+      g.setColour(wireColor.withAlpha(isSelected ? 0.38f : 0.28f));
       g.fillRoundedRectangle(fromCap, capRadius);
       g.fillRoundedRectangle(toCap, capRadius);
-      g.setColour(wireColor.withAlpha(isSelected ? 0.90f : 0.76f));
-      g.drawRoundedRectangle(fromCap, capRadius, isSelected ? 1.6f : 1.1f);
-      g.drawRoundedRectangle(toCap, capRadius, isSelected ? 1.6f : 1.1f);
+      g.setColour(wireColor.withAlpha(isSelected ? 0.92f : 0.78f));
+      g.drawRoundedRectangle(fromCap, capRadius, isSelected ? 1.8f : 1.2f);
+      g.drawRoundedRectangle(toCap, capRadius, isSelected ? 1.8f : 1.2f);
 
-      g.setColour(wireColor);
+      const auto underlayColor = wireColor.darker(0.72f).withAlpha(
+          isSelected ? 0.44f : 0.30f);
+      g.setColour(underlayColor);
       g.strokePath(
           wirePath,
-          juce::PathStrokeType(isSelected ? 3.0f : 2.4f,
+          juce::PathStrokeType(isSelected ? 5.2f : 4.2f,
+                               juce::PathStrokeType::curved,
+                               juce::PathStrokeType::rounded));
+
+      g.setColour(wireColor.withAlpha(isSelected ? 0.98f : 0.92f));
+      g.strokePath(
+          wirePath,
+          juce::PathStrokeType(isSelected ? 3.4f : 2.7f,
+                               juce::PathStrokeType::curved,
+                               juce::PathStrokeType::rounded));
+
+      g.setColour(wireColor.brighter(0.45f).withAlpha(isSelected ? 0.68f : 0.42f));
+      g.strokePath(
+          wirePath,
+          juce::PathStrokeType(isSelected ? 1.55f : 1.15f,
                                juce::PathStrokeType::curved,
                                juce::PathStrokeType::rounded));
 

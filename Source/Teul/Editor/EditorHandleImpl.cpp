@@ -608,23 +608,32 @@ public:
       return {};
 
     if (const auto *endpoint = document.controlState.findEndpoint(cardId)) {
-      if (isRailBundlePortToken(portId))
-        return endpoint->displayName + " / All channels";
-
-      if (const auto *port = document.findSystemRailPort(cardId, portId))
-        return endpoint->displayName + " / " + port->displayName;
-      return endpoint->displayName;
+      juce::String text = endpoint->displayName;
+      if (isRailBundlePortToken(portId)) {
+        text << " / All channels";
+      } else if (const auto *port = document.findSystemRailPort(cardId, portId)) {
+        text << " / " << port->displayName;
+      }
+      if (endpoint->missing)
+        text << " / Missing";
+      return text;
     }
 
     if (const auto *source = document.controlState.findSource(cardId)) {
-      if (isRailBundlePortToken(portId))
-        return source->displayName + " / All channels";
-
-      for (const auto &port : source->ports) {
-        if (port.portId == portId)
-          return source->displayName + " / " + port.displayName;
+      juce::String text = source->displayName;
+      if (isRailBundlePortToken(portId)) {
+        text << " / All channels";
+      } else {
+        for (const auto &port : source->ports) {
+          if (port.portId == portId) {
+            text << " / " << port.displayName;
+            break;
+          }
+        }
       }
-      return source->displayName;
+      if (source->missing)
+        text << " / Missing";
+      return text;
     }
 
     return {};
@@ -1035,12 +1044,41 @@ private:
       g.drawRoundedRectangle(expanded, rounded,
                              dropTargetCanConnect ? 2.0f : 1.6f);
   }
+  void drawWarningRing(juce::Graphics &g, juce::Rectangle<float> bounds,
+                       juce::Colour accent, bool elliptical = false) const {
+    const auto ring = bounds.expanded(2.0f);
+    const auto rounded = juce::jmax(
+        3.0f,
+        juce::jmin(ring.getWidth(), ring.getHeight()) * 0.46f);
+    g.setColour(accent.withAlpha(0.16f));
+    if (elliptical)
+      g.fillEllipse(ring);
+    else
+      g.fillRoundedRectangle(ring, rounded);
+
+    juce::Path outline;
+    if (elliptical)
+      outline.addEllipse(ring);
+    else
+      outline.addRoundedRectangle(ring, rounded);
+
+    juce::Path dashed;
+    const float dashes[2] = {3.5f, 3.0f};
+    juce::PathStrokeType(1.25f, juce::PathStrokeType::curved,
+                         juce::PathStrokeType::rounded)
+        .createDashedStroke(dashed, outline, dashes, 2);
+    g.setColour(accent.withAlpha(0.92f));
+    g.fillPath(dashed);
+  }
 
   void drawMonoPortSlot(juce::Graphics &g, const juce::String &cardId,
                         const RailCardPortView &port,
-                        juce::Rectangle<float> area, bool capOnRight) {
+                        juce::Rectangle<float> area, bool capOnRight,
+                        bool warning = false) {
     const auto circle = monoSocketCircleBounds(area);
     drawMonoSocketShape(g, area, port.accent, capOnRight);
+    if (warning)
+      drawWarningRing(g, circle, juce::Colour(0xfff59e0b), true);
     drawPortStateOverlay(g, circle, port.accent,
                          isHoveredPort(cardId, port.portId),
                          isActivePort(cardId, port.portId), true);
@@ -1050,13 +1088,16 @@ private:
   }
 
   void drawBusPortSlot(juce::Graphics &g, const RailCardView &card,
-                       juce::Rectangle<float> area, bool capOnRight) {
+                       juce::Rectangle<float> area, bool capOnRight,
+                       bool warning = false) {
     if (card.ports.empty())
       return;
 
     const auto bundleToken = makeRailBundlePortToken(card.ports);
     const auto outer = busSocketOuterBounds(area, (int)card.ports.size());
     drawBusSocketShape(g, area, card.accent, capOnRight, (int)card.ports.size());
+    if (warning)
+      drawWarningRing(g, outer, juce::Colour(0xfff59e0b));
 
     if (bundleToken.isNotEmpty()) {
       drawPortStateOverlay(g, outer, card.accent,
@@ -1101,10 +1142,10 @@ private:
           juce::jmin(20.0f, socketBounds.getWidth()), socketBounds.getHeight());
 
       if (card.groupedBus)
-        drawBusPortSlot(g, card, socketBounds, portsOnRight);
+        drawBusPortSlot(g, card, socketBounds, portsOnRight, card.warning);
       else if (!card.ports.empty())
         drawMonoPortSlot(g, card.itemId, card.ports.front(), socketBounds,
-                         portsOnRight);
+                         portsOnRight, card.warning);
     }
   }
 
@@ -1122,7 +1163,7 @@ private:
         auto socketBounds = juce::Rectangle<float>((float)x,
                                                    (float)(area.getCentreY() - height / 2),
                                                    (float)width, (float)height);
-        drawBusPortSlot(g, card, socketBounds, true);
+        drawBusPortSlot(g, card, socketBounds, true, card.warning);
         x += width + gap;
         continue;
       }
@@ -1134,7 +1175,8 @@ private:
         auto socketBounds = juce::Rectangle<float>((float)x,
                                                    (float)(area.getCentreY() - height / 2),
                                                    (float)width, (float)height);
-        drawMonoPortSlot(g, card.itemId, port, socketBounds, true);
+        drawMonoPortSlot(g, card.itemId, port, socketBounds, true,
+                         card.warning);
         x += width + gap;
       }
     }
@@ -1217,10 +1259,10 @@ private:
 
     auto portArea = portColumn.toFloat().reduced(0.5f, 0.5f);
     if (card.groupedBus) {
-      drawBusPortSlot(g, card, portArea, portsOnRight);
+      drawBusPortSlot(g, card, portArea, portsOnRight, card.warning);
     } else if (!card.ports.empty()) {
       drawMonoPortSlot(g, card.itemId, card.ports.front(), portArea,
-                       portsOnRight);
+                       portsOnRight, card.warning);
     }
 
     if (card.itemId.isNotEmpty())
