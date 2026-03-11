@@ -2,6 +2,7 @@
 
 #include "Teul/Editor/TIssueState.h"
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
+#include "Teul/Editor/Port/TPortShapeLayout.h"
 #include "Teul/Editor/Panels/DiagnosticsDrawer.h"
 #include "Teul/Editor/Panels/NodeLibraryPanel.h"
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
@@ -909,47 +910,17 @@ private:
 
   static juce::Rectangle<float> monoSocketCircleBounds(
       juce::Rectangle<float> area) {
-    const auto outer = area.reduced(0.5f, 0.5f);
-    const float diameter = juce::jmax(8.0f,
-                                      juce::jmin(outer.getWidth(), outer.getHeight()));
-    return juce::Rectangle<float>(diameter, diameter).withCentre(outer.getCentre());
+    return TPortShapeLayout::monoCircleBounds(area);
   }
 
   static std::vector<juce::Rectangle<float>> busSocketChannelBounds(
       juce::Rectangle<float> area, int channelCount) {
-    std::vector<juce::Rectangle<float>> bounds;
-    if (channelCount <= 0)
-      return bounds;
-
-    if (channelCount == 1) {
-      bounds.push_back(monoSocketCircleBounds(area));
-      return bounds;
-    }
-
-    const auto outer = area.reduced(0.5f, 0.5f);
-    const float circleDiameter = juce::jmax(8.0f, outer.getWidth() - 4.0f);
-    const float radius = circleDiameter * 0.5f;
-    const float firstCentreY = outer.getY() + radius + 2.0f;
-    const float lastCentreY = outer.getBottom() - radius - 2.0f;
-    const float step = channelCount > 1
-                           ? (lastCentreY - firstCentreY) /
-                                 (float)(channelCount - 1)
-                           : 0.0f;
-    const float centreX = outer.getCentreX();
-    bounds.reserve((size_t)channelCount);
-    for (int index = 0; index < channelCount; ++index) {
-      const float centreY = firstCentreY + step * (float)index;
-      bounds.push_back(juce::Rectangle<float>(circleDiameter, circleDiameter)
-                           .withCentre({centreX, centreY}));
-    }
-    return bounds;
+    return TPortShapeLayout::busChannelBounds(area, channelCount);
   }
 
   static juce::Rectangle<float> busSocketOuterBounds(juce::Rectangle<float> area,
                                                      int channelCount) {
-    if (channelCount <= 1)
-      return monoSocketCircleBounds(area);
-    return area.reduced(0.5f, 0.5f);
+    return TPortShapeLayout::busOuterBounds(area, channelCount);
   }
 
   static void drawMonoSocketShape(juce::Graphics &g,
@@ -1410,16 +1381,7 @@ private:
                               juce::Point<float> point) {
     if (!zone.elliptical)
       return zone.bounds.contains(point);
-
-    const auto bounds = zone.bounds;
-    const auto radiusX = bounds.getWidth() * 0.5f;
-    const auto radiusY = bounds.getHeight() * 0.5f;
-    if (radiusX <= 0.0f || radiusY <= 0.0f)
-      return false;
-
-    const auto dx = (point.x - bounds.getCentreX()) / radiusX;
-    const auto dy = (point.y - bounds.getCentreY()) / radiusY;
-    return dx * dx + dy * dy <= 1.0f;
+    return TPortShapeLayout::containsEllipse(zone.bounds, point);
   }
 
   void addPortHitZone(const juce::String &cardId, const juce::String &portId,
