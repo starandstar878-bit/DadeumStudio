@@ -3,6 +3,7 @@
 #include "Teul/Editor/TIssueState.h"
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
 #include "Teul/Editor/Port/TPortShapeLayout.h"
+#include "Teul/Editor/Port/TPortVisuals.h"
 #include "Teul/Editor/Panels/DiagnosticsDrawer.h"
 #include "Teul/Editor/Panels/NodeLibraryPanel.h"
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
@@ -1018,29 +1019,10 @@ private:
   void drawPortStateOverlay(juce::Graphics &g, juce::Rectangle<float> bounds,
                             juce::Colour accent, bool hovered,
                             bool active, bool elliptical = false) const {
-    if (!hovered && !active)
-      return;
-
-    const auto overlayBounds = bounds.reduced(active ? 0.4f : 0.8f,
-                                              active ? 0.4f : 0.8f);
-    const auto radius = juce::jmax(
-        3.0f,
-        juce::jmin(overlayBounds.getWidth(), overlayBounds.getHeight()) * 0.45f);
-    const auto fill = active ? accent.withAlpha(0.28f)
-                             : accent.withAlpha(0.16f);
-    const auto outline = active ? accent.brighter(0.3f).withAlpha(0.98f)
-                                : accent.withAlpha(0.72f);
-    g.setColour(fill);
-    if (elliptical)
-      g.fillEllipse(overlayBounds);
-    else
-      g.fillRoundedRectangle(overlayBounds, radius);
-    g.setColour(outline);
-    if (elliptical)
-      g.drawEllipse(overlayBounds, active ? 1.6f : 1.1f);
-    else
-      g.drawRoundedRectangle(overlayBounds, radius, active ? 1.6f : 1.1f);
+    TPortVisuals::drawStateOverlay(g, bounds, accent, hovered, active,
+                                   elliptical);
   }
+
   bool isDropTargetPort(const juce::String &cardId,
                         const juce::String &portId) const {
     return cardId.isNotEmpty() && portId.isNotEmpty() &&
@@ -1056,51 +1038,13 @@ private:
   void drawDropTargetOverlay(juce::Graphics &g, juce::Rectangle<float> bounds,
                              juce::Colour accent,
                              bool elliptical = false) const {
-    const auto overlay = dropTargetColour(accent);
-    const auto expanded = bounds.expanded(1.5f);
-    const auto rounded = juce::jmax(3.0f, juce::jmin(expanded.getWidth(),
-                                                     expanded.getHeight()) *
-                                              0.45f);
-    g.setColour(overlay.withAlpha(dropTargetCanConnect ? 0.20f : 0.18f));
-    if (elliptical)
-      g.fillEllipse(expanded);
-    else
-      g.fillRoundedRectangle(expanded, rounded);
-    g.setColour(overlay.withAlpha(0.96f));
-    if (elliptical)
-      g.drawEllipse(expanded, dropTargetCanConnect ? 2.0f : 1.6f);
-    else
-      g.drawRoundedRectangle(expanded, rounded,
-                             dropTargetCanConnect ? 2.0f : 1.6f);
+    TPortVisuals::drawDropTargetOverlay(g, bounds, accent, dropTargetCanConnect,
+                                        elliptical);
   }
+
   void drawIssueRing(juce::Graphics &g, juce::Rectangle<float> bounds,
                      TIssueState issueState, bool elliptical = false) const {
-    const auto accent = issueStateAccent(issueState);
-    if (!hasIssueState(issueState))
-      return;
-    const auto ring = bounds.expanded(2.0f);
-    const auto rounded = juce::jmax(
-        3.0f,
-        juce::jmin(ring.getWidth(), ring.getHeight()) * 0.46f);
-    g.setColour(accent.withAlpha(0.16f));
-    if (elliptical)
-      g.fillEllipse(ring);
-    else
-      g.fillRoundedRectangle(ring, rounded);
-
-    juce::Path outline;
-    if (elliptical)
-      outline.addEllipse(ring);
-    else
-      outline.addRoundedRectangle(ring, rounded);
-
-    juce::Path dashed;
-    const float dashes[2] = {3.5f, 3.0f};
-    juce::PathStrokeType(1.25f, juce::PathStrokeType::curved,
-                         juce::PathStrokeType::rounded)
-        .createDashedStroke(dashed, outline, dashes, 2);
-    g.setColour(accent.withAlpha(0.92f));
-    g.fillPath(dashed);
+    TPortVisuals::drawIssueRing(g, bounds, issueState, elliptical);
   }
 
   void drawMonoPortSlot(juce::Graphics &g, const juce::String &cardId,

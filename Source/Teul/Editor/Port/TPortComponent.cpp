@@ -1,5 +1,6 @@
 #include "Teul/Editor/Port/TPortComponent.h"
 #include "Teul/Editor/Port/TPortShapeLayout.h"
+#include "Teul/Editor/Port/TPortVisuals.h"
 #include "Teul/Editor/Theme/TeulPalette.h"
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
 #include "Teul/Editor/Node/TNodeComponent.h"
@@ -28,31 +29,7 @@ juce::String groupedDisplayName(const std::vector<TPort> &ports) {
 
 void drawIssueRing(juce::Graphics &g, juce::Rectangle<float> bounds,
                    TIssueState issueState, bool elliptical = false) {
-  const auto accent = issueStateAccent(issueState);
-  if (!hasIssueState(issueState))
-    return;
-  const auto ring = bounds.expanded(2.0f);
-  const auto rounded = juce::jmax(
-      3.0f, juce::jmin(ring.getWidth(), ring.getHeight()) * 0.46f);
-  g.setColour(accent.withAlpha(0.16f));
-  if (elliptical)
-    g.fillEllipse(ring);
-  else
-    g.fillRoundedRectangle(ring, rounded);
-
-  juce::Path outline;
-  if (elliptical)
-    outline.addEllipse(ring);
-  else
-    outline.addRoundedRectangle(ring, rounded);
-
-  juce::Path dashed;
-  const float dashes[2] = {3.5f, 3.0f};
-  juce::PathStrokeType(1.2f, juce::PathStrokeType::curved,
-                       juce::PathStrokeType::rounded)
-      .createDashedStroke(dashed, outline, dashes, 2);
-  g.setColour(accent.withAlpha(0.92f));
-  g.fillPath(dashed);
+  TPortVisuals::drawIssueRing(g, bounds, issueState, elliptical);
 }
 
 } // namespace
