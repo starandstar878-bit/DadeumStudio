@@ -201,6 +201,31 @@ int endpointIncomingConnectionCount(const TGraphDocument &document,
   return count;
 }
 
+int endpointOutgoingCapacity(const TGraphDocument &document,
+                             const TEndpoint &source) {
+  if (source.isNodePort()) {
+    const auto *node = document.findNode(source.nodeId);
+    const auto *port = node != nullptr ? node->findPort(source.portId) : nullptr;
+    if (port == nullptr)
+      return std::numeric_limits<int>::max();
+    return port->maxOutgoingConnections < 0
+               ? std::numeric_limits<int>::max()
+               : port->maxOutgoingConnections;
+  }
+
+  return std::numeric_limits<int>::max();
+}
+
+int endpointOutgoingConnectionCount(const TGraphDocument &document,
+                                    const TEndpoint &source) {
+  int count = 0;
+  for (const auto &connection : document.connections) {
+    if (endpointsEqual(connection.from, source))
+      ++count;
+  }
+  return count;
+}
+
 bool endpointHasIncomingConnection(const TGraphDocument &document,
                                    const TEndpoint &target) {
   return endpointIncomingConnectionCount(document, target) > 0;
@@ -214,6 +239,12 @@ bool canConnectEndpointVectors(const TGraphDocument &document,
 
   for (size_t index = 0; index < fromEndpoints.size(); ++index) {
     if (connectionExists(document, fromEndpoints[index], toEndpoints[index]))
+      return false;
+    const int outgoingCount =
+        endpointOutgoingConnectionCount(document, fromEndpoints[index]);
+    const int outgoingCapacity =
+        endpointOutgoingCapacity(document, fromEndpoints[index]);
+    if (outgoingCount + 1 > outgoingCapacity)
       return false;
     const int incomingCount =
         endpointIncomingConnectionCount(document, toEndpoints[index]);
@@ -502,6 +533,8 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
   const auto to = TEndpoint::makeNodePort(wireDragState.targetNodeId,
                                           wireDragState.targetPortId);
   return !connectionExists(document, from, to) &&
+         endpointOutgoingConnectionCount(document, from) + 1 <=
+             endpointOutgoingCapacity(document, from) &&
          endpointIncomingConnectionCount(document, to) + 1 <=
              endpointIncomingCapacity(document, to);
 }

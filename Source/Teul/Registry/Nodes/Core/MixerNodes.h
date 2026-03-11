@@ -2,6 +2,7 @@
 #include "../../../Runtime/TNodeInstance.h"
 #include "../TNodeSDK.h"
 
+#include <array>
 #include <cmath>
 
 namespace Teul::Nodes {
@@ -273,6 +274,116 @@ public:
   }
 };
 TEUL_NODE_AUTOREGISTER(Mixer2Node);
+
+class StereoMixer4Node final : public TNodeClass {
+public:
+  TNodeDescriptor makeDescriptor() const override {
+    TNodeDescriptor desc;
+    desc.typeKey = "Teul.Mixer.StereoMixer4";
+    desc.displayName = "Stereo Mixer (4-Bus)";
+    desc.category = "Mixer";
+    desc.capabilities.canMute = true;
+
+    std::vector<TParamSpec> params;
+    params.reserve(4);
+    for (int busIndex = 0; busIndex < 4; ++busIndex) {
+      const juce::String suffix(busIndex + 1);
+      auto gain = makeFloatParamSpec("gain" + suffix, "Gain " + suffix, 1.0f,
+                                     0.0f, 2.0f, 0.001f, {}, 3, "Levels",
+                                     "Linear gain applied to the stereo input bus.");
+      gain.categoryPath = "StereoMixer/Level " + suffix;
+      params.push_back(std::move(gain));
+    }
+    desc.paramSpecs = std::move(params);
+
+    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In 1"},
+                      {TPortDirection::Input, TPortDataType::Audio, "R In 1"},
+                      {TPortDirection::Input, TPortDataType::Audio, "L In 2"},
+                      {TPortDirection::Input, TPortDataType::Audio, "R In 2"},
+                      {TPortDirection::Input, TPortDataType::Audio, "L In 3"},
+                      {TPortDirection::Input, TPortDataType::Audio, "R In 3"},
+                      {TPortDirection::Input, TPortDataType::Audio, "L In 4"},
+                      {TPortDirection::Input, TPortDataType::Audio, "R In 4"},
+                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
+                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    return desc;
+  }
+
+  std::unique_ptr<TNodeInstance> createInstance() const override {
+    class Implementation final : public TNodeInstance {
+    public:
+      void setParameterValue(const juce::String &paramKey,
+                             float newValue) override {
+        for (int busIndex = 0; busIndex < 4; ++busIndex) {
+          if (paramKey == "gain" + juce::String(busIndex + 1)) {
+            gains[(size_t)busIndex] = juce::jlimit(0.0f, 2.0f, newValue);
+            return;
+          }
+        }
+      }
+
+      void processSamples(const TProcessContext &ctx) override {
+        if (ctx.globalPortBuffer == nullptr)
+          return;
+
+        const int leftOutputChannel = MixerNodeHelpers::findPortChannel(ctx, "L Out");
+        const int rightOutputChannel = MixerNodeHelpers::findPortChannel(ctx, "R Out");
+        if (leftOutputChannel < 0 && rightOutputChannel < 0)
+          return;
+
+        std::array<const float *, 4> leftInputs{};
+        std::array<const float *, 4> rightInputs{};
+        for (int busIndex = 0; busIndex < 4; ++busIndex) {
+          const juce::String suffix(busIndex + 1);
+          const int leftInputChannel =
+              MixerNodeHelpers::findPortChannel(ctx, "L In " + suffix);
+          const int rightInputChannel =
+              MixerNodeHelpers::findPortChannel(ctx, "R In " + suffix);
+
+          leftInputs[(size_t)busIndex] =
+              leftInputChannel >= 0
+                  ? ctx.globalPortBuffer->getReadPointer(leftInputChannel)
+                  : nullptr;
+          rightInputs[(size_t)busIndex] =
+              rightInputChannel >= 0
+                  ? ctx.globalPortBuffer->getReadPointer(rightInputChannel)
+                  : nullptr;
+        }
+
+        const int numSamples = ctx.globalPortBuffer->getNumSamples();
+        auto *leftOutput = leftOutputChannel >= 0
+                               ? ctx.globalPortBuffer->getWritePointer(leftOutputChannel)
+                               : nullptr;
+        auto *rightOutput = rightOutputChannel >= 0
+                                ? ctx.globalPortBuffer->getWritePointer(rightOutputChannel)
+                                : nullptr;
+
+        for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
+          float leftMix = 0.0f;
+          float rightMix = 0.0f;
+
+          for (size_t busIndex = 0; busIndex < gains.size(); ++busIndex) {
+            if (leftInputs[busIndex] != nullptr)
+              leftMix += leftInputs[busIndex][sampleIndex] * gains[busIndex];
+            if (rightInputs[busIndex] != nullptr)
+              rightMix += rightInputs[busIndex][sampleIndex] * gains[busIndex];
+          }
+
+          if (leftOutput != nullptr)
+            leftOutput[sampleIndex] = leftMix;
+          if (rightOutput != nullptr)
+            rightOutput[sampleIndex] = rightMix;
+        }
+      }
+
+    private:
+      std::array<float, 4> gains{{1.0f, 1.0f, 1.0f, 1.0f}};
+    };
+
+    return std::make_unique<Implementation>();
+  }
+};
+TEUL_NODE_AUTOREGISTER(StereoMixer4Node);
 
 class AudioInputNode final : public TNodeClass {
 public:
