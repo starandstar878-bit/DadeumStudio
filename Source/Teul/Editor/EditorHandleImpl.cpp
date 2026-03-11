@@ -460,7 +460,7 @@ bool connectControlSourcePortToParam(
 }
 } // namespace
 
-class RailPanel : public juce::Component {
+class RailPanel : public juce::Component, public juce::SettableTooltipClient {
 public:
   using CollapseHandler = std::function<void()>;
   using CardSelectionHandler = std::function<void(const juce::String &cardId)>;
@@ -567,6 +567,35 @@ public:
     repaint();
   }
 
+  juce::String tooltipTextForPort(const juce::String &cardId,
+                                  const juce::String &portId) const {
+    if (cardId.isEmpty() || portId.isEmpty())
+      return {};
+
+    if (const auto *endpoint = document.controlState.findEndpoint(cardId)) {
+      if (const auto *port = document.findSystemRailPort(cardId, portId))
+        return endpoint->displayName + " / " + port->displayName;
+      return endpoint->displayName;
+    }
+
+    if (const auto *source = document.controlState.findSource(cardId)) {
+      for (const auto &port : source->ports) {
+        if (port.portId == portId)
+          return source->displayName + " / " + port.displayName;
+      }
+      return source->displayName;
+    }
+
+    return {};
+  }
+
+  void updatePortTooltip() {
+    if (hoveredPortCardId.isNotEmpty() && hoveredPortId.isNotEmpty())
+      setTooltip(tooltipTextForPort(hoveredPortCardId, hoveredPortId));
+    else
+      setTooltip({});
+  }
+
   bool isRailCollapsed() const noexcept {
     if (const auto *rail = document.controlState.findRail(railId))
       return rail->collapsed;
@@ -574,18 +603,8 @@ public:
   }
 
   void mouseMove(const juce::MouseEvent &event) override {
-    if (isRailCollapsed()) {
-      if (hoveredCardId.isNotEmpty() || hoveredPortCardId.isNotEmpty() ||
-          hoveredPortId.isNotEmpty()) {
-        hoveredCardId.clear();
-        hoveredPortCardId.clear();
-        hoveredPortId.clear();
-        repaint();
-      }
-      return;
-    }
-
     const auto point = event.position;
+    const bool collapsed = isRailCollapsed();
     juce::String hoveredPortCard;
     juce::String hoveredPort;
     for (auto it = portHitZones.rbegin(); it != portHitZones.rend(); ++it) {
@@ -596,13 +615,16 @@ public:
       break;
     }
 
-    juce::String hoveredId = hoveredPortCard;
-    if (hoveredId.isEmpty()) {
-      const auto pointInt = point.roundToInt();
-      for (auto it = cardHitZones.rbegin(); it != cardHitZones.rend(); ++it) {
-        if (it->second.contains(pointInt)) {
-          hoveredId = it->first;
-          break;
+    juce::String hoveredId;
+    if (!collapsed) {
+      hoveredId = hoveredPortCard;
+      if (hoveredId.isEmpty()) {
+        const auto pointInt = point.roundToInt();
+        for (auto it = cardHitZones.rbegin(); it != cardHitZones.rend(); ++it) {
+          if (it->second.contains(pointInt)) {
+            hoveredId = it->first;
+            break;
+          }
         }
       }
     }
@@ -612,6 +634,7 @@ public:
       hoveredCardId = hoveredId;
       hoveredPortCardId = hoveredPortCard;
       hoveredPortId = hoveredPort;
+      updatePortTooltip();
       repaint();
     }
   }
@@ -624,6 +647,7 @@ public:
     hoveredCardId.clear();
     hoveredPortCardId.clear();
     hoveredPortId.clear();
+    updatePortTooltip();
     repaint();
   }
 
@@ -632,9 +656,6 @@ public:
   void focusLost(FocusChangeType) override { repaint(); }
 
   void mouseDown(const juce::MouseEvent &event) override {
-    if (isRailCollapsed())
-      return;
-
     grabKeyboardFocus();
 
     const auto point = event.position;
@@ -668,7 +689,7 @@ public:
       return;
     }
 
-    if (cardSelectionHandler == nullptr)
+    if (isRailCollapsed() || cardSelectionHandler == nullptr)
       return;
 
     const auto pointInt = point.roundToInt();
@@ -729,32 +750,29 @@ public:
     g.setColour(accent.withAlpha(collapsed ? 0.48f : 0.72f));
     g.drawRoundedRectangle(bounds, collapsed ? 10.0f : 14.0f, 1.0f);
 
-    auto content = getLocalBounds().reduced(collapsed ? 8 : 12,
-                                            collapsed ? 8 : 10);
-    auto header = content.removeFromTop(collapsed ? 18 : 24);
-    auto titleArea = header;
-    titleArea.removeFromRight(32);
+    const auto cards = buildRailCards(document, railId);
+    auto content = getLocalBounds().reduced(collapsed ? 6 : 12,
+                                            collapsed ? 6 : 10);
+    auto header = content.removeFromTop(collapsed ? 22 : 24);
 
-    g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.setFont(juce::FontOptions(collapsed ? 10.5f : 12.5f, juce::Font::bold));
-    g.drawText(collapsed ? compactRailLabel(kind) : railTitle(), titleArea,
-               juce::Justification::centredLeft, false);
+    if (!collapsed) {
+      auto titleArea = header;
+      titleArea.removeFromRight(32);
+      g.setColour(juce::Colours::white.withAlpha(0.95f));
+      g.setFont(juce::FontOptions(12.5f, juce::Font::bold));
+      g.drawText(railTitle(), titleArea, juce::Justification::centredLeft, false);
 
-    if (collapsed) {
-      auto compactArea = content;
-      g.setColour(accent.withAlpha(0.78f));
+      g.setColour(juce::Colours::white.withAlpha(0.52f));
       g.setFont(10.0f);
-      g.drawFittedText(compactRailLabel(kind), compactArea,
-                       juce::Justification::centred, 2, 0.8f);
-      return;
+      g.drawText(metaLabel((int)cards.size()), content.removeFromTop(14),
+                 juce::Justification::centredLeft, false);
+      content.removeFromTop(6);
     }
 
-    const auto cards = buildRailCards(document, railId);
-    g.setColour(juce::Colours::white.withAlpha(0.52f));
-    g.setFont(10.0f);
-    g.drawText(metaLabel((int)cards.size()), content.removeFromTop(14),
-               juce::Justification::centredLeft, false);
-    content.removeFromTop(6);
+    if (collapsed) {
+      drawCollapsedPorts(g, content, cards);
+      return;
+    }
 
     if (orientation == RailOrientation::vertical)
       drawVerticalCards(g, content, cards);
@@ -927,16 +945,127 @@ private:
                            dropTargetCanConnect ? 2.0f : 1.6f);
   }
 
+  static void drawVerticalSingleSocket(juce::Graphics &g,
+                                       juce::Rectangle<float> area,
+                                       juce::Colour accent,
+                                       bool capOnRight) {
+    const auto outer = area.reduced(0.5f, 0.5f);
+    const float radius = outer.getWidth() * 0.5f;
+    g.setColour(juce::Colour(0xff0f172a));
+    g.fillRoundedRectangle(outer, radius);
+    g.setColour(accent.withAlpha(0.92f));
+    g.drawRoundedRectangle(outer, radius, 1.0f);
+
+    const float dotSize = juce::jmax(4.0f, outer.getWidth() * 0.34f);
+    g.fillEllipse(outer.getCentreX() - dotSize * 0.5f,
+                  outer.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
+
+    juce::Rectangle<float> cap;
+    const float capWidth = juce::jmin(4.0f, outer.getWidth() * 0.3f);
+    if (capOnRight) {
+      cap = juce::Rectangle<float>(outer.getRight() - capWidth,
+                                   outer.getCentreY() - outer.getHeight() * 0.18f,
+                                   capWidth, outer.getHeight() * 0.36f);
+    } else {
+      cap = juce::Rectangle<float>(outer.getX(),
+                                   outer.getCentreY() - outer.getHeight() * 0.18f,
+                                   capWidth, outer.getHeight() * 0.36f);
+    }
+
+    g.setColour(accent.withAlpha(0.78f));
+    g.fillRoundedRectangle(cap, cap.getWidth() * 0.5f);
+  }
+
+  void drawCollapsedVerticalPorts(juce::Graphics &g, juce::Rectangle<int> area,
+                                  const std::vector<RailCardView> &cards) {
+    const bool portsOnRight = currentRailKind() != TRailKind::output;
+    const int gap = 8;
+    const int count = juce::jmax(1, (int)cards.size());
+    const int slotHeight = juce::jlimit(20, 40,
+                                        (area.getHeight() - gap * (count - 1)) /
+                                            count);
+
+    for (int index = 0; index < count && area.getHeight() >= 18; ++index) {
+      auto slot = area.removeFromTop(slotHeight).toFloat();
+      area.removeFromTop(gap);
+      const auto &card = cards[(size_t)index];
+      auto socketBounds = slot.reduced(4.0f, 1.0f);
+      socketBounds = socketBounds.withSizeKeepingCentre(
+          juce::jmin(18.0f, socketBounds.getWidth()), socketBounds.getHeight());
+
+      if (card.groupedStereo && card.ports.size() >= 2) {
+        drawGroupedStereoSocket(g, socketBounds, card.accent, portsOnRight);
+        juce::Rectangle<float> topSocketBounds;
+        juce::Rectangle<float> bottomSocketBounds;
+        juce::Rectangle<float> bridgeBounds;
+        groupedStereoSocketSections(socketBounds, topSocketBounds,
+                                    bottomSocketBounds, bridgeBounds);
+        drawPortStateOverlay(g, topSocketBounds.reduced(0.4f),
+                             card.ports[0].accent,
+                             isHoveredPort(card.itemId, card.ports[0].portId),
+                             isActivePort(card.itemId, card.ports[0].portId));
+        drawPortStateOverlay(g, bottomSocketBounds.reduced(0.4f),
+                             card.ports[1].accent,
+                             isHoveredPort(card.itemId, card.ports[1].portId),
+                             isActivePort(card.itemId, card.ports[1].portId));
+        addPortHitZone(card.itemId, card.ports[0].portId,
+                       card.ports[0].dataType, topSocketBounds);
+        addPortHitZone(card.itemId, card.ports[1].portId,
+                       card.ports[1].dataType, bottomSocketBounds);
+      } else if (!card.ports.empty()) {
+        drawVerticalSingleSocket(g, socketBounds, card.ports.front().accent,
+                                 portsOnRight);
+        drawPortStateOverlay(g, socketBounds, card.ports.front().accent,
+                             isHoveredPort(card.itemId, card.ports.front().portId),
+                             isActivePort(card.itemId, card.ports.front().portId));
+        addPortHitZone(card.itemId, card.ports.front().portId,
+                       card.ports.front().dataType, socketBounds);
+      }
+    }
+  }
+
+  void drawCollapsedHorizontalPorts(juce::Graphics &g, juce::Rectangle<int> area,
+                                    const std::vector<RailCardView> &cards) {
+    const int gap = 8;
+    int x = area.getX();
+    const int height = juce::jmax(12, area.getHeight() - 6);
+
+    for (const auto &card : cards) {
+      for (const auto &port : card.ports) {
+        if (x + 22 > area.getRight())
+          return;
+
+        auto socketBounds = juce::Rectangle<float>((float)x,
+                                                   (float)(area.getCentreY() - height / 2),
+                                                   18.0f, (float)height);
+        drawVerticalSingleSocket(g, socketBounds, port.accent, true);
+        drawPortStateOverlay(g, socketBounds, port.accent,
+                             isHoveredPort(card.itemId, port.portId),
+                             isActivePort(card.itemId, port.portId));
+        addPortHitZone(card.itemId, port.portId, port.dataType, socketBounds);
+        x += 18 + gap;
+      }
+    }
+  }
+
+  void drawCollapsedPorts(juce::Graphics &g, juce::Rectangle<int> area,
+                          const std::vector<RailCardView> &cards) {
+    if (orientation == RailOrientation::vertical)
+      drawCollapsedVerticalPorts(g, area, cards);
+    else
+      drawCollapsedHorizontalPorts(g, area, cards);
+  }
+
   void drawVerticalCards(juce::Graphics &g, juce::Rectangle<int> area,
                          const std::vector<RailCardView> &cards) {
     const bool portsOnRight = currentRailKind() != TRailKind::output;
     const int gap = 8;
     const int count = juce::jmax(1, (int)cards.size());
-    const int cardHeight = juce::jlimit(68, 96,
+    const int cardHeight = juce::jlimit(54, 76,
                                         (area.getHeight() - gap * (count - 1)) /
                                             count);
 
-    for (int index = 0; index < count && area.getHeight() >= 58; ++index) {
+    for (int index = 0; index < count && area.getHeight() >= 46; ++index) {
       const auto cardArea = area.removeFromTop(cardHeight).toFloat();
       area.removeFromTop(gap);
       drawVerticalCard(g, cardArea, cards[(size_t)index], portsOnRight);
@@ -968,30 +1097,34 @@ private:
     g.setColour(accent.withAlpha(selected ? 0.92f : 0.68f));
     g.fillRoundedRectangle(strip, 2.0f);
 
-    auto content = area.toNearestInt().reduced(10, 8);
-    auto titleRow = content.removeFromTop(18);
-    auto badgeArea = titleRow.removeFromRight(58);
+    auto content = area.toNearestInt().reduced(10, 7);
+    auto portColumn = portsOnRight ? content.removeFromRight(28)
+                                   : content.removeFromLeft(28);
+    if (portsOnRight)
+      content.removeFromRight(6);
+    else
+      content.removeFromLeft(6);
+
+    auto titleRow = content.removeFromTop(16);
+    if (card.badge.isNotEmpty()) {
+      auto badgeArea = titleRow.removeFromRight(48);
+      drawBadge(g, badgeArea, card.badge, accent);
+    }
     g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-    g.drawText(card.title, titleRow, juce::Justification::centredLeft, false);
-    drawBadge(g, badgeArea, card.badge, accent);
+    g.setFont(juce::FontOptions(11.5f, juce::Font::bold));
+    g.drawFittedText(card.title, titleRow, juce::Justification::centredLeft, 1,
+                     0.9f);
 
-    g.setColour(juce::Colours::white.withAlpha(0.62f));
-    g.setFont(10.5f);
-    g.drawFittedText(card.subtitle, content.removeFromTop(28),
-                     juce::Justification::topLeft, 2, 0.9f);
-
-    auto portsArea = content.removeFromBottom(30);
-    if (card.groupedStereo && card.ports.size() >= 2) {
-      auto row = portsArea.removeFromTop(26);
-      auto socketArea = portsOnRight ? row.removeFromRight(24)
-                                     : row.removeFromLeft(24);
-      auto labelArea = row;
-      g.setColour(juce::Colours::white.withAlpha(0.82f));
+    if (card.subtitle.isNotEmpty()) {
+      g.setColour(juce::Colours::white.withAlpha(0.62f));
       g.setFont(10.0f);
-      g.drawText("L / R", labelArea, juce::Justification::centredLeft, false);
-      auto groupedSocketBounds =
-          socketArea.toFloat().withSizeKeepingCentre(14.0f, 28.0f);
+      g.drawFittedText(card.subtitle, content.removeFromTop(15),
+                       juce::Justification::centredLeft, 1, 0.9f);
+    }
+
+    auto portArea = portColumn.toFloat().reduced(1.5f, 0.5f);
+    if (card.groupedStereo && card.ports.size() >= 2) {
+      auto groupedSocketBounds = portArea.reduced(2.0f, 0.0f);
       drawGroupedStereoSocket(g, groupedSocketBounds, accent, portsOnRight);
       juce::Rectangle<float> topSocketBounds;
       juce::Rectangle<float> bottomSocketBounds;
@@ -1019,20 +1152,18 @@ private:
     } else {
       const int portCount = juce::jmin(3, (int)card.ports.size());
       if (portCount > 0) {
-        const int rowHeight = juce::jmax(16, portsArea.getHeight() / portCount);
+        const float gap = 4.0f;
+        const float slotHeight =
+            (portArea.getHeight() - gap * (float)(portCount - 1)) / (float)portCount;
+        float y = portArea.getY();
         for (int index = 0; index < portCount; ++index) {
-          auto row = portsArea.removeFromTop(rowHeight);
-          auto socketArea = portsOnRight ? row.removeFromRight(18)
-                                         : row.removeFromLeft(18);
-          auto labelArea = row;
-          g.setColour(juce::Colours::white.withAlpha(0.78f));
-          g.setFont(10.0f);
-          g.drawText(card.ports[(size_t)index].label, labelArea,
-                     juce::Justification::centredLeft, false);
-          const auto socketBounds =
-              socketArea.toFloat().withSizeKeepingCentre(14.0f, 8.0f);
-          drawSocket(g, socketBounds, card.ports[(size_t)index].accent,
-                     portsOnRight);
+          auto socketBounds = juce::Rectangle<float>(
+              portArea.getX(), y, portArea.getWidth(), slotHeight)
+                                  .reduced(2.0f, 0.5f);
+          y += slotHeight + gap;
+          drawVerticalSingleSocket(g, socketBounds,
+                                   card.ports[(size_t)index].accent,
+                                   portsOnRight);
           drawPortStateOverlay(g, socketBounds,
                                card.ports[(size_t)index].accent,
                                isHoveredPort(card.itemId,
