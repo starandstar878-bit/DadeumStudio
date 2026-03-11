@@ -800,52 +800,69 @@ private:
   }
 
   static void groupedStereoSocketSections(juce::Rectangle<float> area,
-                                          juce::Rectangle<float> &topCircle,
-                                          juce::Rectangle<float> &bottomCircle,
+                                          juce::Rectangle<float> &topZone,
+                                          juce::Rectangle<float> &bottomZone,
                                           juce::Rectangle<float> &bridge) {
     const auto outer = area.reduced(0.5f, 0.5f);
-    const float diameter =
-        juce::jmin(outer.getWidth(), juce::jmax(10.0f, outer.getHeight() * 0.42f));
-    const float centreX = outer.getCentreX();
-    topCircle = juce::Rectangle<float>(centreX - diameter * 0.5f, outer.getY(),
-                                       diameter, diameter);
-    bottomCircle =
-        juce::Rectangle<float>(centreX - diameter * 0.5f,
-                               outer.getBottom() - diameter, diameter, diameter);
-    const float bridgeWidth = juce::jmax(4.0f, diameter * 0.34f);
+    const float overlap = juce::jmax(1.0f, outer.getHeight() * 0.08f);
+    const float halfHeight = outer.getHeight() * 0.5f;
+    topZone = juce::Rectangle<float>(outer.getX(), outer.getY(), outer.getWidth(),
+                                     halfHeight + overlap);
+    bottomZone = juce::Rectangle<float>(outer.getX(),
+                                        outer.getBottom() - halfHeight - overlap,
+                                        outer.getWidth(), halfHeight + overlap);
+    const float bridgeHeight = juce::jmax(8.0f, outer.getHeight() * 0.28f);
     bridge = juce::Rectangle<float>(
-        centreX - bridgeWidth * 0.5f, topCircle.getBottom() - 1.0f, bridgeWidth,
-        juce::jmax(2.0f, bottomCircle.getY() - topCircle.getBottom() + 2.0f));
+        outer.getX(), outer.getCentreY() - bridgeHeight * 0.5f, outer.getWidth(),
+        bridgeHeight);
   }
 
   static void drawGroupedStereoSocket(juce::Graphics &g,
                                       juce::Rectangle<float> area,
                                       juce::Colour accent,
                                       bool capOnRight) {
-    juce::Rectangle<float> topCircle;
-    juce::Rectangle<float> bottomCircle;
+    const auto outer = area.reduced(0.5f, 0.5f);
+    juce::Rectangle<float> topZone;
+    juce::Rectangle<float> bottomZone;
     juce::Rectangle<float> bridge;
-    groupedStereoSocketSections(area, topCircle, bottomCircle, bridge);
+    groupedStereoSocketSections(outer, topZone, bottomZone, bridge);
 
-    juce::Path silhouette;
-    silhouette.addEllipse(topCircle);
-    silhouette.addEllipse(bottomCircle);
-    silhouette.addRoundedRectangle(bridge, bridge.getWidth() * 0.48f);
-
+    const float radius = outer.getWidth() * 0.5f;
     g.setColour(juce::Colour(0xff0f172a));
-    g.fillPath(silhouette);
+    g.fillRoundedRectangle(outer, radius);
     g.setColour(accent.withAlpha(0.92f));
-    g.strokePath(silhouette, juce::PathStrokeType(1.0f));
+    g.drawRoundedRectangle(outer, radius, 1.0f);
+
+    const float laneInsetX = juce::jmax(1.2f, outer.getWidth() * 0.18f);
+    const float laneInsetY = juce::jmax(1.4f, outer.getHeight() * 0.08f);
+    const auto topLane = topZone.reduced(laneInsetX, laneInsetY);
+    const auto bottomLane = bottomZone.reduced(laneInsetX, laneInsetY);
+    const auto bridgeLane = bridge.reduced(laneInsetX * 0.8f, 0.8f);
+
+    g.setColour(accent.withAlpha(0.12f));
+    g.fillRoundedRectangle(topLane, juce::jmax(3.0f, topLane.getWidth() * 0.45f));
+    g.fillRoundedRectangle(bottomLane,
+                           juce::jmax(3.0f, bottomLane.getWidth() * 0.45f));
+    g.setColour(accent.withAlpha(0.26f));
+    g.fillRoundedRectangle(bridgeLane,
+                           juce::jmax(3.0f, bridgeLane.getWidth() * 0.45f));
+
+    const float dotSize = juce::jmax(4.0f, outer.getWidth() * 0.34f);
+    const float centreX = outer.getCentreX() - dotSize * 0.5f;
+    g.setColour(accent.withAlpha(0.95f));
+    g.fillEllipse(centreX, topZone.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
+    g.fillEllipse(centreX, bottomZone.getCentreY() - dotSize * 0.5f, dotSize,
+                  dotSize);
 
     juce::Rectangle<float> cap;
     const float capWidth = juce::jmin(4.0f, area.getWidth() * 0.3f);
     if (capOnRight) {
-      cap = juce::Rectangle<float>(area.getRight() - capWidth,
-                                   area.getCentreY() - bridge.getHeight() * 0.5f,
+      cap = juce::Rectangle<float>(outer.getRight() - capWidth,
+                                   outer.getCentreY() - bridge.getHeight() * 0.5f,
                                    capWidth, bridge.getHeight());
     } else {
-      cap = juce::Rectangle<float>(area.getX(),
-                                   area.getCentreY() - bridge.getHeight() * 0.5f,
+      cap = juce::Rectangle<float>(outer.getX(),
+                                   outer.getCentreY() - bridge.getHeight() * 0.5f,
                                    capWidth, bridge.getHeight());
     }
 
