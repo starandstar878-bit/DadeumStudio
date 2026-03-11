@@ -41,6 +41,8 @@ TNode makeNodeFromDescriptor(const TNodeDescriptor &descriptor,
     port.dataType = portSpec.dataType;
     port.name = portSpec.name;
     port.channelIndex = inferPortChannelIndex(portSpec.name);
+    port.maxIncomingConnections = portSpec.maxIncomingConnections;
+    port.maxOutgoingConnections = portSpec.maxOutgoingConnections;
     node.ports.push_back(port);
   }
   return node;

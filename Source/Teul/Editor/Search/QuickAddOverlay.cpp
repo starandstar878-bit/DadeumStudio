@@ -87,6 +87,8 @@ bool TGraphCanvas::addNodeByTypeAtView(const juce::String &typeKey,
     port.dataType = portSpec.dataType;
     port.name = portSpec.name;
     port.ownerNodeId = node.nodeId;
+    port.maxIncomingConnections = portSpec.maxIncomingConnections;
+    port.maxOutgoingConnections = portSpec.maxOutgoingConnections;
     node.ports.push_back(port);
   }
 

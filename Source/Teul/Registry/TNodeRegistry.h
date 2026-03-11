@@ -94,6 +94,8 @@ struct TPortSpec {
   TPortDirection direction;
   TPortDataType dataType;
   juce::String name;
+  int maxIncomingConnections = 1;
+  int maxOutgoingConnections = -1;
 };
 
 struct TNodeCapabilities {

@@ -530,6 +530,8 @@ bool TGraphCanvas::replaceNode(NodeId nodeId,
     port.direction = spec.direction;
     port.dataType = spec.dataType;
     port.name = spec.name;
+    port.maxIncomingConnections = spec.maxIncomingConnections;
+    port.maxOutgoingConnections = spec.maxOutgoingConnections;
     next.ports.push_back(port);
   }
 

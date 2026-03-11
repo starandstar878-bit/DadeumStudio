@@ -1474,6 +1474,8 @@ juce::var TSerializer::portToJson(const TPort &port) {
   obj->setProperty("type", (int)port.dataType);
   obj->setProperty("name", port.name);
   obj->setProperty("channel_index", port.channelIndex);
+  obj->setProperty("max_incoming_connections", port.maxIncomingConnections);
+  obj->setProperty("max_outgoing_connections", port.maxOutgoingConnections);
   return juce::var(obj);
 }
 
@@ -1715,6 +1717,10 @@ bool TSerializer::jsonToPort(TPort &port, const juce::var &json) {
   port.dataType = (TPortDataType)(int)json.getProperty("type", 0);
   port.name = json.getProperty("name", "").toString();
   port.channelIndex = json.getProperty("channel_index", 0);
+  port.maxIncomingConnections =
+      (int)json.getProperty("max_incoming_connections", 1);
+  port.maxOutgoingConnections =
+      (int)json.getProperty("max_outgoing_connections", -1);
 
   return true;
 }

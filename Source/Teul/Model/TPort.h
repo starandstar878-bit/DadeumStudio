@@ -21,6 +21,8 @@ struct TPort {
   juce::String name;
   NodeId ownerNodeId = kInvalidNodeId;
   int channelIndex = 0;
+  int maxIncomingConnections = 1;
+  int maxOutgoingConnections = -1;
 };
 
 } // namespace Teul

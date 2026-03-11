@@ -177,12 +177,33 @@ bool endpointsEqual(const TEndpoint &lhs, const TEndpoint &rhs) {
          lhs.railPortId == rhs.railPortId;
 }
 
+int endpointIncomingCapacity(const TGraphDocument &document,
+                           const TEndpoint &target) {
+  if (target.isNodePort()) {
+    const auto *node = document.findNode(target.nodeId);
+    const auto *port = node != nullptr ? node->findPort(target.portId) : nullptr;
+    if (port == nullptr)
+      return 1;
+    return port->maxIncomingConnections < 0 ? std::numeric_limits<int>::max()
+                                            : port->maxIncomingConnections;
+  }
+
+  return 1;
+}
+
+int endpointIncomingConnectionCount(const TGraphDocument &document,
+                                   const TEndpoint &target) {
+  int count = 0;
+  for (const auto &connection : document.connections) {
+    if (endpointsEqual(connection.to, target))
+      ++count;
+  }
+  return count;
+}
+
 bool endpointHasIncomingConnection(const TGraphDocument &document,
                                    const TEndpoint &target) {
-  return std::any_of(document.connections.begin(), document.connections.end(),
-                     [&](const TConnection &connection) {
-                       return endpointsEqual(connection.to, target);
-                     });
+  return endpointIncomingConnectionCount(document, target) > 0;
 }
 
 bool canConnectEndpointVectors(const TGraphDocument &document,
@@ -194,7 +215,11 @@ bool canConnectEndpointVectors(const TGraphDocument &document,
   for (size_t index = 0; index < fromEndpoints.size(); ++index) {
     if (connectionExists(document, fromEndpoints[index], toEndpoints[index]))
       return false;
-    if (endpointHasIncomingConnection(document, toEndpoints[index]))
+    const int incomingCount =
+        endpointIncomingConnectionCount(document, toEndpoints[index]);
+    const int incomingCapacity =
+        endpointIncomingCapacity(document, toEndpoints[index]);
+    if (incomingCount + 1 > incomingCapacity)
       return false;
   }
 
@@ -477,7 +502,8 @@ bool TGraphCanvas::isCurrentDragTargetConnectable() const {
   const auto to = TEndpoint::makeNodePort(wireDragState.targetNodeId,
                                           wireDragState.targetPortId);
   return !connectionExists(document, from, to) &&
-         !endpointHasIncomingConnection(document, to);
+         endpointIncomingConnectionCount(document, to) + 1 <=
+             endpointIncomingCapacity(document, to);
 }
 
 void TGraphCanvas::tryCreateConnectionFromDrag() {
