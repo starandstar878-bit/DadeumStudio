@@ -68,6 +68,245 @@ juce::Array<juce::var> migrateArray(
   return migrated;
 }
 
+const TSystemRailEndpoint *findRailEndpointByKind(const TGraphDocument &doc,
+                                                  TSystemRailEndpointKind kind) {
+  for (const auto &endpoint : doc.controlState.inputEndpoints) {
+    if (endpoint.kind == kind)
+      return &endpoint;
+  }
+
+  for (const auto &endpoint : doc.controlState.outputEndpoints) {
+    if (endpoint.kind == kind)
+      return &endpoint;
+  }
+
+  return nullptr;
+}
+
+const TSystemRailPort *findRailPortByDisplayName(const TSystemRailEndpoint *endpoint,
+                                                 juce::StringRef displayName) {
+  if (endpoint == nullptr)
+    return nullptr;
+
+  for (const auto &port : endpoint->ports) {
+    if (port.displayName.equalsIgnoreCase(displayName))
+      return &port;
+  }
+
+  return nullptr;
+}
+
+bool isLegacyRailSourceNode(const juce::String &typeKey) {
+  return typeKey == "Teul.Source.AudioInput" ||
+         typeKey == "Teul.Source.MidiInput";
+}
+
+bool isLegacyRailSinkNode(const juce::String &typeKey) {
+  return typeKey == "Teul.Routing.AudioOut";
+}
+
+bool endpointsEqual(const TEndpoint &a, const TEndpoint &b) {
+  return a.ownerKind == b.ownerKind && a.nodeId == b.nodeId &&
+         a.portId == b.portId && a.railEndpointId == b.railEndpointId &&
+         a.railPortId == b.railPortId;
+}
+
+bool hasConnectionWithEndpoints(const std::vector<TConnection> &connections,
+                                const TConnection &candidate) {
+  return std::any_of(connections.begin(), connections.end(),
+                     [&](const TConnection &existing) {
+                       return endpointsEqual(existing.from, candidate.from) &&
+                              endpointsEqual(existing.to, candidate.to);
+                     });
+}
+
+bool tryMapLegacySourcePort(const TGraphDocument &doc,
+                            const TNode &node,
+                            PortId portId,
+                            TEndpoint &mappedOut) {
+  const auto *port = node.findPort(portId);
+  if (port == nullptr)
+    return false;
+
+  if (node.typeKey == "Teul.Source.AudioInput") {
+    const auto *endpoint =
+        findRailEndpointByKind(doc, TSystemRailEndpointKind::audioInput);
+    if (endpoint == nullptr)
+      return false;
+
+    const TSystemRailPort *railPort = nullptr;
+    if (port->name.startsWithIgnoreCase("L "))
+      railPort = findRailPortByDisplayName(endpoint, "L");
+    else if (port->name.startsWithIgnoreCase("R "))
+      railPort = findRailPortByDisplayName(endpoint, "R");
+
+    if (railPort == nullptr)
+      return false;
+
+    mappedOut = TEndpoint::makeRailPort(endpoint->endpointId, railPort->portId);
+    return true;
+  }
+
+  if (node.typeKey == "Teul.Source.MidiInput") {
+    const auto *endpoint =
+        findRailEndpointByKind(doc, TSystemRailEndpointKind::midiInput);
+    if (endpoint == nullptr || endpoint->ports.empty())
+      return false;
+
+    mappedOut =
+        TEndpoint::makeRailPort(endpoint->endpointId, endpoint->ports.front().portId);
+    return true;
+  }
+
+  return false;
+}
+
+bool tryMapLegacySinkPort(const TGraphDocument &doc,
+                          const TNode &node,
+                          PortId portId,
+                          TEndpoint &mappedOut) {
+  const auto *port = node.findPort(portId);
+  if (port == nullptr)
+    return false;
+
+  if (node.typeKey == "Teul.Routing.AudioOut") {
+    const auto *endpoint =
+        findRailEndpointByKind(doc, TSystemRailEndpointKind::audioOutput);
+    if (endpoint == nullptr)
+      return false;
+
+    const TSystemRailPort *railPort = nullptr;
+    if (port->name.startsWithIgnoreCase("L "))
+      railPort = findRailPortByDisplayName(endpoint, "L");
+    else if (port->name.startsWithIgnoreCase("R "))
+      railPort = findRailPortByDisplayName(endpoint, "R");
+
+    if (railPort == nullptr)
+      return false;
+
+    mappedOut = TEndpoint::makeRailPort(endpoint->endpointId, railPort->portId);
+    return true;
+  }
+
+  return false;
+}
+
+void normalizeLegacyRailBridgeNodes(TGraphDocument &doc,
+                                    TSchemaMigrationReport &migrationReport) {
+  doc.controlState.ensurePreviewDataIfEmpty();
+
+  std::vector<bool> removeConnections(doc.connections.size(), false);
+  std::vector<TConnection> migratedConnections;
+  std::vector<NodeId> nodesToRemove;
+
+  for (const auto &node : doc.nodes) {
+    const bool isSource = isLegacyRailSourceNode(node.typeKey);
+    const bool isSink = isLegacyRailSinkNode(node.typeKey);
+    if (!isSource && !isSink)
+      continue;
+
+    std::vector<size_t> referencedConnectionIndexes;
+    for (size_t connectionIndex = 0; connectionIndex < doc.connections.size();
+         ++connectionIndex) {
+      const auto &connection = doc.connections[connectionIndex];
+      if (connection.from.referencesNode(node.nodeId) ||
+          connection.to.referencesNode(node.nodeId)) {
+        referencedConnectionIndexes.push_back(connectionIndex);
+      }
+    }
+
+    bool migratable = true;
+    std::vector<TConnection> localMigrations;
+    for (const auto connectionIndex : referencedConnectionIndexes) {
+      const auto &connection = doc.connections[connectionIndex];
+      if (isSource) {
+        if (!connection.from.referencesNode(node.nodeId) ||
+            connection.to.referencesNode(node.nodeId)) {
+          migratable = false;
+          break;
+        }
+
+        TEndpoint mappedFrom;
+        if (!tryMapLegacySourcePort(doc, node, connection.from.portId, mappedFrom)) {
+          migratable = false;
+          break;
+        }
+
+        auto migrated = connection;
+        migrated.from = mappedFrom;
+        localMigrations.push_back(std::move(migrated));
+        continue;
+      }
+
+      if (!connection.to.referencesNode(node.nodeId) ||
+          connection.from.referencesNode(node.nodeId)) {
+        migratable = false;
+        break;
+      }
+
+      TEndpoint mappedTo;
+      if (!tryMapLegacySinkPort(doc, node, connection.to.portId, mappedTo)) {
+        migratable = false;
+        break;
+      }
+
+      auto migrated = connection;
+      migrated.to = mappedTo;
+      localMigrations.push_back(std::move(migrated));
+    }
+
+    if (!migratable)
+      continue;
+
+    nodesToRemove.push_back(node.nodeId);
+    for (const auto connectionIndex : referencedConnectionIndexes)
+      removeConnections[connectionIndex] = true;
+    migratedConnections.insert(migratedConnections.end(), localMigrations.begin(),
+                               localMigrations.end());
+  }
+
+  if (nodesToRemove.empty())
+    return;
+
+  std::vector<TConnection> normalizedConnections;
+  normalizedConnections.reserve(doc.connections.size());
+  for (size_t connectionIndex = 0; connectionIndex < doc.connections.size();
+       ++connectionIndex) {
+    if (!removeConnections[connectionIndex])
+      normalizedConnections.push_back(doc.connections[connectionIndex]);
+  }
+
+  for (const auto &connection : migratedConnections) {
+    if (!hasConnectionWithEndpoints(normalizedConnections, connection))
+      normalizedConnections.push_back(connection);
+  }
+
+  doc.connections = std::move(normalizedConnections);
+  doc.nodes.erase(std::remove_if(doc.nodes.begin(), doc.nodes.end(),
+                                 [&](const TNode &node) {
+                                   return std::find(nodesToRemove.begin(),
+                                                    nodesToRemove.end(),
+                                                    node.nodeId) !=
+                                          nodesToRemove.end();
+                                 }),
+                  doc.nodes.end());
+
+  for (auto &frame : doc.frames) {
+    frame.memberNodeIds.erase(
+        std::remove_if(frame.memberNodeIds.begin(), frame.memberNodeIds.end(),
+                       [&](NodeId nodeId) {
+                         return std::find(nodesToRemove.begin(), nodesToRemove.end(),
+                                          nodeId) != nodesToRemove.end();
+                       }),
+        frame.memberNodeIds.end());
+  }
+
+  appendMigrationStep(&migrationReport, "document:normalize-legacy-rail-io");
+  appendWarning(migrationReport.warnings,
+                "Legacy Audio Input / MIDI Input / Audio Output nodes were moved to rail endpoints.");
+  migrationReport.migrated = true;
+}
+
 juce::String railKindToString(TRailKind kind) {
   switch (kind) {
   case TRailKind::input:
@@ -1392,6 +1631,7 @@ bool TSerializer::fromJson(TGraphDocument &doc,
   jsonToControlState(
       doc.controlState,
       migratedJson.getProperty("control_state", juce::var()));
+  normalizeLegacyRailBridgeNodes(doc, migrationReport);
 
   if (doc.getNextFrameId() <= 0) {
     int maxFrameId = 0;
