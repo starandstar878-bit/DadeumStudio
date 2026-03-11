@@ -9,6 +9,7 @@ namespace Teul {
 TGraphDocument::TGraphDocument()
     : historyStack(std::make_unique<THistoryStack>()) {
   controlState.ensurePreviewDataIfEmpty();
+  controlState.reconcileDeviceProfilesAndSources();
 }
 
 TGraphDocument::~TGraphDocument() = default;
@@ -21,6 +22,7 @@ TGraphDocument::TGraphDocument(const TGraphDocument &other) {
   frames = other.frames;
   bookmarks = other.bookmarks;
   controlState = other.controlState;
+  controlState.reconcileDeviceProfilesAndSources();
   nextNodeId = other.nextNodeId;
   nextPortId = other.nextPortId;
   nextConnectionId = other.nextConnectionId;
@@ -42,6 +44,7 @@ TGraphDocument &TGraphDocument::operator=(const TGraphDocument &other) {
     frames = other.frames;
     bookmarks = other.bookmarks;
     controlState = other.controlState;
+    controlState.reconcileDeviceProfilesAndSources();
     nextNodeId = other.nextNodeId;
     nextPortId = other.nextPortId;
     nextConnectionId = other.nextConnectionId;

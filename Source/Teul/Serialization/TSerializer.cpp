@@ -905,6 +905,7 @@ void jsonToControlState(TControlSourceState &state, const juce::var &json) {
 
   state.ensureDefaultRails();
   state.ensurePreviewDataIfEmpty();
+  state.reconcileDeviceProfilesAndSources();
 }
 
 juce::var migrateControlStateJson(const juce::var &json) {
@@ -1644,6 +1645,7 @@ bool TSerializer::fromJson(TGraphDocument &doc,
       doc.controlState,
       migratedJson.getProperty("control_state", juce::var()));
   normalizeLegacyRailBridgeNodes(doc, migrationReport);
+  doc.controlState.reconcileDeviceProfilesAndSources();
 
   if (doc.getNextFrameId() <= 0) {
     int maxFrameId = 0;

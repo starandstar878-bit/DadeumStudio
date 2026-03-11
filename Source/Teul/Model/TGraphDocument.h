@@ -217,6 +217,21 @@ struct TControlSourceState {
            !sources.empty();
   }
 
+  static bool controlPortsMatch(const std::vector<TControlSourcePort> &lhs,
+                                const std::vector<TControlSourcePort> &rhs) noexcept {
+    if (lhs.size() != rhs.size())
+      return false;
+
+    for (size_t index = 0; index < lhs.size(); ++index) {
+      if (lhs[index].portId != rhs[index].portId ||
+          lhs[index].kind != rhs[index].kind) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   void ensurePreviewDataIfEmpty() {
     if (hasAnyRailCards())
       return;
@@ -281,6 +296,8 @@ struct TControlSourceState {
     footswitch.ports.push_back(
         {"fs-1-trigger", "Trigger", TControlPortKind::trigger});
     sources.push_back(std::move(footswitch));
+
+    ensurePreviewDeviceProfile();
   }
 
   TControlRailLayout *findRail(const juce::String &railId) noexcept {
@@ -389,6 +406,158 @@ struct TControlSourceState {
     }
 
     return nullptr;
+  }
+
+  TDeviceSourceProfile *findDeviceSourceProfile(const juce::String &profileId,
+                                                const juce::String &sourceId) noexcept {
+    if (auto *profile = findDeviceProfile(profileId)) {
+      for (auto &source : profile->sources) {
+        if (source.sourceId == sourceId)
+          return &source;
+      }
+    }
+
+    return nullptr;
+  }
+
+  const TDeviceSourceProfile *
+  findDeviceSourceProfile(const juce::String &profileId,
+                          const juce::String &sourceId) const noexcept {
+    if (const auto *profile = findDeviceProfile(profileId)) {
+      for (const auto &source : profile->sources) {
+        if (source.sourceId == sourceId)
+          return &source;
+      }
+    }
+
+    return nullptr;
+  }
+
+  void ensurePreviewDeviceProfile() {
+    bool hasPreviewSource = false;
+    for (const auto &source : sources) {
+      if (source.deviceProfileId == "preview-device") {
+        hasPreviewSource = true;
+        break;
+      }
+    }
+
+    if (!hasPreviewSource)
+      return;
+
+    auto *profile = findDeviceProfile("preview-device");
+    if (profile == nullptr) {
+      TDeviceProfile previewProfile;
+      previewProfile.profileId = "preview-device";
+      previewProfile.deviceId = "preview-device";
+      previewProfile.displayName = "Preview Device";
+      previewProfile.autoDetected = true;
+      deviceProfiles.push_back(std::move(previewProfile));
+      profile = &deviceProfiles.back();
+    }
+
+    profile->profileId = "preview-device";
+    profile->deviceId = "preview-device";
+    if (profile->displayName.isEmpty())
+      profile->displayName = "Preview Device";
+    profile->autoDetected = true;
+
+    profile->sources.erase(
+        std::remove_if(profile->sources.begin(), profile->sources.end(),
+                       [&](const TDeviceSourceProfile &profileSource) {
+                         return findSource(profileSource.sourceId) == nullptr;
+                       }),
+        profile->sources.end());
+
+    for (const auto &source : sources) {
+      if (source.deviceProfileId != "preview-device")
+        continue;
+
+      auto *profileSource =
+          findDeviceSourceProfile("preview-device", source.sourceId);
+      if (profileSource == nullptr) {
+        TDeviceSourceProfile previewSource;
+        previewSource.sourceId = source.sourceId;
+        previewSource.displayName = source.displayName.isNotEmpty()
+                                        ? source.displayName
+                                        : source.sourceId;
+        previewSource.kind = source.kind;
+        previewSource.mode = source.mode;
+        previewSource.ports = source.ports;
+        profile->sources.push_back(std::move(previewSource));
+        continue;
+      }
+
+      profileSource->displayName = source.displayName.isNotEmpty()
+                                       ? source.displayName
+                                       : source.sourceId;
+      profileSource->kind = source.kind;
+      profileSource->mode = source.mode;
+      profileSource->ports = source.ports;
+    }
+  }
+
+  void reconcileDeviceProfilesAndSources() {
+    ensureDefaultRails();
+    ensurePreviewDataIfEmpty();
+    ensurePreviewDeviceProfile();
+
+    std::vector<juce::String> normalizedMissingIds;
+    auto appendMissingProfileId =
+        [&](const juce::String &profileId) {
+          const auto trimmedId = profileId.trim();
+          if (trimmedId.isEmpty())
+            return;
+
+          const bool alreadyPresent =
+              std::any_of(normalizedMissingIds.begin(), normalizedMissingIds.end(),
+                          [&](const juce::String &existingId) {
+                            return existingId == trimmedId;
+                          });
+          if (!alreadyPresent)
+            normalizedMissingIds.push_back(trimmedId);
+        };
+
+    for (const auto &profileId : missingDeviceProfileIds) {
+      if (findDeviceProfile(profileId.trim()) == nullptr)
+        appendMissingProfileId(profileId);
+    }
+
+    for (auto &source : sources) {
+      source.missing = false;
+      source.degraded = false;
+
+      const auto profileId = source.deviceProfileId.trim();
+      if (profileId.isEmpty())
+        continue;
+
+      const auto *profile = findDeviceProfile(profileId);
+      if (profile == nullptr) {
+        source.missing = true;
+        appendMissingProfileId(profileId);
+        continue;
+      }
+
+      const auto *profileSource =
+          findDeviceSourceProfile(profileId, source.sourceId);
+      if (profileSource == nullptr) {
+        source.degraded = true;
+        continue;
+      }
+
+      if (source.displayName.isEmpty())
+        source.displayName = profileSource->displayName;
+      if (source.ports.empty())
+        source.ports = profileSource->ports;
+
+      if (source.kind != profileSource->kind ||
+          source.mode != profileSource->mode ||
+          !controlPortsMatch(source.ports, profileSource->ports)) {
+        source.degraded = true;
+      }
+    }
+
+    missingDeviceProfileIds = std::move(normalizedMissingIds);
   }
 };
 
