@@ -289,12 +289,27 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
     return;
   }
 
-  for (const auto &zone : externalDropZoneProvider()) {
+  const auto zones = externalDropZoneProvider();
+  const TGraphCanvas::ExternalDropZone *bestZone = nullptr;
+  float bestArea = std::numeric_limits<float>::max();
+
+  for (const auto &zone : zones) {
     if (!externalZoneContains(zone, mousePosView))
       continue;
 
-    wireDragState.targetExternalZoneId = zone.zoneId;
-    wireDragState.targetTypeMatch = (zone.dataType == wireDragState.sourceType);
+    const float area = zone.boundsView.getWidth() * zone.boundsView.getHeight();
+    if (bestZone == nullptr ||
+        (zone.elliptical && !bestZone->elliptical) ||
+        (zone.elliptical == bestZone->elliptical && area < bestArea)) {
+      bestZone = &zone;
+      bestArea = area;
+    }
+  }
+
+  if (bestZone != nullptr) {
+    wireDragState.targetExternalZoneId = bestZone->zoneId;
+    wireDragState.targetTypeMatch =
+        (bestZone->dataType == wireDragState.sourceType);
     wireDragState.targetCycleFree = true;
     notifyExternalDragTarget();
     return;
