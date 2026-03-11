@@ -68,6 +68,8 @@ private:
   std::vector<PortIssueState> issueStates;
   TIssueState bundleIssueState = TIssueState::none;
   bool dragActive = false;
+  PortId dragSourcePortId = kInvalidPortId;
+  bool dragSourceBundle = false;
 
   bool isBus() const noexcept { return portGroup.size() > 1; }
   bool isInput() const noexcept {

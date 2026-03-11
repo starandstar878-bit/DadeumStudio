@@ -187,34 +187,30 @@ void TPortComponent::updateHoverState(juce::Point<float> point) {
 
 void TPortComponent::paint(juce::Graphics &g) {
   const auto baseColor = getPortColor();
-  const juce::Colour targetColor =
-      isDragTargetTypeValid ? baseColor.brighter(0.35f) : juce::Colours::red;
-  const bool sourceChannelActive = dragActive && hoveredPortId != kInvalidPortId;
-  const bool sourceBundleActive = dragActive && hoveredBundle;
+  const bool sourceChannelActive = dragActive && !dragSourceBundle &&
+                                   dragSourcePortId != kInvalidPortId;
+  const bool sourceBundleActive = dragActive && dragSourceBundle;
 
   if (!isBus()) {
     const auto circle = monoBounds();
-    if (isDragTargetHighlighted) {
-      g.setColour(targetColor.withAlpha(0.16f));
-      g.fillEllipse(circle);
-      g.setColour(targetColor.withAlpha(0.92f));
-      g.drawEllipse(circle, juce::jmax(1.0f, 1.6f * scaleFactor));
-    } else if (hoveredPortId != kInvalidPortId || sourceChannelActive) {
-      g.setColour(baseColor.withAlpha(0.10f));
-      g.fillEllipse(circle);
-      g.setColour(baseColor.withAlpha(0.42f));
-      g.drawEllipse(circle, juce::jmax(1.0f, 1.1f * scaleFactor));
-    }
+    g.setColour(baseColor.withAlpha(0.95f));
+    g.fillEllipse(circle.reduced(1.0f));
+    g.setColour(juce::Colours::black.withAlpha(0.62f));
+    g.drawEllipse(circle.reduced(1.0f), juce::jmax(0.8f, scaleFactor));
 
     const auto issueState =
         mergeIssueState(bundleIssueState, issueStateForPort(getPortData().portId));
     if (hasIssueState(issueState))
       drawIssueRing(g, circle, issueState, true);
 
-    g.setColour(baseColor.withAlpha(0.95f));
-    g.fillEllipse(circle.reduced(1.0f));
-    g.setColour(juce::Colours::black.withAlpha(0.62f));
-    g.drawEllipse(circle.reduced(1.0f), juce::jmax(0.8f, scaleFactor));
+    if (hoveredPortId != kInvalidPortId || sourceChannelActive) {
+      TPortVisuals::drawStateOverlay(g, circle, baseColor, true,
+                                     sourceChannelActive, true);
+    }
+    if (isDragTargetHighlighted) {
+      TPortVisuals::drawDropTargetOverlay(g, circle, baseColor,
+                                          isDragTargetTypeValid, true);
+    }
     return;
   }
 
@@ -227,27 +223,22 @@ void TPortComponent::paint(juce::Graphics &g) {
   const bool channelTarget = isDragTargetHighlighted && !highlightBundle &&
                              highlightedPortId != kInvalidPortId;
 
-  if (bundleTarget) {
-    g.setColour(targetColor.withAlpha(0.14f));
-    g.fillRoundedRectangle(outer, radius);
-    g.setColour(targetColor.withAlpha(0.92f));
-    g.drawRoundedRectangle(outer, radius,
-                           juce::jmax(1.2f, 1.8f * scaleFactor));
-  } else if (bundleHover) {
-    g.setColour(baseColor.withAlpha(0.10f));
-    g.fillRoundedRectangle(outer, radius);
-    g.setColour(baseColor.withAlpha(0.42f));
-    g.drawRoundedRectangle(outer, radius,
-                           juce::jmax(1.0f, 1.2f * scaleFactor));
-  }
-
-  if (hasIssueState(bundleIssueState))
-    drawIssueRing(g, outer, bundleIssueState);
-
   g.setColour(juce::Colour(0xff0f172a));
   g.fillRoundedRectangle(outer, radius);
   g.setColour(baseColor.withAlpha(0.88f));
   g.drawRoundedRectangle(outer, radius, 1.0f);
+
+  if (hasIssueState(bundleIssueState))
+    drawIssueRing(g, outer, bundleIssueState);
+
+  if (bundleHover) {
+    TPortVisuals::drawStateOverlay(g, outer, baseColor, true,
+                                   sourceBundleActive, false);
+  }
+  if (bundleTarget) {
+    TPortVisuals::drawDropTargetOverlay(g, outer, baseColor,
+                                        isDragTargetTypeValid, false);
+  }
 
   const auto circles = channelBounds();
   for (size_t index = 0; index < circles.size() && index < portGroup.size(); ++index) {
@@ -261,13 +252,12 @@ void TPortComponent::paint(juce::Graphics &g) {
         ((channelTarget && highlightedPortId == portGroup[index].portId) ||
          (channelHover && hoveredPortId == portGroup[index].portId));
     if (activeChannel) {
-      const auto overlay = channelTarget ? targetColor : baseColor;
-      g.setColour(overlay.withAlpha(channelTarget ? 0.16f : 0.10f));
-      g.fillEllipse(circle);
-      g.setColour(overlay.withAlpha(channelTarget ? 0.92f : 0.42f));
-      g.drawEllipse(circle,
-                    channelTarget ? juce::jmax(1.2f, 1.8f * scaleFactor)
-                                  : juce::jmax(1.0f, 1.2f * scaleFactor));
+      TPortVisuals::drawStateOverlay(g, circle, baseColor,
+                                     !channelTarget, sourceChannelActive, true);
+      if (channelTarget) {
+        TPortVisuals::drawDropTargetOverlay(g, circle, baseColor,
+                                            isDragTargetTypeValid, true);
+      }
     }
 
     const auto channelLane = circle.reduced(circle.getWidth() * 0.16f,
@@ -312,6 +302,8 @@ void TPortComponent::mouseDown(const juce::MouseEvent &e) {
     return;
 
   dragActive = true;
+  dragSourcePortId = hit.bundle ? kInvalidPortId : hit.portId;
+  dragSourceBundle = hit.bundle;
   hoveredPortId = hit.bundle ? kInvalidPortId : hit.portId;
   hoveredBundle = hit.bundle;
   repaint();
@@ -345,6 +337,8 @@ void TPortComponent::mouseUp(const juce::MouseEvent &e) {
     return;
 
   dragActive = false;
+  dragSourcePortId = kInvalidPortId;
+  dragSourceBundle = false;
   auto &canvas = ownerNode.getOwnerCanvas();
   canvas.endConnectionDrag(e.getEventRelativeTo(&canvas).position);
   updateHoverState(e.position);
