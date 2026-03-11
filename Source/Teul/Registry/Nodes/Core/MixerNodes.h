@@ -63,9 +63,11 @@ public:
     gain.categoryPath = "VCA/Level";
     desc.paramSpecs = {gain};
 
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "In"},
+    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In"},
+                      {TPortDirection::Input, TPortDataType::Audio, "R In"},
                       {TPortDirection::Input, TPortDataType::CV, "CV"},
-                      {TPortDirection::Output, TPortDataType::Audio, "Out"}};
+                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
+                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
     return desc;
   }
 
@@ -82,26 +84,47 @@ public:
         if (ctx.globalPortBuffer == nullptr)
           return;
 
-        const int inputChannel = MixerNodeHelpers::findPortChannel(ctx, "In");
+        int leftInputChannel = MixerNodeHelpers::findPortChannel(ctx, "L In");
+        int rightInputChannel = MixerNodeHelpers::findPortChannel(ctx, "R In");
         const int cvChannel = MixerNodeHelpers::findPortChannel(ctx, "CV");
-        const int outputChannel = MixerNodeHelpers::findPortChannel(ctx, "Out");
-        if (outputChannel < 0)
+        const int leftOutputChannel = MixerNodeHelpers::findPortChannel(ctx, "L Out");
+        const int rightOutputChannel = MixerNodeHelpers::findPortChannel(ctx, "R Out");
+        if (leftOutputChannel < 0 && rightOutputChannel < 0)
           return;
 
+        if (leftInputChannel < 0)
+          leftInputChannel = MixerNodeHelpers::findNthAudioInputChannel(ctx, 0);
+        if (rightInputChannel < 0)
+          rightInputChannel = MixerNodeHelpers::findNthAudioInputChannel(ctx, 1);
+
         const int numSamples = ctx.globalPortBuffer->getNumSamples();
-        auto *output = ctx.globalPortBuffer->getWritePointer(outputChannel);
-        const float *input =
-            inputChannel >= 0 ? ctx.globalPortBuffer->getReadPointer(inputChannel)
-                              : nullptr;
+        auto *leftOutput = leftOutputChannel >= 0
+                               ? ctx.globalPortBuffer->getWritePointer(leftOutputChannel)
+                               : nullptr;
+        auto *rightOutput = rightOutputChannel >= 0
+                                ? ctx.globalPortBuffer->getWritePointer(rightOutputChannel)
+                                : nullptr;
+        const float *leftInput =
+            leftInputChannel >= 0 ? ctx.globalPortBuffer->getReadPointer(leftInputChannel)
+                                  : nullptr;
+        const float *rightInput = rightInputChannel >= 0
+                                      ? ctx.globalPortBuffer->getReadPointer(rightInputChannel)
+                                      : leftInput;
         const float *cv =
             cvChannel >= 0 ? ctx.globalPortBuffer->getReadPointer(cvChannel)
                            : nullptr;
 
         for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
-          const float source = input != nullptr ? input[sampleIndex] : 0.0f;
           const float modulation =
               cv != nullptr ? juce::jmax(0.0f, cv[sampleIndex]) : 1.0f;
-          output[sampleIndex] = source * gain * modulation;
+          const float leftSource =
+              leftInput != nullptr ? leftInput[sampleIndex] : 0.0f;
+          const float rightSource =
+              rightInput != nullptr ? rightInput[sampleIndex] : leftSource;
+          if (leftOutput != nullptr)
+            leftOutput[sampleIndex] = leftSource * gain * modulation;
+          if (rightOutput != nullptr)
+            rightOutput[sampleIndex] = rightSource * gain * modulation;
         }
       }
 

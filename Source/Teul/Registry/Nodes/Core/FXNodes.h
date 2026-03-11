@@ -43,8 +43,10 @@ public:
     desc.paramSpecs = {{"time", "Time (ms)", 250.0f},
                        {"feedback", "Feedback", 0.3f},
                        {"mix", "Mix", 0.5f}};
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "In"},
-                      {TPortDirection::Output, TPortDataType::Audio, "Out"}};
+    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In"},
+                      {TPortDirection::Input, TPortDataType::Audio, "R In"},
+                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
+                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
     return desc;
   }
 };
