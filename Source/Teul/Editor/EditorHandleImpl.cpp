@@ -142,6 +142,195 @@ juce::Colour controlStateRuntimeAccent(const TControlStateSnapshot &before,
   return fallback;
 }
 
+} // namespace
+
+struct EditorHandle::Impl::ControlInputAdapter {
+  explicit ControlInputAdapter(EditorHandle::Impl &ownerIn) : owner(ownerIn) {}
+  virtual ~ControlInputAdapter() = default;
+
+  virtual bool refresh(bool announceChanges) = 0;
+  virtual void shutdown() = 0;
+
+protected:
+  void queueLearnedBinding(const TDeviceBindingSignature &binding,
+                           const juce::String &profileId,
+                           const juce::String &deviceId,
+                           const juce::String &profileDisplayName,
+                           TControlSourceKind kind,
+                           TControlSourceMode mode,
+                           const juce::String &sourceDisplayName,
+                           bool autoDetected,
+                           bool confirmed) {
+    owner.queueLearnedControlBinding(binding, profileId, deviceId,
+                                     profileDisplayName, kind, mode,
+                                     sourceDisplayName, autoDetected,
+                                     confirmed);
+  }
+
+  bool syncProfiles(const std::vector<TControlDeviceProfilePresence> &profiles,
+                    bool autoMarkMissing) {
+    return owner.syncControlDeviceProfiles(profiles, autoMarkMissing);
+  }
+
+  EditorHandle::Impl &owner;
+};
+
+struct EditorHandle::Impl::MidiControlInputAdapter final
+    : public EditorHandle::Impl::ControlInputAdapter,
+      private juce::MidiInputCallback {
+  MidiControlInputAdapter(EditorHandle::Impl &ownerIn,
+                          juce::AudioDeviceManager *audioDeviceManagerIn)
+      : ControlInputAdapter(ownerIn),
+        audioDeviceManager(audioDeviceManagerIn) {}
+
+  ~MidiControlInputAdapter() override { shutdown(); }
+
+  bool refresh(bool announceChanges) override {
+    juce::ignoreUnused(announceChanges);
+    if (audioDeviceManager == nullptr)
+      return false;
+
+    std::vector<TControlDeviceProfilePresence> profiles;
+    std::vector<juce::String> detectedDeviceIds;
+    const auto devices = juce::MidiInput::getAvailableDevices();
+    profiles.reserve((size_t)devices.size());
+    detectedDeviceIds.reserve((size_t)devices.size());
+
+    for (const auto &device : devices) {
+      const auto normalizedDeviceId =
+          device.identifier.trim().isNotEmpty() ? device.identifier.trim()
+                                                : device.name.trim();
+      if (normalizedDeviceId.isEmpty())
+        continue;
+
+      if (!audioDeviceManager->isMidiInputDeviceEnabled(normalizedDeviceId))
+        audioDeviceManager->setMidiInputDeviceEnabled(normalizedDeviceId, true);
+
+      TControlDeviceProfilePresence profile;
+      profile.deviceId = normalizedDeviceId;
+      profile.displayName = device.name.trim().isNotEmpty()
+                                ? device.name.trim()
+                                : normalizedDeviceId;
+      profile.autoDetected = true;
+      profile.profileId = "midi:";
+      profile.profileId << normalizedDeviceId;
+      profiles.push_back(profile);
+      detectedDeviceIds.push_back(normalizedDeviceId);
+    }
+
+    std::vector<juce::String> callbacksToAdd;
+    std::vector<juce::String> callbacksToRemove;
+    auto containsDeviceId = [](const std::vector<juce::String> &ids,
+                               const juce::String &deviceId) {
+      return std::find(ids.begin(), ids.end(), deviceId) != ids.end();
+    };
+
+    for (const auto &deviceId : detectedDeviceIds) {
+      if (!containsDeviceId(callbackDeviceIds, deviceId))
+        callbacksToAdd.push_back(deviceId);
+    }
+
+    for (const auto &deviceId : callbackDeviceIds) {
+      if (!containsDeviceId(detectedDeviceIds, deviceId))
+        callbacksToRemove.push_back(deviceId);
+    }
+
+    detectedProfiles = profiles;
+
+    for (const auto &deviceId : callbacksToRemove)
+      audioDeviceManager->removeMidiInputDeviceCallback(deviceId, this);
+    for (const auto &deviceId : callbacksToAdd)
+      audioDeviceManager->addMidiInputDeviceCallback(deviceId, this);
+
+    for (const auto &deviceId : callbacksToAdd)
+      callbackDeviceIds.push_back(deviceId);
+
+    callbackDeviceIds.erase(
+        std::remove_if(callbackDeviceIds.begin(), callbackDeviceIds.end(),
+                       [&](const juce::String &deviceId) {
+                         return std::find(callbacksToRemove.begin(),
+                                          callbacksToRemove.end(),
+                                          deviceId) != callbacksToRemove.end();
+                       }),
+        callbackDeviceIds.end());
+
+    return syncProfiles(profiles, true);
+  }
+
+  void shutdown() override {
+    if (audioDeviceManager != nullptr) {
+      for (const auto &deviceId : callbackDeviceIds)
+        audioDeviceManager->removeMidiInputDeviceCallback(deviceId, this);
+    }
+    callbackDeviceIds.clear();
+    detectedProfiles.clear();
+  }
+
+private:
+  void handleIncomingMidiMessage(juce::MidiInput *source,
+                                 const juce::MidiMessage &message) override {
+    if (!message.isController() && !message.isNoteOn())
+      return;
+
+    const auto sourceName =
+        source != nullptr ? source->getName() : juce::String();
+    juce::String midiDeviceName = sourceName;
+    juce::String hardwareId = sourceName;
+    juce::String profileId =
+        sourceName.isNotEmpty() ? (juce::String("midi:") + sourceName)
+                                : juce::String("midi-device");
+    juce::String profileDisplayName =
+        sourceName.isNotEmpty() ? sourceName : juce::String("MIDI Device");
+    bool autoDetected = true;
+    bool confirmed = true;
+
+    const auto profileIter = std::find_if(
+        detectedProfiles.begin(), detectedProfiles.end(),
+        [&](const TControlDeviceProfilePresence &profile) {
+          return profile.displayName == sourceName ||
+                 profile.deviceId == sourceName;
+        });
+    if (profileIter != detectedProfiles.end()) {
+      midiDeviceName = profileIter->displayName;
+      hardwareId = profileIter->deviceId;
+      profileId = profileIter->profileId;
+      profileDisplayName = profileIter->displayName;
+      autoDetected = profileIter->autoDetected;
+    }
+
+    TDeviceBindingSignature binding;
+    binding.midiDeviceName = midiDeviceName.trim();
+    binding.hardwareId = hardwareId.trim();
+    binding.midiChannel = message.getChannel();
+
+    TControlSourceKind kind = TControlSourceKind::midiCc;
+    TControlSourceMode mode = TControlSourceMode::continuous;
+    juce::String sourceDisplayName;
+
+    if (message.isController()) {
+      binding.controllerNumber = message.getControllerNumber();
+      sourceDisplayName = "MIDI CC " + juce::String(binding.controllerNumber);
+    } else if (message.isNoteOn()) {
+      kind = TControlSourceKind::midiNote;
+      mode = TControlSourceMode::momentary;
+      binding.noteNumber = message.getNoteNumber();
+      sourceDisplayName = "MIDI Note " + juce::String(binding.noteNumber);
+    } else {
+      return;
+    }
+
+    queueLearnedBinding(binding, profileId, hardwareId.trim(),
+                        profileDisplayName, kind, mode, sourceDisplayName,
+                        autoDetected, confirmed);
+  }
+
+  juce::AudioDeviceManager *audioDeviceManager = nullptr;
+  std::vector<TControlDeviceProfilePresence> detectedProfiles;
+  std::vector<juce::String> callbackDeviceIds;
+};
+
+namespace {
+
 juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
                                       const juce::File &recoveryFile,
                                       juce::String &summaryText,
@@ -3313,7 +3502,10 @@ EditorHandle::Impl::Impl(
   if (audioDeviceManager != nullptr)
     audioDeviceManager->addAudioCallback(&runtime);
 
-  refreshDetectedMidiDeviceProfiles(false);
+  if (audioDeviceManager != nullptr)
+    controlInputAdapters.push_back(
+        std::make_unique<MidiControlInputAdapter>(*this, audioDeviceManager));
+  refreshControlInputAdapters(false);
   startTimerHz(20);
 }
 
@@ -3369,19 +3561,16 @@ EditorHandle::Impl::~Impl() {
     controlRail->setCardSelectionHandler({});
   }
 
-  if (audioDeviceManager != nullptr) {
-    std::vector<juce::String> callbackDeviceIds;
-    {
-      const juce::ScopedLock lock(midiLearnStateLock);
-      callbackDeviceIds = midiLearnCallbackDeviceIds;
-      midiLearnCallbackDeviceIds.clear();
-      detectedMidiProfiles.clear();
-      pendingMidiLearnEvents.clear();
-    }
-    for (const auto &deviceId : callbackDeviceIds)
-      audioDeviceManager->removeMidiInputDeviceCallback(deviceId, this);
-    audioDeviceManager->removeAudioCallback(&runtime);
+  {
+    const juce::ScopedLock lock(controlLearnStateLock);
+    pendingLearnBindingEvents.clear();
   }
+  for (auto &adapter : controlInputAdapters)
+    adapter->shutdown();
+  controlInputAdapters.clear();
+
+  if (audioDeviceManager != nullptr)
+    audioDeviceManager->removeAudioCallback(&runtime);
 }
 
 TGraphDocument &EditorHandle::Impl::document() noexcept { return doc; }
@@ -3401,65 +3590,51 @@ void EditorHandle::Impl::setSessionStatus(const TEditorSessionStatus &status) {
   refreshSessionStatusUi(true);
 }
 
-void EditorHandle::Impl::drainPendingMidiLearnEvents() {
+void EditorHandle::Impl::queueLearnedControlBinding(
+    const TDeviceBindingSignature &binding, const juce::String &profileId,
+    const juce::String &deviceId, const juce::String &profileDisplayName,
+    TControlSourceKind kind, TControlSourceMode mode,
+    const juce::String &sourceDisplayName, bool autoDetected,
+    bool confirmed) {
+  PendingLearnBindingEvent event;
+  event.binding = binding;
+  event.profileId = profileId;
+  event.deviceId = deviceId;
+  event.profileDisplayName = profileDisplayName;
+  event.sourceDisplayName = sourceDisplayName;
+  event.kind = kind;
+  event.mode = mode;
+  event.autoDetected = autoDetected;
+  event.confirmed = confirmed;
+
+  const juce::ScopedLock lock(controlLearnStateLock);
+  pendingLearnBindingEvents.push_back(std::move(event));
+}
+
+void EditorHandle::Impl::drainPendingLearnBindings() {
   if (doc.controlState.armedLearnSourceId.isEmpty()) {
-    const juce::ScopedLock lock(midiLearnStateLock);
-    pendingMidiLearnEvents.clear();
+    const juce::ScopedLock lock(controlLearnStateLock);
+    pendingLearnBindingEvents.clear();
     return;
   }
 
-  std::vector<PendingMidiLearnEvent> events;
+  std::vector<PendingLearnBindingEvent> events;
   {
-    const juce::ScopedLock lock(midiLearnStateLock);
-    if (pendingMidiLearnEvents.empty())
+    const juce::ScopedLock lock(controlLearnStateLock);
+    if (pendingLearnBindingEvents.empty())
       return;
-    events.swap(pendingMidiLearnEvents);
+    events.swap(pendingLearnBindingEvents);
   }
 
   for (const auto &event : events) {
     if (doc.controlState.armedLearnSourceId.isEmpty())
       break;
 
-    applyLearnedMidiMessage(event.message, event.midiDeviceName,
-                            event.hardwareId, event.profileId,
-                            event.profileDisplayName, event.autoDetected,
-                            event.confirmed);
+    applyLearnedControlBinding(event.binding, event.profileId, event.deviceId,
+                               event.profileDisplayName, event.kind,
+                               event.mode, event.sourceDisplayName,
+                               event.autoDetected, event.confirmed);
   }
-}
-
-void EditorHandle::Impl::handleIncomingMidiMessage(
-    juce::MidiInput *source, const juce::MidiMessage &message) {
-  if (!message.isController() && !message.isNoteOn())
-    return;
-
-  PendingMidiLearnEvent event;
-  event.message = message;
-  const auto sourceName = source != nullptr ? source->getName() : juce::String();
-
-  const juce::ScopedLock lock(midiLearnStateLock);
-  const auto profileIter = std::find_if(
-      detectedMidiProfiles.begin(), detectedMidiProfiles.end(),
-      [&](const TControlDeviceProfilePresence &profile) {
-        return profile.displayName == sourceName || profile.deviceId == sourceName;
-      });
-
-  if (profileIter != detectedMidiProfiles.end()) {
-    event.midiDeviceName = profileIter->displayName;
-    event.hardwareId = profileIter->deviceId;
-    event.profileId = profileIter->profileId;
-    event.profileDisplayName = profileIter->displayName;
-    event.autoDetected = profileIter->autoDetected;
-  } else {
-    event.midiDeviceName = sourceName;
-    event.hardwareId = sourceName;
-    event.profileId = sourceName.isNotEmpty() ? (juce::String("midi:") + sourceName)
-                                              : juce::String("midi-device");
-    event.profileDisplayName = sourceName.isNotEmpty() ? sourceName
-                                                       : juce::String("MIDI Device");
-    event.autoDetected = true;
-  }
-
-  pendingMidiLearnEvents.push_back(std::move(event));
 }
 
 bool EditorHandle::Impl::applyLearnedControlBinding(
@@ -3807,79 +3982,9 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   }
 }
 
-bool EditorHandle::Impl::refreshDetectedMidiDeviceProfiles(bool announceChanges) {
-  juce::ignoreUnused(announceChanges);
-  if (audioDeviceManager == nullptr)
-    return false;
-
-  std::vector<TControlDeviceProfilePresence> profiles;
-  std::vector<juce::String> detectedDeviceIds;
-  const auto devices = juce::MidiInput::getAvailableDevices();
-  profiles.reserve((size_t) devices.size());
-  detectedDeviceIds.reserve((size_t) devices.size());
-
-  for (const auto &device : devices) {
-    const auto normalizedDeviceId =
-        device.identifier.trim().isNotEmpty() ? device.identifier.trim()
-                                              : device.name.trim();
-    if (normalizedDeviceId.isEmpty())
-      continue;
-
-    if (!audioDeviceManager->isMidiInputDeviceEnabled(normalizedDeviceId))
-      audioDeviceManager->setMidiInputDeviceEnabled(normalizedDeviceId, true);
-
-    TControlDeviceProfilePresence profile;
-    profile.deviceId = normalizedDeviceId;
-    profile.displayName = device.name.trim().isNotEmpty() ? device.name.trim()
-                                                          : normalizedDeviceId;
-    profile.autoDetected = true;
-    profile.profileId = "midi:";
-    profile.profileId << normalizedDeviceId;
-    profiles.push_back(profile);
-    detectedDeviceIds.push_back(normalizedDeviceId);
-  }
-
-  std::vector<juce::String> callbacksToAdd;
-  std::vector<juce::String> callbacksToRemove;
-  {
-    const juce::ScopedLock lock(midiLearnStateLock);
-    auto containsDeviceId = [](const std::vector<juce::String> &ids,
-                               const juce::String &deviceId) {
-      return std::find(ids.begin(), ids.end(), deviceId) != ids.end();
-    };
-
-    for (const auto &deviceId : detectedDeviceIds) {
-      if (!containsDeviceId(midiLearnCallbackDeviceIds, deviceId))
-        callbacksToAdd.push_back(deviceId);
-    }
-
-    for (const auto &deviceId : midiLearnCallbackDeviceIds) {
-      if (!containsDeviceId(detectedDeviceIds, deviceId))
-        callbacksToRemove.push_back(deviceId);
-    }
-
-    detectedMidiProfiles = profiles;
-
-    for (const auto &deviceId : callbacksToAdd)
-      midiLearnCallbackDeviceIds.push_back(deviceId);
-
-    midiLearnCallbackDeviceIds.erase(
-        std::remove_if(midiLearnCallbackDeviceIds.begin(),
-                       midiLearnCallbackDeviceIds.end(),
-                       [&](const juce::String &deviceId) {
-                         return std::find(callbacksToRemove.begin(),
-                                          callbacksToRemove.end(),
-                                          deviceId) != callbacksToRemove.end();
-                       }),
-        midiLearnCallbackDeviceIds.end());
-  }
-
-  for (const auto &deviceId : callbacksToRemove)
-    audioDeviceManager->removeMidiInputDeviceCallback(deviceId, this);
-  for (const auto &deviceId : callbacksToAdd)
-    audioDeviceManager->addMidiInputDeviceCallback(deviceId, this);
-
-  return syncControlDeviceProfiles(profiles, true);
+void EditorHandle::Impl::refreshControlInputAdapters(bool announceChanges) {
+  for (auto &adapter : controlInputAdapters)
+    adapter->refresh(announceChanges);
 }
 
 void EditorHandle::Impl::timerCallback() {
@@ -3909,11 +4014,11 @@ void EditorHandle::Impl::timerCallback() {
     lastBindingRevision = currentBindingRevision;
   }
 
-  drainPendingMidiLearnEvents();
+  drainPendingLearnBindings();
 
-  if (++midiDeviceRefreshCounter >= 20) {
-    midiDeviceRefreshCounter = 0;
-    refreshDetectedMidiDeviceProfiles(true);
+  if (++controlInputRefreshCounter >= 20) {
+    controlInputRefreshCounter = 0;
+    refreshControlInputAdapters(true);
   }
 
   refreshRuntimeUi();

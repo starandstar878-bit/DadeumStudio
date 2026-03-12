@@ -21,8 +21,7 @@ class RailPanel;
 class ControlSourceInspectorPanel;
 class SystemEndpointInspectorPanel;
 
-struct EditorHandle::Impl : private juce::Timer,
-                          private juce::MidiInputCallback {
+struct EditorHandle::Impl : private juce::Timer {
   explicit Impl(EditorHandle &owner,
                 juce::AudioDeviceManager *audioDeviceManager,
                 ParamBindingSummaryResolver bindingSummaryResolver,
@@ -61,6 +60,21 @@ struct EditorHandle::Impl : private juce::Timer,
   void layout(juce::Rectangle<int> area);
 
 private:
+  struct ControlInputAdapter;
+  struct MidiControlInputAdapter;
+
+  struct PendingLearnBindingEvent {
+    TDeviceBindingSignature binding;
+    juce::String profileId;
+    juce::String deviceId;
+    juce::String profileDisplayName;
+    juce::String sourceDisplayName;
+    TControlSourceKind kind = TControlSourceKind::expression;
+    TControlSourceMode mode = TControlSourceMode::continuous;
+    bool autoDetected = true;
+    bool confirmed = true;
+  };
+
   void timerCallback() override;
   void rebuildAll(bool rebuildRuntime);
   void handleSelectionChanged(const std::vector<NodeId> &selectedNodeIds);
@@ -82,10 +96,17 @@ private:
   void pushRuntimeMessage(const juce::String &text,
                           juce::Colour accent,
                           int ticks = 50);
-  bool refreshDetectedMidiDeviceProfiles(bool announceChanges);
-  void drainPendingMidiLearnEvents();
-  void handleIncomingMidiMessage(juce::MidiInput *source,
-                                 const juce::MidiMessage &message) override;
+  void queueLearnedControlBinding(const TDeviceBindingSignature &binding,
+                                  const juce::String &profileId,
+                                  const juce::String &deviceId,
+                                  const juce::String &profileDisplayName,
+                                  TControlSourceKind kind,
+                                  TControlSourceMode mode,
+                                  const juce::String &sourceDisplayName,
+                                  bool autoDetected,
+                                  bool confirmed);
+  void refreshControlInputAdapters(bool announceChanges);
+  void drainPendingLearnBindings();
 
   EditorHandle &owner;
   TGraphDocument doc;
@@ -130,21 +151,10 @@ private:
   juce::String runtimeMessageText;
   juce::Colour runtimeMessageAccent = juce::Colour(0xff60a5fa);
   int runtimeMessageTicksRemaining = 0;
-  int midiDeviceRefreshCounter = 0;
-  struct PendingMidiLearnEvent {
-    juce::MidiMessage message;
-    juce::String midiDeviceName;
-    juce::String hardwareId;
-    juce::String profileId;
-    juce::String profileDisplayName;
-    bool autoDetected = true;
-    bool confirmed = true;
-  };
-
-  juce::CriticalSection midiLearnStateLock;
-  std::vector<TControlDeviceProfilePresence> detectedMidiProfiles;
-  std::vector<juce::String> midiLearnCallbackDeviceIds;
-  std::vector<PendingMidiLearnEvent> pendingMidiLearnEvents;
+  int controlInputRefreshCounter = 0;
+  juce::CriticalSection controlLearnStateLock;
+  std::vector<PendingLearnBindingEvent> pendingLearnBindingEvents;
+  std::vector<std::unique_ptr<ControlInputAdapter>> controlInputAdapters;
   ParamBindingRevisionProvider bindingRevisionProvider;
 };
 
