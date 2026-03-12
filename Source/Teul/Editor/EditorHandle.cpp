@@ -53,6 +53,29 @@ bool EditorHandle::applyLearnedMidiMessage(
                                        autoDetected, confirmed);
 }
 
+void EditorHandle::enqueueLearnedControlBinding(
+    const TDeviceBindingSignature &binding, const juce::String &profileId,
+    const juce::String &deviceId, const juce::String &profileDisplayName,
+    TControlSourceKind kind, TControlSourceMode mode,
+    const juce::String &sourceDisplayName, bool autoDetected, bool confirmed) {
+  if (impl == nullptr)
+    return;
+
+  impl->queueLearnedControlBinding(binding, profileId, deviceId,
+                                   profileDisplayName, kind, mode,
+                                   sourceDisplayName, autoDetected,
+                                   confirmed);
+}
+
+void EditorHandle::enqueueControlDeviceProfilesSync(
+    const std::vector<TControlDeviceProfilePresence> &profiles,
+    bool autoMarkMissing) {
+  if (impl == nullptr)
+    return;
+
+  impl->queueControlDeviceProfileSync(profiles, autoMarkMissing);
+}
+
 bool EditorHandle::reportControlDeviceProfilePresent(
     const juce::String &profileId, const juce::String &deviceId,
     const juce::String &displayName, bool autoDetected) {

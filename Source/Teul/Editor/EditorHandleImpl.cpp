@@ -3563,6 +3563,7 @@ EditorHandle::Impl::~Impl() {
 
   {
     const juce::ScopedLock lock(controlLearnStateLock);
+    pendingProfileSyncEvents.clear();
     pendingLearnBindingEvents.clear();
   }
   for (auto &adapter : controlInputAdapters)
@@ -3609,6 +3610,33 @@ void EditorHandle::Impl::queueLearnedControlBinding(
 
   const juce::ScopedLock lock(controlLearnStateLock);
   pendingLearnBindingEvents.push_back(std::move(event));
+}
+
+void EditorHandle::Impl::queueControlDeviceProfileSync(
+    const std::vector<TControlDeviceProfilePresence> &profiles,
+    bool autoMarkMissing) {
+  PendingProfileSyncEvent event;
+  event.profiles = profiles;
+  event.autoMarkMissing = autoMarkMissing;
+
+  const juce::ScopedLock lock(controlLearnStateLock);
+  pendingProfileSyncEvents.push_back(std::move(event));
+}
+
+void EditorHandle::Impl::drainPendingProfileSyncEvents() {
+  PendingProfileSyncEvent latestEvent;
+  bool hasEvent = false;
+  {
+    const juce::ScopedLock lock(controlLearnStateLock);
+    if (pendingProfileSyncEvents.empty())
+      return;
+    latestEvent = std::move(pendingProfileSyncEvents.back());
+    pendingProfileSyncEvents.clear();
+    hasEvent = true;
+  }
+
+  if (hasEvent)
+    syncControlDeviceProfiles(latestEvent.profiles, latestEvent.autoMarkMissing);
 }
 
 void EditorHandle::Impl::drainPendingLearnBindings() {
@@ -4014,6 +4042,7 @@ void EditorHandle::Impl::timerCallback() {
     lastBindingRevision = currentBindingRevision;
   }
 
+  drainPendingProfileSyncEvents();
   drainPendingLearnBindings();
 
   if (++controlInputRefreshCounter >= 20) {

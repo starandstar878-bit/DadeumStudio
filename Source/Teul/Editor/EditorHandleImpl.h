@@ -57,6 +57,18 @@ struct EditorHandle::Impl : private juce::Timer {
   bool syncControlDeviceProfiles(
       const std::vector<TControlDeviceProfilePresence> &profiles,
       bool autoMarkMissing);
+  void queueLearnedControlBinding(const TDeviceBindingSignature &binding,
+                                  const juce::String &profileId,
+                                  const juce::String &deviceId,
+                                  const juce::String &profileDisplayName,
+                                  TControlSourceKind kind,
+                                  TControlSourceMode mode,
+                                  const juce::String &sourceDisplayName,
+                                  bool autoDetected,
+                                  bool confirmed);
+  void queueControlDeviceProfileSync(
+      const std::vector<TControlDeviceProfilePresence> &profiles,
+      bool autoMarkMissing);
   void layout(juce::Rectangle<int> area);
 
 private:
@@ -73,6 +85,11 @@ private:
     TControlSourceMode mode = TControlSourceMode::continuous;
     bool autoDetected = true;
     bool confirmed = true;
+  };
+
+  struct PendingProfileSyncEvent {
+    std::vector<TControlDeviceProfilePresence> profiles;
+    bool autoMarkMissing = true;
   };
 
   void timerCallback() override;
@@ -96,16 +113,8 @@ private:
   void pushRuntimeMessage(const juce::String &text,
                           juce::Colour accent,
                           int ticks = 50);
-  void queueLearnedControlBinding(const TDeviceBindingSignature &binding,
-                                  const juce::String &profileId,
-                                  const juce::String &deviceId,
-                                  const juce::String &profileDisplayName,
-                                  TControlSourceKind kind,
-                                  TControlSourceMode mode,
-                                  const juce::String &sourceDisplayName,
-                                  bool autoDetected,
-                                  bool confirmed);
   void refreshControlInputAdapters(bool announceChanges);
+  void drainPendingProfileSyncEvents();
   void drainPendingLearnBindings();
 
   EditorHandle &owner;
@@ -153,6 +162,7 @@ private:
   int runtimeMessageTicksRemaining = 0;
   int controlInputRefreshCounter = 0;
   juce::CriticalSection controlLearnStateLock;
+  std::vector<PendingProfileSyncEvent> pendingProfileSyncEvents;
   std::vector<PendingLearnBindingEvent> pendingLearnBindingEvents;
   std::vector<std::unique_ptr<ControlInputAdapter>> controlInputAdapters;
   ParamBindingRevisionProvider bindingRevisionProvider;

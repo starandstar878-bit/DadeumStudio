@@ -62,6 +62,18 @@ public:
                                const juce::String &profileDisplayName = {},
                                bool autoDetected = true,
                                bool confirmed = true);
+  void enqueueLearnedControlBinding(const TDeviceBindingSignature &binding,
+                                    const juce::String &profileId,
+                                    const juce::String &deviceId,
+                                    const juce::String &profileDisplayName,
+                                    TControlSourceKind kind,
+                                    TControlSourceMode mode,
+                                    const juce::String &sourceDisplayName = {},
+                                    bool autoDetected = true,
+                                    bool confirmed = true);
+  void enqueueControlDeviceProfilesSync(
+      const std::vector<TControlDeviceProfilePresence> &profiles,
+      bool autoMarkMissing = true);
   bool reportControlDeviceProfilePresent(const juce::String &profileId,
                                        const juce::String &deviceId = {},
                                        const juce::String &displayName = {},
