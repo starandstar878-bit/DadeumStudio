@@ -1,70 +1,199 @@
-# Naru Roadmap
+# Naru Commercial Roadmap
 
-`Naru` is the input platform that receives Apple Pencil data from iPad and turns it into normalized, reusable control streams for `Gyeol`, `Teul`, and `Ieum`. The architectural goal is not to build an Apple Pencil-only bridge, but to create a general real-time input platform that can accept new device adapters and new consumer adapters over time.
-
----
-
-## Design Direction
-
-- Treat `Naru` as a reusable input pipeline, not as a one-off transport helper.
-- Separate device capture, transport, normalization, derived source generation, routing, and consumer integration.
-- Keep the core agnostic to Apple Pencil specifics wherever possible.
-- Make session state, diagnostics, and recovery part of the platform design from the beginning.
-- Design for multiple future input devices, not just one tablet client.
-
-## Primary Goals
-
-- Receive stylus input from iPad with low latency.
-- Convert raw device samples into a normalized, application-independent input model.
-- Publish continuous and discrete derived sources that multiple products can consume.
-- Route the same input stream to `Gyeol`, `Teul`, and `Ieum` through adapters instead of app-specific branches.
-- Support device growth, transport changes, and recovery without redesigning the core.
-
-## System Roles
-
-- `Input Device Adapter`
-  - Captures raw samples from one device family.
-  - Today: Apple Pencil on iPad.
-  - Future: other stylus devices, touch sources, motion sources.
-- `Transport Layer`
-  - Moves sample packets and maintains sessions.
-- `Normalization Layer`
-  - Converts raw device coordinates and values into a shared sample model.
-- `Derived Source Engine`
-  - Produces pressure, tilt, velocity, stroke progress, and gesture outputs.
-- `Routing Layer`
-  - Dispatches normalized and derived inputs to consumers.
-- `Consumer Adapter`
-  - Converts the shared input model into the shape required by a product such as `Gyeol`, `Teul`, or `Ieum`.
-
-## Core Principles
-
-### 1. Device adapters isolate hardware specifics
-- Apple Pencil details belong inside the Apple Pencil adapter.
-- The core should only work with generic device samples.
-
-### 2. Transport is not interpretation
-- Transport manages packets, heartbeat, reconnect, and ordering.
-- Meaning extraction such as gesture recognition or smoothing belongs above transport.
-
-### 3. Normalized samples are the contract
-- Consumers should not depend on raw device values.
-- All downstream systems read normalized samples or derived sources.
-
-### 4. Routing is adapter-based
-- The core should not hardcode `if target is Gyeol` style branches.
-- Consumer adapter registration should decide how each product subscribes and receives data.
-
-### 5. Session and health state are first-class
-- `connected`, `reconnecting`, `missing`, `degraded`, and timeout states must be formal model values.
-- Diagnostics, UI, and recovery logic should share the same state model.
+`Naru` is the commercial-grade real-time pen and gesture input platform for the Dadeum ecosystem. Its job is to ingest Apple Pencil input from iPad, normalize it into a stable cross-product input model, derive higher-level control and gesture signals, and distribute those signals to `Gyeol`, `Teul`, and `Ieum` through explicit adapters. The product goal is not merely to "stream stylus data", but to establish a durable input platform that can scale across devices, products, sessions, networks, and future feature sets without core redesign.
 
 ---
 
-## Extensible Data Model
+## 1. Product Definition
 
-### Device Sample
+### 1.1 Product Mission
+
+Build a production-ready input platform that:
+
+- accepts raw pen input from iPad with low latency,
+- converts that input into a product-neutral event and signal model,
+- exposes continuous and discrete derived control sources,
+- routes those sources into multiple Dadeum products safely,
+- survives disconnects, version drift, and real-world user sessions,
+- remains extensible for future device families beyond Apple Pencil.
+
+### 1.2 Product Positioning
+
+`Naru` is a platform layer, not a feature widget. It sits below product-specific UX and above device-specific capture. Its commercial value comes from:
+
+- reducing duplicated input logic across products,
+- making pen workflows consistent,
+- enabling future hardware expansion,
+- making gesture-derived automation a reusable product capability.
+
+### 1.3 Non-Goals
+
+The first commercial version should **not** aim to:
+
+- become a general-purpose remote desktop input system,
+- own application-specific editing logic,
+- hardcode all behavior into one transport or one device,
+- couple gesture recognition directly to `Gyeol`, `Teul`, or `Ieum`.
+
+---
+
+## 2. Business and User Outcomes
+
+### 2.1 Business Outcomes
+
+- One input platform supports multiple products instead of three separate input stacks.
+- Product teams can add new pen behaviors without rewriting transport or normalization code.
+- New device families can be evaluated with lower integration cost.
+- Commercial support burden drops because diagnostics, session state, and recovery become centralized.
+
+### 2.2 User Outcomes
+
+- Users can draw, gesture, and modulate reliably with low perceived latency.
+- Connection failures are visible, explainable, and recoverable.
+- The same pen feels consistent across `Gyeol`, `Teul`, and `Ieum`.
+- Derived sources such as pressure, tilt, speed, or gestures behave predictably.
+
+### 2.3 Internal Outcomes
+
+- Engineering teams get one canonical input schema.
+- QA gets one shared validation matrix.
+- Support gets one diagnostics model.
+- Product design gets one language for pen-derived interactions.
+
+---
+
+## 3. Commercial Product Requirements
+
+### 3.1 Functional Requirements
+
+- Receive Apple Pencil samples from iPad.
+- Track sessions, reconnection, timeouts, and heartbeats.
+- Normalize position, pressure, tilt, azimuth, and phase.
+- Derive reusable control streams such as:
+  - normalized X/Y,
+  - pressure,
+  - tilt X/Y,
+  - velocity,
+  - acceleration,
+  - stroke progress,
+  - stroke length,
+  - direction,
+  - gesture triggers.
+- Route normalized and derived signals to:
+  - `Gyeol`,
+  - `Teul`,
+  - `Ieum`.
+- Expose diagnostics, calibration, and health state.
+- Persist device profiles and calibration settings.
+
+### 3.2 Non-Functional Requirements
+
+- Low end-to-end latency under normal network conditions.
+- Graceful behavior under jitter, packet loss, and reconnect.
+- Clear state model for degraded conditions.
+- Stable versioning for transport and payload schemas.
+- Observability sufficient for support and QA.
+- Extensibility without rewriting the core pipeline.
+
+### 3.3 Commercial Readiness Requirements
+
+- Structured error handling.
+- Product-safe diagnostics and logging.
+- Crash-safe recovery where possible.
+- Compatibility strategy for client/server version mismatch.
+- Upgrade path for schema evolution.
+- Support tooling and reproducibility.
+
+---
+
+## 4. Stakeholders and Operating Context
+
+### 4.1 Stakeholders
+
+- Product owner
+- Input systems engineer
+- Client engineer
+- Server engineer
+- UI/interaction engineer
+- Audio/control systems engineer
+- QA
+- Support / operations
+
+### 4.2 Operating Environments
+
+- iPad client over local network
+- Desktop host running Dadeum products
+- Development lab environment
+- User home studio environment
+- Live performance environment
+
+### 4.3 Risk Context
+
+- Unstable Wi-Fi
+- Session interruption mid-stroke
+- Input bursts larger than expected
+- Consumer-specific overload
+- Version mismatch across products
+- Device calibration drift
+
+---
+
+## 5. Architecture Principles
+
+### 5.1 Adapter-Driven Core
+
+The core must not be Apple Pencil-specific or product-specific. It should depend on:
+
+- `DeviceAdapter`
+- `TransportProvider`
+- `NormalizationPipeline`
+- `DerivedSourcePlugin`
+- `GestureRecognizerPlugin`
+- `ConsumerAdapter`
+
+### 5.2 Explicit Lifecycle Boundaries
+
+Separate the system into:
+
+- device capture,
+- transport,
+- session management,
+- normalization,
+- derived source generation,
+- routing,
+- consumer integration,
+- diagnostics and persistence.
+
+### 5.3 Schema First
+
+Define payloads, state models, and contracts before UI polish. Commercial reliability depends more on stable contracts than on early feature demos.
+
+### 5.4 State Is a Product Surface
+
+States such as:
+
+- `connected`
+- `reconnecting`
+- `missing`
+- `degraded`
+- `timed-out`
+- `version-mismatch`
+- `invalid-session`
+
+must be formal model values, not ad hoc strings.
+
+### 5.5 Backward Compatibility Strategy
+
+Version the transport protocol and normalized sample schema so older clients and newer hosts fail safely, not silently.
+
+---
+
+## 6. Core Domain Model
+
+### 6.1 Device Sample
+
 - `DeviceId`
+- `DeviceFamily`
 - `SessionId`
 - `SampleId`
 - `Timestamp`
@@ -75,23 +204,28 @@
 - `Phase`
 - `DeviceMetadata`
 
-### Normalized Sample
+### 6.2 Normalized Sample
+
 - normalized position
 - normalized pressure
-- tilt vector
+- normalized tilt vector
 - velocity
 - acceleration
 - stroke-relative time
-- coordinate space id
+- stroke-relative progress
+- coordinate-space id
 
-### Derived Source Descriptor
+### 6.3 Derived Source Descriptor
+
 - `SourceId`
 - `SourceKind`
 - `ValueType`
 - `Capabilities[]`
 - `Metadata`
+- `ProviderScope`
 
-### Gesture Event
+### 6.4 Gesture Event
+
 - `GestureId`
 - `GestureKind`
 - `Confidence`
@@ -99,195 +233,435 @@
 - `EndTime`
 - `GesturePayload`
 
-### Session State
+### 6.5 Session State
+
 - `TransportState`
+- `RecoveryState`
 - `LatencyEstimate`
 - `PacketLossEstimate`
-- `RecoveryState`
+- `LastHeartbeatTime`
 - `LastError`
+- `ClientVersion`
+- `ProtocolVersion`
 
-## Extension Points
+### 6.6 Device Profile
 
-- `DeviceAdapterRegistry`
-- `TransportProvider`
-- `NormalizationProfile`
-- `DerivedSourcePlugin`
-- `GestureRecognizerPlugin`
-- `ConsumerAdapterRegistry`
-
-If these are stable, Apple Pencil becomes only the first adapter, not the permanent shape of the platform.
+- `ProfileId`
+- `DeviceFamily`
+- `PressureCurve`
+- `TiltCalibration`
+- `CoordinateCalibration`
+- `NoiseThresholds`
+- `SmoothingProfile`
+- `Version`
 
 ---
 
-## Implementation Order
+## 7. Extensibility Contracts
 
-### Phase 1. Core contracts and plugin boundaries
-Goal: define the shared abstractions that every device and every consumer must follow.
+### 7.1 Device Adapter Contract
+
+Must provide:
+
+- capture start/stop,
+- session metadata,
+- raw sample emission,
+- device capability declaration,
+- adapter version.
+
+### 7.2 Transport Contract
+
+Must provide:
+
+- connection lifecycle,
+- ordered or sequence-aware sample delivery,
+- heartbeat,
+- reconnect hooks,
+- protocol version metadata.
+
+### 7.3 Consumer Adapter Contract
+
+Must provide:
+
+- supported source subscriptions,
+- delivery contract,
+- consumer health reporting,
+- backpressure or rejection feedback.
+
+### 7.4 Plugin Contracts
+
+Must support:
+
+- registration,
+- versioning,
+- deterministic ordering,
+- capability declaration,
+- failure isolation.
+
+---
+
+## 8. Security, Privacy, and Safety
+
+### 8.1 Security
+
+- Define trust boundary between iPad client and host.
+- Require session handshake with protocol version validation.
+- Prevent malformed packet streams from crashing the host.
+- Define acceptable authentication model for local-network commercial use.
+
+### 8.2 Privacy
+
+- Avoid collecting more metadata than needed for input routing.
+- Make logs configurable so raw input history is not persisted accidentally.
+- Separate diagnostics from user content where possible.
+
+### 8.3 Runtime Safety
+
+- Invalid or malformed streams must degrade gracefully.
+- Consumer overload must not corrupt other consumers.
+- Transport failure must not freeze product UIs.
+
+---
+
+## 9. Observability and Operations
+
+### 9.1 Diagnostics Requirements
+
+Expose:
+
+- connection state,
+- protocol version,
+- session id,
+- latency estimate,
+- packet loss estimate,
+- sample rate estimate,
+- recovery attempts,
+- last error.
+
+### 9.2 Logging Requirements
+
+Use structured logs for:
+
+- session start/end,
+- reconnect,
+- version mismatch,
+- packet decode failure,
+- gesture recognition failure,
+- consumer delivery rejection.
+
+### 9.3 Support Tooling
+
+Add:
+
+- live session inspector,
+- input preview,
+- normalized sample monitor,
+- gesture debug view,
+- exportable diagnostics snapshot.
+
+---
+
+## 10. UX Requirements
+
+### 10.1 User-Facing UX
+
+- Clear connected/disconnected state.
+- Clear degraded/recovering state.
+- Calibration workflow that does not require engineering knowledge.
+- Derived-source preview that users can understand.
+
+### 10.2 Developer UX
+
+- Easy local session bring-up.
+- Replayable sample streams.
+- Simulated transport issues.
+- Consumer-side debug visibility.
+
+### 10.3 QA UX
+
+- Deterministic test scenarios.
+- Recorded sample playback.
+- Protocol compatibility test harness.
+
+---
+
+## 11. Delivery Strategy
+
+### 11.1 Release Tracks
+
+- Internal prototype
+- Internal integration beta
+- Closed product beta
+- Production candidate
+- Commercial release
+
+### 11.2 Gate Policy
+
+Each release track must define:
+
+- supported devices,
+- protocol version,
+- diagnostics completeness,
+- recovery expectations,
+- known limitations,
+- rollback plan.
+
+### 11.3 Backward Compatibility Policy
+
+- Minor protocol changes should be additive.
+- Breaking changes require explicit version bump and compatibility behavior.
+- Consumers must fail clearly on unsupported protocol versions.
+
+---
+
+## 12. Full Implementation Roadmap
+
+### Phase 1. Platform contracts and domain model
+Goal: lock the platform boundaries before implementation details spread.
 
 Work:
-- define device sample interface
-- define normalized sample structure
-- define device adapter interface
-- define consumer adapter interface
+- define core domain model
+- define adapter interfaces
+- define plugin boundaries
 - define session state model
+- define versioning policy
 
-Done when:
-- Apple Pencil-specific logic is no longer required inside core types.
+Deliverables:
+- architecture spec
+- domain model spec
+- protocol compatibility rules
 
-### Phase 2. Transport protocol and session contract
-Goal: define a stable protocol for real-time sample delivery.
+Exit criteria:
+- every major subsystem has a stable contract
+- Apple Pencil specifics are isolated to adapters
 
-Work:
-- define sample packet structure
-- define session start/end/heartbeat
-- define timestamp policy
-- define reconnect policy
-- add versioning strategy
-
-Done when:
-- transport can evolve without redesigning downstream consumers.
-
-### Phase 3. Apple Pencil device adapter
-Goal: implement the first real device adapter.
-
-Work:
-- collect raw Apple Pencil samples on iPad
-- convert them into generic device samples
-- extract pressure, tilt, azimuth, and phase
-
-Done when:
-- Apple Pencil input enters the system as generic samples.
-
-### Phase 4. Server bridge and session manager
-Goal: receive device streams on the server and manage connection state.
+### Phase 2. Transport and session foundation
+Goal: build a resilient live connection layer.
 
 Work:
 - implement transport server
-- implement session manager
-- implement timeout, reconnect, and heartbeat handling
-- expose diagnostics state
+- define packet framing
+- implement session start/end
+- implement heartbeat
+- implement reconnect policy
+- implement timeout policy
 
-Done when:
-- connection lifecycle is tracked as structured session state.
+Deliverables:
+- transport layer implementation
+- session manager
+- health state emitter
 
-### Phase 5. Normalization pipeline
-Goal: convert raw device samples into shared consumer-ready samples.
+Exit criteria:
+- connections can be established, lost, and restored predictably
+
+### Phase 3. Apple Pencil device adapter
+Goal: introduce the first production device path.
+
+Work:
+- implement iPad sample capture
+- convert Apple Pencil data into generic device samples
+- declare adapter capabilities
+- emit raw sample stream into the platform
+
+Deliverables:
+- Apple Pencil adapter
+- sample capture validation
+
+Exit criteria:
+- raw Apple Pencil data flows through the generic path
+
+### Phase 4. Normalization pipeline
+Goal: produce consumer-neutral samples.
 
 Work:
 - normalize coordinates
-- smooth pressure
-- normalize tilt
+- normalize pressure and tilt
 - compute velocity and acceleration
 - segment strokes
-- add calibration profile integration points
+- add calibration hook points
+- define smoothing profiles
 
-Done when:
-- downstream systems can consume the normalized model only.
+Deliverables:
+- normalized sample pipeline
+- calibration integration points
 
-### Phase 6. Derived source and gesture engine
-Goal: turn sample streams into reusable control sources.
+Exit criteria:
+- all consumers can use normalized samples instead of raw device values
+
+### Phase 5. Derived source and gesture engine
+Goal: convert sample streams into reusable control signals.
 
 Work:
-- generate pressure, speed, tilt, stroke progress, and direction sources
-- add gesture recognizer plugin system
-- implement tap, hold, flick, and scrub recognizers
+- add derived source plugins
+- add gesture recognizer plugins
+- implement base derived sources
+- implement base gestures
+- define gesture confidence model
 
-Done when:
-- the platform can publish both continuous and discrete derived outputs.
+Deliverables:
+- derived source engine
+- gesture engine
 
-### Phase 7. Consumer adapters
-Goal: let multiple products consume the same platform through adapters.
+Exit criteria:
+- continuous and discrete control signals are both available
+
+### Phase 6. Consumer adapter integration
+Goal: connect the platform to actual products.
 
 Work:
 - implement `GyeolConsumerAdapter`
 - implement `TeulConsumerAdapter`
 - implement `IeumConsumerAdapter`
-- define consumer-specific mapping policies
+- define subscription requirements per consumer
 
-Done when:
-- the routing core no longer needs product-specific branches.
+Deliverables:
+- three initial consumer adapters
+- consumer capability matrix
 
-### Phase 8. Routing, subscription, and access policy
-Goal: distribute normalized input safely to one or more consumers.
+Exit criteria:
+- all three products can consume the same platform through adapters
+
+### Phase 7. Routing and subscription model
+Goal: distribute inputs safely and predictably.
 
 Work:
 - define subscription model
-- define source selection rules
-- implement routing graph or dispatch table
-- define exclusivity and shared-access policy
+- implement routing table or routing graph
+- define consumer access policy
+- define shared and exclusive routing rules
+- implement backpressure or rejection behavior
 
-Done when:
-- one input stream can be shared or isolated according to policy rather than hardcoded rules.
+Deliverables:
+- routing engine
+- subscription registry
 
-### Phase 9. Device profiles, recovery, and health state
-Goal: make the platform resilient to disconnects and hardware variance.
+Exit criteria:
+- one session can be routed to multiple consumers under explicit policy
+
+### Phase 8. Device profiles, calibration, and recovery
+Goal: make the system robust across real-world sessions.
 
 Work:
-- add device profile model
-- add calibration profile model
+- implement device profiles
+- implement calibration profiles
 - implement reconnect restore
-- add `missing`, `degraded`, and invalid-session states
-- define diagnostics and tooltip rules
+- implement degraded-state handling
+- add version mismatch handling
 
-Done when:
-- device and network problems produce predictable states and recovery behavior.
+Deliverables:
+- persistent profile model
+- recovery strategy
+- diagnostics states
 
-### Phase 10. UX and debug tooling
-Goal: make the platform inspectable and tunable by humans.
+Exit criteria:
+- device and session health are observable and recoverable
 
-Work:
-- input source preview UI
-- latency and packet loss indicators
-- calibration UI
-- gesture debug view
-- device/session inspector
-
-Done when:
-- developers and users can see and tune the input system without guessing.
-
-### Phase 11. Validation and regression testing
-Goal: ensure the platform survives growth in devices and consumers.
+### Phase 9. Commercial diagnostics and support tooling
+Goal: make the platform operable in support and QA contexts.
 
 Work:
-- network jitter tests
-- packet drop tests
-- reconnect tests
-- long stroke tests
+- add live session inspector
+- add normalized sample preview
+- add gesture debug view
+- add latency and packet loss visibility
+- add diagnostics snapshot export
+
+Deliverables:
+- support tooling
+- QA tooling
+
+Exit criteria:
+- issues can be reproduced and diagnosed without engineering guesswork
+
+### Phase 10. Product UX and calibration UX
+Goal: make the platform usable by non-engineers.
+
+Work:
+- add user-facing connection states
+- add calibration UI
+- add derived-source preview
+- add session/device inspector UX
+- define failure and recovery messaging
+
+Deliverables:
+- user-facing Naru surfaces
+- calibration workflow
+
+Exit criteria:
+- users can connect, verify, calibrate, and recover without hidden steps
+
+### Phase 11. Hardening and production validation
+Goal: reach commercial readiness.
+
+Work:
+- packet loss testing
+- jitter testing
+- reconnect testing
+- long-session soak testing
 - rapid gesture switching tests
 - multi-consumer routing tests
-- new adapter integration tests
+- compatibility tests across protocol versions
 
-Done when:
-- new devices and new consumers can be added without redesigning the core.
+Deliverables:
+- validation matrix
+- release checklist
+- production readiness report
+
+Exit criteria:
+- known failure modes are documented
+- release gates are met
+- rollback plan exists
 
 ---
 
-## Milestones
+## 13. Release Milestones
 
-### N1. Platform foundation
+### N1. Core Platform Ready
 - Phase 1 complete
 - Phase 2 complete
 - Phase 3 baseline complete
 
-### N2. Input pipeline established
-- Phase 3 complete
+### N2. Reusable Input Pipeline Ready
 - Phase 4 complete
 - Phase 5 complete
-- Phase 6 baseline complete
 
-### N3. Multi-consumer integration
+### N3. Product Integration Ready
 - Phase 6 complete
 - Phase 7 complete
-- Phase 8 complete
 
-### N4. Stable and extensible platform
+### N4. Commercial Stability Ready
+- Phase 8 complete
 - Phase 9 complete
+- Phase 10 baseline complete
+
+### N5. Production Release Ready
 - Phase 10 complete
 - Phase 11 complete
 
-## Completion Criteria
+---
 
-- `Naru` remains adapter-driven rather than Apple Pencil hardcoded.
-- Normalization, derived sources, gesture logic, routing, and state handling stay separated.
-- `Gyeol`, `Teul`, and `Ieum` consume the same platform through consumer adapters.
-- Additional devices can be introduced without redesigning the core pipeline.
+## 14. Success Metrics
+
+Track at minimum:
+
+- session success rate
+- reconnect success rate
+- median and p95 latency
+- packet loss rate
+- gesture recognition reliability
+- consumer delivery failure rate
+- crash-free session rate
+- calibration completion rate
+
+---
+
+## 15. Final Definition of Done
+
+`Naru` is commercially ready when:
+
+- the core is adapter-driven rather than Apple Pencil-hardcoded,
+- normalized and derived inputs are stable and reusable,
+- `Gyeol`, `Teul`, and `Ieum` consume the platform through adapters,
+- diagnostics, recovery, and calibration are productized,
+- release gates and validation targets are met,
+- future device families can be added without restructuring the core.
