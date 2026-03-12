@@ -292,7 +292,7 @@ juce::String connectionRejectHint(EndpointVectorRejectReason reason,
                ? "That rail target is already occupied or at capacity."
                : "That input is already occupied or at capacity.";
   case EndpointVectorRejectReason::overlappingTargets:
-    return "That bundle overlaps target channels.";
+    return "That bus body overlaps occupied target channels.";
   case EndpointVectorRejectReason::none:
     break;
   }

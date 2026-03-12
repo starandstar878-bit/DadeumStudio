@@ -9,6 +9,7 @@
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
 
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <set>
 #include <vector>
@@ -323,6 +324,39 @@ static juce::String groupedPortUsageLabel(const GroupedNodePortSummary &group,
   const auto occupancy = groupedPortOccupancyLabel(group, counts);
   if (occupancy.isNotEmpty())
     text << " / " << occupancy;
+  return text;
+}
+
+static juce::String groupedPortCapacityLabel(int capacity, bool incoming) {
+  return (incoming ? juce::String("In cap ") : juce::String("Out cap ")) +
+         (capacity < 0 ? juce::String("inf") : juce::String(capacity));
+}
+
+static juce::String groupedPortRuleLabel(const GroupedNodePortSummary &group,
+                                         int capacity) {
+  const bool incoming = group.direction == TPortDirection::Input;
+  const int channelCount = (int)group.ports.size();
+
+  juce::String text = group.displayName + " / " + groupedPortTypeLabel(group) +
+                      " / ";
+
+  if (incoming) {
+    if (channelCount <= 1) {
+      text << "Accepts matching mono outputs or single bus channels";
+    } else {
+      text << "Body accepts matching " << juce::String(channelCount)
+           << "ch bundles when all target channels are free; channel circles accept matching single channels";
+    }
+  } else {
+    if (channelCount <= 1) {
+      text << "Can connect to matching mono inputs or bus channel circles";
+    } else {
+      text << "Body connects to matching " << juce::String(channelCount)
+           << "ch bus bodies; channel circles connect individually";
+    }
+  }
+
+  text << " / " << groupedPortCapacityLabel(capacity, incoming);
   return text;
 }
 
@@ -812,6 +846,8 @@ private:
     std::unique_ptr<juce::Label> gyeolBindingLabel;
     std::unique_ptr<juce::Label> controlAssignmentLabel;
     std::unique_ptr<juce::Label> controlAssignmentSettingsLabel;
+    std::unique_ptr<juce::TextEditor> controlAssignmentRangeMinEditor;
+    std::unique_ptr<juce::TextEditor> controlAssignmentRangeMaxEditor;
     std::unique_ptr<juce::TextButton> controlAssignmentEnabledButton;
     std::unique_ptr<juce::TextButton> controlAssignmentInvertButton;
     std::unique_ptr<juce::TextButton> clearControlAssignmentButton;
@@ -1030,6 +1066,52 @@ private:
       entry->controlAssignmentSettingsLabel->setVisible(false);
       paramsContent->addAndMakeVisible(entry->controlAssignmentSettingsLabel.get());
 
+      entry->controlAssignmentRangeMinEditor = std::make_unique<juce::TextEditor>();
+      entry->controlAssignmentRangeMinEditor->setTextToShowWhenEmpty("Min", juce::Colours::grey);
+      entry->controlAssignmentRangeMinEditor->setColour(
+          juce::TextEditor::backgroundColourId, juce::Colour(0xff171717));
+      entry->controlAssignmentRangeMinEditor->setColour(
+          juce::TextEditor::textColourId, juce::Colours::white);
+      entry->controlAssignmentRangeMinEditor->setColour(
+          juce::TextEditor::outlineColourId, juce::Colour(0xff324154));
+      entry->controlAssignmentRangeMinEditor->setColour(
+          juce::CaretComponent::caretColourId, juce::Colours::white);
+      entry->controlAssignmentRangeMinEditor->setInputRestrictions(0, "0123456789.-");
+      entry->controlAssignmentRangeMinEditor->setVisible(false);
+      entry->controlAssignmentRangeMinEditor->setTooltip(
+          "Assignment range minimum (0.00 to 1.00)");
+      const auto rangeMinParamId = entry->paramId;
+      entry->controlAssignmentRangeMinEditor->onReturnKey = [this, rangeMinParamId] {
+        commitControlAssignmentRangeForParam(rangeMinParamId);
+      };
+      entry->controlAssignmentRangeMinEditor->onFocusLost = [this, rangeMinParamId] {
+        commitControlAssignmentRangeForParam(rangeMinParamId);
+      };
+      paramsContent->addAndMakeVisible(entry->controlAssignmentRangeMinEditor.get());
+
+      entry->controlAssignmentRangeMaxEditor = std::make_unique<juce::TextEditor>();
+      entry->controlAssignmentRangeMaxEditor->setTextToShowWhenEmpty("Max", juce::Colours::grey);
+      entry->controlAssignmentRangeMaxEditor->setColour(
+          juce::TextEditor::backgroundColourId, juce::Colour(0xff171717));
+      entry->controlAssignmentRangeMaxEditor->setColour(
+          juce::TextEditor::textColourId, juce::Colours::white);
+      entry->controlAssignmentRangeMaxEditor->setColour(
+          juce::TextEditor::outlineColourId, juce::Colour(0xff324154));
+      entry->controlAssignmentRangeMaxEditor->setColour(
+          juce::CaretComponent::caretColourId, juce::Colours::white);
+      entry->controlAssignmentRangeMaxEditor->setInputRestrictions(0, "0123456789.-");
+      entry->controlAssignmentRangeMaxEditor->setVisible(false);
+      entry->controlAssignmentRangeMaxEditor->setTooltip(
+          "Assignment range maximum (0.00 to 1.00)");
+      const auto rangeMaxParamId = entry->paramId;
+      entry->controlAssignmentRangeMaxEditor->onReturnKey = [this, rangeMaxParamId] {
+        commitControlAssignmentRangeForParam(rangeMaxParamId);
+      };
+      entry->controlAssignmentRangeMaxEditor->onFocusLost = [this, rangeMaxParamId] {
+        commitControlAssignmentRangeForParam(rangeMaxParamId);
+      };
+      paramsContent->addAndMakeVisible(entry->controlAssignmentRangeMaxEditor.get());
+
       entry->controlAssignmentEnabledButton =
           std::make_unique<juce::TextButton>("On");
       entry->controlAssignmentEnabledButton->setClickingTogglesState(true);
@@ -1200,11 +1282,31 @@ private:
           } else if (entry->controlAssignmentEnabledButton != nullptr) {
             entry->controlAssignmentEnabledButton->setBounds(0, 0, 0, 0);
           }
+          if (entry->controlAssignmentRangeMaxEditor != nullptr &&
+              entry->controlAssignmentRangeMaxEditor->isVisible()) {
+            auto maxBounds = settingsRow.removeFromRight(52);
+            entry->controlAssignmentRangeMaxEditor->setBounds(maxBounds);
+            settingsRow.removeFromRight(4);
+          } else if (entry->controlAssignmentRangeMaxEditor != nullptr) {
+            entry->controlAssignmentRangeMaxEditor->setBounds(0, 0, 0, 0);
+          }
+          if (entry->controlAssignmentRangeMinEditor != nullptr &&
+              entry->controlAssignmentRangeMinEditor->isVisible()) {
+            auto minBounds = settingsRow.removeFromRight(52);
+            entry->controlAssignmentRangeMinEditor->setBounds(minBounds);
+            settingsRow.removeFromRight(6);
+          } else if (entry->controlAssignmentRangeMinEditor != nullptr) {
+            entry->controlAssignmentRangeMinEditor->setBounds(0, 0, 0, 0);
+          }
           entry->controlAssignmentSettingsLabel->setBounds(settingsRow);
           y += 24;
         } else {
           if (entry->controlAssignmentSettingsLabel != nullptr)
             entry->controlAssignmentSettingsLabel->setBounds(0, 0, 0, 0);
+          if (entry->controlAssignmentRangeMinEditor != nullptr)
+            entry->controlAssignmentRangeMinEditor->setBounds(0, 0, 0, 0);
+          if (entry->controlAssignmentRangeMaxEditor != nullptr)
+            entry->controlAssignmentRangeMaxEditor->setBounds(0, 0, 0, 0);
           if (entry->controlAssignmentEnabledButton != nullptr)
             entry->controlAssignmentEnabledButton->setBounds(0, 0, 0, 0);
           if (entry->controlAssignmentInvertButton != nullptr)
@@ -1214,6 +1316,10 @@ private:
         entry->controlAssignmentLabel->setBounds(0, 0, 0, 0);
         if (entry->controlAssignmentSettingsLabel != nullptr)
           entry->controlAssignmentSettingsLabel->setBounds(0, 0, 0, 0);
+        if (entry->controlAssignmentRangeMinEditor != nullptr)
+          entry->controlAssignmentRangeMinEditor->setBounds(0, 0, 0, 0);
+        if (entry->controlAssignmentRangeMaxEditor != nullptr)
+          entry->controlAssignmentRangeMaxEditor->setBounds(0, 0, 0, 0);
         if (entry->controlAssignmentEnabledButton != nullptr)
           entry->controlAssignmentEnabledButton->setBounds(0, 0, 0, 0);
         if (entry->controlAssignmentInvertButton != nullptr)
@@ -1253,6 +1359,8 @@ private:
     unionWith(entry.gyeolBindingLabel.get());
     unionWith(entry.controlAssignmentLabel.get());
     unionWith(entry.controlAssignmentSettingsLabel.get());
+    unionWith(entry.controlAssignmentRangeMinEditor.get());
+    unionWith(entry.controlAssignmentRangeMaxEditor.get());
     unionWith(entry.controlAssignmentEnabledButton.get());
     unionWith(entry.controlAssignmentInvertButton.get());
     unionWith(entry.clearControlAssignmentButton.get());
@@ -1378,6 +1486,55 @@ private:
         });
   }
 
+  static float clampAssignmentRangeValue(float value) {
+    return juce::jlimit(0.0f, 1.0f, value);
+  }
+
+  void commitControlAssignmentRangeForParam(const juce::String &paramId) {
+    auto *entry = findParamEditorById(paramId);
+    if (entry == nullptr || entry->controlAssignmentRangeMinEditor == nullptr ||
+        entry->controlAssignmentRangeMaxEditor == nullptr) {
+      return;
+    }
+
+    auto *assignment = findEditableControlAssignment(*entry);
+    if (assignment == nullptr)
+      return;
+
+    const auto parseOrFallback = [](const juce::String &text, float fallback) {
+      const auto trimmed = text.trim();
+      if (trimmed.isEmpty())
+        return fallback;
+      const double parsed = trimmed.getDoubleValue();
+      return std::isfinite(parsed) ? (float)parsed : fallback;
+    };
+
+    float nextMin = clampAssignmentRangeValue(parseOrFallback(
+        entry->controlAssignmentRangeMinEditor->getText(), assignment->rangeMin));
+    float nextMax = clampAssignmentRangeValue(parseOrFallback(
+        entry->controlAssignmentRangeMaxEditor->getText(), assignment->rangeMax));
+    if (nextMin > nextMax)
+      std::swap(nextMin, nextMax);
+
+    const bool changed = std::abs(nextMin - assignment->rangeMin) > 0.0001f ||
+                         std::abs(nextMax - assignment->rangeMax) > 0.0001f;
+    assignment->rangeMin = nextMin;
+    assignment->rangeMax = nextMax;
+
+    entry->controlAssignmentRangeMinEditor->setText(
+        formatControlAssignmentRange(nextMin), juce::dontSendNotification);
+    entry->controlAssignmentRangeMaxEditor->setText(
+        formatControlAssignmentRange(nextMax), juce::dontSendNotification);
+
+    if (!changed)
+      return;
+
+    document.touch(false);
+    refreshNodeConnectionSummary();
+    updateRuntimeValueLabels();
+    canvas.repaint();
+  }
+
   void clearControlAssignmentsForParam(const juce::String &paramId) {
     if (paramId.isEmpty())
       return;
@@ -1414,6 +1571,7 @@ private:
     juce::StringArray incoming;
     juce::StringArray outgoing;
     juce::StringArray portUsage;
+    juce::StringArray portRules;
     juce::StringArray controls;
 
     for (const auto &group : groupNodePortsForSummary(node)) {
@@ -1423,6 +1581,7 @@ private:
       const int capacity = groupedPortCapacity(group, incomingDirection);
       portUsage.add(groupedPortUsageLabel(group, counts, capacity,
                                           incomingDirection));
+      portRules.add(groupedPortRuleLabel(group, capacity));
     }
 
     auto railPortLabel = [this](const TEndpoint &endpoint) {
@@ -1523,6 +1682,8 @@ private:
 
     juce::StringArray sections;
     sections.add(joinSection("Port Usage", portUsage, "No ports"));
+    sections.add(joinSection("Connection Rules", portRules,
+                             "No explicit port rules"));
     sections.add(joinSection("Incoming Wires", incoming, "No incoming wires"));
     sections.add(joinSection("Outgoing Wires", outgoing, "No outgoing wires"));
     sections.add(joinSection("Control Assignments", controls,
@@ -1644,10 +1805,25 @@ private:
             showSingleAssignmentControls ? juce::Colour(0x16182232)
                                          : juce::Colours::transparentBlack);
         entry->controlAssignmentSettingsLabel->setText(
-            showSingleAssignmentControls
-                ? controlAssignmentSettingsText(*matchingAssignments.front())
-                : juce::String(),
+            showSingleAssignmentControls ? juce::String("Range")
+                                         : juce::String(),
             juce::dontSendNotification);
+      }
+      if (entry->controlAssignmentRangeMinEditor != nullptr) {
+        entry->controlAssignmentRangeMinEditor->setVisible(showSingleAssignmentControls);
+        if (showSingleAssignmentControls) {
+          entry->controlAssignmentRangeMinEditor->setText(
+              formatControlAssignmentRange(matchingAssignments.front()->rangeMin),
+              juce::dontSendNotification);
+        }
+      }
+      if (entry->controlAssignmentRangeMaxEditor != nullptr) {
+        entry->controlAssignmentRangeMaxEditor->setVisible(showSingleAssignmentControls);
+        if (showSingleAssignmentControls) {
+          entry->controlAssignmentRangeMaxEditor->setText(
+              formatControlAssignmentRange(matchingAssignments.front()->rangeMax),
+              juce::dontSendNotification);
+        }
       }
       if (entry->controlAssignmentEnabledButton != nullptr) {
         entry->controlAssignmentEnabledButton->setVisible(showSingleAssignmentControls);
