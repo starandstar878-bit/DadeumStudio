@@ -199,15 +199,15 @@ void TNodeComponent::recalculateHeight() {
                                        stackHeightForPorts(outPorts));
     const auto previewKind = inlinePreviewKindFor(descriptor);
     const bool hasLaneCaption = inPorts.size() > 1 || outPorts.size() > 1;
-    const int laneCaptionHeight = hasLaneCaption ? 12 : 0;
-    const int desiredHeight = headerHeight + 8 + laneCaptionHeight + stackHeight + 12 +
+    const int laneCaptionHeight = hasLaneCaption ? 10 : 0;
+    const int desiredHeight = headerHeight + 6 + laneCaptionHeight + stackHeight + 10 +
                               previewHeightForKind(previewKind);
     logicalSize.y = juce::jmax(logicalSize.y, desiredHeight);
 
     const int desiredWidth = juce::jmax(
         logicalSize.x,
         juce::roundToInt((float)(inputLaneWidthPx() + outputLaneWidthPx()) /
-                         viewScale) + 96);
+                         viewScale) + 92);
     logicalSize.x = juce::jmax(logicalSize.x, desiredWidth);
   }
 
@@ -335,8 +335,8 @@ void TNodeComponent::resized() {
   const int headerHeightPx = scaledInt(headerHeight);
   const int rowGapPx = scaledInt(6);
   const bool hasLaneCaption = inPorts.size() > 1 || outPorts.size() > 1;
-  const int laneCaptionHeightPx = hasLaneCaption ? scaledInt(12) : 0;
-  const int portYInset = scaledInt(8);
+  const int laneCaptionHeightPx = hasLaneCaption ? scaledInt(10) : 0;
+  const int portYInset = scaledInt(6);
   const int inputLaneWidth = inputLaneWidthPx();
   const int outputLaneWidth = outputLaneWidthPx();
 
@@ -415,11 +415,11 @@ void TNodeComponent::paint(juce::Graphics &g) {
   const auto previewKind = inlinePreviewKindFor(descriptor);
   const float cornerRadiusPx = scaledFloat((float)cornerRadius);
   const float headerHeightPx = scaledFloat((float)headerHeight);
-  const float titleFontPx = juce::jmax(7.0f, scaledFloat(14.0f));
-  const float bodyFontPx = juce::jmax(6.0f, scaledFloat(11.0f));
-  const int labelInsetPx = juce::jmax(4, scaledInt(12));
-  const int labelWidthPx = juce::jmax(24, scaledInt(72));
-  const int portTextHeightPx = juce::jmax(8, scaledInt(14));
+  const float titleFontPx = juce::jmax(7.0f, scaledFloat(13.0f));
+  const float bodyFontPx = juce::jmax(6.0f, scaledFloat(10.2f));
+  const int labelInsetPx = juce::jmax(4, scaledInt(10));
+  const int labelWidthPx = juce::jmax(22, scaledInt(68));
+  const int portTextHeightPx = juce::jmax(8, scaledInt(12));
   const float borderThicknessPx = juce::jmax(1.0f, 1.0f * viewScale);
   const float borderSelectedThicknessPx = juce::jmax(1.2f, 1.5f * viewScale);
   const float errorGlowExpandPx = juce::jmax(1.0f, 2.0f * viewScale);
@@ -446,10 +446,10 @@ void TNodeComponent::paint(juce::Graphics &g) {
 
   if (!collapsed && heatLevel > 0.04f) {
     auto heatStrip = juce::Rectangle<float>(
-        bounds.getX() + scaledFloat(6.0f), headerHeightPx + scaledFloat(6.0f),
+        bounds.getX() + scaledFloat(5.0f), headerHeightPx + scaledFloat(5.0f),
         juce::jmax(3.0f, scaledFloat(5.0f)),
         juce::jmax(16.0f,
-                   bounds.getHeight() - headerHeightPx - scaledFloat(12.0f)));
+                   bounds.getHeight() - headerHeightPx - scaledFloat(10.0f)));
     g.setGradientFill(juce::ColourGradient(heatColour.withAlpha(0.92f),
                                            heatStrip.getCentreX(),
                                            heatStrip.getBottom(),
@@ -485,7 +485,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
     g.setColour(juce::Colours::white);
   }
 
-  g.drawText(title, headerBounds.reduced(scaledFloat(8.0f), 0).toNearestInt(),
+  g.drawText(title, headerBounds.reduced(scaledFloat(7.0f), 0).toNearestInt(),
              juce::Justification::centredLeft);
 
   const auto colBtn = getCollapseButtonBounds().toFloat();
@@ -500,9 +500,9 @@ void TNodeComponent::paint(juce::Graphics &g) {
 
     const int inputLaneWidth = inputLaneWidthPx();
     const int outputLaneWidth = outputLaneWidthPx();
-    const int labelPaddingPx = scaledInt(8);
+    const int labelPaddingPx = scaledInt(6);
     const int laneCaptionHeightPx = (inPorts.size() > 1 || outPorts.size() > 1)
-                                        ? scaledInt(12)
+                                        ? scaledInt(10)
                                         : 0;
     const int inputLabelX = juce::jmax(labelInsetPx, inputLaneWidth + labelPaddingPx);
     const int outputLabelRight =
@@ -512,9 +512,9 @@ void TNodeComponent::paint(juce::Graphics &g) {
                                         outputLabelRight - labelWidthPx);
 
     if (laneCaptionHeightPx > 0) {
-      g.setColour(juce::Colours::white.withAlpha(0.45f));
-      g.setFont(juce::FontOptions(juce::jmax(6.0f, scaledFloat(9.0f)), juce::Font::bold));
-      const int captionY = juce::roundToInt(headerHeightPx + scaledFloat(2.0f));
+      g.setColour(juce::Colours::white.withAlpha(0.4f));
+      g.setFont(juce::FontOptions(juce::jmax(6.0f, scaledFloat(8.2f)), juce::Font::bold));
+      const int captionY = juce::roundToInt(headerHeightPx + scaledFloat(1.0f));
       const auto inputCaption = laneCaptionText(inPorts, "input", "inputs");
       if (inputCaption.isNotEmpty())
         g.drawText(inputCaption, inputLabelX, captionY, labelWidthPx, laneCaptionHeightPx,
@@ -562,9 +562,9 @@ void TNodeComponent::paint(juce::Graphics &g) {
     }
 
     if (runtimeViewOptions.liveProbeEnabled && !outPorts.empty()) {
-      const float railWidth = juce::jmax(4.0f, scaledFloat(isSelected ? 7.0f : 5.0f));
-      const float railInset = scaledFloat(6.0f);
-      const float railHeight = juce::jmax(10.0f, scaledFloat(12.0f));
+      const float railWidth = juce::jmax(3.0f, scaledFloat(isSelected ? 6.0f : 4.0f));
+      const float railInset = scaledFloat(5.0f);
+      const float railHeight = juce::jmax(9.0f, scaledFloat(10.0f));
       const float outputLaneLeft = (float)(getWidth() - outputLaneWidthPx());
 
       for (const auto &port : outPorts) {
@@ -591,9 +591,9 @@ void TNodeComponent::paint(juce::Graphics &g) {
     }
 
     if (runtimeViewOptions.liveProbeEnabled && isSelected && !outPorts.empty()) {
-      const float probeWidth = juce::jmax(34.0f, scaledFloat(40.0f));
-      const float probeHeight = juce::jmax(10.0f, scaledFloat(12.0f));
-      const float probeInset = scaledFloat(8.0f);
+      const float probeWidth = juce::jmax(30.0f, scaledFloat(34.0f));
+      const float probeHeight = juce::jmax(9.0f, scaledFloat(10.0f));
+      const float probeInset = scaledFloat(6.0f);
       const float barInset = scaledFloat(2.0f);
       const float outputProbeRight = (float)(getWidth() - outputLaneWidthPx()) - probeInset;
 
@@ -614,7 +614,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
         g.setColour(probeColour.brighter(0.2f));
         g.drawRoundedRectangle(probeRect, probeHeight * 0.5f, 0.9f);
         g.setColour(juce::Colours::white.withAlpha(0.88f));
-        g.setFont(juce::FontOptions(juce::jmax(6.0f, scaledFloat(9.0f))));
+        g.setFont(juce::FontOptions(juce::jmax(6.0f, scaledFloat(8.0f))));
         g.drawText(juce::String(level, 2), probeRect.toNearestInt(),
                    juce::Justification::centred, false);
       }
@@ -645,8 +645,8 @@ void TNodeComponent::paint(juce::Graphics &g) {
   }
 }
 juce::Rectangle<int> TNodeComponent::getCollapseButtonBounds() const {
-  const int buttonSize = juce::jmax(8, scaledInt(20));
-  const int rightInset = juce::jmax(4, scaledInt(8));
+  const int buttonSize = juce::jmax(8, scaledInt(18));
+  const int rightInset = juce::jmax(4, scaledInt(7));
   const int headerHeightPx = scaledInt(headerHeight);
   return juce::Rectangle<int>(getWidth() - rightInset - buttonSize,
                               (headerHeightPx - buttonSize) / 2, buttonSize,

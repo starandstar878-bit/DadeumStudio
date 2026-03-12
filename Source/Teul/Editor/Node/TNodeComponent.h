@@ -62,10 +62,10 @@ private:
   std::vector<std::unique_ptr<TPortComponent>> inPorts;
   std::vector<std::unique_ptr<TPortComponent>> outPorts;
 
-  const int headerHeight = 32;
-  const int portRowHeight = 22;
-  const int minNodeWidth = 140;
-  const int cornerRadius = 8;
+  const int headerHeight = 30;
+  const int portRowHeight = 20;
+  const int minNodeWidth = 132;
+  const int cornerRadius = 7;
 
   bool isHoveringCollapse = false;
 
