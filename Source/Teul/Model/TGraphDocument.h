@@ -739,6 +739,56 @@ struct TControlSourceState {
     refreshProfileAutoDetectedState(profileId);
   }
 
+  bool markDeviceProfilePresent(const juce::String &profileId,
+                                const juce::String &deviceId,
+                                const juce::String &displayName,
+                                bool autoDetected) {
+    auto normalizedProfileId = profileId.trim();
+    if (normalizedProfileId.isEmpty())
+      return false;
+
+    const bool hadProfile = findDeviceProfile(normalizedProfileId) != nullptr;
+    auto &profile = ensureDeviceProfile(normalizedProfileId, deviceId, displayName,
+                                        autoDetected);
+    const auto previousDeviceId = profile.deviceId;
+    const auto previousDisplayName = profile.displayName;
+    const bool previousAutoDetected = profile.autoDetected;
+    const bool wasMarkedMissing = std::any_of(
+        missingDeviceProfileIds.begin(), missingDeviceProfileIds.end(),
+        [&](const juce::String &existingId) {
+          return existingId.trim() == normalizedProfileId;
+        });
+
+    profile.deviceId = deviceId.isNotEmpty() ? deviceId : profile.deviceId;
+    profile.displayName = displayName.isNotEmpty() ? displayName : profile.displayName;
+    profile.autoDetected = autoDetected;
+    removeMissingDeviceProfileId(normalizedProfileId);
+    reconcileDeviceProfilesAndSources();
+
+    return !hadProfile || wasMarkedMissing ||
+           previousDeviceId != profile.deviceId ||
+           previousDisplayName != profile.displayName ||
+           previousAutoDetected != profile.autoDetected;
+  }
+
+  bool markDeviceProfileMissing(const juce::String &profileId) {
+    const auto normalizedProfileId = profileId.trim();
+    if (normalizedProfileId.isEmpty() || normalizedProfileId == "preview-device")
+      return false;
+
+    const bool alreadyMissing = std::any_of(
+        missingDeviceProfileIds.begin(), missingDeviceProfileIds.end(),
+        [&](const juce::String &existingId) {
+          return existingId.trim() == normalizedProfileId;
+        });
+    if (alreadyMissing)
+      return false;
+
+    missingDeviceProfileIds.push_back(normalizedProfileId);
+    reconcileDeviceProfilesAndSources();
+    return true;
+  }
+
   bool tryRelinkSourceToCompatibleProfile(TControlSource &source) {
     juce::String matchedProfileId;
     int candidateCount = 0;

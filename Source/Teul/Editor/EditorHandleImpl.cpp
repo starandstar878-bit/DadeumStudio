@@ -3304,6 +3304,103 @@ bool EditorHandle::Impl::applyLearnedMidiMessage(
                                     confirmed);
 }
 
+bool EditorHandle::Impl::reportControlDeviceProfilePresent(
+    const juce::String &profileId, const juce::String &deviceId,
+    const juce::String &displayName, bool autoDetected) {
+  const bool changed = doc.controlState.markDeviceProfilePresent(
+      profileId, deviceId, displayName, autoDetected);
+  if (!changed)
+    return false;
+
+  if (propertiesPanel != nullptr)
+    propertiesPanel->refreshFromDocument();
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->refreshFromDocument();
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->refreshFromDocument();
+  refreshRailUi();
+  refreshDocumentNoticeUi(true);
+  pushRuntimeMessage("Control device connected", juce::Colour(0xff22c55e), 50);
+  return true;
+}
+
+bool EditorHandle::Impl::reportControlDeviceProfileMissing(
+    const juce::String &profileId) {
+  const bool changed = doc.controlState.markDeviceProfileMissing(profileId);
+  if (!changed)
+    return false;
+
+  if (propertiesPanel != nullptr)
+    propertiesPanel->refreshFromDocument();
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->refreshFromDocument();
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->refreshFromDocument();
+  refreshRailUi();
+  refreshDocumentNoticeUi(true);
+  pushRuntimeMessage("Control device disconnected", juce::Colour(0xfff59e0b), 50);
+  return true;
+}
+bool EditorHandle::Impl::syncControlDeviceProfiles(
+    const std::vector<TControlDeviceProfilePresence> &profiles,
+    bool autoMarkMissing) {
+  std::vector<juce::String> reportedProfileIds;
+  bool changed = false;
+  for (const auto &profile : profiles) {
+    const auto normalizedProfileId = profile.profileId.trim();
+    if (normalizedProfileId.isEmpty())
+      continue;
+    bool alreadyReported = false;
+    for (const auto &reportedId : reportedProfileIds) {
+      if (reportedId == normalizedProfileId) {
+        alreadyReported = true;
+        break;
+      }
+    }
+    if (!alreadyReported)
+      reportedProfileIds.push_back(normalizedProfileId);
+    if (doc.controlState.markDeviceProfilePresent(
+            normalizedProfileId, profile.deviceId.trim(),
+            profile.displayName.trim(), profile.autoDetected)) {
+      changed = true;
+    }
+  }
+  if (autoMarkMissing) {
+    std::vector<juce::String> profilesToMarkMissing;
+    for (const auto &profile : doc.controlState.deviceProfiles) {
+      const auto normalizedProfileId = profile.profileId.trim();
+      if (normalizedProfileId.isEmpty() || normalizedProfileId == "preview-device")
+        continue;
+      if (!profile.autoDetected)
+        continue;
+      bool isReported = false;
+      for (const auto &reportedId : reportedProfileIds) {
+        if (reportedId == normalizedProfileId) {
+          isReported = true;
+          break;
+        }
+      }
+      if (!isReported)
+        profilesToMarkMissing.push_back(normalizedProfileId);
+    }
+    for (const auto &profileId : profilesToMarkMissing) {
+      if (doc.controlState.markDeviceProfileMissing(profileId))
+        changed = true;
+    }
+  }
+  if (!changed)
+    return false;
+  if (propertiesPanel != nullptr)
+    propertiesPanel->refreshFromDocument();
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->refreshFromDocument();
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->refreshFromDocument();
+  refreshRailUi();
+  refreshDocumentNoticeUi(true);
+  pushRuntimeMessage("Control devices synced", juce::Colour(0xff38bdf8), 50);
+  return true;
+}
 void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   auto top = area.removeFromTop(33).reduced(6, 3);
 

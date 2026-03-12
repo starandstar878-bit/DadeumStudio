@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <vector>
 
 namespace Teul {
 struct TGraphDocument;
@@ -24,6 +25,12 @@ struct TEditorSessionStatus {
   std::uint64_t lastPersistedDocumentRevision = 0;
   bool hasAutosaveSnapshot = false;
   juce::Time lastAutosaveTime;
+};
+struct TControlDeviceProfilePresence {
+  juce::String profileId;
+  juce::String deviceId;
+  juce::String displayName;
+  bool autoDetected = true;
 };
 
 class EditorHandle : public juce::Component {
@@ -55,6 +62,14 @@ public:
                                const juce::String &profileDisplayName = {},
                                bool autoDetected = true,
                                bool confirmed = true);
+  bool reportControlDeviceProfilePresent(const juce::String &profileId,
+                                       const juce::String &deviceId = {},
+                                       const juce::String &displayName = {},
+                                       bool autoDetected = true);
+  bool reportControlDeviceProfileMissing(const juce::String &profileId);
+  bool syncControlDeviceProfiles(
+      const std::vector<TControlDeviceProfilePresence> &profiles,
+      bool autoMarkMissing = true);
   TExportResult runExportDryRun(const TExportOptions &options = {}) const;
 
   void paint(juce::Graphics &g) override;

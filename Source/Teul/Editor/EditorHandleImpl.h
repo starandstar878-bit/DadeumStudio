@@ -49,6 +49,14 @@ struct EditorHandle::Impl : private juce::Timer {
                               const juce::String &profileDisplayName,
                               bool autoDetected,
                               bool confirmed);
+  bool reportControlDeviceProfilePresent(const juce::String &profileId,
+                                       const juce::String &deviceId,
+                                       const juce::String &displayName,
+                                       bool autoDetected);
+  bool reportControlDeviceProfileMissing(const juce::String &profileId);
+  bool syncControlDeviceProfiles(
+      const std::vector<TControlDeviceProfilePresence> &profiles,
+      bool autoMarkMissing);
   void layout(juce::Rectangle<int> area);
 
 private:

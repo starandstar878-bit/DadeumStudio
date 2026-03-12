@@ -53,6 +53,30 @@ bool EditorHandle::applyLearnedMidiMessage(
                                        autoDetected, confirmed);
 }
 
+bool EditorHandle::reportControlDeviceProfilePresent(
+    const juce::String &profileId, const juce::String &deviceId,
+    const juce::String &displayName, bool autoDetected) {
+  if (impl == nullptr)
+    return false;
+
+  return impl->reportControlDeviceProfilePresent(profileId, deviceId,
+                                                 displayName, autoDetected);
+}
+
+bool EditorHandle::reportControlDeviceProfileMissing(
+    const juce::String &profileId) {
+  if (impl == nullptr)
+    return false;
+
+  return impl->reportControlDeviceProfileMissing(profileId);
+}
+bool EditorHandle::syncControlDeviceProfiles(
+    const std::vector<TControlDeviceProfilePresence> &profiles,
+    bool autoMarkMissing) {
+  if (impl == nullptr)
+    return false;
+  return impl->syncControlDeviceProfiles(profiles, autoMarkMissing);
+}
 TExportResult EditorHandle::runExportDryRun(
     const TExportOptions &options) const {
   if (impl == nullptr || impl->registry() == nullptr)
