@@ -1787,11 +1787,7 @@ private:
       return;
 
     source->displayName = newName;
-    if (auto *profileSource = document.controlState.findDeviceSourceProfile(
-            source->deviceProfileId, source->sourceId)) {
-      profileSource->displayName = newName;
-    }
-
+    document.controlState.syncSourceIntoDeviceProfile(*source);
     document.controlState.reconcileDeviceProfilesAndSources();
     notifyDocumentChanged();
     refreshFromDocument();
@@ -1831,6 +1827,8 @@ private:
       return;
 
     source->autoDetected = autoDetected;
+    document.controlState.syncSourceIntoDeviceProfile(*source);
+    document.controlState.reconcileDeviceProfilesAndSources();
     notifyDocumentChanged();
     refreshFromDocument();
   }

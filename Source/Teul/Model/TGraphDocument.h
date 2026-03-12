@@ -433,6 +433,134 @@ struct TControlSourceState {
     return nullptr;
   }
 
+  void removeMissingDeviceProfileId(const juce::String &profileId) {
+    const auto trimmedId = profileId.trim();
+    if (trimmedId.isEmpty())
+      return;
+
+    missingDeviceProfileIds.erase(
+        std::remove_if(missingDeviceProfileIds.begin(),
+                       missingDeviceProfileIds.end(),
+                       [&](const juce::String &existingId) {
+                         return existingId.trim() == trimmedId;
+                       }),
+        missingDeviceProfileIds.end());
+  }
+
+  void refreshProfileAutoDetectedState(const juce::String &profileId) {
+    auto *profile = findDeviceProfile(profileId);
+    if (profile == nullptr)
+      return;
+
+    bool hasMatchedSource = false;
+    bool allAutoDetected = true;
+    for (const auto &source : sources) {
+      if (source.deviceProfileId != profileId)
+        continue;
+
+      hasMatchedSource = true;
+      if (!source.autoDetected) {
+        allAutoDetected = false;
+        break;
+      }
+    }
+
+    if (hasMatchedSource)
+      profile->autoDetected = allAutoDetected;
+  }
+
+  void syncSourceIntoDeviceProfile(const TControlSource &source) {
+    const auto profileId = source.deviceProfileId.trim();
+    if (profileId.isEmpty())
+      return;
+
+    auto *profile = findDeviceProfile(profileId);
+    if (profile == nullptr)
+      return;
+
+    auto *profileSource = findDeviceSourceProfile(profileId, source.sourceId);
+    if (profileSource == nullptr) {
+      TDeviceSourceProfile newProfileSource;
+      newProfileSource.sourceId = source.sourceId;
+      newProfileSource.displayName = source.displayName.isNotEmpty()
+                                         ? source.displayName
+                                         : source.sourceId;
+      newProfileSource.kind = source.kind;
+      newProfileSource.mode = source.mode;
+      newProfileSource.ports = source.ports;
+      profile->sources.push_back(std::move(newProfileSource));
+    } else {
+      profileSource->displayName = source.displayName.isNotEmpty()
+                                       ? source.displayName
+                                       : source.sourceId;
+      profileSource->kind = source.kind;
+      profileSource->mode = source.mode;
+      profileSource->ports = source.ports;
+    }
+
+    removeMissingDeviceProfileId(profileId);
+    refreshProfileAutoDetectedState(profileId);
+  }
+
+  bool tryRelinkSourceToCompatibleProfile(TControlSource &source) {
+    juce::String matchedProfileId;
+    int candidateCount = 0;
+
+    const auto matchesProfileSource =
+        [&](const TDeviceSourceProfile &profileSource,
+            bool allowEmptyPorts) noexcept {
+          if (profileSource.sourceId != source.sourceId)
+            return false;
+          if (profileSource.kind != source.kind ||
+              profileSource.mode != source.mode) {
+            return false;
+          }
+          if (!allowEmptyPorts || !source.ports.empty())
+            return controlPortsMatch(profileSource.ports, source.ports);
+          return true;
+        };
+
+    const auto findUniqueCandidate = [&](bool allowEmptyPorts) {
+      matchedProfileId.clear();
+      candidateCount = 0;
+      for (const auto &profile : deviceProfiles) {
+        const auto matchIt =
+            std::find_if(profile.sources.begin(), profile.sources.end(),
+                         [&](const TDeviceSourceProfile &profileSource) {
+                           return matchesProfileSource(profileSource,
+                                                       allowEmptyPorts);
+                         });
+        if (matchIt == profile.sources.end())
+          continue;
+
+        matchedProfileId = profile.profileId;
+        ++candidateCount;
+        if (candidateCount > 1)
+          break;
+      }
+      return candidateCount == 1;
+    };
+
+    bool foundUniqueCandidate = findUniqueCandidate(false);
+    if (!foundUniqueCandidate && source.ports.empty())
+      foundUniqueCandidate = findUniqueCandidate(true);
+
+    if (!foundUniqueCandidate || matchedProfileId.isEmpty())
+      return false;
+
+    source.deviceProfileId = matchedProfileId;
+    if (const auto *profileSource =
+            findDeviceSourceProfile(matchedProfileId, source.sourceId)) {
+      if (source.displayName.isEmpty())
+        source.displayName = profileSource->displayName;
+      if (source.ports.empty())
+        source.ports = profileSource->ports;
+    }
+
+    removeMissingDeviceProfileId(matchedProfileId);
+    return true;
+  }
+
   void ensurePreviewDeviceProfile() {
     bool hasPreviewSource = false;
     for (const auto &source : sources) {
@@ -503,20 +631,17 @@ struct TControlSourceState {
     ensurePreviewDeviceProfile();
 
     std::vector<juce::String> normalizedMissingIds;
-    auto appendMissingProfileId =
-        [&](const juce::String &profileId) {
-          const auto trimmedId = profileId.trim();
-          if (trimmedId.isEmpty())
-            return;
+    auto appendMissingProfileId = [&](const juce::String &profileId) {
+      const auto trimmedId = profileId.trim();
+      if (trimmedId.isEmpty())
+        return;
 
-          const bool alreadyPresent =
-              std::any_of(normalizedMissingIds.begin(), normalizedMissingIds.end(),
-                          [&](const juce::String &existingId) {
-                            return existingId == trimmedId;
-                          });
-          if (!alreadyPresent)
-            normalizedMissingIds.push_back(trimmedId);
-        };
+      const bool alreadyPresent = std::any_of(
+          normalizedMissingIds.begin(), normalizedMissingIds.end(),
+          [&](const juce::String &existingId) { return existingId == trimmedId; });
+      if (!alreadyPresent)
+        normalizedMissingIds.push_back(trimmedId);
+    };
 
     for (const auto &profileId : missingDeviceProfileIds) {
       if (findDeviceProfile(profileId.trim()) == nullptr)
@@ -527,7 +652,14 @@ struct TControlSourceState {
       source.missing = false;
       source.degraded = false;
 
-      const auto profileId = source.deviceProfileId.trim();
+      auto profileId = source.deviceProfileId.trim();
+      if (profileId.isEmpty())
+        continue;
+
+      if (findDeviceProfile(profileId) == nullptr)
+        tryRelinkSourceToCompatibleProfile(source);
+
+      profileId = source.deviceProfileId.trim();
       if (profileId.isEmpty())
         continue;
 
@@ -538,8 +670,7 @@ struct TControlSourceState {
         continue;
       }
 
-      const auto *profileSource =
-          findDeviceSourceProfile(profileId, source.sourceId);
+      const auto *profileSource = findDeviceSourceProfile(profileId, source.sourceId);
       if (profileSource == nullptr) {
         source.degraded = true;
         continue;
@@ -556,6 +687,9 @@ struct TControlSourceState {
         source.degraded = true;
       }
     }
+
+    for (const auto &profile : deviceProfiles)
+      refreshProfileAutoDetectedState(profile.profileId);
 
     missingDeviceProfileIds = std::move(normalizedMissingIds);
   }
