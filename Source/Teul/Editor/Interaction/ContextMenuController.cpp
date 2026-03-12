@@ -7,6 +7,7 @@
 #include "Teul/Serialization/TStatePresetIO.h"
 
 #include <algorithm>
+#include <limits>
 #include <set>
 
 namespace Teul {
@@ -33,6 +34,87 @@ juce::String sanitizeStatePresetName(const juce::String &rawName) {
     text = text.replaceCharacter(character, '_');
 
   return text;
+}
+
+bool splitStereoLabel(juce::StringRef name, bool &isLeft, juce::String &suffix) {
+  const juce::String trimmed = juce::String(name).trim();
+  if (trimmed.equalsIgnoreCase("L")) {
+    isLeft = true;
+    suffix.clear();
+    return true;
+  }
+  if (trimmed.equalsIgnoreCase("R")) {
+    isLeft = false;
+    suffix.clear();
+    return true;
+  }
+  if (trimmed.startsWithIgnoreCase("L ")) {
+    isLeft = true;
+    suffix = trimmed.substring(2).trim();
+    return true;
+  }
+  if (trimmed.startsWithIgnoreCase("R ")) {
+    isLeft = false;
+    suffix = trimmed.substring(2).trim();
+    return true;
+  }
+  return false;
+}
+
+bool portsMatchStereoSlot(const TPort &lhs, const TPort &rhs) {
+  if (lhs.direction != rhs.direction || lhs.dataType != rhs.dataType)
+    return false;
+
+  bool lhsIsLeft = false;
+  bool rhsIsLeft = false;
+  juce::String lhsSuffix;
+  juce::String rhsSuffix;
+  if (!splitStereoLabel(lhs.name, lhsIsLeft, lhsSuffix) ||
+      !splitStereoLabel(rhs.name, rhsIsLeft, rhsSuffix)) {
+    return false;
+  }
+
+  return lhsIsLeft == rhsIsLeft && lhsSuffix == rhsSuffix;
+}
+
+PortId findReplacementPortId(const TPort &oldPort,
+                             const std::vector<TPort> &newPorts,
+                             std::set<PortId> &usedPorts) {
+  for (const auto &newPort : newPorts) {
+    if (newPort.direction != oldPort.direction ||
+        newPort.dataType != oldPort.dataType ||
+        usedPorts.find(newPort.portId) != usedPorts.end()) {
+      continue;
+    }
+
+    if (newPort.name == oldPort.name) {
+      usedPorts.insert(newPort.portId);
+      return newPort.portId;
+    }
+  }
+
+  for (const auto &newPort : newPorts) {
+    if (usedPorts.find(newPort.portId) != usedPorts.end())
+      continue;
+    if (!portsMatchStereoSlot(oldPort, newPort))
+      continue;
+
+    usedPorts.insert(newPort.portId);
+    return newPort.portId;
+  }
+
+  for (const auto &newPort : newPorts) {
+    if (newPort.direction != oldPort.direction ||
+        newPort.dataType != oldPort.dataType ||
+        usedPorts.find(newPort.portId) != usedPorts.end()) {
+      continue;
+    }
+
+    usedPorts.insert(newPort.portId);
+    return newPort.portId;
+  }
+
+  return kInvalidPortId;
 }
 
 } // namespace
@@ -540,26 +622,18 @@ bool TGraphCanvas::replaceNode(NodeId nodeId,
   std::set<PortId> usedOutputs;
 
   for (const auto &oldPort : oldSnapshot.ports) {
-    for (const auto &newPort : next.ports) {
-      if (newPort.direction != oldPort.direction ||
-          newPort.dataType != oldPort.dataType)
-        continue;
-
-      auto &used = oldPort.direction == TPortDirection::Input ? usedInputs
-                                                              : usedOutputs;
-      if (used.find(newPort.portId) != used.end())
-        continue;
-
-      used.insert(newPort.portId);
-      mapped[oldPort.portId] = newPort.portId;
-      break;
-    }
+    auto &used = oldPort.direction == TPortDirection::Input ? usedInputs
+                                                            : usedOutputs;
+    const auto replacementPortId =
+        findReplacementPortId(oldPort, next.ports, used);
+    if (replacementPortId != kInvalidPortId)
+      mapped[oldPort.portId] = replacementPortId;
   }
 
   std::vector<TConnection> rebuilt;
   for (auto conn : related) {
     if (conn.from.nodeId == nodeId) {
-      auto it = mapped.find(conn.from.portId);
+      const auto it = mapped.find(conn.from.portId);
       if (it == mapped.end())
         continue;
       conn.from.nodeId = next.nodeId;
@@ -567,7 +641,7 @@ bool TGraphCanvas::replaceNode(NodeId nodeId,
     }
 
     if (conn.to.nodeId == nodeId) {
-      auto it = mapped.find(conn.to.portId);
+      const auto it = mapped.find(conn.to.portId);
       if (it == mapped.end())
         continue;
       conn.to.nodeId = next.nodeId;
@@ -588,6 +662,7 @@ bool TGraphCanvas::replaceNode(NodeId nodeId,
   pushStatusHint("Node replaced. Undo: Ctrl+Z");
   return true;
 }
+
 void TGraphCanvas::showNodeContextMenu(NodeId nodeId,
                                        juce::Point<float> pointView,
                                        juce::Point<float> pointScreen) {
