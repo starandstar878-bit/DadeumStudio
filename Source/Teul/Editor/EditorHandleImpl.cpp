@@ -1527,6 +1527,10 @@ public:
     addAndMakeVisible(headerLabel);
     addAndMakeVisible(kindLabel);
     addAndMakeVisible(statusLabel);
+    addAndMakeVisible(kindFieldLabel);
+    addAndMakeVisible(kindCombo);
+    addAndMakeVisible(modeFieldLabel);
+    addAndMakeVisible(modeCombo);
     addAndMakeVisible(sourceNameLabel);
     addAndMakeVisible(sourceNameEditor);
     addAndMakeVisible(profileNameLabel);
@@ -1554,10 +1558,33 @@ public:
                           juce::Colours::white.withAlpha(0.54f));
     statusLabel.setFont(juce::FontOptions(10.2f, juce::Font::plain));
 
+    configureFieldLabel(kindFieldLabel, "Kind");
+    configureFieldLabel(modeFieldLabel, "Mode");
     configureFieldLabel(sourceNameLabel, "Source Name");
     configureFieldLabel(profileNameLabel, "Profile Name");
     configureFieldLabel(portsLabel, "Ports");
     configureFieldLabel(assignmentsLabel, "Assignments");
+
+    configureComboBox(kindCombo);
+    kindCombo.addItem("Expression", 1);
+    kindCombo.addItem("Footswitch", 2);
+    kindCombo.addItem("Trigger", 3);
+    kindCombo.addItem("MIDI CC", 4);
+    kindCombo.addItem("MIDI Note", 5);
+    kindCombo.addItem("Macro", 6);
+    kindCombo.onChange = [this] {
+      if (!suppressEditorCallbacks)
+        applySourceKindOrModeChange();
+    };
+
+    configureComboBox(modeCombo);
+    modeCombo.addItem("Continuous", 1);
+    modeCombo.addItem("Momentary", 2);
+    modeCombo.addItem("Toggle", 3);
+    modeCombo.onChange = [this] {
+      if (!suppressEditorCallbacks)
+        applySourceKindOrModeChange();
+    };
 
     configureEditableField(sourceNameEditor);
     sourceNameEditor.onFocusLost = [this] { commitSourceDisplayName(); };
@@ -1649,6 +1676,11 @@ public:
     assignmentsBox.setText(buildAssignmentSummary(*source), false);
 
     suppressEditorCallbacks = true;
+    kindCombo.setSelectedId(comboIdForSourceKind(source->kind),
+                            juce::dontSendNotification);
+    modeCombo.setSelectedId(comboIdForSourceMode(source->mode),
+                            juce::dontSendNotification);
+    modeCombo.setEnabled(TControlSourceState::sourceKindSupportsDiscreteMode(source->kind));
     sourceNameEditor.setText(source->displayName.isNotEmpty() ? source->displayName
                                                               : source->sourceId,
                              juce::dontSendNotification);
@@ -1702,7 +1734,15 @@ public:
     headerLabel.setBounds(header);
     kindLabel.setBounds(area.removeFromTop(16));
     statusLabel.setBounds(area.removeFromTop(16));
-    area.removeFromTop(6);
+    area.removeFromTop(4);
+    auto shapeRow = area.removeFromTop(38);
+    auto leftShape = shapeRow.removeFromLeft(shapeRow.getWidth() / 2 - 3);
+    auto rightShape = shapeRow;
+    kindFieldLabel.setBounds(leftShape.removeFromTop(14));
+    kindCombo.setBounds(leftShape.removeFromTop(22));
+    modeFieldLabel.setBounds(rightShape.removeFromTop(14));
+    modeCombo.setBounds(rightShape.removeFromTop(22));
+    area.removeFromTop(4);
     sourceNameLabel.setBounds(area.removeFromTop(16));
     sourceNameEditor.setBounds(area.removeFromTop(22));
     area.removeFromTop(5);
@@ -1765,6 +1805,81 @@ private:
     button.setButtonText(text);
     button.setColour(juce::ToggleButton::textColourId,
                      juce::Colours::white.withAlpha(0.86f));
+  }
+
+  static void configureComboBox(juce::ComboBox &combo) {
+    combo.setColour(juce::ComboBox::backgroundColourId,
+                    juce::Colour(0x55111827));
+    combo.setColour(juce::ComboBox::outlineColourId,
+                    juce::Colour(0xff2b394a));
+    combo.setColour(juce::ComboBox::textColourId,
+                    juce::Colours::white.withAlpha(0.88f));
+    combo.setColour(juce::ComboBox::buttonColourId,
+                    juce::Colour(0x00000000));
+    combo.setColour(juce::ComboBox::arrowColourId,
+                    juce::Colours::white.withAlpha(0.68f));
+  }
+
+  static int comboIdForSourceKind(TControlSourceKind kind) noexcept {
+    switch (kind) {
+    case TControlSourceKind::expression:
+      return 1;
+    case TControlSourceKind::footswitch:
+      return 2;
+    case TControlSourceKind::trigger:
+      return 3;
+    case TControlSourceKind::midiCc:
+      return 4;
+    case TControlSourceKind::midiNote:
+      return 5;
+    case TControlSourceKind::macro:
+      return 6;
+    }
+
+    return 1;
+  }
+
+  static TControlSourceKind sourceKindFromComboId(int comboId) noexcept {
+    switch (comboId) {
+    case 2:
+      return TControlSourceKind::footswitch;
+    case 3:
+      return TControlSourceKind::trigger;
+    case 4:
+      return TControlSourceKind::midiCc;
+    case 5:
+      return TControlSourceKind::midiNote;
+    case 6:
+      return TControlSourceKind::macro;
+    case 1:
+    default:
+      return TControlSourceKind::expression;
+    }
+  }
+
+  static int comboIdForSourceMode(TControlSourceMode mode) noexcept {
+    switch (mode) {
+    case TControlSourceMode::continuous:
+      return 1;
+    case TControlSourceMode::momentary:
+      return 2;
+    case TControlSourceMode::toggle:
+      return 3;
+    }
+
+    return 1;
+  }
+
+  static TControlSourceMode sourceModeFromComboId(int comboId) noexcept {
+    switch (comboId) {
+    case 2:
+      return TControlSourceMode::momentary;
+    case 3:
+      return TControlSourceMode::toggle;
+    case 1:
+    default:
+      return TControlSourceMode::continuous;
+    }
   }
 
   static juce::String sourceKindLabel(TControlSourceKind kind) {
@@ -1863,6 +1978,25 @@ private:
 
     profile->displayName = newName;
     document.controlState.reconcileDeviceProfilesAndSources();
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  void applySourceKindOrModeChange() {
+    auto *source = findEditableSource();
+    if (source == nullptr)
+      return;
+
+    const auto nextKind = sourceKindFromComboId(kindCombo.getSelectedId());
+    auto nextMode = sourceModeFromComboId(modeCombo.getSelectedId());
+    nextMode = document.controlState.normalizedModeForKind(nextKind, nextMode);
+
+    if (!document.controlState.reconfigureSourceShape(source->sourceId, nextKind,
+                                                      nextMode)) {
+      refreshFromDocument();
+      return;
+    }
+
     notifyDocumentChanged();
     refreshFromDocument();
   }
@@ -1986,10 +2120,14 @@ private:
   juce::Label headerLabel;
   juce::Label kindLabel;
   juce::Label statusLabel;
+  juce::Label kindFieldLabel;
+  juce::Label modeFieldLabel;
   juce::Label sourceNameLabel;
   juce::Label profileNameLabel;
   juce::Label portsLabel;
   juce::Label assignmentsLabel;
+  juce::ComboBox kindCombo;
+  juce::ComboBox modeCombo;
   juce::TextEditor sourceNameEditor;
   juce::TextEditor profileNameEditor;
   juce::TextEditor portsBox;

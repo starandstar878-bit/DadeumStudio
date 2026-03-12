@@ -272,6 +272,92 @@ struct TControlSourceState {
     return true;
   }
 
+  static std::vector<TControlSourcePort>
+  defaultPortsForSource(const juce::String &sourceId,
+                        TControlSourceKind kind) {
+    auto makePort = [&](const juce::String &suffix, const juce::String &name,
+                        TControlPortKind portKind) {
+      return TControlSourcePort{sourceId + "-" + suffix, name, portKind};
+    };
+
+    switch (kind) {
+    case TControlSourceKind::expression:
+      return {makePort("value", "Value", TControlPortKind::value)};
+    case TControlSourceKind::footswitch:
+      return {makePort("gate", "Gate", TControlPortKind::gate),
+              makePort("trigger", "Trigger", TControlPortKind::trigger)};
+    case TControlSourceKind::trigger:
+      return {makePort("trigger", "Trigger", TControlPortKind::trigger)};
+    case TControlSourceKind::midiCc:
+      return {makePort("value", "Value", TControlPortKind::value)};
+    case TControlSourceKind::midiNote:
+      return {makePort("gate", "Gate", TControlPortKind::gate),
+              makePort("trigger", "Trigger", TControlPortKind::trigger)};
+    case TControlSourceKind::macro:
+      return {makePort("value", "Value", TControlPortKind::value)};
+    }
+
+    return {makePort("value", "Value", TControlPortKind::value)};
+  }
+
+  static bool sourceKindSupportsDiscreteMode(TControlSourceKind kind) noexcept {
+    switch (kind) {
+    case TControlSourceKind::footswitch:
+    case TControlSourceKind::trigger:
+    case TControlSourceKind::midiNote:
+      return true;
+    case TControlSourceKind::expression:
+    case TControlSourceKind::midiCc:
+    case TControlSourceKind::macro:
+      return false;
+    }
+
+    return false;
+  }
+
+  TControlSourceMode normalizedModeForKind(TControlSourceKind kind,
+                                           TControlSourceMode mode) const noexcept {
+    if (!sourceKindSupportsDiscreteMode(kind))
+      return TControlSourceMode::continuous;
+    return mode;
+  }
+
+  bool reconfigureSourceShape(const juce::String &sourceId,
+                              TControlSourceKind kind,
+                              TControlSourceMode mode) {
+    auto *source = findSource(sourceId.trim());
+    if (source == nullptr)
+      return false;
+
+    const auto normalizedMode = normalizedModeForKind(kind, mode);
+    const auto updatedPorts = defaultPortsForSource(source->sourceId, kind);
+    if (source->kind == kind && source->mode == normalizedMode &&
+        controlPortsMatch(source->ports, updatedPorts)) {
+      return false;
+    }
+
+    source->kind = kind;
+    source->mode = normalizedMode;
+    source->ports = updatedPorts;
+
+    assignments.erase(
+        std::remove_if(assignments.begin(), assignments.end(),
+                       [&](const TControlSourceAssignment &assignment) {
+                         if (assignment.sourceId != source->sourceId)
+                           return false;
+
+                         return std::none_of(updatedPorts.begin(), updatedPorts.end(),
+                                             [&](const TControlSourcePort &port) {
+                                               return port.portId == assignment.portId;
+                                             });
+                       }),
+        assignments.end());
+
+    syncSourceIntoDeviceProfile(*source);
+    reconcileDeviceProfilesAndSources();
+    return true;
+  }
+
   void ensurePreviewDataIfEmpty() {
     if (hasAnyRailCards())
       return;
