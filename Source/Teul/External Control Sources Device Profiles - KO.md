@@ -207,105 +207,138 @@
 
 ---
 
-## ???
+## 로드맵
 
-### ?? ?? ???
+### 실제 구현된 순서와 현재 상태
 
-1. **Rail ???? ??** `[??]`
-   - `Input / Output / Control` ?? ?? ?? ??
-   - ?? ?? ? Inspector ??
-   - ?? ?? ? ??? ??? ??
-   - hover / selected / focus ?? ??
+1. **Rail 상호작용 완성** `[완료]`
+   - `Input / Output / Control` 카드 선택 규칙 통일
+   - 카드 클릭 시 Inspector 열기
+   - 포트 클릭 시 케이블 드래그 시작
+   - hover / selected / focus 상태 연결
 
-2. **?? ?? / ?? ?? ??** `[??]`
-   - `SignalShape`, `ConnectionPolicy`, `SignalDomain` ? ??
-   - ?? ?? ?? / ?? ?? ?? ??
-   - ?? fill / ?? ? / tooltip ?? ??
+2. **포트 타입 / 상태 모델 고정** `[완료]`
+   - `SignalShape`
+   - `ConnectionPolicy`
+   - `SignalDomain`
+   - 장기 유지 상태 / 단기 일시 상태 구분
+   - 상태 표현 원칙 정리
 
-3. **Direct rail endpoint ?? ??** `[??]`
-   - rail endpoint? backing node? ?? ?? ?? endpoint? ??
-   - ?? rail / ?? rail / control rail drag ??? direct endpoint ???? ???
-   - ?? bridge node ??? ??
+3. **direct rail endpoint 구조 전환** `[완료]`
+   - rail endpoint를 backing node가 아닌 직접 연결 endpoint로 승격
+   - 입력 rail / 출력 rail / control rail drag 경로를 direct endpoint 기준으로 재구성
+   - 구형 bridge node 의존도를 낮춤
 
-4. **?? ??? ??** `[??]`
-   - rail / DSP ?? ?? `Mono + Bus` ?? ??
-   - ?? geometry / hit test helper ??
-   - `Missing / Degraded / InvalidConfig` issue ring ??
-   - rail? DSP? ?? ?? ??? ???? ??? ??? ??? ??
+4. **기본 포트 렌더러 도입** `[진행 중]`
+   - rail 포트에 `Mono + Bus` 문법 반영
+   - DSP 포트에도 같은 문법을 일부 확장
+   - `Missing / Degraded / InvalidConfig` 외부 링 적용
+   - 최종 실루엣, 두께, 밀도는 아직 미완성
 
-5. **?? hit test / ??? ?? ?? ??** `[??]`
-   - mono ???? bundle ??? ??
-   - bus ?? ? ??? bundle body ?? ?? ??
-   - rail / DSP ?? ?? hover / valid / invalid ?? ??
-   - mono? ?? ??, bundle? body? ????? ?? ??
+5. **기본 hit test / 케이블 시작 규칙 도입** `[진행 중]`
+   - rail 포트 drag는 동작
+   - mono 드래그와 bundle 드래그의 hover / valid 표시 분리
+   - bus 채널 hit box와 bundle body hit box를 부분 정리
+   - 일반화된 bus 채널 수 규칙은 아직 미완성
 
-6. **??? ??? ??** `[???]`
-   - direct rail endpoint ??? ??? ??
-   - bundle underlay / core / highlight ?? ??
-   - rail / DSP ?? ?? anchor ?? ??
-   - stereo / bundle quick-add insertion ??
-   - ?? ?: split / merge ?? ?? ??? ? ??? ???? ?? ??
+6. **기본 케이블 렌더러 확장** `[진행 중]`
+   - direct rail endpoint 연결선 렌더링 동작
+   - bundle underlay / core / highlight 계층 도입
+   - anchor 정렬과 hover 표시를 여러 차례 보정
+   - split / merge 최종 문법과 가독성 polish는 아직 남음
 
-7. **Bus / Multi ??? ?? ??** `[??]`
-   - ??? `maxIncomingConnections`, `maxOutgoingConnections` ????? ??
-   - input / output capacity ??? drag preview? ?? ?? ??? ??
-   - `Mono Mixer (4-In)`, `Stereo Mixer (4-Bus)` ??
-   - `Port Usage`, `Free / Partial / Full`, reject reason hint ??
+7. **Inspector 1차 도입** `[진행 중]`
+   - `Connection Setup` 추가
+   - assignment 요약 표시
+   - `Clear`, `On`, `Inv` 1차 편집 추가
+   - range / mode / richer status 편집은 아직 남음
 
-8. **?? ?? ?? ?? ??** `[??]`
-   - `Mono -> Bus`? ?? ???? ??
-   - `Bus -> Mono`? ?? ???? ??
-   - `Bus -> Bus` bundle ??? ?? ?? ? body-to-body? ??
-   - ?? ?? ? bus? ??? ?? ??? ??
-   - invalid ??? drag status hint? ?? ??
+8. **Rail UI 1차 compact / polish** `[진행 중]`
+   - compact rail 카드
+   - collapsed rail 포트 렌더
+   - tooltip 기반 포트 정보 표시
+   - spacing / typography / 최종 밀도 정리는 아직 남음
 
-9. **Inspector 1? ??** `[??]`
-   - `Connection Setup`, `Port Usage`, `Connection Rules` ?? ??
-   - assignment `Clear / On / Inv / Range` ?? ??
-   - issue summary? connection issue ?? ??
-   - grouped port usage? channel occupancy ??
+9. **상태 표시 확장** `[진행 중]`
+   - `Missing` 도입 완료
+   - `Degraded`, `InvalidConfig`를 rail / node / inspector에 확장
+   - 문서 로드 / 복원 시 상태 재계산 일부 반영
 
-10. **Rail UI polish** `[???]`
-   - rail, DSP node, inspector, library, HUD, drawers, search overlay? compact?? ??
-   - minimap / runtime overlay / notice banner / toolbar footprint ??
-   - collapsed rail affordance? `6ch+` dense bus ?? ?? ??
-   - ?? ?: ?? ?? ???? ?? ?? ?? ?? ??? ??
+10. **Control Source / Device Profile restore 일부** `[진행 중]`
+    - preview profile 보정
+    - source / profile reconcile
+    - restore 시 `Missing` / `Degraded` 재반영
+    - control source inspector의 이름 / confirm / auto 편집 추가
+    - dynamic detect / learn / persist는 아직 미구현
 
-11. **Control Source / Device Profile ?? ??** `[?? ?]`
-   - ??? ??
-     - `Learn armed` ??
-     - kind / mode ??? source shape ???
-     - learned binding ?? ??
-     - source / profile reconcile
-     - compatible profile auto-relink
-     - bulk profile sync API
-     - MIDI device polling
-     - live MIDI learn callback ??
-   - ?? ??
-     - profile persist / reconnect ??
-     - MIDI ? ?? ??? ???
-     - preset / state / recovery ??
-     - degraded / missing recovery ?? ??
+11. **기본 검증** `[진행 중]`
+    - 빌드 통과
+    - 기본 drag / drop 동작
+    - 상태 링 / inspector 반영 확인
+    - 저장 / 복구 / profile mismatch / recovery 회귀는 아직 남음
 
-12. **??** `[??]`
-   - ?? / ????
-   - profile persist / reconnect
-   - degraded / profile mismatch / recovery
-   - routing / inspector / drag-drop ?? ??
-   - MIDI learn / profile sync / restore ???? ??
+### 앞으로 구현할 순서
 
-### ?? ?? ??
+1. **포트 렌더러 구현 마감**
+   - rail / DSP 모두 `Mono + Bus` 문법으로 완전 통일
+   - 포트 크기, 두께, 실루엣, 문제 상태 링 경계를 최종 규칙에 맞춤
 
-- ?? ?? ??? `11. Control Source / Device Profile ?? ??`???.
-- ?? ?? ??? ???? ???.
-  1. MIDI ? ?? ??? learn / profile sync API? ??
-  2. profile persist / reconnect ?? ??
-  3. preset / state / recovery? control profile ?? ?? ??
-  4. ? ?? `12. ??`?? ????
+2. **포트 hit test / 케이블 시작 규칙 마감**
+   - bus 채널 영역과 bundle body 영역의 최종 hit box 규칙 정리
+   - mono / bundle drag와 hover 규칙을 rail / DSP 전반에 통일
 
-### ?? ?? ??
+3. **케이블 렌더러 확장 마감**
+   - bundle 케이블 가독성 강화
+   - split / merge 표현 정리
+   - 포트 중심 anchor 정렬 최종 마감
 
-- `1`?? `9`??? ?? MVP ?? ????? ??????.
-- `10`? UI polish ??? ?????.
-- ?? ? ??? ??? `11`? `12`???.
-- ? ?? ??? `Milestone 3C ???`?? ?? ?? ?? ?????.
+4. **Bus / Multi 수용량 규칙 구현**
+   - `Multi` 반복 배치
+   - `MultiStereo xN` 용량 계산
+   - 비대칭 허용 규칙 실제 적용
+
+5. **자동 채널 변환 규칙 구현 마감**
+   - mono / bus 조합별 valid / invalid 규칙 전면 적용
+   - 연결 검증을 drag preview와 실제 생성 모두에 통일
+
+6. **Inspector 1차 완성 마감**
+   - assignment range / mode 표시와 편집 추가
+   - richer status message와 tooltip 보강
+   - connection / assignment 편집 흐름 정리
+
+7. **Rail UI polish**
+   - spacing / padding / typography
+   - overlay / minimap / canvas 밀도 균형
+   - Bus 6ch 이상 압축 규칙
+   - 애니메이션 강도 정리
+
+8. **Control Source / Device Profile 로직 완성**
+   - dynamic device detection
+   - learn + confirm
+   - profile persist / restore
+   - preset / state / recovery 연동
+
+9. **검증**
+   - 저장 / 복구
+   - degraded / profile mismatch
+   - preset reload / recovery
+   - device reconnect
+   - routing / inspector / drag-drop 회귀 검증
+
+### 작업 묶음 제안
+
+- `3A` `[완료]`
+  - Rail 선택
+  - direct rail endpoint 구조 전환
+  - 기본 drag / drop 경로 확보
+- `3B` `[진행 중]`
+  - 포트 실루엣
+  - hit test
+  - 케이블 렌더
+  - Inspector 1차
+  - 상태 표시 확장
+- `3C` `[예정]`
+  - Multi / 채널 변환 규칙
+  - final polish
+  - device profile 완성
+  - recovery / regression test
