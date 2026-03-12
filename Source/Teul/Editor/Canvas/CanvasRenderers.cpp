@@ -947,20 +947,25 @@ void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
     drawBadge("Stable", juce::Colour(0xff22c55e));
 }
 void TGraphCanvas::drawStatusHint(juce::Graphics &g) {
-  if (statusHintAlpha <= 0.01f || statusHintText.isEmpty())
+  const auto dragHint = currentDragStatusHint();
+  const bool showDragHint = dragHint.isNotEmpty();
+  const auto &text = showDragHint ? dragHint : statusHintText;
+  const float alpha = showDragHint ? 1.0f : statusHintAlpha;
+
+  if (alpha <= 0.01f || text.isEmpty())
     return;
 
   auto area = getLocalBounds().removeFromTop(34).reduced(10, 4);
   area.setWidth(juce::jmin(420, area.getWidth()));
 
-  g.setColour(juce::Colour(0xdd0b1220).withAlpha(statusHintAlpha));
+  g.setColour(juce::Colour(0xdd0b1220).withAlpha(alpha));
   g.fillRoundedRectangle(area.toFloat(), 7.0f);
-  g.setColour(juce::Colour(0x4460a5fa).withAlpha(statusHintAlpha));
+  g.setColour(juce::Colour(0x4460a5fa).withAlpha(alpha));
   g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
 
-  g.setColour(juce::Colours::white.withAlpha(statusHintAlpha));
+  g.setColour(juce::Colours::white.withAlpha(alpha));
   g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-  g.drawText(statusHintText, area.reduced(10, 0),
+  g.drawText(text, area.reduced(10, 0),
              juce::Justification::centredLeft, false);
 }
 void TGraphCanvas::recalcMiniMapCache() {

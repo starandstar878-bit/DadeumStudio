@@ -347,6 +347,7 @@ private:
   juce::Rectangle<float> getNodeBoundsInView(const TNodeComponent &nodeComponent) const;
 
   void pushStatusHint(const juce::String &text);
+  juce::String currentDragStatusHint() const;
 
   TGraphDocument &document;
 

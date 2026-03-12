@@ -429,6 +429,52 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
   notifyExternalDragTarget();
 }
 
+juce::String TGraphCanvas::currentDragStatusHint() const {
+  if (!wireDragState.active)
+    return {};
+
+  const bool sourceIsExternal = wireDragState.sourceExternalId.isNotEmpty();
+  if (sourceIsExternal &&
+      wireDragState.sourceExternalKind == ExternalDragSourceKind::Assignment) {
+    if (wireDragState.targetExternalZoneId.isNotEmpty())
+      return isCurrentDragTargetConnectable()
+                 ? "Release to create the control assignment."
+                 : "This parameter cannot accept the selected control source.";
+    return "Drop on a parameter row to create a control assignment.";
+  }
+
+  const int sourceCount = juce::jmax(1, wireDragState.sourceBundleCount);
+  const int targetCount = juce::jmax(1, wireDragState.targetBundleCount);
+  const bool hasTarget = wireDragState.targetExternalZoneId.isNotEmpty() ||
+                         (wireDragState.targetNodeId != kInvalidNodeId &&
+                          wireDragState.targetPortId != kInvalidPortId);
+
+  if (!hasTarget) {
+    if (sourceCount > 1)
+      return "Drag to a matching bus body to connect the full bundle.";
+    return "Drag to a mono port or a bus channel circle.";
+  }
+
+  if (!wireDragState.targetTypeMatch)
+    return "Signal types must match.";
+
+  if (!wireDragState.targetCycleFree)
+    return "This connection would create a feedback cycle.";
+
+  if (sourceCount > 1 && targetCount != sourceCount)
+    return "Bundle sizes must match.";
+
+  if (!isCurrentDragTargetConnectable()) {
+    if (wireDragState.targetExternalZoneId.isNotEmpty())
+      return "That rail target is already occupied or at capacity.";
+    return "That target is already occupied or at capacity.";
+  }
+
+  if (sourceCount > 1)
+    return "Release to connect the full bundle.";
+  return "Release to connect the channel.";
+}
+
 bool TGraphCanvas::isCurrentDragTargetConnectable() const {
   if (!wireDragState.active)
     return false;
