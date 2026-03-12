@@ -218,27 +218,36 @@ groupNodePortsForSummary(const TNode &node) {
   return groups;
 }
 
-static int groupedPortConnectionCount(const TGraphDocument &document,
-                                      const GroupedNodePortSummary &group,
-                                      bool incoming) {
-  int count = 0;
+static std::vector<int>
+groupedPortConnectionCounts(const TGraphDocument &document,
+                            const GroupedNodePortSummary &group,
+                            bool incoming) {
+  std::vector<int> counts(group.ports.size(), 0);
   for (const auto &connection : document.connections) {
-    for (const auto *port : group.ports) {
+    for (size_t index = 0; index < group.ports.size(); ++index) {
+      const auto *port = group.ports[index];
       if (incoming) {
         if (connection.to.isNodePort() && connection.to.nodeId == port->ownerNodeId &&
             connection.to.portId == port->portId) {
-          ++count;
+          ++counts[index];
         }
       } else {
         if (connection.from.isNodePort() &&
             connection.from.nodeId == port->ownerNodeId &&
             connection.from.portId == port->portId) {
-          ++count;
+          ++counts[index];
         }
       }
     }
   }
-  return count;
+  return counts;
+}
+
+static int groupedPortConnectionCount(const std::vector<int> &counts) {
+  int total = 0;
+  for (const int value : counts)
+    total += value;
+  return total;
 }
 
 static int groupedPortCapacity(const GroupedNodePortSummary &group, bool incoming) {
@@ -276,12 +285,44 @@ static juce::String groupedPortTypeLabel(const GroupedNodePortSummary &group) {
   return domain + " Bus " + juce::String((int)group.ports.size()) + "ch";
 }
 
+static juce::String groupedPortStateLabel(int count, int capacity) {
+  if (count <= 0)
+    return "Free";
+  if (capacity >= 0 && count >= capacity)
+    return "Full";
+  return "Partial";
+}
+
+static juce::String groupedPortOccupancyLabel(const GroupedNodePortSummary &group,
+                                              const std::vector<int> &counts) {
+  if (group.ports.size() <= 1 || counts.empty())
+    return {};
+
+  juce::StringArray parts;
+  for (size_t index = 0; index < group.ports.size() && index < counts.size(); ++index) {
+    const auto *port = group.ports[index];
+    juce::String slotLabel = juce::String((int)index + 1);
+    bool isLeft = false;
+    juce::String suffix;
+    if (splitStereoPortLabel(port->name, isLeft, suffix))
+      slotLabel = isLeft ? "L" : "R";
+    parts.add(slotLabel + ":" + juce::String(counts[index]));
+  }
+
+  return parts.joinIntoString(" ");
+}
+
 static juce::String groupedPortUsageLabel(const GroupedNodePortSummary &group,
-                                          int count, int capacity,
-                                          bool incoming) {
+                                          const std::vector<int> &counts,
+                                          int capacity, bool incoming) {
+  const int count = groupedPortConnectionCount(counts);
   juce::String text = group.displayName + " / " + groupedPortTypeLabel(group);
+  text << " / " << groupedPortStateLabel(count, capacity);
   text << " / " << (incoming ? "In " : "Out ") << juce::String(count) << "/";
   text << (capacity < 0 ? juce::String("inf") : juce::String(capacity));
+  const auto occupancy = groupedPortOccupancyLabel(group, counts);
+  if (occupancy.isNotEmpty())
+    text << " / " << occupancy;
   return text;
 }
 
@@ -1377,10 +1418,10 @@ private:
 
     for (const auto &group : groupNodePortsForSummary(node)) {
       const bool incomingDirection = group.direction == TPortDirection::Input;
-      const int count =
-          groupedPortConnectionCount(document, group, incomingDirection);
+      const auto counts =
+          groupedPortConnectionCounts(document, group, incomingDirection);
       const int capacity = groupedPortCapacity(group, incomingDirection);
-      portUsage.add(groupedPortUsageLabel(group, count, capacity,
+      portUsage.add(groupedPortUsageLabel(group, counts, capacity,
                                           incomingDirection));
     }
 
