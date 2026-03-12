@@ -28,6 +28,26 @@ inline juce::Rectangle<float> busOuterBounds(juce::Rectangle<float> area,
   return area.reduced(0.5f, 0.5f);
 }
 
+inline float busChannelPaddingY(int channelCount) {
+  if (channelCount <= 2)
+    return 2.0f;
+  if (channelCount <= 6)
+    return 1.6f;
+  return 1.0f;
+}
+
+inline float busChannelDiameter(juce::Rectangle<float> outer, int channelCount) {
+  const float widthLimited =
+      juce::jmax(channelCount > 6 ? 4.5f : 8.0f, outer.getWidth() - 4.0f);
+  if (channelCount <= 6)
+    return widthLimited;
+
+  const float padding = busChannelPaddingY(channelCount);
+  const float verticalLimited =
+      ((outer.getHeight() - padding * 2.0f) / (float)channelCount) - 0.8f;
+  return juce::jlimit(4.5f, widthLimited, juce::jmax(4.5f, verticalLimited));
+}
+
 inline std::vector<juce::Rectangle<float>> busChannelBounds(
     juce::Rectangle<float> area, int channelCount) {
   std::vector<juce::Rectangle<float>> bounds;
@@ -40,10 +60,11 @@ inline std::vector<juce::Rectangle<float>> busChannelBounds(
   }
 
   const auto outer = busOuterBounds(area, channelCount);
-  const float circleDiameter = juce::jmax(8.0f, outer.getWidth() - 4.0f);
+  const float circleDiameter = busChannelDiameter(outer, channelCount);
   const float radius = circleDiameter * 0.5f;
-  const float firstCentreY = outer.getY() + radius + 2.0f;
-  const float lastCentreY = outer.getBottom() - radius - 2.0f;
+  const float padding = busChannelPaddingY(channelCount);
+  const float firstCentreY = outer.getY() + radius + padding;
+  const float lastCentreY = outer.getBottom() - radius - padding;
   const float step = channelCount > 1
                          ? (lastCentreY - firstCentreY) /
                                (float)(channelCount - 1)

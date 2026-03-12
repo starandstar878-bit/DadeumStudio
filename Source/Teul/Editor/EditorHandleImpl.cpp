@@ -1100,6 +1100,24 @@ private:
     }
   }
 
+  bool isCollapsedCardEmphasised(const RailCardView &card) const {
+    return card.itemId.isNotEmpty() &&
+           (card.itemId == selectedCardId || card.itemId == hoveredPortCardId ||
+            card.itemId == activePortDrag.cardId);
+  }
+
+  void drawCollapsedSlotTrack(juce::Graphics &g, juce::Rectangle<float> bounds,
+                              juce::Colour accent, bool emphasised) const {
+    const auto track = bounds.expanded(3.0f, 2.0f);
+    const float radius = juce::jmax(6.0f,
+                                    juce::jmin(track.getWidth(), track.getHeight()) *
+                                        0.42f);
+    g.setColour(juce::Colours::white.withAlpha(emphasised ? 0.055f : 0.028f));
+    g.fillRoundedRectangle(track, radius);
+    g.setColour(accent.withAlpha(emphasised ? 0.28f : 0.14f));
+    g.drawRoundedRectangle(track, radius, emphasised ? 1.15f : 0.9f);
+  }
+
   void drawCollapsedVerticalPorts(juce::Graphics &g, juce::Rectangle<int> area,
                                   const std::vector<RailCardView> &cards) {
     const bool portsOnRight = currentRailKind() != TRailKind::output;
@@ -1117,6 +1135,8 @@ private:
       socketBounds = socketBounds.withSizeKeepingCentre(
           juce::jmin(20.0f, socketBounds.getWidth()), socketBounds.getHeight());
 
+      drawCollapsedSlotTrack(g, socketBounds, card.accent,
+                             isCollapsedCardEmphasised(card));
       if (card.groupedBus)
         drawBusPortSlot(g, card, socketBounds, portsOnRight, card.issueState);
       else if (!card.ports.empty())
@@ -1139,6 +1159,8 @@ private:
         auto socketBounds = juce::Rectangle<float>((float)x,
                                                    (float)(area.getCentreY() - height / 2),
                                                    (float)width, (float)height);
+        drawCollapsedSlotTrack(g, socketBounds, card.accent,
+                               isCollapsedCardEmphasised(card));
         drawBusPortSlot(g, card, socketBounds, true, card.issueState);
         x += width + gap;
         continue;
@@ -1151,6 +1173,8 @@ private:
         auto socketBounds = juce::Rectangle<float>((float)x,
                                                    (float)(area.getCentreY() - height / 2),
                                                    (float)width, (float)height);
+        drawCollapsedSlotTrack(g, socketBounds, card.accent,
+                               isCollapsedCardEmphasised(card));
         drawMonoPortSlot(g, card.itemId, port, socketBounds, true,
                          card.issueState);
         x += width + gap;
