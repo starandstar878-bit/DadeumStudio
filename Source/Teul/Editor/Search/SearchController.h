@@ -41,7 +41,7 @@ public:
     searchEditor.setSelectAllWhenFocused(true);
 
     listBox.setModel(this);
-    listBox.setRowHeight(31);
+    listBox.setRowHeight(29);
     listBox.setColour(juce::ListBox::backgroundColourId,
                       juce::Colour(0x00000000));
     listBox.addKeyListener(this);
@@ -77,9 +77,9 @@ public:
   }
 
   void resized() override {
-    const int width = 372;
+    const int width = 356;
     const int rows = juce::jlimit(5, 7, juce::jmax(5, (int)items.size()));
-    const int desiredHeight = 88 + rows * listBox.getRowHeight();
+    const int desiredHeight = 82 + rows * listBox.getRowHeight();
     const int height = juce::jmin(desiredHeight, getHeight() - 32);
 
     if (anchored) {
@@ -93,10 +93,10 @@ public:
                      juce::jmax(18, getHeight() / 7), width, height};
     }
 
-    auto area = panelBounds.reduced(10);
-    area.removeFromTop(18);
-    searchEditor.setBounds(area.removeFromTop(24));
-    area.removeFromTop(6);
+    auto area = panelBounds.reduced(9);
+    area.removeFromTop(16);
+    searchEditor.setBounds(area.removeFromTop(22));
+    area.removeFromTop(5);
     listBox.setBounds(area);
   }
 
@@ -106,18 +106,18 @@ public:
 
     g.fillAll(juce::Colour(0x66000000));
     g.setColour(juce::Colour(0xff111111));
-    g.fillRoundedRectangle(panelBounds.toFloat(), 9.0f);
+    g.fillRoundedRectangle(panelBounds.toFloat(), 8.0f);
     g.setColour(juce::Colour(0xff2f2f2f));
-    g.drawRoundedRectangle(panelBounds.toFloat(), 9.0f, 1.0f);
+    g.drawRoundedRectangle(panelBounds.toFloat(), 8.0f, 1.0f);
 
-    auto titleBounds = panelBounds.withHeight(28).reduced(10, 6);
+    auto titleBounds = panelBounds.withHeight(24).reduced(9, 5);
     g.setColour(juce::Colours::white.withAlpha(0.92f));
-    g.setFont(juce::FontOptions(13.2f, juce::Font::bold));
+    g.setFont(juce::FontOptions(12.6f, juce::Font::bold));
     g.drawText(title, titleBounds, juce::Justification::centredLeft, false);
 
     if (items.empty()) {
       g.setColour(juce::Colours::white.withAlpha(0.45f));
-      g.setFont(11.0f);
+      g.setFont(10.4f);
       g.drawText("No matches", listBox.getBounds(),
                  juce::Justification::centred, false);
     }
@@ -141,17 +141,17 @@ private:
 
     if (rowIsSelected) {
       g.setColour(juce::Colour(0xff234a7e));
-      g.fillRoundedRectangle(bounds.toFloat(), 5.0f);
+      g.fillRoundedRectangle(bounds.toFloat(), 4.5f);
     }
 
     g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.setFont(11.4f);
-    g.drawText(item.title, bounds.removeFromTop(15).reduced(8, 0),
+    g.setFont(10.8f);
+    g.drawText(item.title, bounds.removeFromTop(14).reduced(7, 0),
                juce::Justification::centredLeft, false);
 
     g.setColour(juce::Colours::white.withAlpha(0.52f));
-    g.setFont(9.6f);
-    g.drawText(item.subtitle, bounds.reduced(8, 0),
+    g.setFont(9.1f);
+    g.drawText(item.subtitle, bounds.reduced(7, 0),
                juce::Justification::centredLeft, false);
   }
 

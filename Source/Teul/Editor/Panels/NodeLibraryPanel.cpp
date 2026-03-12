@@ -74,7 +74,7 @@ public:
     titleLabel.setJustificationType(juce::Justification::centredLeft);
     titleLabel.setColour(juce::Label::textColourId,
                          juce::Colours::white.withAlpha(0.90f));
-    titleLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    titleLabel.setFont(juce::FontOptions(14.2f, juce::Font::bold));
 
     searchEditor.setTextToShowWhenEmpty("Search nodes...", juce::Colours::grey);
     searchEditor.setColour(juce::TextEditor::backgroundColourId,
@@ -91,7 +91,7 @@ public:
     categoryBox.onChange = [this] { refreshFilter(); };
 
     listBox.setModel(this);
-    listBox.setRowHeight(28);
+    listBox.setRowHeight(26);
     listBox.setColour(juce::ListBox::backgroundColourId,
                       juce::Colour(0xff14181d));
     listBox.addKeyListener(this);
@@ -111,13 +111,13 @@ public:
   }
 
   void resized() override {
-    auto area = getLocalBounds().reduced(9);
-    titleLabel.setBounds(area.removeFromTop(20));
+    auto area = getLocalBounds().reduced(8);
+    titleLabel.setBounds(area.removeFromTop(18));
+    area.removeFromTop(4);
+    searchEditor.setBounds(area.removeFromTop(22));
+    area.removeFromTop(4);
+    categoryBox.setBounds(area.removeFromTop(20));
     area.removeFromTop(5);
-    searchEditor.setBounds(area.removeFromTop(24));
-    area.removeFromTop(5);
-    categoryBox.setBounds(area.removeFromTop(22));
-    area.removeFromTop(6);
     listBox.setBounds(area);
   }
 
@@ -141,17 +141,17 @@ private:
     auto bounds = juce::Rectangle<int>(0, 0, width, height).reduced(2, 1);
     if (selected) {
       g.setColour(juce::Colour(0xff355d9f).withAlpha(0.92f));
-      g.fillRoundedRectangle(bounds.toFloat(), 5.0f);
+      g.fillRoundedRectangle(bounds.toFloat(), 4.5f);
     }
 
-    auto titleRow = bounds.removeFromTop(15).reduced(8, 0);
-    auto subtitleRow = bounds.reduced(8, 0);
+    auto titleRow = bounds.removeFromTop(14).reduced(7, 0);
+    auto subtitleRow = bounds.reduced(7, 0);
     g.setColour(juce::Colours::white.withAlpha(0.96f));
-    g.setFont(12.2f);
+    g.setFont(11.6f);
     g.drawText(desc->displayName, titleRow, juce::Justification::centredLeft, false);
 
     g.setColour(juce::Colours::white.withAlpha(0.46f));
-    g.setFont(9.7f);
+    g.setFont(9.2f);
     g.drawText(desc->category + " / " + desc->typeKey,
                subtitleRow, juce::Justification::centredLeft, false);
   }
