@@ -264,6 +264,32 @@ bool canConnectEndpointVectors(const TGraphDocument &document,
   return true;
 }
 
+bool isBundleDrag(int sourceBundleCount) {
+  return sourceBundleCount > 1;
+}
+
+bool isNodePortHitCompatible(int sourceBundleCount, int targetPortCount,
+                             const TPortComponent::HitResult &hit) {
+  if (!hit.hit)
+    return false;
+
+  if (!isBundleDrag(sourceBundleCount)) {
+    if (targetPortCount <= 1)
+      return true;
+    return !hit.bundle;
+  }
+
+  return hit.bundle && targetPortCount == sourceBundleCount;
+}
+
+bool isExternalZoneCompatible(int sourceBundleCount, int zoneChannelCount,
+                              bool zoneIsBundle) {
+  if (!isBundleDrag(sourceBundleCount))
+    return !(zoneChannelCount > 1 && zoneIsBundle);
+
+  return zoneIsBundle && zoneChannelCount == sourceBundleCount;
+}
+
 bool isOutputRailZone(const TGraphDocument &document, const juce::String &zoneId) {
   juce::String endpointId;
   juce::String portToken;
@@ -329,19 +355,11 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
 
         const auto localPoint = inputPort->getLocalPoint(this, mousePosInt).toFloat();
         auto hit = inputPort->hitTestLocal(localPoint);
-        if (!hit.hit)
-          continue;
 
         const int targetPortCount = (int)inputPort->getPortGroup().size();
-        if (wireDragState.sourceBundleCount == 1 && targetPortCount > 1 && hit.bundle)
+        if (!isNodePortHitCompatible(wireDragState.sourceBundleCount,
+                                     targetPortCount, hit))
           continue;
-
-        if (wireDragState.sourceBundleCount > 1 && !hit.bundle &&
-            targetPortCount == wireDragState.sourceBundleCount) {
-          hit.bundle = true;
-          hit.portId = inputPort->getPortGroup().front().portId;
-          hit.channelCount = targetPortCount;
-        }
 
         const TPort *candidatePort =
             findPortModel(node->getNodeId(), hit.portId);
@@ -385,9 +403,8 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
     if (splitRailPortZoneId(zone.zoneId, endpointId, portToken)) {
       const int zoneChannelCount = railPortIdsFromToken(portToken).size();
       const bool zoneIsBundle = isRailBundlePortToken(portToken);
-      if (wireDragState.sourceBundleCount == 1 && zoneChannelCount > 1 && zoneIsBundle)
-        continue;
-      if (wireDragState.sourceBundleCount > 1 && zoneChannelCount > 1 && !zoneIsBundle)
+      if (!isExternalZoneCompatible(wireDragState.sourceBundleCount,
+                                    zoneChannelCount, zoneIsBundle))
         continue;
     }
 
