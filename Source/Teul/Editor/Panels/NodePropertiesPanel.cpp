@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include <vector>
 
 namespace Teul {
 namespace {
@@ -114,6 +115,174 @@ static bool shouldShowIeumBindingLine(const TParamSpec &spec,
 
 static bool shouldShowGyeolBindingLine(const juce::String &text) {
   return text.isNotEmpty() && text != "Gyeol: hidden";
+}
+
+static bool splitStereoPortLabel(juce::StringRef name, bool &isLeft,
+                                 juce::String &suffix) {
+  const juce::String trimmed = juce::String(name).trim();
+  if (trimmed.equalsIgnoreCase("L")) {
+    isLeft = true;
+    suffix.clear();
+    return true;
+  }
+  if (trimmed.equalsIgnoreCase("R")) {
+    isLeft = false;
+    suffix.clear();
+    return true;
+  }
+  if (trimmed.startsWithIgnoreCase("L ")) {
+    isLeft = true;
+    suffix = trimmed.substring(2).trim();
+    return true;
+  }
+  if (trimmed.startsWithIgnoreCase("R ")) {
+    isLeft = false;
+    suffix = trimmed.substring(2).trim();
+    return true;
+  }
+  return false;
+}
+
+struct GroupedNodePortSummary {
+  juce::String displayName;
+  TPortDirection direction = TPortDirection::Input;
+  TPortDataType dataType = TPortDataType::Audio;
+  std::vector<const TPort *> ports;
+};
+
+static std::vector<GroupedNodePortSummary>
+groupNodePortsForSummary(const TNode &node) {
+  std::vector<GroupedNodePortSummary> groups;
+  std::vector<bool> used(node.ports.size(), false);
+
+  const auto groupedDisplayName = [](const TPort &port) {
+    bool ignoredIsLeft = false;
+    juce::String suffix;
+    if (splitStereoPortLabel(port.name, ignoredIsLeft, suffix) &&
+        suffix.isNotEmpty()) {
+      return suffix;
+    }
+    return port.name;
+  };
+
+  for (size_t index = 0; index < node.ports.size(); ++index) {
+    if (used[index])
+      continue;
+
+    const auto &port = node.ports[index];
+    GroupedNodePortSummary group;
+    group.direction = port.direction;
+    group.dataType = port.dataType;
+    group.displayName = groupedDisplayName(port);
+    group.ports.push_back(&port);
+    used[index] = true;
+
+    if (port.dataType == TPortDataType::Audio) {
+      bool isLeft = false;
+      juce::String suffix;
+      if (splitStereoPortLabel(port.name, isLeft, suffix)) {
+        for (size_t candidateIndex = index + 1; candidateIndex < node.ports.size();
+             ++candidateIndex) {
+          if (used[candidateIndex])
+            continue;
+
+          const auto &candidate = node.ports[candidateIndex];
+          if (candidate.direction != port.direction ||
+              candidate.dataType != port.dataType) {
+            continue;
+          }
+
+          bool candidateIsLeft = false;
+          juce::String candidateSuffix;
+          if (!splitStereoPortLabel(candidate.name, candidateIsLeft,
+                                    candidateSuffix) ||
+              candidateIsLeft == isLeft || candidateSuffix != suffix) {
+            continue;
+          }
+
+          if (isLeft) {
+            group.ports = {&port, &candidate};
+          } else {
+            group.ports = {&candidate, &port};
+          }
+          group.displayName = suffix.isNotEmpty() ? suffix : port.name;
+          used[candidateIndex] = true;
+          break;
+        }
+      }
+    }
+
+    groups.push_back(std::move(group));
+  }
+
+  return groups;
+}
+
+static int groupedPortConnectionCount(const TGraphDocument &document,
+                                      const GroupedNodePortSummary &group,
+                                      bool incoming) {
+  int count = 0;
+  for (const auto &connection : document.connections) {
+    for (const auto *port : group.ports) {
+      if (incoming) {
+        if (connection.to.isNodePort() && connection.to.nodeId == port->ownerNodeId &&
+            connection.to.portId == port->portId) {
+          ++count;
+        }
+      } else {
+        if (connection.from.isNodePort() &&
+            connection.from.nodeId == port->ownerNodeId &&
+            connection.from.portId == port->portId) {
+          ++count;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+static int groupedPortCapacity(const GroupedNodePortSummary &group, bool incoming) {
+  int capacity = 0;
+  for (const auto *port : group.ports) {
+    const int value = incoming ? port->maxIncomingConnections
+                               : port->maxOutgoingConnections;
+    if (value < 0)
+      return -1;
+    capacity += value;
+  }
+  return capacity;
+}
+
+static juce::String groupedPortTypeLabel(const GroupedNodePortSummary &group) {
+  const juce::String domain = [type = group.dataType]() {
+    switch (type) {
+    case TPortDataType::Audio:
+      return juce::String("Audio");
+    case TPortDataType::CV:
+      return juce::String("CV");
+    case TPortDataType::Gate:
+      return juce::String("Gate");
+    case TPortDataType::MIDI:
+      return juce::String("MIDI");
+    case TPortDataType::Control:
+      return juce::String("Control");
+    default:
+      return juce::String("Signal");
+    }
+  }();
+
+  if (group.ports.size() <= 1)
+    return domain + " Mono";
+  return domain + " Bus " + juce::String((int)group.ports.size()) + "ch";
+}
+
+static juce::String groupedPortUsageLabel(const GroupedNodePortSummary &group,
+                                          int count, int capacity,
+                                          bool incoming) {
+  juce::String text = group.displayName + " / " + groupedPortTypeLabel(group);
+  text << " / " << (incoming ? "In " : "Out ") << juce::String(count) << "/";
+  text << (capacity < 0 ? juce::String("inf") : juce::String(capacity));
+  return text;
 }
 
 static TIssueState issueStateForRailEndpointLabel(const TControlSourceState &state,
@@ -1203,7 +1372,17 @@ private:
   juce::String buildNodeConnectionSummary(const TNode &node) const {
     juce::StringArray incoming;
     juce::StringArray outgoing;
+    juce::StringArray portUsage;
     juce::StringArray controls;
+
+    for (const auto &group : groupNodePortsForSummary(node)) {
+      const bool incomingDirection = group.direction == TPortDirection::Input;
+      const int count =
+          groupedPortConnectionCount(document, group, incomingDirection);
+      const int capacity = groupedPortCapacity(group, incomingDirection);
+      portUsage.add(groupedPortUsageLabel(group, count, capacity,
+                                          incomingDirection));
+    }
 
     auto railPortLabel = [this](const TEndpoint &endpoint) {
       if (!endpoint.isRailPort())
@@ -1302,6 +1481,7 @@ private:
     };
 
     juce::StringArray sections;
+    sections.add(joinSection("Port Usage", portUsage, "No ports"));
     sections.add(joinSection("Incoming Wires", incoming, "No incoming wires"));
     sections.add(joinSection("Outgoing Wires", outgoing, "No outgoing wires"));
     sections.add(joinSection("Control Assignments", controls,
