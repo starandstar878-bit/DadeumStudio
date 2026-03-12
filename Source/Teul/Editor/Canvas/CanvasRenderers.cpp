@@ -956,17 +956,17 @@ void TGraphCanvas::drawStatusHint(juce::Graphics &g) {
   if (alpha <= 0.01f || text.isEmpty())
     return;
 
-  auto area = getLocalBounds().removeFromTop(34).reduced(10, 4);
-  area.setWidth(juce::jmin(420, area.getWidth()));
+  auto area = getLocalBounds().removeFromTop(30).reduced(10, 4);
+  area.setWidth(juce::jmin(360, area.getWidth()));
 
-  g.setColour(juce::Colour(0xdd0b1220).withAlpha(alpha));
+  g.setColour(juce::Colour(0xc80b1220).withAlpha(alpha));
   g.fillRoundedRectangle(area.toFloat(), 7.0f);
-  g.setColour(juce::Colour(0x4460a5fa).withAlpha(alpha));
+  g.setColour(juce::Colour(0x3060a5fa).withAlpha(alpha));
   g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
 
-  g.setColour(juce::Colours::white.withAlpha(alpha));
-  g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-  g.drawText(text, area.reduced(10, 0),
+  g.setColour(juce::Colours::white.withAlpha(alpha * 0.96f));
+  g.setFont(juce::FontOptions(10.8f, juce::Font::bold));
+  g.drawText(text, area.reduced(9, 0),
              juce::Justification::centredLeft, false);
 }
 void TGraphCanvas::recalcMiniMapCache() {

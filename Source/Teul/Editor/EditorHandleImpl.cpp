@@ -3044,7 +3044,7 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   if (libraryPanel != nullptr) {
     libraryPanel->setVisible(libraryVisible);
     if (libraryVisible) {
-      auto left = area.removeFromLeft(228);
+      auto left = area.removeFromLeft(216);
       libraryPanel->setBounds(left.reduced(0, 2));
     }
   }

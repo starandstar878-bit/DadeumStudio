@@ -73,8 +73,8 @@ public:
     titleLabel.setText("Node Library", juce::dontSendNotification);
     titleLabel.setJustificationType(juce::Justification::centredLeft);
     titleLabel.setColour(juce::Label::textColourId,
-                         juce::Colours::white.withAlpha(0.92f));
-    titleLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+                         juce::Colours::white.withAlpha(0.90f));
+    titleLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
 
     searchEditor.setTextToShowWhenEmpty("Search nodes...", juce::Colours::grey);
     searchEditor.setColour(juce::TextEditor::backgroundColourId,
@@ -91,9 +91,9 @@ public:
     categoryBox.onChange = [this] { refreshFilter(); };
 
     listBox.setModel(this);
-    listBox.setRowHeight(30);
+    listBox.setRowHeight(28);
     listBox.setColour(juce::ListBox::backgroundColourId,
-                      juce::Colour(0xff151515));
+                      juce::Colour(0xff14181d));
     listBox.addKeyListener(this);
     listBox.setMultipleSelectionEnabled(false);
 
@@ -105,19 +105,19 @@ public:
   }
 
   void paint(juce::Graphics &g) override {
-    g.fillAll(juce::Colour(0xff111111));
-    g.setColour(juce::Colour(0xff2f2f2f));
+    g.fillAll(juce::Colour(0xff101317));
+    g.setColour(juce::Colour(0xff2a323c));
     g.drawRect(getLocalBounds(), 1);
   }
 
   void resized() override {
-    auto area = getLocalBounds().reduced(10);
-    titleLabel.setBounds(area.removeFromTop(22));
+    auto area = getLocalBounds().reduced(9);
+    titleLabel.setBounds(area.removeFromTop(20));
+    area.removeFromTop(5);
+    searchEditor.setBounds(area.removeFromTop(24));
+    area.removeFromTop(5);
+    categoryBox.setBounds(area.removeFromTop(22));
     area.removeFromTop(6);
-    searchEditor.setBounds(area.removeFromTop(26));
-    area.removeFromTop(6);
-    categoryBox.setBounds(area.removeFromTop(24));
-    area.removeFromTop(8);
     listBox.setBounds(area);
   }
 
@@ -140,19 +140,20 @@ private:
 
     auto bounds = juce::Rectangle<int>(0, 0, width, height).reduced(2, 1);
     if (selected) {
-      g.setColour(juce::Colour(0xff355d9f));
+      g.setColour(juce::Colour(0xff355d9f).withAlpha(0.92f));
       g.fillRoundedRectangle(bounds.toFloat(), 5.0f);
     }
 
-    g.setColour(juce::Colours::white);
-    g.setFont(13.0f);
-    g.drawText(desc->displayName, bounds.removeFromTop(16).reduced(8, 0),
-               juce::Justification::centredLeft, false);
+    auto titleRow = bounds.removeFromTop(15).reduced(8, 0);
+    auto subtitleRow = bounds.reduced(8, 0);
+    g.setColour(juce::Colours::white.withAlpha(0.96f));
+    g.setFont(12.2f);
+    g.drawText(desc->displayName, titleRow, juce::Justification::centredLeft, false);
 
-    g.setColour(juce::Colours::white.withAlpha(0.5f));
-    g.setFont(10.5f);
+    g.setColour(juce::Colours::white.withAlpha(0.46f));
+    g.setFont(9.7f);
     g.drawText(desc->category + " / " + desc->typeKey,
-               bounds.reduced(8, 0), juce::Justification::centredLeft, false);
+               subtitleRow, juce::Justification::centredLeft, false);
   }
 
   juce::var getDragSourceDescription(
