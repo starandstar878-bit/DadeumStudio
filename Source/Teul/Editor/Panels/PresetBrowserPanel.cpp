@@ -51,7 +51,7 @@ public:
     titleLabel.setJustificationType(juce::Justification::centredLeft);
     titleLabel.setColour(juce::Label::textColourId,
                          juce::Colours::white.withAlpha(0.94f));
-    titleLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+    titleLabel.setFont(juce::FontOptions(14.8f, juce::Font::bold));
 
     filterBox.addItem("All", filterAll);
     filterBox.addItem("Teul", filterTeul);
@@ -95,7 +95,7 @@ public:
     saveTagsButton.onClick = [this] { saveTags(); };
 
     listBox.setModel(this);
-    listBox.setRowHeight(50);
+    listBox.setRowHeight(44);
     listBox.setColour(juce::ListBox::backgroundColourId,
                       juce::Colour(0xff0f172a));
     listBox.setMultipleSelectionEnabled(false);
@@ -112,19 +112,19 @@ public:
                                            : juce::Font::plain));
     };
 
-    configureLabel(kindValueLabel, 14.0f, juce::Justification::centredLeft,
+    configureLabel(kindValueLabel, 13.0f, juce::Justification::centredLeft,
                    0.92f, true);
-    configureLabel(pathValueLabel, 11.0f, juce::Justification::centredLeft,
+    configureLabel(pathValueLabel, 10.2f, juce::Justification::centredLeft,
                    0.68f);
-    configureLabel(summaryValueLabel, 12.0f, juce::Justification::centredLeft,
+    configureLabel(summaryValueLabel, 11.2f, juce::Justification::centredLeft,
                    0.78f);
     summaryValueLabel.setMinimumHorizontalScale(0.7f);
-    configureLabel(conflictLabel, 11.0f, juce::Justification::centredLeft,
+    configureLabel(conflictLabel, 10.2f, juce::Justification::centredLeft,
                    0.86f, true);
     conflictLabel.setColour(juce::Label::textColourId,
                             juce::Colour(0xfffcd34d));
     conflictLabel.setVisible(false);
-    configureLabel(statusLabel, 11.0f, juce::Justification::centredLeft,
+    configureLabel(statusLabel, 10.2f, juce::Justification::centredLeft,
                    0.78f);
 
     primaryActionButton.onClick = [this] { performPrimaryAction(); };
@@ -245,79 +245,79 @@ public:
   }
 
   void resized() override {
-    auto area = getLocalBounds().reduced(12);
+    auto area = getLocalBounds().reduced(10);
 
-    auto header = area.removeFromTop(28);
-    titleLabel.setBounds(header.removeFromLeft(160));
-    header.removeFromLeft(8);
-    filterBox.setBounds(header.removeFromLeft(118));
-    header.removeFromLeft(8);
-    tagFilterBox.setBounds(header.removeFromLeft(132));
-    header.removeFromLeft(8);
-    refreshButton.setBounds(header.removeFromRight(88));
-    header.removeFromRight(8);
+    auto header = area.removeFromTop(24);
+    titleLabel.setBounds(header.removeFromLeft(144));
+    header.removeFromLeft(6);
+    filterBox.setBounds(header.removeFromLeft(108));
+    header.removeFromLeft(6);
+    tagFilterBox.setBounds(header.removeFromLeft(124));
+    header.removeFromLeft(6);
+    refreshButton.setBounds(header.removeFromRight(78));
+    header.removeFromRight(6);
     searchEditor.setBounds(header);
 
-    area.removeFromTop(8);
+    area.removeFromTop(6);
 
     auto left = area.removeFromLeft(298);
     listBox.setBounds(left);
-    area.removeFromLeft(12);
+    area.removeFromLeft(10);
 
     if (sessionPreviewEditor.isVisible()) {
-      auto previewArea = area.removeFromTop(58);
+      auto previewArea = area.removeFromTop(50);
       sessionPreviewEditor.setBounds(previewArea);
-      area.removeFromTop(8);
+      area.removeFromTop(6);
     } else {
       sessionPreviewEditor.setBounds({});
     }
 
-    auto infoArea = area.removeFromTop(110);
-    kindValueLabel.setBounds(infoArea.removeFromTop(22));
+    auto infoArea = area.removeFromTop(98);
+    kindValueLabel.setBounds(infoArea.removeFromTop(20));
     infoArea.removeFromTop(2);
-    pathValueLabel.setBounds(infoArea.removeFromTop(20));
+    pathValueLabel.setBounds(infoArea.removeFromTop(18));
     infoArea.removeFromTop(2);
-    summaryValueLabel.setBounds(infoArea.removeFromTop(40));
-    infoArea.removeFromTop(6);
-    saveTagsButton.setBounds(infoArea.removeFromRight(90));
+    summaryValueLabel.setBounds(infoArea.removeFromTop(34));
+    infoArea.removeFromTop(5);
+    saveTagsButton.setBounds(infoArea.removeFromRight(82));
     infoArea.removeFromRight(8);
-    tagsEditor.setBounds(infoArea.removeFromTop(20));
+    tagsEditor.setBounds(infoArea.removeFromTop(18));
 
-    area.removeFromTop(8);
+    area.removeFromTop(6);
 
     if (selectionPreviewEditor.isVisible()) {
-      auto diffArea = area.removeFromTop(88);
+      auto diffArea = area.removeFromTop(78);
       selectionPreviewEditor.setBounds(diffArea);
-      area.removeFromTop(8);
+      area.removeFromTop(6);
     } else {
       selectionPreviewEditor.setBounds({});
     }
 
     if (isConflictArmed()) {
-      auto conflictArea = area.removeFromTop(28);
-      cancelConflictButton.setBounds(conflictArea.removeFromRight(84));
+      auto conflictArea = area.removeFromTop(24);
+      cancelConflictButton.setBounds(conflictArea.removeFromRight(74));
       conflictArea.removeFromRight(8);
       conflictLabel.setBounds(conflictArea);
-      area.removeFromTop(8);
+      area.removeFromTop(6);
     } else {
       conflictLabel.setBounds({});
       cancelConflictButton.setBounds({});
     }
 
-    auto actions = area.removeFromTop(28);
-    primaryActionButton.setBounds(actions.removeFromLeft(112));
+    auto actions = area.removeFromTop(24);
+    primaryActionButton.setBounds(actions.removeFromLeft(102));
     actions.removeFromLeft(8);
-    secondaryActionButton.setBounds(actions.removeFromLeft(100));
+    secondaryActionButton.setBounds(actions.removeFromLeft(92));
     actions.removeFromLeft(8);
-    clearRecentButton.setBounds(actions.removeFromLeft(84));
+    clearRecentButton.setBounds(actions.removeFromLeft(76));
     actions.removeFromLeft(8);
-    favoriteButton.setBounds(actions.removeFromLeft(96));
+    favoriteButton.setBounds(actions.removeFromLeft(88));
     actions.removeFromLeft(8);
-    revealButton.setBounds(actions.removeFromLeft(88));
-    actions.removeFromLeft(10);
+    revealButton.setBounds(actions.removeFromLeft(80));
+    actions.removeFromLeft(8);
     statusLabel.setBounds(actions);
 
-    area.removeFromTop(8);
+    area.removeFromTop(6);
     detailEditor.setBounds(area);
   }
 
@@ -342,35 +342,35 @@ private:
                                         : juce::Colour(0xff38bdf8);
     if (selected) {
       g.setColour(accent.withAlpha(0.20f));
-      g.fillRoundedRectangle(bounds.toFloat(), 8.0f);
+      g.fillRoundedRectangle(bounds.toFloat(), 7.0f);
       g.setColour(accent.withAlpha(0.85f));
-      g.drawRoundedRectangle(bounds.toFloat(), 8.0f, 1.0f);
+      g.drawRoundedRectangle(bounds.toFloat(), 7.0f, 1.0f);
     } else {
       g.setColour(juce::Colour(0xff101826));
-      g.fillRoundedRectangle(bounds.toFloat(), 8.0f);
+      g.fillRoundedRectangle(bounds.toFloat(), 7.0f);
       g.setColour(juce::Colour(0xff1e293b));
-      g.drawRoundedRectangle(bounds.toFloat(), 8.0f, 1.0f);
+      g.drawRoundedRectangle(bounds.toFloat(), 7.0f, 1.0f);
     }
 
-    auto textArea = bounds.reduced(10, 6);
-    auto top = textArea.removeFromTop(18);
-    auto tagArea = top.removeFromRight(112);
+    auto textArea = bounds.reduced(9, 5);
+    auto top = textArea.removeFromTop(16);
+    auto tagArea = top.removeFromRight(102);
     g.setColour(juce::Colours::white.withAlpha(entry->available ? 0.95f : 0.65f));
-    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
     const auto titleText = entry->favorite ? juce::String("* ") + entry->displayName
                                            : entry->displayName;
     g.drawText(titleText, top, juce::Justification::centredLeft, false);
 
     g.setColour(accent.withAlpha(0.18f));
-    g.fillRoundedRectangle(tagArea.toFloat(), 7.0f);
+    g.fillRoundedRectangle(tagArea.toFloat(), 6.0f);
     g.setColour(accent.withAlpha(0.92f));
-    g.drawRoundedRectangle(tagArea.toFloat(), 7.0f, 1.0f);
+    g.drawRoundedRectangle(tagArea.toFloat(), 6.0f, 1.0f);
     g.setColour(accent.brighter(0.12f));
-    g.setFont(10.0f);
+    g.setFont(9.4f);
     g.drawText(entry->kindLabel, tagArea, juce::Justification::centred, false);
 
     g.setColour(juce::Colours::white.withAlpha(0.65f));
-    g.setFont(11.0f);
+    g.setFont(10.0f);
     juce::String footer = entry->summaryText.isNotEmpty()
                                ? entry->summaryText
                                : juce::String("No summary");
