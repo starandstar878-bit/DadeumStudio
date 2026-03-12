@@ -367,7 +367,8 @@ TGraphCanvas::applyStatePresetFromFile(const juce::File &file,
 
   pushStatusHint("State preset applied: " + report.summary.presetName + " (" +
                  juce::String(report.appliedNodeCount) + " nodes, " +
-                 juce::String(report.skippedNodeCount) + " skipped).");
+                 juce::String(report.skippedNodeCount) +
+                 " skipped, controls unchanged).");
   if (reportOut != nullptr)
     *reportOut = report;
   return juce::Result::ok();

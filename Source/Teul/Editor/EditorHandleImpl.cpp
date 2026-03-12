@@ -38,6 +38,79 @@ juce::String formatRecoveryCountDiff(const juce::String &label, int currentCount
   return text;
 }
 
+struct TControlStateSnapshot {
+  int sourceCount = 0;
+  int profileCount = 0;
+  int assignmentCount = 0;
+  int bindingCount = 0;
+  int missingSourceCount = 0;
+  int degradedSourceCount = 0;
+  int missingProfileCount = 0;
+};
+
+TControlStateSnapshot captureControlStateSnapshot(const TControlSourceState &state) {
+  TControlStateSnapshot snapshot;
+  snapshot.sourceCount = (int)state.sources.size();
+  snapshot.profileCount = (int)state.deviceProfiles.size();
+  snapshot.assignmentCount = (int)state.assignments.size();
+  snapshot.missingProfileCount = (int)state.missingDeviceProfileIds.size();
+
+  for (const auto &source : state.sources) {
+    if (source.missing)
+      ++snapshot.missingSourceCount;
+    if (source.degraded)
+      ++snapshot.degradedSourceCount;
+  }
+
+  for (const auto &profile : state.deviceProfiles) {
+    for (const auto &deviceSource : profile.sources)
+      snapshot.bindingCount += (int)deviceSource.bindings.size();
+  }
+
+  return snapshot;
+}
+
+bool controlStateSnapshotDiffers(const TControlStateSnapshot &lhs,
+                                 const TControlStateSnapshot &rhs) {
+  return lhs.sourceCount != rhs.sourceCount ||
+         lhs.profileCount != rhs.profileCount ||
+         lhs.assignmentCount != rhs.assignmentCount ||
+         lhs.bindingCount != rhs.bindingCount ||
+         lhs.missingSourceCount != rhs.missingSourceCount ||
+         lhs.degradedSourceCount != rhs.degradedSourceCount ||
+         lhs.missingProfileCount != rhs.missingProfileCount;
+}
+
+int totalControlIssueCount(const TControlStateSnapshot &snapshot) {
+  return snapshot.missingSourceCount + snapshot.degradedSourceCount +
+         snapshot.missingProfileCount;
+}
+
+juce::String formatControlIssueSummary(const TControlStateSnapshot &snapshot) {
+  juce::StringArray parts;
+  if (snapshot.missingSourceCount > 0)
+    parts.add(juce::String(snapshot.missingSourceCount) + " missing sources");
+  if (snapshot.degradedSourceCount > 0)
+    parts.add(juce::String(snapshot.degradedSourceCount) + " degraded sources");
+  if (snapshot.missingProfileCount > 0)
+    parts.add(juce::String(snapshot.missingProfileCount) + " missing profiles");
+  if (parts.isEmpty())
+    return "none";
+  return parts.joinIntoString(", ");
+}
+
+juce::String formatCompactControlStateSummary(const TControlStateSnapshot &snapshot) {
+  juce::StringArray parts;
+  parts.add(juce::String(snapshot.sourceCount) + " src");
+  parts.add(juce::String(snapshot.profileCount) + " prof");
+  parts.add(juce::String(snapshot.assignmentCount) + " maps");
+  const auto issueCount = totalControlIssueCount(snapshot);
+  if (issueCount > 0)
+    parts.add(juce::String(issueCount) + " issue" +
+              (issueCount == 1 ? juce::String() : juce::String("s")));
+  return parts.joinIntoString(", ");
+}
+
 juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
                                       const juce::File &recoveryFile,
                                       juce::String &summaryText,
@@ -58,6 +131,12 @@ juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
       currentDocument.connections.size() != recoveryDocument.connections.size();
   const bool frameCountChanged =
       currentDocument.frames.size() != recoveryDocument.frames.size();
+  const auto currentControlSnapshot =
+      captureControlStateSnapshot(currentDocument.controlState);
+  const auto recoveryControlSnapshot =
+      captureControlStateSnapshot(recoveryDocument.controlState);
+  const bool controlStateChanged =
+      controlStateSnapshotDiffers(currentControlSnapshot, recoveryControlSnapshot);
 
   summaryText = "Recovery Diff Preview";
 
@@ -71,6 +150,23 @@ juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
     parts.add(formatRecoveryCountDiff("Frames",
                                       (int)currentDocument.frames.size(),
                                       (int)recoveryDocument.frames.size()));
+  }
+  if (controlStateChanged || currentControlSnapshot.sourceCount > 0 ||
+      recoveryControlSnapshot.sourceCount > 0 ||
+      currentControlSnapshot.profileCount > 0 ||
+      recoveryControlSnapshot.profileCount > 0) {
+    parts.add(formatRecoveryCountDiff("Control Sources",
+                                      currentControlSnapshot.sourceCount,
+                                      recoveryControlSnapshot.sourceCount));
+    parts.add(formatRecoveryCountDiff("Control Profiles",
+                                      currentControlSnapshot.profileCount,
+                                      recoveryControlSnapshot.profileCount));
+    parts.add(formatRecoveryCountDiff("Assignments",
+                                      currentControlSnapshot.assignmentCount,
+                                      recoveryControlSnapshot.assignmentCount));
+    parts.add(formatRecoveryCountDiff("Bindings",
+                                      currentControlSnapshot.bindingCount,
+                                      recoveryControlSnapshot.bindingCount));
   }
 
   detailText = parts.joinIntoString("  |  ");
@@ -101,8 +197,10 @@ juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
   }
 
   warning = nameChanged || nodeCountChanged || connectionCountChanged ||
-            frameCountChanged || migrationReport.migrated ||
-            migrationReport.degraded || !migrationReport.warnings.isEmpty();
+            frameCountChanged || controlStateChanged ||
+            totalControlIssueCount(recoveryControlSnapshot) > 0 ||
+            migrationReport.migrated || migrationReport.degraded ||
+            !migrationReport.warnings.isEmpty();
   return juce::Result::ok();
 }
 
@@ -2758,10 +2856,15 @@ EditorHandle::Impl::Impl(
         }
 
         if (entry.presetKind == "teul.state") {
-          const auto result = canvas->applyStatePresetFromFile(entry.file);
-          if (result.wasOk())
-            pushRuntimeMessage("State preset applied", juce::Colour(0xff38bdf8),
-                               44);
+          TStatePresetApplyReport report;
+          const auto result = canvas->applyStatePresetFromFile(entry.file, &report);
+          if (result.wasOk()) {
+            juce::String message = "State preset applied | Controls unchanged";
+            pushRuntimeMessage(message,
+                               report.degraded ? juce::Colour(0xfff59e0b)
+                                               : juce::Colour(0xff38bdf8),
+                               48);
+          }
           return result;
         }
 
@@ -2773,11 +2876,17 @@ EditorHandle::Impl::Impl(
           }
 
           rebuildAll(true);
-          pushRuntimeMessage("Autosave snapshot restored",
-                             migrationReport.degraded
+          const auto controlSnapshot = captureControlStateSnapshot(doc.controlState);
+          juce::String message = "Autosave snapshot restored";
+          if (controlSnapshot.sourceCount > 0 || controlSnapshot.profileCount > 0)
+            message << " | Controls: "
+                    << formatCompactControlStateSummary(controlSnapshot);
+          pushRuntimeMessage(message,
+                             (migrationReport.degraded ||
+                              totalControlIssueCount(controlSnapshot) > 0)
                                  ? juce::Colour(0xfff59e0b)
                                  : juce::Colour(0xff22c55e),
-                             56);
+                             60);
           return juce::Result::ok();
         }
 
