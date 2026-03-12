@@ -1,251 +1,293 @@
-# Naru 로드맵
+# Naru Roadmap
 
-`Naru`는 iPad의 Apple Pencil 입력을 서버를 통해 받아서 `Gyeol`, `Teul`, `Ieum`에서 공통으로 사용할 수 있는 입력으로 정규화하는 프로젝트다. 목표는 "펜 입력을 단순 좌표 스트림이 아니라, 여러 프로젝트에서 재사용 가능한 제어 소스와 제스처 소스로 바꾸는 것"이다.
+`Naru` is the input platform that receives Apple Pencil data from iPad and turns it into normalized, reusable control streams for `Gyeol`, `Teul`, and `Ieum`. The architectural goal is not to build an Apple Pencil-only bridge, but to create a general real-time input platform that can accept new device adapters and new consumer adapters over time.
 
 ---
 
-## 프로젝트 목표
+## Design Direction
 
-- iPad의 펜 입력을 낮은 지연으로 수신한다.
-- 입력을 공통 좌표계와 공통 이벤트 모델로 정규화한다.
-- `Gyeol`에서는 드로잉/위젯 인터랙션 입력으로 사용한다.
-- `Teul`에서는 modulation / automation / performance control source로 사용한다.
-- `Ieum`에서는 binding source로 연결할 수 있게 한다.
+- Treat `Naru` as a reusable input pipeline, not as a one-off transport helper.
+- Separate device capture, transport, normalization, derived source generation, routing, and consumer integration.
+- Keep the core agnostic to Apple Pencil specifics wherever possible.
+- Make session state, diagnostics, and recovery part of the platform design from the beginning.
+- Design for multiple future input devices, not just one tablet client.
 
-## 시스템 역할
+## Primary Goals
 
-- `iPad Client`
-  - Apple Pencil sample을 수집한다.
-  - 위치, pressure, tilt, azimuth, phase를 전송한다.
-- `Naru Server / Bridge`
-  - 세션 관리
-  - 입력 정규화
-  - 지연 보정
-  - 대상 앱별 분배
-- `Gyeol`
-  - stroke, brush, widget gesture 입력 소비자
-- `Teul`
-  - pressure, tilt, speed, gesture-derived control source 소비자
-- `Ieum`
-  - pen-derived source를 widget/parameter binding source로 사용
+- Receive stylus input from iPad with low latency.
+- Convert raw device samples into a normalized, application-independent input model.
+- Publish continuous and discrete derived sources that multiple products can consume.
+- Route the same input stream to `Gyeol`, `Teul`, and `Ieum` through adapters instead of app-specific branches.
+- Support device growth, transport changes, and recovery without redesigning the core.
 
-## 핵심 개념
+## System Roles
 
-- `Pen Session`
-  - 하나의 연결/사용 단위
-- `Pen Sample`
-  - 시간축 위의 단일 입력 샘플
-- `Pen Stroke`
-  - sample들의 연속 구간
-- `Derived Control Source`
-  - pressure, speed, tilt, normalized x/y, stroke length, direction
-- `Gesture Event`
-  - tap, hold, flick, scrub, trigger, region enter/exit
+- `Input Device Adapter`
+  - Captures raw samples from one device family.
+  - Today: Apple Pencil on iPad.
+  - Future: other stylus devices, touch sources, motion sources.
+- `Transport Layer`
+  - Moves sample packets and maintains sessions.
+- `Normalization Layer`
+  - Converts raw device coordinates and values into a shared sample model.
+- `Derived Source Engine`
+  - Produces pressure, tilt, velocity, stroke progress, and gesture outputs.
+- `Routing Layer`
+  - Dispatches normalized and derived inputs to consumers.
+- `Consumer Adapter`
+  - Converts the shared input model into the shape required by a product such as `Gyeol`, `Teul`, or `Ieum`.
 
-## 데이터 모델 초안
+## Core Principles
 
-### 1. Raw Sample
+### 1. Device adapters isolate hardware specifics
+- Apple Pencil details belong inside the Apple Pencil adapter.
+- The core should only work with generic device samples.
+
+### 2. Transport is not interpretation
+- Transport manages packets, heartbeat, reconnect, and ordering.
+- Meaning extraction such as gesture recognition or smoothing belongs above transport.
+
+### 3. Normalized samples are the contract
+- Consumers should not depend on raw device values.
+- All downstream systems read normalized samples or derived sources.
+
+### 4. Routing is adapter-based
+- The core should not hardcode `if target is Gyeol` style branches.
+- Consumer adapter registration should decide how each product subscribes and receives data.
+
+### 5. Session and health state are first-class
+- `connected`, `reconnecting`, `missing`, `degraded`, and timeout states must be formal model values.
+- Diagnostics, UI, and recovery logic should share the same state model.
+
+---
+
+## Extensible Data Model
+
+### Device Sample
+- `DeviceId`
 - `SessionId`
 - `SampleId`
 - `Timestamp`
-- `X`, `Y`
+- `Position`
 - `Pressure`
-- `TiltX`, `TiltY`
+- `Tilt`
 - `Azimuth`
 - `Phase`
-  - `began`, `moved`, `ended`, `cancelled`
+- `DeviceMetadata`
 
-### 2. Normalized Sample
-- viewport-normalized `X/Y`
-- smoothed pressure
-- stroke-relative time
+### Normalized Sample
+- normalized position
+- normalized pressure
+- tilt vector
 - velocity
 - acceleration
-- path direction
+- stroke-relative time
+- coordinate space id
 
-### 3. Derived Source
-- `PositionX`
-- `PositionY`
-- `Pressure`
-- `TiltX`
-- `TiltY`
-- `Velocity`
-- `StrokeProgress`
-- `StrokeLength`
-- `Direction`
+### Derived Source Descriptor
+- `SourceId`
+- `SourceKind`
+- `ValueType`
+- `Capabilities[]`
+- `Metadata`
 
-### 4. Gesture Event
-- `Tap`
-- `DoubleTap`
-- `Hold`
-- `Flick`
-- `Scrub`
-- `StrokeStart`
-- `StrokeEnd`
+### Gesture Event
+- `GestureId`
+- `GestureKind`
+- `Confidence`
+- `StartTime`
+- `EndTime`
+- `GesturePayload`
 
-## 아키텍처 원칙
+### Session State
+- `TransportState`
+- `LatencyEstimate`
+- `PacketLossEstimate`
+- `RecoveryState`
+- `LastError`
 
-- transport, normalization, routing, consumer integration을 분리한다.
-- raw input과 derived input을 구분한다.
-- 네트워크 지연과 끊김을 상태로 관리한다.
-- 입력 손실이 생겨도 세션이 완전히 붕괴하지 않도록 fallback을 둔다.
-- 이후 여러 입력 장치가 추가돼도 같은 인터페이스를 재사용할 수 있게 한다.
+## Extension Points
 
----
+- `DeviceAdapterRegistry`
+- `TransportProvider`
+- `NormalizationProfile`
+- `DerivedSourcePlugin`
+- `GestureRecognizerPlugin`
+- `ConsumerAdapterRegistry`
 
-## 구현 순서
-
-### 1단계. 전송 규약 정의
-목표: iPad와 서버 사이에 오갈 최소 프로토콜을 확정한다.
-
-작업:
-- sample packet 구조 정의
-- session start/end/heartbeat 정의
-- timestamp 기준 확정
-- reconnect 정책 정의
-- message versioning 추가
-
-완료 기준:
-- wire format 문서가 있다.
-- 클라이언트와 서버가 같은 샘플 구조를 본다.
-
-### 2단계. 서버 브리지 기본 구현
-목표: iPad 입력을 서버에서 받을 수 있다.
-
-작업:
-- transport 선택 및 구현
-- session manager 추가
-- heartbeat/timeout 처리
-- 연결 상태 노출
-
-완료 기준:
-- iPad 입력을 서버에서 안정적으로 수신한다.
-- 연결 끊김과 재연결이 상태로 보인다.
-
-### 3단계. 입력 정규화 계층 구현
-목표: raw sample을 공통 입력 모델로 바꾼다.
-
-작업:
-- 좌표 정규화
-- pressure smoothing
-- tilt normalization
-- velocity/acceleration 계산
-- stroke segmentation
-
-완료 기준:
-- raw input과 normalized input을 모두 확인할 수 있다.
-- consumer는 공통 모델만 읽어도 된다.
-
-### 4단계. Gyeol 연동
-목표: 펜 입력을 `Gyeol`에서 쓸 수 있게 한다.
-
-작업:
-- canvas stroke 입력
-- widget interaction bridge
-- hover/drag/region hit test 통합
-- pressure를 brush 또는 widget modulation에 반영
-
-완료 기준:
-- Gyeol에서 펜 입력이 마우스/터치와 별개로 동작한다.
-
-### 5단계. Teul 연동
-목표: 펜 입력을 `Teul` control source처럼 사용할 수 있게 한다.
-
-작업:
-- pressure/tilt/speed를 control source로 노출
-- gesture trigger를 discrete source로 노출
-- rail 또는 source inspector에 Naru source 표시
-
-완료 기준:
-- Teul 파라미터가 펜 derived source에 반응한다.
-
-### 6단계. Ieum 연동
-목표: Naru 입력을 `Ieum` binding source로 통합한다.
-
-작업:
-- Naru source 식별자 정의
-- Ieum source resolver와 연결
-- pen-derived source를 widget source와 같은 추상 계층에 올림
-
-완료 기준:
-- pressure, tilt, gesture가 Ieum 바인딩 소스로 선택 가능하다.
-
-### 7단계. 제스처 엔진 구현
-목표: 단순 sample 스트림을 고수준 입력으로 변환한다.
-
-작업:
-- tap / hold / flick 판정
-- scrub / stroke direction 판정
-- region enter/exit 판정
-- gesture confidence 모델 추가
-
-완료 기준:
-- 단순 좌표/pressure 외에도 이벤트형 입력을 제공한다.
-
-### 8단계. 장치/프로필/복구 구현
-목표: 입력 장치 특성과 세션 상태를 저장하고 복구한다.
-
-작업:
-- device profile
-- sensitivity / calibration profile
-- reconnect restore
-- missing/degraded 상태 표시
-
-완료 기준:
-- 연결이 잠깐 끊겨도 세션과 설정을 예측 가능하게 복구한다.
-
-### 9단계. 캘리브레이션 및 사용자 UX 구현
-목표: 실제 사용자가 입력 품질을 조정할 수 있게 한다.
-
-작업:
-- sensitivity 조절
-- dead zone / smoothing 조절
-- pen source preview UI
-- latency / connection quality 표시
-
-완료 기준:
-- 사용자가 환경에 맞게 펜 입력을 보정할 수 있다.
-
-### 10단계. 검증 및 회귀 테스트
-목표: 실제 네트워크/장치 조건에서도 안정성을 확보한다.
-
-작업:
-- network jitter
-- reconnect
-- packet drop
-- long stroke
-- rapid gesture switching
-- multi-consumer routing 테스트
-
-완료 기준:
-- Gyeol, Teul, Ieum 어느 쪽에 연결해도 입력 의미가 예측 가능하게 유지된다.
+If these are stable, Apple Pencil becomes only the first adapter, not the permanent shape of the platform.
 
 ---
 
-## 마일스톤 정리
+## Implementation Order
 
-### N1. 입력 수신 기반 마련
-- 1단계 완료
-- 2단계 완료
-- 3단계 기본 구현
+### Phase 1. Core contracts and plugin boundaries
+Goal: define the shared abstractions that every device and every consumer must follow.
 
-### N2. 제품 연동 시작
-- 3단계 완료
-- 4단계 완료
-- 5단계 완료
+Work:
+- define device sample interface
+- define normalized sample structure
+- define device adapter interface
+- define consumer adapter interface
+- define session state model
 
-### N3. 제어 소스 완성도 확보
-- 6단계 완료
-- 7단계 완료
+Done when:
+- Apple Pencil-specific logic is no longer required inside core types.
 
-### N4. 실사용 안정화
-- 8단계 완료
-- 9단계 완료
-- 10단계 완료
+### Phase 2. Transport protocol and session contract
+Goal: define a stable protocol for real-time sample delivery.
 
-## 최종 완료 기준
+Work:
+- define sample packet structure
+- define session start/end/heartbeat
+- define timestamp policy
+- define reconnect policy
+- add versioning strategy
 
-- iPad Apple Pencil 입력이 안정적으로 수신된다.
-- 입력이 공통 정규화 모델로 변환된다.
-- `Gyeol`, `Teul`, `Ieum`이 같은 입력을 서로 다른 방식으로 재사용할 수 있다.
-- 네트워크 문제나 재연결 상황에서도 상태가 예측 가능하게 유지된다.
+Done when:
+- transport can evolve without redesigning downstream consumers.
+
+### Phase 3. Apple Pencil device adapter
+Goal: implement the first real device adapter.
+
+Work:
+- collect raw Apple Pencil samples on iPad
+- convert them into generic device samples
+- extract pressure, tilt, azimuth, and phase
+
+Done when:
+- Apple Pencil input enters the system as generic samples.
+
+### Phase 4. Server bridge and session manager
+Goal: receive device streams on the server and manage connection state.
+
+Work:
+- implement transport server
+- implement session manager
+- implement timeout, reconnect, and heartbeat handling
+- expose diagnostics state
+
+Done when:
+- connection lifecycle is tracked as structured session state.
+
+### Phase 5. Normalization pipeline
+Goal: convert raw device samples into shared consumer-ready samples.
+
+Work:
+- normalize coordinates
+- smooth pressure
+- normalize tilt
+- compute velocity and acceleration
+- segment strokes
+- add calibration profile integration points
+
+Done when:
+- downstream systems can consume the normalized model only.
+
+### Phase 6. Derived source and gesture engine
+Goal: turn sample streams into reusable control sources.
+
+Work:
+- generate pressure, speed, tilt, stroke progress, and direction sources
+- add gesture recognizer plugin system
+- implement tap, hold, flick, and scrub recognizers
+
+Done when:
+- the platform can publish both continuous and discrete derived outputs.
+
+### Phase 7. Consumer adapters
+Goal: let multiple products consume the same platform through adapters.
+
+Work:
+- implement `GyeolConsumerAdapter`
+- implement `TeulConsumerAdapter`
+- implement `IeumConsumerAdapter`
+- define consumer-specific mapping policies
+
+Done when:
+- the routing core no longer needs product-specific branches.
+
+### Phase 8. Routing, subscription, and access policy
+Goal: distribute normalized input safely to one or more consumers.
+
+Work:
+- define subscription model
+- define source selection rules
+- implement routing graph or dispatch table
+- define exclusivity and shared-access policy
+
+Done when:
+- one input stream can be shared or isolated according to policy rather than hardcoded rules.
+
+### Phase 9. Device profiles, recovery, and health state
+Goal: make the platform resilient to disconnects and hardware variance.
+
+Work:
+- add device profile model
+- add calibration profile model
+- implement reconnect restore
+- add `missing`, `degraded`, and invalid-session states
+- define diagnostics and tooltip rules
+
+Done when:
+- device and network problems produce predictable states and recovery behavior.
+
+### Phase 10. UX and debug tooling
+Goal: make the platform inspectable and tunable by humans.
+
+Work:
+- input source preview UI
+- latency and packet loss indicators
+- calibration UI
+- gesture debug view
+- device/session inspector
+
+Done when:
+- developers and users can see and tune the input system without guessing.
+
+### Phase 11. Validation and regression testing
+Goal: ensure the platform survives growth in devices and consumers.
+
+Work:
+- network jitter tests
+- packet drop tests
+- reconnect tests
+- long stroke tests
+- rapid gesture switching tests
+- multi-consumer routing tests
+- new adapter integration tests
+
+Done when:
+- new devices and new consumers can be added without redesigning the core.
+
+---
+
+## Milestones
+
+### N1. Platform foundation
+- Phase 1 complete
+- Phase 2 complete
+- Phase 3 baseline complete
+
+### N2. Input pipeline established
+- Phase 3 complete
+- Phase 4 complete
+- Phase 5 complete
+- Phase 6 baseline complete
+
+### N3. Multi-consumer integration
+- Phase 6 complete
+- Phase 7 complete
+- Phase 8 complete
+
+### N4. Stable and extensible platform
+- Phase 9 complete
+- Phase 10 complete
+- Phase 11 complete
+
+## Completion Criteria
+
+- `Naru` remains adapter-driven rather than Apple Pencil hardcoded.
+- Normalization, derived sources, gesture logic, routing, and state handling stay separated.
+- `Gyeol`, `Teul`, and `Ieum` consume the same platform through consumer adapters.
+- Additional devices can be introduced without redesigning the core pipeline.
