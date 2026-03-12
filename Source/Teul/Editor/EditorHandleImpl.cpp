@@ -3152,6 +3152,7 @@ EditorHandle::Impl::Impl(
   if (audioDeviceManager != nullptr)
     audioDeviceManager->addAudioCallback(&runtime);
 
+  refreshDetectedMidiDeviceProfiles(false);
   startTimerHz(20);
 }
 
@@ -3207,8 +3208,19 @@ EditorHandle::Impl::~Impl() {
     controlRail->setCardSelectionHandler({});
   }
 
-  if (audioDeviceManager != nullptr)
+  if (audioDeviceManager != nullptr) {
+    std::vector<juce::String> callbackDeviceIds;
+    {
+      const juce::ScopedLock lock(midiLearnStateLock);
+      callbackDeviceIds = midiLearnCallbackDeviceIds;
+      midiLearnCallbackDeviceIds.clear();
+      detectedMidiProfiles.clear();
+      pendingMidiLearnEvents.clear();
+    }
+    for (const auto &deviceId : callbackDeviceIds)
+      audioDeviceManager->removeMidiInputDeviceCallback(deviceId, this);
     audioDeviceManager->removeAudioCallback(&runtime);
+  }
 }
 
 TGraphDocument &EditorHandle::Impl::document() noexcept { return doc; }
@@ -3226,6 +3238,67 @@ void EditorHandle::Impl::refreshFromDocument() { rebuildAll(true); }
 void EditorHandle::Impl::setSessionStatus(const TEditorSessionStatus &status) {
   sessionStatus = status;
   refreshSessionStatusUi(true);
+}
+
+void EditorHandle::Impl::drainPendingMidiLearnEvents() {
+  if (doc.controlState.armedLearnSourceId.isEmpty()) {
+    const juce::ScopedLock lock(midiLearnStateLock);
+    pendingMidiLearnEvents.clear();
+    return;
+  }
+
+  std::vector<PendingMidiLearnEvent> events;
+  {
+    const juce::ScopedLock lock(midiLearnStateLock);
+    if (pendingMidiLearnEvents.empty())
+      return;
+    events.swap(pendingMidiLearnEvents);
+  }
+
+  for (const auto &event : events) {
+    if (doc.controlState.armedLearnSourceId.isEmpty())
+      break;
+
+    applyLearnedMidiMessage(event.message, event.midiDeviceName,
+                            event.hardwareId, event.profileId,
+                            event.profileDisplayName, event.autoDetected,
+                            event.confirmed);
+  }
+}
+
+void EditorHandle::Impl::handleIncomingMidiMessage(
+    juce::MidiInput *source, const juce::MidiMessage &message) {
+  if (!message.isController() && !message.isNoteOn())
+    return;
+
+  PendingMidiLearnEvent event;
+  event.message = message;
+  const auto sourceName = source != nullptr ? source->getName() : juce::String();
+
+  const juce::ScopedLock lock(midiLearnStateLock);
+  const auto profileIter = std::find_if(
+      detectedMidiProfiles.begin(), detectedMidiProfiles.end(),
+      [&](const TControlDeviceProfilePresence &profile) {
+        return profile.displayName == sourceName || profile.deviceId == sourceName;
+      });
+
+  if (profileIter != detectedMidiProfiles.end()) {
+    event.midiDeviceName = profileIter->displayName;
+    event.hardwareId = profileIter->deviceId;
+    event.profileId = profileIter->profileId;
+    event.profileDisplayName = profileIter->displayName;
+    event.autoDetected = profileIter->autoDetected;
+  } else {
+    event.midiDeviceName = sourceName;
+    event.hardwareId = sourceName;
+    event.profileId = sourceName.isNotEmpty() ? (juce::String("midi:") + sourceName)
+                                              : juce::String("midi-device");
+    event.profileDisplayName = sourceName.isNotEmpty() ? sourceName
+                                                       : juce::String("MIDI Device");
+    event.autoDetected = true;
+  }
+
+  pendingMidiLearnEvents.push_back(std::move(event));
 }
 
 bool EditorHandle::Impl::applyLearnedControlBinding(
@@ -3541,6 +3614,81 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   }
 }
 
+bool EditorHandle::Impl::refreshDetectedMidiDeviceProfiles(bool announceChanges) {
+  juce::ignoreUnused(announceChanges);
+  if (audioDeviceManager == nullptr)
+    return false;
+
+  std::vector<TControlDeviceProfilePresence> profiles;
+  std::vector<juce::String> detectedDeviceIds;
+  const auto devices = juce::MidiInput::getAvailableDevices();
+  profiles.reserve((size_t) devices.size());
+  detectedDeviceIds.reserve((size_t) devices.size());
+
+  for (const auto &device : devices) {
+    const auto normalizedDeviceId =
+        device.identifier.trim().isNotEmpty() ? device.identifier.trim()
+                                              : device.name.trim();
+    if (normalizedDeviceId.isEmpty())
+      continue;
+
+    if (!audioDeviceManager->isMidiInputDeviceEnabled(normalizedDeviceId))
+      audioDeviceManager->setMidiInputDeviceEnabled(normalizedDeviceId, true);
+
+    TControlDeviceProfilePresence profile;
+    profile.deviceId = normalizedDeviceId;
+    profile.displayName = device.name.trim().isNotEmpty() ? device.name.trim()
+                                                          : normalizedDeviceId;
+    profile.autoDetected = true;
+    profile.profileId = "midi:";
+    profile.profileId << normalizedDeviceId;
+    profiles.push_back(profile);
+    detectedDeviceIds.push_back(normalizedDeviceId);
+  }
+
+  std::vector<juce::String> callbacksToAdd;
+  std::vector<juce::String> callbacksToRemove;
+  {
+    const juce::ScopedLock lock(midiLearnStateLock);
+    auto containsDeviceId = [](const std::vector<juce::String> &ids,
+                               const juce::String &deviceId) {
+      return std::find(ids.begin(), ids.end(), deviceId) != ids.end();
+    };
+
+    for (const auto &deviceId : detectedDeviceIds) {
+      if (!containsDeviceId(midiLearnCallbackDeviceIds, deviceId))
+        callbacksToAdd.push_back(deviceId);
+    }
+
+    for (const auto &deviceId : midiLearnCallbackDeviceIds) {
+      if (!containsDeviceId(detectedDeviceIds, deviceId))
+        callbacksToRemove.push_back(deviceId);
+    }
+
+    detectedMidiProfiles = profiles;
+
+    for (const auto &deviceId : callbacksToAdd)
+      midiLearnCallbackDeviceIds.push_back(deviceId);
+
+    midiLearnCallbackDeviceIds.erase(
+        std::remove_if(midiLearnCallbackDeviceIds.begin(),
+                       midiLearnCallbackDeviceIds.end(),
+                       [&](const juce::String &deviceId) {
+                         return std::find(callbacksToRemove.begin(),
+                                          callbacksToRemove.end(),
+                                          deviceId) != callbacksToRemove.end();
+                       }),
+        midiLearnCallbackDeviceIds.end());
+  }
+
+  for (const auto &deviceId : callbacksToRemove)
+    audioDeviceManager->removeMidiInputDeviceCallback(deviceId, this);
+  for (const auto &deviceId : callbacksToAdd)
+    audioDeviceManager->addMidiInputDeviceCallback(deviceId, this);
+
+  return syncControlDeviceProfiles(profiles, true);
+}
+
 void EditorHandle::Impl::timerCallback() {
   const auto currentRuntimeRevision = doc.getRuntimeRevision();
   if (currentRuntimeRevision != lastRuntimeRevision) {
@@ -3566,6 +3714,13 @@ void EditorHandle::Impl::timerCallback() {
     if (propertiesPanel != nullptr)
       propertiesPanel->refreshBindingSummaries();
     lastBindingRevision = currentBindingRevision;
+  }
+
+  drainPendingMidiLearnEvents();
+
+  if (++midiDeviceRefreshCounter >= 20) {
+    midiDeviceRefreshCounter = 0;
+    refreshDetectedMidiDeviceProfiles(true);
   }
 
   refreshRuntimeUi();

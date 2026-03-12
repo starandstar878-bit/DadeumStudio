@@ -21,7 +21,8 @@ class RailPanel;
 class ControlSourceInspectorPanel;
 class SystemEndpointInspectorPanel;
 
-struct EditorHandle::Impl : private juce::Timer {
+struct EditorHandle::Impl : private juce::Timer,
+                          private juce::MidiInputCallback {
   explicit Impl(EditorHandle &owner,
                 juce::AudioDeviceManager *audioDeviceManager,
                 ParamBindingSummaryResolver bindingSummaryResolver,
@@ -81,6 +82,10 @@ private:
   void pushRuntimeMessage(const juce::String &text,
                           juce::Colour accent,
                           int ticks = 50);
+  bool refreshDetectedMidiDeviceProfiles(bool announceChanges);
+  void drainPendingMidiLearnEvents();
+  void handleIncomingMidiMessage(juce::MidiInput *source,
+                                 const juce::MidiMessage &message) override;
 
   EditorHandle &owner;
   TGraphDocument doc;
@@ -124,6 +129,21 @@ private:
   juce::String runtimeMessageText;
   juce::Colour runtimeMessageAccent = juce::Colour(0xff60a5fa);
   int runtimeMessageTicksRemaining = 0;
+  int midiDeviceRefreshCounter = 0;
+  struct PendingMidiLearnEvent {
+    juce::MidiMessage message;
+    juce::String midiDeviceName;
+    juce::String hardwareId;
+    juce::String profileId;
+    juce::String profileDisplayName;
+    bool autoDetected = true;
+    bool confirmed = true;
+  };
+
+  juce::CriticalSection midiLearnStateLock;
+  std::vector<TControlDeviceProfilePresence> detectedMidiProfiles;
+  std::vector<juce::String> midiLearnCallbackDeviceIds;
+  std::vector<PendingMidiLearnEvent> pendingMidiLearnEvents;
   ParamBindingRevisionProvider bindingRevisionProvider;
 };
 
