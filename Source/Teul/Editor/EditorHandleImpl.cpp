@@ -649,9 +649,9 @@ public:
     const auto collapsed = isRailCollapsed();
     collapseButton.setButtonText(collapseGlyph(collapsed));
     collapseButton.setColour(juce::TextButton::buttonColourId,
-                             accent.withAlpha(0.18f));
+                             accent.withAlpha(0.15f));
     collapseButton.setColour(juce::TextButton::buttonOnColourId,
-                             accent.withAlpha(0.28f));
+                             accent.withAlpha(0.24f));
     collapseButton.setColour(juce::TextButton::textColourOffId,
                              juce::Colours::white.withAlpha(0.92f));
     collapseButton.setColour(juce::TextButton::textColourOnId,
@@ -861,22 +861,22 @@ public:
     g.drawRoundedRectangle(bounds, collapsed ? 10.0f : 14.0f, 1.0f);
 
     const auto cards = buildRailCards(document, railId);
-    auto content = getLocalBounds().reduced(collapsed ? 6 : 12,
-                                            collapsed ? 6 : 10);
-    auto header = content.removeFromTop(collapsed ? 22 : 24);
+    auto content = getLocalBounds().reduced(collapsed ? 6 : 10,
+                                            collapsed ? 6 : 8);
+    auto header = content.removeFromTop(collapsed ? 20 : 20);
 
     if (!collapsed) {
       auto titleArea = header;
-      titleArea.removeFromRight(32);
-      g.setColour(juce::Colours::white.withAlpha(0.95f));
-      g.setFont(juce::FontOptions(12.5f, juce::Font::bold));
+      titleArea.removeFromRight(28);
+      g.setColour(juce::Colours::white.withAlpha(0.94f));
+      g.setFont(juce::FontOptions(11.8f, juce::Font::bold));
       g.drawText(railTitle(), titleArea, juce::Justification::centredLeft, false);
 
-      g.setColour(juce::Colours::white.withAlpha(0.52f));
-      g.setFont(9.4f);
-      g.drawText(metaLabel((int)cards.size()), content.removeFromTop(14),
+      g.setColour(juce::Colours::white.withAlpha(0.48f));
+      g.setFont(8.8f);
+      g.drawText(metaLabel((int)cards.size()), content.removeFromTop(12),
                  juce::Justification::centredLeft, false);
-      content.removeFromTop(6);
+      content.removeFromTop(4);
     }
 
     if (collapsed) {
@@ -891,8 +891,8 @@ public:
   }
 
   void resized() override {
-    auto buttonArea = getLocalBounds().reduced(8).removeFromTop(22);
-    collapseButton.setBounds(buttonArea.removeFromRight(24));
+    auto buttonArea = getLocalBounds().reduced(8).removeFromTop(20);
+    collapseButton.setBounds(buttonArea.removeFromRight(22));
   }
 
 private:
