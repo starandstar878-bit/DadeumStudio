@@ -2836,14 +2836,14 @@ EditorHandle::Impl::Impl(
   owner.addAndMakeVisible(togglePresetsButton);
 
   toggleLibraryButton.setButtonText("Library");
-  quickAddButton.setButtonText("Quick Add");
-  findNodeButton.setButtonText("Find Node");
+  quickAddButton.setButtonText("Quick");
+  findNodeButton.setButtonText("Find");
   commandPaletteButton.setButtonText("Cmd");
   toggleHeatmapButton.setButtonText("Heat");
   toggleProbeButton.setButtonText("Probe");
   toggleOverlayButton.setButtonText("Overlay");
-  toggleDiagnosticsButton.setButtonText("Diagnostics");
-  togglePresetsButton.setButtonText("Presets");
+  toggleDiagnosticsButton.setButtonText("Diag");
+  togglePresetsButton.setButtonText("Preset");
 
   toggleHeatmapButton.setClickingTogglesState(true);
   toggleProbeButton.setClickingTogglesState(true);
@@ -3018,25 +3018,25 @@ void EditorHandle::Impl::setSessionStatus(const TEditorSessionStatus &status) {
 }
 
 void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
-  auto top = area.removeFromTop(34).reduced(6, 3);
+  auto top = area.removeFromTop(33).reduced(6, 3);
 
-  toggleLibraryButton.setBounds(top.removeFromLeft(68));
+  toggleLibraryButton.setBounds(top.removeFromLeft(62));
   top.removeFromLeft(2);
-  quickAddButton.setBounds(top.removeFromLeft(80));
+  quickAddButton.setBounds(top.removeFromLeft(74));
   top.removeFromLeft(2);
-  findNodeButton.setBounds(top.removeFromLeft(80));
+  findNodeButton.setBounds(top.removeFromLeft(72));
   top.removeFromLeft(2);
-  commandPaletteButton.setBounds(top.removeFromLeft(50));
-  top.removeFromLeft(4);
-  toggleHeatmapButton.setBounds(top.removeFromLeft(68));
+  commandPaletteButton.setBounds(top.removeFromLeft(46));
+  top.removeFromLeft(3);
+  toggleHeatmapButton.setBounds(top.removeFromLeft(60));
   top.removeFromLeft(2);
-  toggleProbeButton.setBounds(top.removeFromLeft(74));
+  toggleProbeButton.setBounds(top.removeFromLeft(64));
   top.removeFromLeft(2);
-  toggleOverlayButton.setBounds(top.removeFromLeft(88));
+  toggleOverlayButton.setBounds(top.removeFromLeft(76));
   top.removeFromLeft(2);
-  toggleDiagnosticsButton.setBounds(top.removeFromLeft(96));
+  toggleDiagnosticsButton.setBounds(top.removeFromLeft(84));
   top.removeFromLeft(2);
-  togglePresetsButton.setBounds(top.removeFromLeft(82));
+  togglePresetsButton.setBounds(top.removeFromLeft(74));
 
   if (runtimeStatusStrip != nullptr) {
     auto statusArea = area.removeFromTop(44).reduced(6, 2);
@@ -3512,19 +3512,19 @@ void EditorHandle::Impl::syncRuntimeViewButtons() {
 
   if (canvas != nullptr) {
     syncButton(toggleHeatmapButton, canvas->isRuntimeHeatmapEnabled(),
-               juce::Colour(0xfff97316), "Heat On", "Heat");
+               juce::Colour(0xfff97316), "Heat", "Heat");
     syncButton(toggleProbeButton, canvas->isLiveProbeEnabled(),
-               juce::Colour(0xff60a5fa), "Probe On", "Probe");
+               juce::Colour(0xff60a5fa), "Probe", "Probe");
     syncButton(toggleOverlayButton, canvas->isDebugOverlayEnabled(),
-               juce::Colour(0xff22c55e), "Overlay On", "Overlay");
+               juce::Colour(0xff22c55e), "Overlay", "Overlay");
   }
 
   syncButton(toggleDiagnosticsButton,
              diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen(),
-             juce::Colour(0xff38bdf8), "Diagnostics On", "Diagnostics");
+             juce::Colour(0xff38bdf8), "Diag", "Diag");
   syncButton(togglePresetsButton,
              presetBrowserPanel != nullptr && presetBrowserPanel->isBrowserOpen(),
-             juce::Colour(0xff8b5cf6), "Presets On", "Presets");
+             juce::Colour(0xff8b5cf6), "Preset", "Preset");
 }
 void EditorHandle::Impl::pushRuntimeMessage(const juce::String &text,
                                             juce::Colour accent,
