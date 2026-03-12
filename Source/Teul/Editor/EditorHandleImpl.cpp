@@ -289,7 +289,8 @@ juce::String controlSourceBadgeText(const TControlSource &source) {
   return "SRC";
 }
 
-juce::String describeControlSource(const TControlSource &source) {
+juce::String describeControlSource(const TControlSourceState &controlState,
+                                 const TControlSource &source) {
   const auto issueState = issueStateForControlSource(source);
   juce::String text;
   switch (source.kind) {
@@ -315,7 +316,9 @@ juce::String describeControlSource(const TControlSource &source) {
   }
 
   if (issueState == TIssueState::none) {
-    if (!source.confirmed)
+    if (controlState.isLearnArmed(source.sourceId))
+      text << " | Learn armed";
+    else if (!source.confirmed)
       text << " | Learn pending";
     else if (source.autoDetected)
       text << " | Auto";
@@ -380,7 +383,7 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
       RailCardView card;
       card.itemId = source.sourceId;
       card.title = source.displayName;
-      card.subtitle = describeControlSource(source);
+      card.subtitle = describeControlSource(document.controlState, source);
       card.badge = controlSourceBadgeText(source);
       card.accent = controlSourceAccent(source.kind);
       card.issueState = issueStateForControlSource(source);
@@ -1530,6 +1533,7 @@ public:
     addAndMakeVisible(profileNameEditor);
     addAndMakeVisible(confirmedToggle);
     addAndMakeVisible(autoDetectedToggle);
+    addAndMakeVisible(learnToggle);
     addAndMakeVisible(portsLabel);
     addAndMakeVisible(assignmentsLabel);
     addAndMakeVisible(portsBox);
@@ -1575,6 +1579,12 @@ public:
     autoDetectedToggle.onClick = [this] {
       if (!suppressEditorCallbacks)
         setSourceAutoDetected(autoDetectedToggle.getToggleState());
+    };
+
+    configureToggle(learnToggle, "Learn");
+    learnToggle.onClick = [this] {
+      if (!suppressEditorCallbacks)
+        setSourceLearnArmed(learnToggle.getToggleState());
     };
 
     configureReadOnlyBox(portsBox);
@@ -1652,6 +1662,9 @@ public:
     confirmedToggle.setToggleState(source->confirmed, juce::dontSendNotification);
     autoDetectedToggle.setToggleState(source->autoDetected,
                                       juce::dontSendNotification);
+    learnToggle.setToggleState(
+        document.controlState.isLearnArmed(source->sourceId),
+        juce::dontSendNotification);
     suppressEditorCallbacks = false;
 
     repaint();
@@ -1697,9 +1710,11 @@ public:
     profileNameEditor.setBounds(area.removeFromTop(22));
     area.removeFromTop(6);
     auto toggleRow = area.removeFromTop(22);
-    confirmedToggle.setBounds(toggleRow.removeFromLeft(100));
+    confirmedToggle.setBounds(toggleRow.removeFromLeft(84));
     toggleRow.removeFromLeft(6);
-    autoDetectedToggle.setBounds(toggleRow.removeFromLeft(72));
+    autoDetectedToggle.setBounds(toggleRow.removeFromLeft(58));
+    toggleRow.removeFromLeft(6);
+    learnToggle.setBounds(toggleRow.removeFromLeft(64));
     area.removeFromTop(6);
     portsLabel.setBounds(area.removeFromTop(16));
     portsBox.setBounds(area.removeFromTop(84));
@@ -1858,6 +1873,20 @@ private:
       return;
 
     source->confirmed = confirmed;
+    if (confirmed)
+      document.controlState.setLearnArmed(source->sourceId, false);
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  void setSourceLearnArmed(bool learnArmed) {
+    auto *source = findEditableSource();
+    if (source == nullptr)
+      return;
+
+    if (!document.controlState.setLearnArmed(source->sourceId, learnArmed))
+      return;
+
     notifyDocumentChanged();
     refreshFromDocument();
   }
@@ -1883,6 +1912,8 @@ private:
       text = "Status: Degraded";
     else if (issueState == TIssueState::invalidConfig)
       text = "Status: Invalid";
+    else if (document.controlState.isLearnArmed(source.sourceId))
+      text = "Status: Learn armed";
     else if (!source.confirmed)
       text = "Status: Learn pending";
     else if (source.autoDetected)
@@ -1965,6 +1996,7 @@ private:
   juce::TextEditor assignmentsBox;
   juce::ToggleButton confirmedToggle;
   juce::ToggleButton autoDetectedToggle;
+  juce::ToggleButton learnToggle;
   juce::TextButton closeButton;
   std::function<void()> onLayoutChanged;
   std::function<void()> onDocumentChanged;

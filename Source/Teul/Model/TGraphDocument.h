@@ -184,8 +184,48 @@ struct TControlSourceState {
   std::vector<TDeviceProfile> deviceProfiles;
   std::vector<TControlSourceAssignment> assignments;
   std::vector<juce::String> missingDeviceProfileIds;
+  juce::String armedLearnSourceId;
 
   TControlSourceState() { ensureDefaultRails(); }
+
+  bool isLearnArmed(const juce::String &sourceId) const noexcept {
+    return armedLearnSourceId.isNotEmpty() && armedLearnSourceId == sourceId.trim();
+  }
+
+  bool setLearnArmed(const juce::String &sourceId, bool shouldArm) {
+    const auto normalizedId = sourceId.trim();
+    if (normalizedId.isEmpty())
+      return false;
+
+    if (!shouldArm) {
+      if (armedLearnSourceId != normalizedId)
+        return false;
+      armedLearnSourceId.clear();
+      return true;
+    }
+
+    if (findSource(normalizedId) == nullptr)
+      return false;
+
+    if (armedLearnSourceId == normalizedId)
+      return false;
+
+    armedLearnSourceId = normalizedId;
+    return true;
+  }
+
+  bool clearLearnArm() {
+    if (armedLearnSourceId.isEmpty())
+      return false;
+
+    armedLearnSourceId.clear();
+    return true;
+  }
+
+  void pruneTransientLearnState() {
+    if (armedLearnSourceId.isNotEmpty() && findSource(armedLearnSourceId) == nullptr)
+      armedLearnSourceId.clear();
+  }
 
   void ensureDefaultRails() {
     ensureRail("input-rail", "Inputs", TRailKind::input, 0);
@@ -629,6 +669,7 @@ struct TControlSourceState {
     ensureDefaultRails();
     ensurePreviewDataIfEmpty();
     ensurePreviewDeviceProfile();
+    pruneTransientLearnState();
 
     std::vector<juce::String> normalizedMissingIds;
     auto appendMissingProfileId = [&](const juce::String &profileId) {
