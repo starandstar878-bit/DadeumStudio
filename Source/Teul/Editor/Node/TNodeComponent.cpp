@@ -515,6 +515,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
         drawAdsrPreview(g, previewBounds, *nodePtr);
         break;
       case InlinePreviewKind::meter:
+      case InlinePreviewKind::meterTall:
         drawMeterPreview(g, previewBounds, descriptor, *nodePtr,
                          [this](PortId portId) {
                            return ownerCanvas.getPortLevel(portId);

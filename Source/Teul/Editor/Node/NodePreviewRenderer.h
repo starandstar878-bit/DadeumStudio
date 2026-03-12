@@ -16,6 +16,7 @@ enum class InlinePreviewKind {
   oscillator,
   adsr,
   meter,
+  meterTall,
 };
 
 InlinePreviewKind inlinePreviewKindFor(const TNodeDescriptor *descriptor);

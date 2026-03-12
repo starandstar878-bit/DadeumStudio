@@ -27,6 +27,8 @@ static InlinePreviewKind inlinePreviewKindForImpl(const TNodeDescriptor *descrip
     return InlinePreviewKind::oscillator;
   if (descriptor->typeKey == "Teul.Mod.ADSR")
     return InlinePreviewKind::adsr;
+  if (descriptor->typeKey == "Teul.Mixer.StereoMixer4")
+    return InlinePreviewKind::meterTall;
   if (descriptor->category == "Mixer")
     return InlinePreviewKind::meter;
 
@@ -40,6 +42,8 @@ static int previewHeightForKindImpl(InlinePreviewKind kind) {
     return 54;
   case InlinePreviewKind::meter:
     return 44;
+  case InlinePreviewKind::meterTall:
+    return 68;
   case InlinePreviewKind::none:
   default:
     return 0;
@@ -53,6 +57,8 @@ static int minWidthForKindImpl(InlinePreviewKind kind) {
     return 160;
   case InlinePreviewKind::meter:
     return 168;
+  case InlinePreviewKind::meterTall:
+    return 184;
   case InlinePreviewKind::none:
   default:
     return 140;
@@ -340,6 +346,22 @@ static std::vector<MeterBar> buildMeterBars(const TNodeDescriptor *descriptor,
     bars.push_back({"B", gain2, TeulPalette::PortCV});
     bars.push_back({"SUM", clampUnit((gain1 + gain2) * 0.5f),
                     juce::Colour(0xfff59e0b)});
+    return bars;
+  }
+
+  if (descriptor->typeKey == "Teul.Mixer.StereoMixer4") {
+    static const juce::Colour busColours[] = {
+        juce::Colour(0xff22c55e),
+        juce::Colour(0xff38bdf8),
+        juce::Colour(0xfff59e0b),
+        juce::Colour(0xfff97316),
+    };
+    for (int busIndex = 0; busIndex < 4; ++busIndex) {
+      const auto gain = clampUnit((float)paramAsDouble(
+          node, "gain" + juce::String(busIndex + 1), 1.0));
+      bars.push_back({juce::String(busIndex + 1), gain,
+                      busColours[(size_t)busIndex]});
+    }
     return bars;
   }
 
