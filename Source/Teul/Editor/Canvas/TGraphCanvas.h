@@ -394,6 +394,16 @@ private:
     float worldY = 0.0f;
   } snapGuideState;
 
+public:
+  enum class DragRejectReason {
+    none,
+    useBusBody,
+    useBusChannel,
+    bundleSizeMismatch,
+    bundleRequiresMatchingBus,
+  };
+
+private:
   struct WireDragState {
     bool active = false;
     NodeId sourceNodeId = kInvalidNodeId;
@@ -415,6 +425,7 @@ private:
     bool targetTypeMatch = false;
     bool targetCycleFree = false;
     int targetBundleCount = 1;
+    DragRejectReason rejectReason = DragRejectReason::none;
   } wireDragState;
 
   ConnectionId selectedConnectionId = kInvalidConnectionId;

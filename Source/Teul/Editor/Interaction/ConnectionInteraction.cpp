@@ -282,12 +282,51 @@ bool isNodePortHitCompatible(int sourceBundleCount, int targetPortCount,
   return hit.bundle && targetPortCount == sourceBundleCount;
 }
 
+TGraphCanvas::DragRejectReason
+nodePortRejectReason(int sourceBundleCount, int targetPortCount,
+                     const TPortComponent::HitResult &hit) {
+  if (!hit.hit)
+    return TGraphCanvas::DragRejectReason::none;
+
+  if (!isBundleDrag(sourceBundleCount)) {
+    if (targetPortCount > 1 && hit.bundle)
+      return TGraphCanvas::DragRejectReason::useBusChannel;
+    return TGraphCanvas::DragRejectReason::none;
+  }
+
+  if (targetPortCount <= 1)
+    return TGraphCanvas::DragRejectReason::bundleRequiresMatchingBus;
+  if (!hit.bundle)
+    return TGraphCanvas::DragRejectReason::useBusBody;
+  if (targetPortCount != sourceBundleCount)
+    return TGraphCanvas::DragRejectReason::bundleSizeMismatch;
+  return TGraphCanvas::DragRejectReason::none;
+}
+
 bool isExternalZoneCompatible(int sourceBundleCount, int zoneChannelCount,
                               bool zoneIsBundle) {
   if (!isBundleDrag(sourceBundleCount))
     return !(zoneChannelCount > 1 && zoneIsBundle);
 
   return zoneIsBundle && zoneChannelCount == sourceBundleCount;
+}
+
+TGraphCanvas::DragRejectReason
+externalZoneRejectReason(int sourceBundleCount, int zoneChannelCount,
+                         bool zoneIsBundle) {
+  if (!isBundleDrag(sourceBundleCount)) {
+    if (zoneChannelCount > 1 && zoneIsBundle)
+      return TGraphCanvas::DragRejectReason::useBusChannel;
+    return TGraphCanvas::DragRejectReason::none;
+  }
+
+  if (zoneChannelCount <= 1)
+    return TGraphCanvas::DragRejectReason::bundleRequiresMatchingBus;
+  if (!zoneIsBundle)
+    return TGraphCanvas::DragRejectReason::useBusBody;
+  if (zoneChannelCount != sourceBundleCount)
+    return TGraphCanvas::DragRejectReason::bundleSizeMismatch;
+  return TGraphCanvas::DragRejectReason::none;
 }
 
 bool isOutputRailZone(const TGraphDocument &document, const juce::String &zoneId) {
@@ -333,6 +372,7 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
   wireDragState.targetTypeMatch = false;
   wireDragState.targetCycleFree = false;
   wireDragState.targetBundleCount = 1;
+  wireDragState.rejectReason = TGraphCanvas::DragRejectReason::none;
 
   if (!wireDragState.active) {
     notifyExternalDragTarget();
@@ -358,8 +398,14 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
 
         const int targetPortCount = (int)inputPort->getPortGroup().size();
         if (!isNodePortHitCompatible(wireDragState.sourceBundleCount,
-                                     targetPortCount, hit))
+                                     targetPortCount, hit)) {
+          const auto rejectReason =
+              nodePortRejectReason(wireDragState.sourceBundleCount,
+                                   targetPortCount, hit);
+          if (rejectReason != TGraphCanvas::DragRejectReason::none)
+            wireDragState.rejectReason = rejectReason;
           continue;
+        }
 
         const TPort *candidatePort =
             findPortModel(node->getNodeId(), hit.portId);
@@ -404,8 +450,14 @@ void TGraphCanvas::updateDragTargetFromMouse(juce::Point<float> mousePosView) {
       const int zoneChannelCount = railPortIdsFromToken(portToken).size();
       const bool zoneIsBundle = isRailBundlePortToken(portToken);
       if (!isExternalZoneCompatible(wireDragState.sourceBundleCount,
-                                    zoneChannelCount, zoneIsBundle))
+                                    zoneChannelCount, zoneIsBundle)) {
+        const auto rejectReason =
+            externalZoneRejectReason(wireDragState.sourceBundleCount,
+                                     zoneChannelCount, zoneIsBundle);
+        if (rejectReason != TGraphCanvas::DragRejectReason::none)
+          wireDragState.rejectReason = rejectReason;
         continue;
+      }
     }
 
     const float area = zone.boundsView.getWidth() * zone.boundsView.getHeight();
@@ -450,6 +502,19 @@ juce::String TGraphCanvas::currentDragStatusHint() const {
                           wireDragState.targetPortId != kInvalidPortId);
 
   if (!hasTarget) {
+    switch (wireDragState.rejectReason) {
+    case DragRejectReason::useBusBody:
+      return "Drop on the bus body to connect the full bundle.";
+    case DragRejectReason::useBusChannel:
+      return "Drop on a bus channel circle to connect a single channel.";
+    case DragRejectReason::bundleSizeMismatch:
+      return "Bundle sizes must match on the bus body.";
+    case DragRejectReason::bundleRequiresMatchingBus:
+      return "Bundles only connect to matching bus bodies.";
+    case DragRejectReason::none:
+      break;
+    }
+
     if (sourceCount > 1)
       return "Drag to a matching bus body to connect the full bundle.";
     return "Drag to a mono port or a bus channel circle.";
