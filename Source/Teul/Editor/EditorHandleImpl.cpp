@@ -1240,24 +1240,26 @@ private:
     else
       content.removeFromLeft(6);
 
-    auto titleRow = content.removeFromTop(18);
+    auto titleBlock = content.removeFromTop(card.subtitle.isNotEmpty() ? 34 : 22);
+    auto titleRow = titleBlock.removeFromTop(18);
     if (card.badge.isNotEmpty()) {
-      const int badgeWidth = juce::jlimit(30, 44, 16 + card.badge.length() * 7);
+      const int badgeWidth = juce::jlimit(30, 46, 16 + card.badge.length() * 7);
       auto badgeArea = titleRow.removeFromRight(badgeWidth);
       drawBadge(g, badgeArea, card.badge, accent);
       titleRow.removeFromRight(4);
     }
-    const bool compactText = titleRow.getWidth() < 86;
+    const bool compactText = titleRow.getWidth() < 90;
     g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.setFont(juce::FontOptions(compactText ? 10.6f : 11.5f, juce::Font::bold));
-    g.drawFittedText(card.title, titleRow, juce::Justification::centredLeft,
+    g.setFont(juce::FontOptions(compactText ? 10.8f : 11.7f, juce::Font::bold));
+    g.drawFittedText(card.title, titleRow, juce::Justification::topLeft,
                      compactText ? 2 : 1, 0.88f);
 
-    if (card.subtitle.isNotEmpty() && !compactText) {
+    if (card.subtitle.isNotEmpty()) {
       g.setColour(juce::Colours::white.withAlpha(0.62f));
-      g.setFont(9.8f);
-      g.drawFittedText(card.subtitle, content.removeFromTop(14),
-                       juce::Justification::centredLeft, 1, 0.9f);
+      g.setFont(9.6f);
+      g.drawFittedText(card.subtitle, titleBlock.removeFromTop(14),
+                       juce::Justification::topLeft, compactText ? 2 : 1,
+                       0.9f);
     }
 
     auto portArea = portColumn.toFloat().reduced(0.5f, 0.5f);
@@ -1307,9 +1309,11 @@ private:
     }
 
     auto content = area.toNearestInt().reduced(12, 10);
-    auto titleRow = content.removeFromTop(18);
+    auto portTray = content.removeFromBottom(24);
+    auto titleBlock = content;
+    auto titleRow = titleBlock.removeFromTop(18);
     if (card.badge.isNotEmpty()) {
-      const int badgeWidth = juce::jlimit(30, 44, 16 + card.badge.length() * 7);
+      const int badgeWidth = juce::jlimit(30, 46, 16 + card.badge.length() * 7);
       auto badgeArea = titleRow.removeFromRight(badgeWidth);
       drawBadge(g, badgeArea, card.badge, accent);
       titleRow.removeFromRight(4);
@@ -1317,17 +1321,23 @@ private:
     const bool compactText = titleRow.getWidth() < 110;
     g.setColour(juce::Colours::white.withAlpha(0.95f));
     g.setFont(juce::FontOptions(compactText ? 10.8f : 12.0f, juce::Font::bold));
-    g.drawFittedText(card.title, titleRow, juce::Justification::centredLeft,
+    g.drawFittedText(card.title, titleRow, juce::Justification::topLeft,
                      compactText ? 2 : 1, 0.88f);
 
-    if (card.subtitle.isNotEmpty() && !compactText) {
+    if (card.subtitle.isNotEmpty()) {
       g.setColour(juce::Colours::white.withAlpha(0.64f));
-      g.setFont(10.2f);
-      g.drawFittedText(card.subtitle, content.removeFromTop(28),
-                       juce::Justification::topLeft, 2, 0.9f);
+      g.setFont(10.0f);
+      g.drawFittedText(card.subtitle, titleBlock.removeFromTop(16),
+                       juce::Justification::topLeft, compactText ? 1 : 2,
+                       0.9f);
     }
 
-    auto portArea = content.removeFromBottom(18);
+    g.setColour(juce::Colours::white.withAlpha(0.03f));
+    g.fillRoundedRectangle(portTray.toFloat(), 10.0f);
+    g.setColour(accent.withAlpha(0.14f));
+    g.drawRoundedRectangle(portTray.toFloat(), 10.0f, 1.0f);
+
+    auto portArea = portTray.reduced(6, 3);
     int portX = portArea.getX();
     for (const auto &port : card.ports) {
       const int portWidth = juce::jlimit(44, 72, 18 + port.label.length() * 7);
@@ -2231,13 +2241,13 @@ public:
     g.setColour(frameAccent);
     g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
 
-    auto content = getLocalBounds().reduced(12, 8);
-    auto primaryRow = content.removeFromTop(20);
-    auto secondaryRow = content.removeFromTop(16);
-    content.removeFromTop(4);
-    auto badgeRow = content.removeFromTop(20);
+    auto content = getLocalBounds().reduced(10, 6);
+    auto primaryRow = content.removeFromTop(18);
+    auto secondaryRow = content.removeFromTop(14);
+    content.removeFromTop(3);
+    auto badgeRow = content.removeFromTop(16);
 
-    auto cpuChip = primaryRow.removeFromRight(92);
+    auto cpuChip = primaryRow.removeFromRight(84);
     const juce::String primaryText = juce::String::formatted(
         "%.1f kHz  |  %d blk  |  %d in / %d out",
         stats.sampleRate * 0.001,
@@ -2251,8 +2261,8 @@ public:
         stats.allocatedPortChannels,
         stats.lastProcessMilliseconds);
 
-    g.setColour(juce::Colours::white.withAlpha(0.97f));
-    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    g.setColour(juce::Colours::white.withAlpha(0.96f));
+    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
     g.drawText(primaryText, primaryRow, juce::Justification::centredLeft,
                false);
 
@@ -2270,8 +2280,8 @@ public:
     }
 
     if (summaryArea.getWidth() > 40) {
-      g.setColour(juce::Colours::white.withAlpha(0.62f));
-      g.setFont(11.0f);
+      g.setColour(juce::Colours::white.withAlpha(0.56f));
+      g.setFont(10.3f);
       g.drawText(summaryText, summaryArea, juce::Justification::centredLeft,
                  false);
     }
@@ -2289,12 +2299,12 @@ public:
                                  badgeRow.getHeight());
       badgeX += badgeWidth + 6;
 
-      g.setColour(colour.withAlpha(0.16f));
+      g.setColour(colour.withAlpha(0.14f));
       g.fillRoundedRectangle(badge.toFloat(), 8.0f);
-      g.setColour(colour.withAlpha(0.86f));
+      g.setColour(colour.withAlpha(0.74f));
       g.drawRoundedRectangle(badge.toFloat(), 8.0f, 1.0f);
-      g.setColour(colour.brighter(0.18f));
-      g.setFont(10.0f);
+      g.setColour(colour.brighter(0.12f));
+      g.setFont(9.4f);
       g.drawText(text, badge, juce::Justification::centred, false);
     };
 
@@ -2376,12 +2386,12 @@ private:
 
   void drawMessageChip(juce::Graphics &g, juce::Rectangle<int> area,
                        const juce::String &text, juce::Colour accent) const {
-    g.setColour(accent.withAlpha(0.18f));
+    g.setColour(accent.withAlpha(0.14f));
     g.fillRoundedRectangle(area.toFloat(), 7.0f);
-    g.setColour(accent.withAlpha(0.92f));
+    g.setColour(accent.withAlpha(0.82f));
     g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
-    g.setColour(accent.brighter(0.18f));
-    g.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+    g.setColour(accent.brighter(0.12f));
+    g.setFont(juce::FontOptions(9.8f, juce::Font::bold));
     g.drawText(text, area.reduced(8, 0), juce::Justification::centredLeft,
                false);
   }
@@ -3018,13 +3028,13 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   togglePresetsButton.setBounds(top.removeFromLeft(96));
 
   if (runtimeStatusStrip != nullptr) {
-    auto statusArea = area.removeFromTop(60).reduced(6, 4);
+    auto statusArea = area.removeFromTop(52).reduced(6, 3);
     runtimeStatusStrip->setBounds(statusArea);
   }
 
   if (documentNoticeBanner != nullptr) {
     if (documentNoticeBanner->isVisible()) {
-      auto bannerArea = area.removeFromTop(44).reduced(6, 3);
+      auto bannerArea = area.removeFromTop(38).reduced(6, 2);
       documentNoticeBanner->setBounds(bannerArea);
     } else {
       documentNoticeBanner->setBounds({});
