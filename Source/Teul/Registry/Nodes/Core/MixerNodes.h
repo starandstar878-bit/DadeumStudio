@@ -275,6 +275,87 @@ public:
 };
 TEUL_NODE_AUTOREGISTER(Mixer2Node);
 
+class MonoMixer4Node final : public TNodeClass {
+public:
+  TNodeDescriptor makeDescriptor() const override {
+    TNodeDescriptor desc;
+    desc.typeKey = "Teul.Mixer.MonoMixer4";
+    desc.displayName = "Mono Mixer (4-In)";
+    desc.category = "Mixer";
+    desc.capabilities.canMute = true;
+
+    std::vector<TParamSpec> params;
+    params.reserve(4);
+    for (int inputIndex = 0; inputIndex < 4; ++inputIndex) {
+      const juce::String suffix(inputIndex + 1);
+      auto gain = makeFloatParamSpec("gain" + suffix, "Gain " + suffix, 1.0f,
+                                     0.0f, 2.0f, 0.001f, {}, 3, "Levels",
+                                     "Linear gain applied to the mono input.");
+      gain.categoryPath = "MonoMixer/Level " + suffix;
+      params.push_back(std::move(gain));
+    }
+    desc.paramSpecs = std::move(params);
+
+    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "In 1"},
+                      {TPortDirection::Input, TPortDataType::Audio, "In 2"},
+                      {TPortDirection::Input, TPortDataType::Audio, "In 3"},
+                      {TPortDirection::Input, TPortDataType::Audio, "In 4"},
+                      {TPortDirection::Output, TPortDataType::Audio, "Out"}};
+    return desc;
+  }
+
+  std::unique_ptr<TNodeInstance> createInstance() const override {
+    class Implementation final : public TNodeInstance {
+    public:
+      void setParameterValue(const juce::String &paramKey,
+                             float newValue) override {
+        for (int inputIndex = 0; inputIndex < 4; ++inputIndex) {
+          if (paramKey == "gain" + juce::String(inputIndex + 1)) {
+            gains[(size_t)inputIndex] = juce::jlimit(0.0f, 2.0f, newValue);
+            return;
+          }
+        }
+      }
+
+      void processSamples(const TProcessContext &ctx) override {
+        if (ctx.globalPortBuffer == nullptr)
+          return;
+
+        const int outputChannel = MixerNodeHelpers::findPortChannel(ctx, "Out");
+        if (outputChannel < 0)
+          return;
+
+        std::array<const float *, 4> inputs{};
+        for (int inputIndex = 0; inputIndex < 4; ++inputIndex) {
+          const int inputChannel = MixerNodeHelpers::findPortChannel(
+              ctx, "In " + juce::String(inputIndex + 1));
+          inputs[(size_t)inputIndex] =
+              inputChannel >= 0
+                  ? ctx.globalPortBuffer->getReadPointer(inputChannel)
+                  : nullptr;
+        }
+
+        auto *output = ctx.globalPortBuffer->getWritePointer(outputChannel);
+        const int numSamples = ctx.globalPortBuffer->getNumSamples();
+        for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
+          float mix = 0.0f;
+          for (size_t inputIndex = 0; inputIndex < gains.size(); ++inputIndex) {
+            if (inputs[inputIndex] != nullptr)
+              mix += inputs[inputIndex][sampleIndex] * gains[inputIndex];
+          }
+          output[sampleIndex] = mix;
+        }
+      }
+
+    private:
+      std::array<float, 4> gains{{1.0f, 1.0f, 1.0f, 1.0f}};
+    };
+
+    return std::make_unique<Implementation>();
+  }
+};
+TEUL_NODE_AUTOREGISTER(MonoMixer4Node);
+
 class StereoMixer4Node final : public TNodeClass {
 public:
   TNodeDescriptor makeDescriptor() const override {

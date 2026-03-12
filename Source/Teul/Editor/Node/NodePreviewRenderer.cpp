@@ -27,7 +27,8 @@ static InlinePreviewKind inlinePreviewKindForImpl(const TNodeDescriptor *descrip
     return InlinePreviewKind::oscillator;
   if (descriptor->typeKey == "Teul.Mod.ADSR")
     return InlinePreviewKind::adsr;
-  if (descriptor->typeKey == "Teul.Mixer.StereoMixer4")
+  if (descriptor->typeKey == "Teul.Mixer.StereoMixer4" ||
+      descriptor->typeKey == "Teul.Mixer.MonoMixer4")
     return InlinePreviewKind::meterTall;
   if (descriptor->category == "Mixer")
     return InlinePreviewKind::meter;
@@ -349,7 +350,8 @@ static std::vector<MeterBar> buildMeterBars(const TNodeDescriptor *descriptor,
     return bars;
   }
 
-  if (descriptor->typeKey == "Teul.Mixer.StereoMixer4") {
+  if (descriptor->typeKey == "Teul.Mixer.StereoMixer4" ||
+      descriptor->typeKey == "Teul.Mixer.MonoMixer4") {
     static const juce::Colour busColours[] = {
         juce::Colour(0xff22c55e),
         juce::Colour(0xff38bdf8),
