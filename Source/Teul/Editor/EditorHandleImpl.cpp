@@ -4042,6 +4042,9 @@ void EditorHandle::Impl::rebuildAll(bool rebuildRuntime) {
   if (systemEndpointInspector != nullptr)
     systemEndpointInspector->refreshFromDocument();
 
+  if (!controlInputAdapters.empty())
+    refreshControlInputAdapters(false);
+
   lastDocumentRevision = doc.getDocumentRevision();
   lastRuntimeRevision = doc.getRuntimeRevision();
   refreshRailUi();
