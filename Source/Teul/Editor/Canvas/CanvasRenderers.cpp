@@ -711,7 +711,7 @@ bool TGraphCanvas::isNodeMoveLocked(NodeId nodeId) const {
 }
 
 void TGraphCanvas::drawFrames(juce::Graphics &g) {
-  const float titleHWorld = 28.0f / zoomLevel;
+  const float titleHWorld = 24.0f / zoomLevel;
 
   for (const auto &frame : document.frames) {
     const float drawH = frame.collapsed ? titleHWorld : frame.height;
@@ -730,20 +730,20 @@ void TGraphCanvas::drawFrames(juce::Graphics &g) {
     if (base.isTransparent())
       base = juce::Colour(0x334d8bf7);
 
-    g.setColour(base.withMultipliedAlpha(frame.locked ? 0.45f : 0.62f));
-    g.fillRoundedRectangle(rect, 8.0f);
+    g.setColour(base.withMultipliedAlpha(frame.locked ? 0.4f : 0.54f));
+    g.fillRoundedRectangle(rect, 7.0f);
 
-    g.setColour(base.withMultipliedAlpha(0.95f));
-    g.drawRoundedRectangle(rect, 8.0f, 1.0f);
+    g.setColour(base.withMultipliedAlpha(0.88f));
+    g.drawRoundedRectangle(rect, 7.0f, 1.0f);
 
     if (frame.frameId == selectedFrameId) {
       g.setColour(base.brighter(0.55f).withAlpha(0.98f));
-      g.drawRoundedRectangle(rect.expanded(1.0f), 9.0f, 2.0f);
+      g.drawRoundedRectangle(rect.expanded(1.0f), 8.0f, 1.8f);
     }
 
-    auto titleRect = rect.removeFromTop(26.0f);
-    g.setColour(base.brighter(0.2f).withAlpha(0.55f));
-    g.fillRoundedRectangle(titleRect, 7.0f);
+    auto titleRect = rect.removeFromTop(22.0f);
+    g.setColour(base.brighter(0.18f).withAlpha(0.46f));
+    g.fillRoundedRectangle(titleRect, 6.0f);
 
     juce::String title = frame.title;
     if (frame.logicalGroup) {
@@ -757,9 +757,9 @@ void TGraphCanvas::drawFrames(juce::Graphics &g) {
     if (frame.collapsed)
       title += " [C]";
 
-    g.setColour(juce::Colours::white.withAlpha(0.92f));
-    g.setFont(12.0f);
-    g.drawText(title, titleRect.toNearestInt().reduced(8, 0),
+    g.setColour(juce::Colours::white.withAlpha(0.86f));
+    g.setFont(10.0f);
+    g.drawText(title, titleRect.toNearestInt().reduced(6, 0),
                juce::Justification::centredLeft, false);
   }
 }
@@ -777,9 +777,9 @@ void TGraphCanvas::drawLibraryDropPreview(juce::Graphics &g) {
       desc != nullptr ? desc->category + " / " + desc->typeKey
                       : previewTypeKey;
 
-  auto bubble = juce::Rectangle<float>(libraryDropPreview.pointView.x + 14.0f,
-                                       libraryDropPreview.pointView.y - 10.0f,
-                                       240.0f, 44.0f);
+  auto bubble = juce::Rectangle<float>(libraryDropPreview.pointView.x + 12.0f,
+                                       libraryDropPreview.pointView.y - 8.0f,
+                                       220.0f, 40.0f);
   const auto bounds = getLocalBounds().toFloat().reduced(8.0f);
   bubble.setPosition(
       juce::jlimit(bounds.getX(), bounds.getRight() - bubble.getWidth(),
@@ -788,23 +788,23 @@ void TGraphCanvas::drawLibraryDropPreview(juce::Graphics &g) {
                    bubble.getY()));
 
   g.setColour(juce::Colour(0xdd0f172a));
-  g.fillRoundedRectangle(bubble, 10.0f);
+  g.fillRoundedRectangle(bubble, 8.0f);
   g.setColour(juce::Colour(0xff60a5fa));
-  g.drawRoundedRectangle(bubble, 10.0f, 1.2f);
+  g.drawRoundedRectangle(bubble, 8.0f, 1.0f);
 
   g.setColour(juce::Colour(0xff93c5fd));
-  g.drawEllipse(libraryDropPreview.pointView.x - 6.0f,
-                libraryDropPreview.pointView.y - 6.0f, 12.0f, 12.0f, 1.5f);
-  g.fillEllipse(libraryDropPreview.pointView.x - 2.5f,
-                libraryDropPreview.pointView.y - 2.5f, 5.0f, 5.0f);
+  g.drawEllipse(libraryDropPreview.pointView.x - 5.0f,
+                libraryDropPreview.pointView.y - 5.0f, 10.0f, 10.0f, 1.3f);
+  g.fillEllipse(libraryDropPreview.pointView.x - 2.0f,
+                libraryDropPreview.pointView.y - 2.0f, 4.0f, 4.0f);
 
-  auto textArea = bubble.toNearestInt().reduced(12, 7);
+  auto textArea = bubble.toNearestInt().reduced(10, 6);
   g.setColour(juce::Colours::white.withAlpha(0.95f));
-  g.setFont(13.0f);
-  g.drawText(title, textArea.removeFromTop(16), juce::Justification::centredLeft,
+  g.setFont(12.0f);
+  g.drawText(title, textArea.removeFromTop(14), juce::Justification::centredLeft,
              false);
   g.setColour(juce::Colours::white.withAlpha(0.55f));
-  g.setFont(11.0f);
+  g.setFont(10.0f);
   g.drawText(subtitle, textArea, juce::Justification::centredLeft, false);
 }
 
