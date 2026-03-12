@@ -2252,13 +2252,13 @@ public:
     g.setColour(frameAccent);
     g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
 
-    auto content = getLocalBounds().reduced(10, 6);
-    auto primaryRow = content.removeFromTop(18);
-    auto secondaryRow = content.removeFromTop(14);
-    content.removeFromTop(3);
-    auto badgeRow = content.removeFromTop(16);
+    auto content = getLocalBounds().reduced(8, 5);
+    auto primaryRow = content.removeFromTop(16);
+    auto secondaryRow = content.removeFromTop(12);
+    content.removeFromTop(2);
+    auto badgeRow = content.removeFromTop(14);
 
-    auto cpuChip = primaryRow.removeFromRight(84);
+    auto cpuChip = primaryRow.removeFromRight(76);
     const juce::String primaryText = juce::String::formatted(
         "%.1f kHz  |  %d blk  |  %d in / %d out",
         stats.sampleRate * 0.001,
@@ -2272,8 +2272,8 @@ public:
         stats.allocatedPortChannels,
         stats.lastProcessMilliseconds);
 
-    g.setColour(juce::Colours::white.withAlpha(0.96f));
-    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.setFont(juce::FontOptions(11.2f, juce::Font::bold));
     g.drawText(primaryText, primaryRow, juce::Justification::centredLeft,
                false);
 
@@ -2291,8 +2291,8 @@ public:
     }
 
     if (summaryArea.getWidth() > 40) {
-      g.setColour(juce::Colours::white.withAlpha(0.56f));
-      g.setFont(10.3f);
+      g.setColour(juce::Colours::white.withAlpha(0.52f));
+      g.setFont(9.8f);
       g.drawText(summaryText, summaryArea, juce::Justification::centredLeft,
                  false);
     }
@@ -2302,20 +2302,20 @@ public:
       if (text.isEmpty())
         return;
 
-      const int badgeWidth = juce::jlimit(66, 168, 22 + text.length() * 7);
+      const int badgeWidth = juce::jlimit(58, 152, 18 + text.length() * 7);
       if (badgeX + badgeWidth > badgeRow.getRight())
         return;
 
       juce::Rectangle<int> badge(badgeX, badgeRow.getY(), badgeWidth,
                                  badgeRow.getHeight());
-      badgeX += badgeWidth + 6;
+      badgeX += badgeWidth + 5;
 
       g.setColour(colour.withAlpha(0.14f));
-      g.fillRoundedRectangle(badge.toFloat(), 8.0f);
-      g.setColour(colour.withAlpha(0.74f));
-      g.drawRoundedRectangle(badge.toFloat(), 8.0f, 1.0f);
+      g.fillRoundedRectangle(badge.toFloat(), 7.0f);
+      g.setColour(colour.withAlpha(0.70f));
+      g.drawRoundedRectangle(badge.toFloat(), 7.0f, 1.0f);
       g.setColour(colour.brighter(0.12f));
-      g.setFont(9.4f);
+      g.setFont(9.0f);
       g.drawText(text, badge, juce::Justification::centred, false);
     };
 
@@ -2385,24 +2385,24 @@ private:
 
   void drawCpuChip(juce::Graphics &g, juce::Rectangle<int> area) const {
     const juce::Colour accent = cpuAccent();
-    g.setColour(accent.withAlpha(0.18f));
-    g.fillRoundedRectangle(area.toFloat(), 9.0f);
-    g.setColour(accent.withAlpha(0.90f));
-    g.drawRoundedRectangle(area.toFloat(), 9.0f, 1.0f);
-    g.setColour(juce::Colours::white.withAlpha(0.97f));
-    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+    g.setColour(accent.withAlpha(0.16f));
+    g.fillRoundedRectangle(area.toFloat(), 8.0f);
+    g.setColour(accent.withAlpha(0.86f));
+    g.drawRoundedRectangle(area.toFloat(), 8.0f, 1.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.96f));
+    g.setFont(juce::FontOptions(10.4f, juce::Font::bold));
     g.drawText(juce::String::formatted("CPU %.1f%%", stats.cpuLoadPercent),
                area, juce::Justification::centred, false);
   }
 
   void drawMessageChip(juce::Graphics &g, juce::Rectangle<int> area,
                        const juce::String &text, juce::Colour accent) const {
-    g.setColour(accent.withAlpha(0.14f));
-    g.fillRoundedRectangle(area.toFloat(), 7.0f);
-    g.setColour(accent.withAlpha(0.82f));
-    g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
+    g.setColour(accent.withAlpha(0.12f));
+    g.fillRoundedRectangle(area.toFloat(), 6.0f);
+    g.setColour(accent.withAlpha(0.78f));
+    g.drawRoundedRectangle(area.toFloat(), 6.0f, 1.0f);
     g.setColour(accent.brighter(0.12f));
-    g.setFont(juce::FontOptions(9.8f, juce::Font::bold));
+    g.setFont(juce::FontOptions(9.2f, juce::Font::bold));
     g.drawText(text, area.reduced(8, 0), juce::Justification::centredLeft,
                false);
   }
@@ -2450,24 +2450,24 @@ public:
     g.setColour(accent.withAlpha(0.85f));
     g.drawRoundedRectangle(bounds.reduced(0.5f), 11.0f, 1.0f);
 
-    auto textArea = getLocalBounds().reduced(12, 7);
-    textArea.removeFromRight(78);
+    auto textArea = getLocalBounds().reduced(10, 6);
+    textArea.removeFromRight(72);
 
-    g.setColour(juce::Colours::white.withAlpha(0.96f));
-    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-    g.drawText(notice.title, textArea.removeFromTop(18),
+    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.setFont(juce::FontOptions(11.2f, juce::Font::bold));
+    g.drawText(notice.title, textArea.removeFromTop(16),
                juce::Justification::centredLeft, false);
 
     if (notice.detail.isNotEmpty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.68f));
-      g.setFont(10.5f);
-      g.drawFittedText(notice.detail, textArea.removeFromTop(14),
-                       juce::Justification::centredLeft, 1, 0.92f);
+      g.setColour(juce::Colours::white.withAlpha(0.64f));
+      g.setFont(9.8f);
+      g.drawFittedText(notice.detail, textArea.removeFromTop(12),
+                       juce::Justification::centredLeft, 1, 0.9f);
     }
   }
 
   void resized() override {
-    dismissButton.setBounds(getLocalBounds().removeFromRight(74).reduced(8, 8));
+    dismissButton.setBounds(getLocalBounds().removeFromRight(68).reduced(8, 7));
   }
 
 private:
