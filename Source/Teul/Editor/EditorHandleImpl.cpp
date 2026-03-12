@@ -2405,24 +2405,24 @@ public:
     g.setColour(accent.withAlpha(0.85f));
     g.drawRoundedRectangle(bounds.reduced(0.5f), 11.0f, 1.0f);
 
-    auto textArea = getLocalBounds().reduced(14, 9);
-    textArea.removeFromRight(92);
+    auto textArea = getLocalBounds().reduced(12, 7);
+    textArea.removeFromRight(78);
 
     g.setColour(juce::Colours::white.withAlpha(0.96f));
-    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
-    g.drawText(notice.title, textArea.removeFromTop(20),
+    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    g.drawText(notice.title, textArea.removeFromTop(18),
                juce::Justification::centredLeft, false);
 
     if (notice.detail.isNotEmpty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.72f));
-      g.setFont(11.0f);
-      g.drawFittedText(notice.detail, textArea, juce::Justification::topLeft,
-                       2, 0.92f);
+      g.setColour(juce::Colours::white.withAlpha(0.68f));
+      g.setFont(10.5f);
+      g.drawFittedText(notice.detail, textArea.removeFromTop(14),
+                       juce::Justification::centredLeft, 1, 0.92f);
     }
   }
 
   void resized() override {
-    dismissButton.setBounds(getLocalBounds().removeFromRight(88).reduced(10, 10));
+    dismissButton.setBounds(getLocalBounds().removeFromRight(74).reduced(8, 8));
   }
 
 private:
@@ -3000,7 +3000,7 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
 
   if (documentNoticeBanner != nullptr) {
     if (documentNoticeBanner->isVisible()) {
-      auto bannerArea = area.removeFromTop(56).reduced(6, 3);
+      auto bannerArea = area.removeFromTop(44).reduced(6, 3);
       documentNoticeBanner->setBounds(bannerArea);
     } else {
       documentNoticeBanner->setBounds({});
@@ -3010,7 +3010,7 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   if (libraryPanel != nullptr) {
     libraryPanel->setVisible(libraryVisible);
     if (libraryVisible) {
-      auto left = area.removeFromLeft(244);
+      auto left = area.removeFromLeft(228);
       libraryPanel->setBounds(left.reduced(0, 2));
     }
   }
@@ -3022,7 +3022,7 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   const bool propertiesOpen = propertiesPanel != nullptr &&
                               propertiesPanel->isPanelOpen();
   if (endpointInspectorOpen || controlInspectorOpen || propertiesOpen) {
-    auto right = area.removeFromRight(336);
+    auto right = area.removeFromRight(312);
     const auto inspectorBounds = right.reduced(0, 2);
     if (systemEndpointInspector != nullptr)
       systemEndpointInspector->setBounds(endpointInspectorOpen
@@ -3062,11 +3062,11 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   if (controlRail != nullptr) {
     const bool collapsed = controlRail->isRailCollapsed();
     const int targetHeight =
-        collapsed ? 40
+        collapsed ? 48
                   : juce::jlimit(104, 188,
                                  juce::roundToInt((float)area.getHeight() * 0.16f));
     const int railHeight = juce::jmin(targetHeight,
-                                      juce::jmax(collapsed ? 40 : 96,
+                                      juce::jmax(collapsed ? 48 : 96,
                                                  area.getHeight() / 3));
     controlRail->setBounds(area.removeFromBottom(railHeight).reduced(0, 2));
   }
@@ -3074,11 +3074,11 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   if (inputRail != nullptr) {
     const bool collapsed = inputRail->isRailCollapsed();
     const int targetWidth =
-        collapsed ? 44
+        collapsed ? 48
                   : juce::jlimit(104, 168,
                                  juce::roundToInt((float)area.getWidth() * 0.13f));
     const int railWidth = juce::jmin(targetWidth,
-                                     juce::jmax(collapsed ? 44 : 92,
+                                     juce::jmax(collapsed ? 48 : 92,
                                                 area.getWidth() / 4));
     inputRail->setBounds(area.removeFromLeft(railWidth).reduced(0, 2));
   }
@@ -3086,11 +3086,11 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   if (outputRail != nullptr) {
     const bool collapsed = outputRail->isRailCollapsed();
     const int targetWidth =
-        collapsed ? 44
+        collapsed ? 48
                   : juce::jlimit(104, 168,
                                  juce::roundToInt((float)area.getWidth() * 0.13f));
     const int railWidth = juce::jmin(targetWidth,
-                                     juce::jmax(collapsed ? 44 : 92,
+                                     juce::jmax(collapsed ? 48 : 92,
                                                 area.getWidth() / 4));
     outputRail->setBounds(area.removeFromRight(railWidth).reduced(0, 2));
   }

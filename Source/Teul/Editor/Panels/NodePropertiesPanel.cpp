@@ -360,6 +360,96 @@ static juce::String groupedPortRuleLabel(const GroupedNodePortSummary &group,
   return text;
 }
 
+struct GroupedPortIssueSummary {
+  TIssueState state = TIssueState::none;
+  juce::String detail;
+};
+
+static GroupedPortIssueSummary issueSummaryForConnectedEndpoint(
+    const TGraphDocument &document, const TPort &port, const TEndpoint &otherEndpoint) {
+  if (otherEndpoint.isRailPort()) {
+    const auto *railEndpoint =
+        document.controlState.findEndpoint(otherEndpoint.railEndpointId);
+    if (railEndpoint == nullptr)
+      return {TIssueState::invalidConfig, "Connected rail endpoint is missing from the document"};
+    if (railEndpoint->missing)
+      return {TIssueState::missing, "Connected rail endpoint is missing"};
+    if (railEndpoint->degraded)
+      return {TIssueState::degraded, "Connected rail endpoint is degraded"};
+
+    const auto *railPort = document.findSystemRailPort(otherEndpoint.railEndpointId,
+                                                       otherEndpoint.railPortId);
+    if (railPort == nullptr)
+      return {TIssueState::invalidConfig, "Connected rail channel no longer exists"};
+    if (railPort->dataType != port.dataType)
+      return {TIssueState::invalidConfig, "Connected rail channel type no longer matches"};
+    return {};
+  }
+
+  if (!otherEndpoint.isNodePort())
+    return {TIssueState::invalidConfig, "Connected endpoint type is no longer supported"};
+
+  const auto *otherNode = document.findNode(otherEndpoint.nodeId);
+  if (otherNode == nullptr)
+    return {TIssueState::invalidConfig, "Connected node is missing"};
+
+  const auto *otherPort = otherNode->findPort(otherEndpoint.portId);
+  if (otherPort == nullptr)
+    return {TIssueState::invalidConfig, "Connected port no longer exists"};
+  if (otherPort->dataType != port.dataType)
+    return {TIssueState::invalidConfig, "Connected port type no longer matches"};
+  if (otherPort->direction == port.direction)
+    return {TIssueState::invalidConfig, "Connected port direction is invalid"};
+
+  return {};
+}
+
+static GroupedPortIssueSummary groupedPortIssueSummary(const TGraphDocument &document,
+                                                       const TNode &node,
+                                                       const GroupedNodePortSummary &group) {
+  GroupedPortIssueSummary summary;
+  for (const auto &connection : document.connections) {
+    for (const auto *port : group.ports) {
+      const TEndpoint *otherEndpoint = nullptr;
+      if (connection.from.isNodePort() && connection.from.nodeId == node.nodeId &&
+          connection.from.portId == port->portId) {
+        otherEndpoint = &connection.to;
+      } else if (connection.to.isNodePort() && connection.to.nodeId == node.nodeId &&
+                 connection.to.portId == port->portId) {
+        otherEndpoint = &connection.from;
+      }
+
+      if (otherEndpoint == nullptr)
+        continue;
+
+      const auto issue = issueSummaryForConnectedEndpoint(document, *port, *otherEndpoint);
+      const auto merged = mergeIssueState(summary.state, issue.state);
+      if (merged != summary.state ||
+          (hasIssueState(issue.state) && summary.detail.isEmpty())) {
+        summary.state = merged;
+        if (hasIssueState(issue.state) && summary.detail.isEmpty())
+          summary.detail = issue.detail;
+        else if (issueStatePriority(issue.state) == issueStatePriority(summary.state) &&
+                 issue.detail.isNotEmpty())
+          summary.detail = issue.detail;
+      }
+    }
+  }
+  return summary;
+}
+
+static juce::String groupedPortIssueLabel(const GroupedNodePortSummary &group,
+                                          const GroupedPortIssueSummary &summary) {
+  if (!hasIssueState(summary.state))
+    return {};
+
+  juce::String text = group.displayName + " / " + groupedPortTypeLabel(group) +
+                      " / " + issueStateLabel(summary.state);
+  if (summary.detail.isNotEmpty())
+    text << " / " << summary.detail;
+  return text;
+}
+
 static TIssueState issueStateForRailEndpointLabel(const TControlSourceState &state,
                                              const TEndpoint &endpoint,
                                              const TSystemRailPort **railPortOut = nullptr) {
@@ -1572,6 +1662,7 @@ private:
     juce::StringArray outgoing;
     juce::StringArray portUsage;
     juce::StringArray portRules;
+    juce::StringArray connectionIssues;
     juce::StringArray controls;
 
     for (const auto &group : groupNodePortsForSummary(node)) {
@@ -1582,6 +1673,10 @@ private:
       portUsage.add(groupedPortUsageLabel(group, counts, capacity,
                                           incomingDirection));
       portRules.add(groupedPortRuleLabel(group, capacity));
+      const auto issueSummary = groupedPortIssueSummary(document, node, group);
+      const auto issueLabel = groupedPortIssueLabel(group, issueSummary);
+      if (issueLabel.isNotEmpty())
+        connectionIssues.add(issueLabel);
     }
 
     auto railPortLabel = [this](const TEndpoint &endpoint) {
@@ -1661,8 +1756,10 @@ private:
 
       juce::String line = sourceLabel + " / " + portLabel + " -> " + targetLabel;
       line << " / " << controlAssignmentSettingsText(assignment);
-      if (hasIssueState(assignmentIssue))
+      if (hasIssueState(assignmentIssue)) {
         line << " / " << issueStateLabel(assignmentIssue);
+        connectionIssues.add(line);
+      }
       controls.add(std::move(line));
     }
 
@@ -1684,6 +1781,8 @@ private:
     sections.add(joinSection("Port Usage", portUsage, "No ports"));
     sections.add(joinSection("Connection Rules", portRules,
                              "No explicit port rules"));
+    sections.add(joinSection("Connection Issues", connectionIssues,
+                             "No active issues"));
     sections.add(joinSection("Incoming Wires", incoming, "No incoming wires"));
     sections.add(joinSection("Outgoing Wires", outgoing, "No outgoing wires"));
     sections.add(joinSection("Control Assignments", controls,

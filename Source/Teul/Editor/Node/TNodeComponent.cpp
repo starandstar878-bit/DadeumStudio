@@ -71,6 +71,17 @@ static bool splitStereoPortLabel(juce::StringRef name, bool &isLeft,
   return false;
 }
 
+static juce::String laneCaptionText(const std::vector<std::unique_ptr<TPortComponent>> &ports,
+                                    juce::StringRef singularLabel,
+                                    juce::StringRef pluralLabel) {
+  if (ports.size() <= 1)
+    return {};
+
+  return juce::String((int)ports.size()) + " " +
+         (ports.size() == 1 ? juce::String(singularLabel)
+                            : juce::String(pluralLabel));
+}
+
 static std::vector<std::unique_ptr<TPortComponent>> buildPortComponents(
     TNodeComponent &owner, const std::vector<TPort> &ports,
     TPortDirection direction, float viewScale) {
@@ -187,7 +198,9 @@ void TNodeComponent::recalculateHeight() {
     const int stackHeight = juce::jmax(stackHeightForPorts(inPorts),
                                        stackHeightForPorts(outPorts));
     const auto previewKind = inlinePreviewKindFor(descriptor);
-    const int desiredHeight = headerHeight + 8 + stackHeight + 12 +
+    const bool hasLaneCaption = inPorts.size() > 1 || outPorts.size() > 1;
+    const int laneCaptionHeight = hasLaneCaption ? 12 : 0;
+    const int desiredHeight = headerHeight + 8 + laneCaptionHeight + stackHeight + 12 +
                               previewHeightForKind(previewKind);
     logicalSize.y = juce::jmax(logicalSize.y, desiredHeight);
 
@@ -321,11 +334,13 @@ void TNodeComponent::resized() {
   const bool collapsed = nodePtr ? nodePtr->collapsed : false;
   const int headerHeightPx = scaledInt(headerHeight);
   const int rowGapPx = scaledInt(6);
+  const bool hasLaneCaption = inPorts.size() > 1 || outPorts.size() > 1;
+  const int laneCaptionHeightPx = hasLaneCaption ? scaledInt(12) : 0;
   const int portYInset = scaledInt(8);
   const int inputLaneWidth = inputLaneWidthPx();
   const int outputLaneWidth = outputLaneWidthPx();
 
-  int y = headerHeightPx + portYInset;
+  int y = headerHeightPx + portYInset + laneCaptionHeightPx;
   for (auto &p : inPorts) {
     const int portHeight = p->getHeight();
     p->setBounds(0, y, inputLaneWidth, portHeight);
@@ -333,7 +348,7 @@ void TNodeComponent::resized() {
     y += portHeight + rowGapPx;
   }
 
-  y = headerHeightPx + portYInset;
+  y = headerHeightPx + portYInset + laneCaptionHeightPx;
   for (auto &p : outPorts) {
     const int portHeight = p->getHeight();
     p->setBounds(getWidth() - outputLaneWidth, y, outputLaneWidth, portHeight);
@@ -486,12 +501,31 @@ void TNodeComponent::paint(juce::Graphics &g) {
     const int inputLaneWidth = inputLaneWidthPx();
     const int outputLaneWidth = outputLaneWidthPx();
     const int labelPaddingPx = scaledInt(8);
+    const int laneCaptionHeightPx = (inPorts.size() > 1 || outPorts.size() > 1)
+                                        ? scaledInt(12)
+                                        : 0;
     const int inputLabelX = juce::jmax(labelInsetPx, inputLaneWidth + labelPaddingPx);
     const int outputLabelRight =
         juce::jmax(inputLabelX + labelWidthPx + scaledInt(8),
                    getWidth() - outputLaneWidth - labelPaddingPx);
     const int outputLabelX = juce::jmax(inputLabelX + scaledInt(8),
                                         outputLabelRight - labelWidthPx);
+
+    if (laneCaptionHeightPx > 0) {
+      g.setColour(juce::Colours::white.withAlpha(0.45f));
+      g.setFont(juce::FontOptions(juce::jmax(6.0f, scaledFloat(9.0f)), juce::Font::bold));
+      const int captionY = juce::roundToInt(headerHeightPx + scaledFloat(2.0f));
+      const auto inputCaption = laneCaptionText(inPorts, "input", "inputs");
+      if (inputCaption.isNotEmpty())
+        g.drawText(inputCaption, inputLabelX, captionY, labelWidthPx, laneCaptionHeightPx,
+                   juce::Justification::centredLeft);
+      const auto outputCaption = laneCaptionText(outPorts, "output", "outputs");
+      if (outputCaption.isNotEmpty())
+        g.drawText(outputCaption, outputLabelX, captionY, labelWidthPx, laneCaptionHeightPx,
+                   juce::Justification::centredRight);
+      g.setColour(juce::Colours::lightgrey);
+      g.setFont(juce::FontOptions(bodyFontPx));
+    }
 
     for (auto &p : inPorts) {
       const auto labelY = p->getBounds().getCentreY() - portTextHeightPx / 2;
