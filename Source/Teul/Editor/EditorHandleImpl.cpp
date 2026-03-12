@@ -873,7 +873,7 @@ public:
       g.drawText(railTitle(), titleArea, juce::Justification::centredLeft, false);
 
       g.setColour(juce::Colours::white.withAlpha(0.52f));
-      g.setFont(10.0f);
+      g.setFont(9.4f);
       g.drawText(metaLabel((int)cards.size()), content.removeFromTop(14),
                  juce::Justification::centredLeft, false);
       content.removeFromTop(6);
@@ -1243,7 +1243,7 @@ private:
     auto titleBlock = content.removeFromTop(card.subtitle.isNotEmpty() ? 34 : 22);
     auto titleRow = titleBlock.removeFromTop(18);
     if (card.badge.isNotEmpty()) {
-      const int badgeWidth = juce::jlimit(30, 46, 16 + card.badge.length() * 7);
+      const int badgeWidth = juce::jlimit(28, 42, 14 + card.badge.length() * 7);
       auto badgeArea = titleRow.removeFromRight(badgeWidth);
       drawBadge(g, badgeArea, card.badge, accent);
       titleRow.removeFromRight(4);
@@ -1308,54 +1308,53 @@ private:
       g.drawRoundedRectangle(area.reduced(3.0f), 10.0f, 1.0f);
     }
 
-    auto content = area.toNearestInt().reduced(12, 10);
-    auto portTray = content.removeFromBottom(24);
+    auto content = area.toNearestInt().reduced(10, 8);
+    auto portTray = content.removeFromBottom(22);
     auto titleBlock = content;
-    auto titleRow = titleBlock.removeFromTop(18);
+    auto titleRow = titleBlock.removeFromTop(16);
     if (card.badge.isNotEmpty()) {
-      const int badgeWidth = juce::jlimit(30, 46, 16 + card.badge.length() * 7);
+      const int badgeWidth = juce::jlimit(28, 42, 14 + card.badge.length() * 7);
       auto badgeArea = titleRow.removeFromRight(badgeWidth);
       drawBadge(g, badgeArea, card.badge, accent);
       titleRow.removeFromRight(4);
     }
-    const bool compactText = titleRow.getWidth() < 110;
-    g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.setFont(juce::FontOptions(compactText ? 10.8f : 12.0f, juce::Font::bold));
+    const bool compactText = titleRow.getWidth() < 118;
+    g.setColour(juce::Colours::white.withAlpha(0.94f));
+    g.setFont(juce::FontOptions(compactText ? 10.6f : 11.6f, juce::Font::bold));
     g.drawFittedText(card.title, titleRow, juce::Justification::topLeft,
-                     compactText ? 2 : 1, 0.88f);
+                     compactText ? 2 : 1, 0.86f);
 
     if (card.subtitle.isNotEmpty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.64f));
-      g.setFont(10.0f);
-      g.drawFittedText(card.subtitle, titleBlock.removeFromTop(16),
-                       juce::Justification::topLeft, compactText ? 1 : 2,
-                       0.9f);
+      g.setColour(juce::Colours::white.withAlpha(0.58f));
+      g.setFont(9.4f);
+      g.drawFittedText(card.subtitle, titleBlock.removeFromTop(14),
+                       juce::Justification::topLeft, 1, 0.88f);
     }
 
-    g.setColour(juce::Colours::white.withAlpha(0.03f));
-    g.fillRoundedRectangle(portTray.toFloat(), 10.0f);
-    g.setColour(accent.withAlpha(0.14f));
-    g.drawRoundedRectangle(portTray.toFloat(), 10.0f, 1.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.024f));
+    g.fillRoundedRectangle(portTray.toFloat(), 9.0f);
+    g.setColour(accent.withAlpha(0.12f));
+    g.drawRoundedRectangle(portTray.toFloat(), 9.0f, 1.0f);
 
-    auto portArea = portTray.reduced(6, 3);
+    auto portArea = portTray.reduced(5, 3);
     int portX = portArea.getX();
     for (const auto &port : card.ports) {
-      const int portWidth = juce::jlimit(44, 72, 18 + port.label.length() * 7);
+      const int portWidth = juce::jlimit(38, 66, 16 + port.label.length() * 7);
       if (portX + portWidth > portArea.getRight())
         break;
 
       juce::Rectangle<int> pill(portX, portArea.getY(), portWidth,
                                 portArea.getHeight());
-      portX += portWidth + 6;
+      portX += portWidth + 5;
       g.setColour(port.accent.withAlpha(0.16f));
-      g.fillRoundedRectangle(pill.toFloat(), 8.0f);
-      g.setColour(port.accent.withAlpha(0.88f));
-      g.drawRoundedRectangle(pill.toFloat(), 8.0f, 1.0f);
+      g.fillRoundedRectangle(pill.toFloat(), 7.0f);
+      g.setColour(port.accent.withAlpha(0.84f));
+      g.drawRoundedRectangle(pill.toFloat(), 7.0f, 1.0f);
       drawPortStateOverlay(g, pill.toFloat(), port.accent,
                            isHoveredPort(card.itemId, port.portId),
                            isActivePort(card.itemId, port.portId));
       g.setColour(port.accent.brighter(0.18f));
-      g.setFont(10.0f);
+      g.setFont(9.4f);
       g.drawText(port.label, pill, juce::Justification::centred, false);
       if (isDropTargetPort(card.itemId, port.portId))
         drawDropTargetOverlay(g, pill.toFloat(), port.accent);
