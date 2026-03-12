@@ -48,6 +48,13 @@ public:
                                   const juce::String &sourceDisplayName = {},
                                   bool autoDetected = true,
                                   bool confirmed = true);
+  bool applyLearnedMidiMessage(const juce::MidiMessage &message,
+                               const juce::String &midiDeviceName = {},
+                               const juce::String &hardwareId = {},
+                               const juce::String &profileId = {},
+                               const juce::String &profileDisplayName = {},
+                               bool autoDetected = true,
+                               bool confirmed = true);
   TExportResult runExportDryRun(const TExportOptions &options = {}) const;
 
   void paint(juce::Graphics &g) override;

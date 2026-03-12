@@ -3254,6 +3254,56 @@ bool EditorHandle::Impl::applyLearnedControlBinding(
   return true;
 }
 
+bool EditorHandle::Impl::applyLearnedMidiMessage(
+    const juce::MidiMessage &message, const juce::String &midiDeviceName,
+    const juce::String &hardwareId, const juce::String &profileId,
+    const juce::String &profileDisplayName, bool autoDetected, bool confirmed) {
+  TDeviceBindingSignature binding;
+  binding.midiDeviceName = midiDeviceName.trim();
+  binding.hardwareId = hardwareId.trim();
+  binding.midiChannel = message.getChannel();
+
+  TControlSourceKind kind = TControlSourceKind::midiCc;
+  TControlSourceMode mode = TControlSourceMode::continuous;
+  juce::String sourceDisplayName;
+
+  if (message.isController()) {
+    binding.controllerNumber = message.getControllerNumber();
+    sourceDisplayName = "MIDI CC " + juce::String(binding.controllerNumber);
+  } else if (message.isNoteOnOrOff()) {
+    kind = TControlSourceKind::midiNote;
+    mode = TControlSourceMode::momentary;
+    binding.noteNumber = message.getNoteNumber();
+    sourceDisplayName = "MIDI Note " + juce::String(binding.noteNumber);
+  } else {
+    pushRuntimeMessage("Learn expects MIDI CC or MIDI Note input",
+                       juce::Colour(0xfff59e0b), 60);
+    return false;
+  }
+
+  auto normalizedProfileId = profileId.trim();
+  if (normalizedProfileId.isEmpty())
+    normalizedProfileId = hardwareId.trim().isNotEmpty()
+                              ? hardwareId.trim()
+                              : (midiDeviceName.trim().isNotEmpty()
+                                     ? midiDeviceName.trim()
+                                     : juce::String("midi-device"));
+
+  auto normalizedProfileDisplayName = profileDisplayName.trim();
+  if (normalizedProfileDisplayName.isEmpty())
+    normalizedProfileDisplayName = midiDeviceName.trim().isNotEmpty()
+                                       ? midiDeviceName.trim()
+                                       : (hardwareId.trim().isNotEmpty()
+                                              ? hardwareId.trim()
+                                              : normalizedProfileId);
+
+  return applyLearnedControlBinding(binding, normalizedProfileId,
+                                    hardwareId.trim(),
+                                    normalizedProfileDisplayName, kind, mode,
+                                    sourceDisplayName, autoDetected,
+                                    confirmed);
+}
+
 void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   auto top = area.removeFromTop(33).reduced(6, 3);
 

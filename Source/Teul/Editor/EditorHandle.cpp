@@ -41,6 +41,18 @@ bool EditorHandle::applyLearnedControlBinding(
                                           confirmed);
 }
 
+bool EditorHandle::applyLearnedMidiMessage(
+    const juce::MidiMessage &message, const juce::String &midiDeviceName,
+    const juce::String &hardwareId, const juce::String &profileId,
+    const juce::String &profileDisplayName, bool autoDetected, bool confirmed) {
+  if (impl == nullptr)
+    return false;
+
+  return impl->applyLearnedMidiMessage(message, midiDeviceName, hardwareId,
+                                       profileId, profileDisplayName,
+                                       autoDetected, confirmed);
+}
+
 TExportResult EditorHandle::runExportDryRun(
     const TExportOptions &options) const {
   if (impl == nullptr || impl->registry() == nullptr)

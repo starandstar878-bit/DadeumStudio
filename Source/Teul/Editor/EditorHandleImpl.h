@@ -42,6 +42,13 @@ struct EditorHandle::Impl : private juce::Timer {
                                   const juce::String &sourceDisplayName,
                                   bool autoDetected,
                                   bool confirmed);
+  bool applyLearnedMidiMessage(const juce::MidiMessage &message,
+                              const juce::String &midiDeviceName,
+                              const juce::String &hardwareId,
+                              const juce::String &profileId,
+                              const juce::String &profileDisplayName,
+                              bool autoDetected,
+                              bool confirmed);
   void layout(juce::Rectangle<int> area);
 
 private:
