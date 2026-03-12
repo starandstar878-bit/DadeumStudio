@@ -111,6 +111,37 @@ juce::String formatCompactControlStateSummary(const TControlStateSnapshot &snaps
   return parts.joinIntoString(", ");
 }
 
+juce::String formatControlStateRuntimeMessage(const juce::String &prefix,
+                                             const TControlStateSnapshot &before,
+                                             const TControlStateSnapshot &after) {
+  juce::String text(prefix);
+  const auto beforeIssues = totalControlIssueCount(before);
+  const auto afterIssues = totalControlIssueCount(after);
+  if (after.sourceCount > 0 || after.profileCount > 0) {
+    text << " | " << formatCompactControlStateSummary(after);
+    if (afterIssues > 0) {
+      text << " | " << formatControlIssueSummary(after);
+    } else if (beforeIssues > 0) {
+      text << " | Control issues cleared";
+    }
+  } else if (before.sourceCount > 0 || before.profileCount > 0) {
+    text << " | No active control sources";
+  }
+  return text;
+}
+
+juce::Colour controlStateRuntimeAccent(const TControlStateSnapshot &before,
+                                       const TControlStateSnapshot &after,
+                                       juce::Colour fallback) {
+  const auto beforeIssues = totalControlIssueCount(before);
+  const auto afterIssues = totalControlIssueCount(after);
+  if (afterIssues > beforeIssues)
+    return juce::Colour(0xfff59e0b);
+  if (afterIssues == 0 && beforeIssues > 0)
+    return juce::Colour(0xff22c55e);
+  return fallback;
+}
+
 juce::Result buildRecoveryDiffPreview(const TGraphDocument &currentDocument,
                                       const juce::File &recoveryFile,
                                       juce::String &summaryText,
@@ -3436,6 +3467,7 @@ bool EditorHandle::Impl::applyLearnedControlBinding(
     const juce::String &deviceId, const juce::String &profileDisplayName,
     TControlSourceKind kind, TControlSourceMode mode,
     const juce::String &sourceDisplayName, bool autoDetected, bool confirmed) {
+  const auto beforeSnapshot = captureControlStateSnapshot(doc.controlState);
   const bool applied = doc.controlState.applyLearnedBindingToArmedSource(
       binding, profileId, deviceId, profileDisplayName, kind, mode,
       sourceDisplayName, autoDetected, confirmed);
@@ -3444,6 +3476,7 @@ bool EditorHandle::Impl::applyLearnedControlBinding(
                        juce::Colour(0xfff59e0b), 60);
     return false;
   }
+  const auto afterSnapshot = captureControlStateSnapshot(doc.controlState);
 
   if (propertiesPanel != nullptr) {
     propertiesPanel->refreshBindingSummaries();
@@ -3453,7 +3486,13 @@ bool EditorHandle::Impl::applyLearnedControlBinding(
     controlSourceInspector->refreshFromDocument();
   refreshRailUi();
   refreshDocumentNoticeUi(true);
-  pushRuntimeMessage("Learned binding applied", juce::Colour(0xff22c55e), 60);
+  refreshSessionStatusUi(true);
+  pushRuntimeMessage(
+      formatControlStateRuntimeMessage("Learned binding applied", beforeSnapshot,
+                                       afterSnapshot),
+      controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
+                                juce::Colour(0xff22c55e)),
+      60);
   return true;
 }
 
@@ -3510,10 +3549,12 @@ bool EditorHandle::Impl::applyLearnedMidiMessage(
 bool EditorHandle::Impl::reportControlDeviceProfilePresent(
     const juce::String &profileId, const juce::String &deviceId,
     const juce::String &displayName, bool autoDetected) {
+  const auto beforeSnapshot = captureControlStateSnapshot(doc.controlState);
   const bool changed = doc.controlState.markDeviceProfilePresent(
       profileId, deviceId, displayName, autoDetected);
   if (!changed)
     return false;
+  const auto afterSnapshot = captureControlStateSnapshot(doc.controlState);
 
   if (propertiesPanel != nullptr)
     propertiesPanel->refreshFromDocument();
@@ -3523,15 +3564,23 @@ bool EditorHandle::Impl::reportControlDeviceProfilePresent(
     systemEndpointInspector->refreshFromDocument();
   refreshRailUi();
   refreshDocumentNoticeUi(true);
-  pushRuntimeMessage("Control device connected", juce::Colour(0xff22c55e), 50);
+  refreshSessionStatusUi(true);
+  pushRuntimeMessage(
+      formatControlStateRuntimeMessage("Control device connected", beforeSnapshot,
+                                       afterSnapshot),
+      controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
+                                juce::Colour(0xff22c55e)),
+      50);
   return true;
 }
 
 bool EditorHandle::Impl::reportControlDeviceProfileMissing(
     const juce::String &profileId) {
+  const auto beforeSnapshot = captureControlStateSnapshot(doc.controlState);
   const bool changed = doc.controlState.markDeviceProfileMissing(profileId);
   if (!changed)
     return false;
+  const auto afterSnapshot = captureControlStateSnapshot(doc.controlState);
 
   if (propertiesPanel != nullptr)
     propertiesPanel->refreshFromDocument();
@@ -3541,12 +3590,19 @@ bool EditorHandle::Impl::reportControlDeviceProfileMissing(
     systemEndpointInspector->refreshFromDocument();
   refreshRailUi();
   refreshDocumentNoticeUi(true);
-  pushRuntimeMessage("Control device disconnected", juce::Colour(0xfff59e0b), 50);
+  refreshSessionStatusUi(true);
+  pushRuntimeMessage(
+      formatControlStateRuntimeMessage("Control device disconnected",
+                                       beforeSnapshot, afterSnapshot),
+      controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
+                                juce::Colour(0xfff59e0b)),
+      50);
   return true;
 }
 bool EditorHandle::Impl::syncControlDeviceProfiles(
     const std::vector<TControlDeviceProfilePresence> &profiles,
     bool autoMarkMissing) {
+  const auto beforeSnapshot = captureControlStateSnapshot(doc.controlState);
   std::vector<juce::String> reportedProfileIds;
   bool changed = false;
   for (const auto &profile : profiles) {
@@ -3593,6 +3649,7 @@ bool EditorHandle::Impl::syncControlDeviceProfiles(
   }
   if (!changed)
     return false;
+  const auto afterSnapshot = captureControlStateSnapshot(doc.controlState);
   if (propertiesPanel != nullptr)
     propertiesPanel->refreshFromDocument();
   if (controlSourceInspector != nullptr)
@@ -3601,7 +3658,13 @@ bool EditorHandle::Impl::syncControlDeviceProfiles(
     systemEndpointInspector->refreshFromDocument();
   refreshRailUi();
   refreshDocumentNoticeUi(true);
-  pushRuntimeMessage("Control devices synced", juce::Colour(0xff38bdf8), 50);
+  refreshSessionStatusUi(true);
+  pushRuntimeMessage(
+      formatControlStateRuntimeMessage("Control devices synced", beforeSnapshot,
+                                       afterSnapshot),
+      controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
+                                juce::Colour(0xff38bdf8)),
+      50);
   return true;
 }
 void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
