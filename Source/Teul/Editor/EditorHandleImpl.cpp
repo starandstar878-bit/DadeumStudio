@@ -1539,14 +1539,16 @@ public:
     headerLabel.setJustificationType(juce::Justification::centredLeft);
     headerLabel.setColour(juce::Label::textColourId,
                           juce::Colours::white.withAlpha(0.95f));
-    headerLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+    headerLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
 
     kindLabel.setJustificationType(juce::Justification::centredLeft);
     kindLabel.setColour(juce::Label::textColourId,
-                        juce::Colours::white.withAlpha(0.68f));
+                        juce::Colours::white.withAlpha(0.64f));
+    kindLabel.setFont(juce::FontOptions(10.8f, juce::Font::plain));
     statusLabel.setJustificationType(juce::Justification::centredLeft);
     statusLabel.setColour(juce::Label::textColourId,
-                          juce::Colours::white.withAlpha(0.58f));
+                          juce::Colours::white.withAlpha(0.54f));
+    statusLabel.setFont(juce::FontOptions(10.2f, juce::Font::plain));
 
     configureFieldLabel(sourceNameLabel, "Source Name");
     configureFieldLabel(profileNameLabel, "Profile Name");
@@ -1681,28 +1683,28 @@ public:
   }
 
   void resized() override {
-    auto area = getLocalBounds().reduced(12, 10);
-    auto header = area.removeFromTop(24);
-    closeButton.setBounds(header.removeFromRight(54));
+    auto area = getLocalBounds().reduced(10, 8);
+    auto header = area.removeFromTop(22);
+    closeButton.setBounds(header.removeFromRight(52));
     headerLabel.setBounds(header);
-    kindLabel.setBounds(area.removeFromTop(18));
-    statusLabel.setBounds(area.removeFromTop(18));
-    area.removeFromTop(8);
-    sourceNameLabel.setBounds(area.removeFromTop(18));
-    sourceNameEditor.setBounds(area.removeFromTop(24));
+    kindLabel.setBounds(area.removeFromTop(16));
+    statusLabel.setBounds(area.removeFromTop(16));
     area.removeFromTop(6);
-    profileNameLabel.setBounds(area.removeFromTop(18));
-    profileNameEditor.setBounds(area.removeFromTop(24));
-    area.removeFromTop(8);
-    auto toggleRow = area.removeFromTop(24);
-    confirmedToggle.setBounds(toggleRow.removeFromLeft(110));
-    toggleRow.removeFromLeft(8);
-    autoDetectedToggle.setBounds(toggleRow.removeFromLeft(80));
-    area.removeFromTop(8);
-    portsLabel.setBounds(area.removeFromTop(18));
-    portsBox.setBounds(area.removeFromTop(92));
-    area.removeFromTop(8);
-    assignmentsLabel.setBounds(area.removeFromTop(18));
+    sourceNameLabel.setBounds(area.removeFromTop(16));
+    sourceNameEditor.setBounds(area.removeFromTop(22));
+    area.removeFromTop(5);
+    profileNameLabel.setBounds(area.removeFromTop(16));
+    profileNameEditor.setBounds(area.removeFromTop(22));
+    area.removeFromTop(6);
+    auto toggleRow = area.removeFromTop(22);
+    confirmedToggle.setBounds(toggleRow.removeFromLeft(100));
+    toggleRow.removeFromLeft(6);
+    autoDetectedToggle.setBounds(toggleRow.removeFromLeft(72));
+    area.removeFromTop(6);
+    portsLabel.setBounds(area.removeFromTop(16));
+    portsBox.setBounds(area.removeFromTop(84));
+    area.removeFromTop(6);
+    assignmentsLabel.setBounds(area.removeFromTop(16));
     assignmentsBox.setBounds(area);
   }
 
@@ -1711,7 +1713,8 @@ private:
     label.setText(text, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centredLeft);
     label.setColour(juce::Label::textColourId,
-                    juce::Colours::white.withAlpha(0.78f));
+                    juce::Colours::white.withAlpha(0.74f));
+    label.setFont(juce::FontOptions(10.6f, juce::Font::plain));
   }
 
   static void configureReadOnlyBox(juce::TextEditor &box) {
@@ -1719,11 +1722,11 @@ private:
     box.setReadOnly(true);
     box.setScrollbarsShown(true);
     box.setColour(juce::TextEditor::backgroundColourId,
-                  juce::Colour(0x66111827));
+                  juce::Colour(0x55111827));
     box.setColour(juce::TextEditor::outlineColourId,
-                  juce::Colour(0xff324154));
+                  juce::Colour(0xff2b394a));
     box.setColour(juce::TextEditor::textColourId,
-                  juce::Colours::white.withAlpha(0.82f));
+                  juce::Colours::white.withAlpha(0.76f));
   }
 
   static void configureEditableField(juce::TextEditor &editor) {
@@ -1731,11 +1734,11 @@ private:
     editor.setReturnKeyStartsNewLine(false);
     editor.setScrollbarsShown(false);
     editor.setColour(juce::TextEditor::backgroundColourId,
-                     juce::Colour(0x66111827));
+                     juce::Colour(0x55111827));
     editor.setColour(juce::TextEditor::outlineColourId,
-                     juce::Colour(0xff324154));
+                     juce::Colour(0xff2b394a));
     editor.setColour(juce::TextEditor::textColourId,
-                     juce::Colours::white.withAlpha(0.92f));
+                     juce::Colours::white.withAlpha(0.88f));
     editor.setColour(juce::TextEditor::highlightColourId,
                      juce::Colour(0x6638bdf8));
     editor.setColour(juce::CaretComponent::caretColourId,
@@ -1984,24 +1987,28 @@ public:
     headerLabel.setJustificationType(juce::Justification::centredLeft);
     headerLabel.setColour(juce::Label::textColourId,
                           juce::Colours::white.withAlpha(0.95f));
-    headerLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+    headerLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
 
     kindLabel.setJustificationType(juce::Justification::centredLeft);
     kindLabel.setColour(juce::Label::textColourId,
-                        juce::Colours::white.withAlpha(0.68f));
+                        juce::Colours::white.withAlpha(0.64f));
+    kindLabel.setFont(juce::FontOptions(10.8f, juce::Font::plain));
     statusLabel.setJustificationType(juce::Justification::centredLeft);
     statusLabel.setColour(juce::Label::textColourId,
-                          juce::Colours::white.withAlpha(0.58f));
+                          juce::Colours::white.withAlpha(0.54f));
+    statusLabel.setFont(juce::FontOptions(10.2f, juce::Font::plain));
 
     portsLabel.setText("Ports", juce::dontSendNotification);
     portsLabel.setJustificationType(juce::Justification::centredLeft);
     portsLabel.setColour(juce::Label::textColourId,
-                         juce::Colours::white.withAlpha(0.78f));
+                         juce::Colours::white.withAlpha(0.74f));
+    portsLabel.setFont(juce::FontOptions(10.6f, juce::Font::plain));
 
     detailsLabel.setText("Endpoint", juce::dontSendNotification);
     detailsLabel.setJustificationType(juce::Justification::centredLeft);
     detailsLabel.setColour(juce::Label::textColourId,
-                           juce::Colours::white.withAlpha(0.78f));
+                           juce::Colours::white.withAlpha(0.74f));
+    detailsLabel.setFont(juce::FontOptions(10.6f, juce::Font::plain));
 
     configureReadOnlyBox(portsBox);
     configureReadOnlyBox(detailsBox);
@@ -2085,17 +2092,17 @@ public:
   }
 
   void resized() override {
-    auto area = getLocalBounds().reduced(12, 10);
-    auto header = area.removeFromTop(24);
-    closeButton.setBounds(header.removeFromRight(54));
+    auto area = getLocalBounds().reduced(10, 8);
+    auto header = area.removeFromTop(22);
+    closeButton.setBounds(header.removeFromRight(52));
     headerLabel.setBounds(header);
-    kindLabel.setBounds(area.removeFromTop(18));
-    statusLabel.setBounds(area.removeFromTop(18));
-    area.removeFromTop(8);
-    portsLabel.setBounds(area.removeFromTop(18));
-    portsBox.setBounds(area.removeFromTop(116));
-    area.removeFromTop(8);
-    detailsLabel.setBounds(area.removeFromTop(18));
+    kindLabel.setBounds(area.removeFromTop(16));
+    statusLabel.setBounds(area.removeFromTop(16));
+    area.removeFromTop(6);
+    portsLabel.setBounds(area.removeFromTop(16));
+    portsBox.setBounds(area.removeFromTop(102));
+    area.removeFromTop(6);
+    detailsLabel.setBounds(area.removeFromTop(16));
     detailsBox.setBounds(area);
   }
 
@@ -2105,11 +2112,11 @@ private:
     box.setReadOnly(true);
     box.setScrollbarsShown(true);
     box.setColour(juce::TextEditor::backgroundColourId,
-                  juce::Colour(0x66111827));
+                  juce::Colour(0x55111827));
     box.setColour(juce::TextEditor::outlineColourId,
-                  juce::Colour(0xff324154));
+                  juce::Colour(0xff2b394a));
     box.setColour(juce::TextEditor::textColourId,
-                  juce::Colours::white.withAlpha(0.82f));
+                  juce::Colours::white.withAlpha(0.76f));
   }
 
   static juce::String endpointKindLabel(TSystemRailEndpointKind kind) {
