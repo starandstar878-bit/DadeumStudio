@@ -3011,34 +3011,34 @@ void EditorHandle::Impl::setSessionStatus(const TEditorSessionStatus &status) {
 }
 
 void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
-  auto top = area.removeFromTop(40).reduced(6, 4);
+  auto top = area.removeFromTop(36).reduced(6, 3);
 
-  toggleLibraryButton.setBounds(top.removeFromLeft(78));
-  top.removeFromLeft(4);
-  quickAddButton.setBounds(top.removeFromLeft(92));
-  top.removeFromLeft(4);
-  findNodeButton.setBounds(top.removeFromLeft(92));
-  top.removeFromLeft(4);
-  commandPaletteButton.setBounds(top.removeFromLeft(60));
-  top.removeFromLeft(8);
-  toggleHeatmapButton.setBounds(top.removeFromLeft(82));
-  top.removeFromLeft(4);
-  toggleProbeButton.setBounds(top.removeFromLeft(92));
-  top.removeFromLeft(4);
-  toggleOverlayButton.setBounds(top.removeFromLeft(108));
-  top.removeFromLeft(4);
-  toggleDiagnosticsButton.setBounds(top.removeFromLeft(118));
-  top.removeFromLeft(4);
-  togglePresetsButton.setBounds(top.removeFromLeft(96));
+  toggleLibraryButton.setBounds(top.removeFromLeft(74));
+  top.removeFromLeft(3);
+  quickAddButton.setBounds(top.removeFromLeft(86));
+  top.removeFromLeft(3);
+  findNodeButton.setBounds(top.removeFromLeft(86));
+  top.removeFromLeft(3);
+  commandPaletteButton.setBounds(top.removeFromLeft(54));
+  top.removeFromLeft(6);
+  toggleHeatmapButton.setBounds(top.removeFromLeft(74));
+  top.removeFromLeft(3);
+  toggleProbeButton.setBounds(top.removeFromLeft(82));
+  top.removeFromLeft(3);
+  toggleOverlayButton.setBounds(top.removeFromLeft(96));
+  top.removeFromLeft(3);
+  toggleDiagnosticsButton.setBounds(top.removeFromLeft(106));
+  top.removeFromLeft(3);
+  togglePresetsButton.setBounds(top.removeFromLeft(88));
 
   if (runtimeStatusStrip != nullptr) {
-    auto statusArea = area.removeFromTop(52).reduced(6, 3);
+    auto statusArea = area.removeFromTop(48).reduced(6, 2);
     runtimeStatusStrip->setBounds(statusArea);
   }
 
   if (documentNoticeBanner != nullptr) {
     if (documentNoticeBanner->isVisible()) {
-      auto bannerArea = area.removeFromTop(38).reduced(6, 2);
+      auto bannerArea = area.removeFromTop(34).reduced(6, 2);
       documentNoticeBanner->setBounds(bannerArea);
     } else {
       documentNoticeBanner->setBounds({});
