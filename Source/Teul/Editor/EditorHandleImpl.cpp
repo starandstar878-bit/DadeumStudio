@@ -1539,8 +1539,10 @@ public:
     addAndMakeVisible(autoDetectedToggle);
     addAndMakeVisible(learnToggle);
     addAndMakeVisible(portsLabel);
+    addAndMakeVisible(bindingsLabel);
     addAndMakeVisible(assignmentsLabel);
     addAndMakeVisible(portsBox);
+    addAndMakeVisible(bindingsBox);
     addAndMakeVisible(assignmentsBox);
     addAndMakeVisible(closeButton);
 
@@ -1563,6 +1565,7 @@ public:
     configureFieldLabel(sourceNameLabel, "Source Name");
     configureFieldLabel(profileNameLabel, "Profile Name");
     configureFieldLabel(portsLabel, "Ports");
+    configureFieldLabel(bindingsLabel, "Bindings");
     configureFieldLabel(assignmentsLabel, "Assignments");
 
     configureComboBox(kindCombo);
@@ -1615,6 +1618,7 @@ public:
     };
 
     configureReadOnlyBox(portsBox);
+    configureReadOnlyBox(bindingsBox);
     configureReadOnlyBox(assignmentsBox);
 
     closeButton.setButtonText("Hide");
@@ -1673,6 +1677,7 @@ public:
                       juce::dontSendNotification);
     statusLabel.setText(buildStatusLine(*source), juce::dontSendNotification);
     portsBox.setText(buildPortSummary(*source), false);
+    bindingsBox.setText(buildBindingSummary(*source), false);
     assignmentsBox.setText(buildAssignmentSummary(*source), false);
 
     suppressEditorCallbacks = true;
@@ -1757,7 +1762,10 @@ public:
     learnToggle.setBounds(toggleRow.removeFromLeft(64));
     area.removeFromTop(6);
     portsLabel.setBounds(area.removeFromTop(16));
-    portsBox.setBounds(area.removeFromTop(84));
+    portsBox.setBounds(area.removeFromTop(66));
+    area.removeFromTop(6);
+    bindingsLabel.setBounds(area.removeFromTop(16));
+    bindingsBox.setBounds(area.removeFromTop(62));
     area.removeFromTop(6);
     assignmentsLabel.setBounds(area.removeFromTop(16));
     assignmentsBox.setBounds(area);
@@ -2098,6 +2106,37 @@ private:
     return nodeName + " / " + assignment.targetParamId;
   }
 
+  juce::String buildBindingSummary(const TControlSource &source) const {
+    const auto *profileSource =
+        document.controlState.findDeviceSourceProfile(source.deviceProfileId,
+                                                      source.sourceId);
+    if (profileSource == nullptr || profileSource->bindings.empty())
+      return "No learned bindings yet.";
+
+    juce::StringArray lines;
+    for (const auto &binding : profileSource->bindings) {
+      juce::String line = binding.midiDeviceName.isNotEmpty()
+                              ? binding.midiDeviceName
+                              : (binding.hardwareId.isNotEmpty()
+                                     ? binding.hardwareId
+                                     : juce::String("Unknown device"));
+      juce::StringArray parts;
+      if (binding.midiChannel > 0)
+        parts.add("Ch " + juce::String(binding.midiChannel));
+      if (binding.controllerNumber >= 0)
+        parts.add("CC " + juce::String(binding.controllerNumber));
+      if (binding.noteNumber >= 0)
+        parts.add("Note " + juce::String(binding.noteNumber));
+      if (binding.hardwareId.isNotEmpty() && binding.hardwareId != line)
+        parts.add("HW " + binding.hardwareId);
+      if (!parts.isEmpty())
+        line << " | " << parts.joinIntoString(" | " );
+      lines.add(line);
+    }
+
+    return lines.joinIntoString("\r\r\r\n");
+  }
+
   juce::String buildAssignmentSummary(const TControlSource &source) const {
     juce::StringArray lines;
     for (const auto &assignment : document.controlState.assignments) {
@@ -2125,12 +2164,14 @@ private:
   juce::Label sourceNameLabel;
   juce::Label profileNameLabel;
   juce::Label portsLabel;
+  juce::Label bindingsLabel;
   juce::Label assignmentsLabel;
   juce::ComboBox kindCombo;
   juce::ComboBox modeCombo;
   juce::TextEditor sourceNameEditor;
   juce::TextEditor profileNameEditor;
   juce::TextEditor portsBox;
+  juce::TextEditor bindingsBox;
   juce::TextEditor assignmentsBox;
   juce::ToggleButton confirmedToggle;
   juce::ToggleButton autoDetectedToggle;

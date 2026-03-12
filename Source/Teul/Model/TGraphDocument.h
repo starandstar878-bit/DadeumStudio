@@ -559,6 +559,117 @@ struct TControlSourceState {
     return nullptr;
   }
 
+  TDeviceProfile &ensureDeviceProfile(const juce::String &profileId,
+                                      const juce::String &deviceId,
+                                      const juce::String &displayName,
+                                      bool autoDetected) {
+    auto normalizedProfileId = profileId.trim();
+    if (normalizedProfileId.isEmpty())
+      normalizedProfileId = "transient-device";
+
+    if (auto *existingProfile = findDeviceProfile(normalizedProfileId)) {
+      if (deviceId.isNotEmpty())
+        existingProfile->deviceId = deviceId;
+      if (displayName.isNotEmpty())
+        existingProfile->displayName = displayName;
+      existingProfile->autoDetected = autoDetected;
+      return *existingProfile;
+    }
+
+    TDeviceProfile profile;
+    profile.profileId = normalizedProfileId;
+    profile.deviceId = deviceId.isNotEmpty() ? deviceId : normalizedProfileId;
+    profile.displayName = displayName.isNotEmpty() ? displayName : normalizedProfileId;
+    profile.autoDetected = autoDetected;
+    deviceProfiles.push_back(std::move(profile));
+    return deviceProfiles.back();
+  }
+
+  static bool deviceBindingMatches(const TDeviceBindingSignature &lhs,
+                                   const TDeviceBindingSignature &rhs) noexcept {
+    return lhs.midiDeviceName == rhs.midiDeviceName &&
+           lhs.hardwareId == rhs.hardwareId &&
+           lhs.midiChannel == rhs.midiChannel &&
+           lhs.controllerNumber == rhs.controllerNumber &&
+           lhs.noteNumber == rhs.noteNumber;
+  }
+
+  static bool bindingSignatureHasIdentity(const TDeviceBindingSignature &binding) noexcept {
+    return binding.midiDeviceName.isNotEmpty() || binding.hardwareId.isNotEmpty() ||
+           binding.midiChannel != 0 || binding.controllerNumber >= 0 ||
+           binding.noteNumber >= 0;
+  }
+
+  bool applyLearnedBindingToArmedSource(
+      const TDeviceBindingSignature &binding,
+      const juce::String &profileId,
+      const juce::String &deviceId,
+      const juce::String &profileDisplayName,
+      TControlSourceKind kind,
+      TControlSourceMode mode,
+      const juce::String &sourceDisplayName = {},
+      bool autoDetected = true,
+      bool confirmed = true) {
+    const auto sourceId = armedLearnSourceId.trim();
+    if (sourceId.isEmpty())
+      return false;
+
+    auto *source = findSource(sourceId);
+    if (source == nullptr)
+      return false;
+
+    auto normalizedProfileId = profileId.trim();
+    if (normalizedProfileId.isEmpty())
+      normalizedProfileId = sourceId + "-device";
+
+    auto normalizedDeviceId = deviceId.trim();
+    if (normalizedDeviceId.isEmpty())
+      normalizedDeviceId = normalizedProfileId;
+
+    auto normalizedProfileName = profileDisplayName.trim();
+    if (normalizedProfileName.isEmpty())
+      normalizedProfileName = normalizedProfileId;
+
+    ensureDeviceProfile(normalizedProfileId, normalizedDeviceId,
+                        normalizedProfileName, autoDetected);
+    reconfigureSourceShape(sourceId, kind, mode);
+
+    source = findSource(sourceId);
+    if (source == nullptr)
+      return false;
+
+    if (sourceDisplayName.trim().isNotEmpty())
+      source->displayName = sourceDisplayName.trim();
+    source->deviceProfileId = normalizedProfileId;
+    source->autoDetected = autoDetected;
+    source->confirmed = confirmed;
+    source->missing = false;
+    source->degraded = false;
+
+    syncSourceIntoDeviceProfile(*source);
+
+    auto *profileSource = findDeviceSourceProfile(normalizedProfileId, source->sourceId);
+    if (profileSource != nullptr && bindingSignatureHasIdentity(binding)) {
+      const bool alreadyPresent = std::any_of(
+          profileSource->bindings.begin(), profileSource->bindings.end(),
+          [&](const TDeviceBindingSignature &existingBinding) {
+            return deviceBindingMatches(existingBinding, binding);
+          });
+      if (!alreadyPresent)
+        profileSource->bindings.push_back(binding);
+    }
+
+    if (auto *profile = findDeviceProfile(normalizedProfileId)) {
+      profile->deviceId = normalizedDeviceId;
+      profile->displayName = normalizedProfileName;
+      profile->autoDetected = autoDetected;
+    }
+
+    clearLearnArm();
+    reconcileDeviceProfilesAndSources();
+    return true;
+  }
+
   void removeMissingDeviceProfileId(const juce::String &profileId) {
     const auto trimmedId = profileId.trim();
     if (trimmedId.isEmpty())
