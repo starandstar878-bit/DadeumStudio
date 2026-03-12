@@ -538,11 +538,12 @@ public:
     headerLabel.setJustificationType(juce::Justification::centredLeft);
     headerLabel.setColour(juce::Label::textColourId,
                           juce::Colours::white.withAlpha(0.92f));
-    headerLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+    headerLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
 
     typeLabel.setJustificationType(juce::Justification::centredLeft);
     typeLabel.setColour(juce::Label::textColourId,
-                        juce::Colours::white.withAlpha(0.58f));
+                        juce::Colours::white.withAlpha(0.54f));
+    typeLabel.setFont(juce::FontOptions(10.8f, juce::Font::plain));
 
     nameEditor.setTextToShowWhenEmpty("Custom node label", juce::Colours::grey);
     nameEditor.setColour(juce::TextEditor::backgroundColourId,
@@ -572,22 +573,22 @@ public:
     nodeConnectionsBox.setReadOnly(true);
     nodeConnectionsBox.setScrollbarsShown(true);
     nodeConnectionsBox.setColour(juce::TextEditor::backgroundColourId,
-                                 juce::Colour(0x66111827));
+                                 juce::Colour(0x55111827));
     nodeConnectionsBox.setColour(juce::TextEditor::outlineColourId,
-                                 juce::Colour(0xff324154));
+                                 juce::Colour(0xff2b394a));
     nodeConnectionsBox.setColour(juce::TextEditor::textColourId,
-                                 juce::Colours::white.withAlpha(0.78f));
+                                 juce::Colours::white.withAlpha(0.74f));
     nodeConnectionsBox.setVisible(false);
 
     frameSummaryBox.setMultiLine(true);
     frameSummaryBox.setReadOnly(true);
     frameSummaryBox.setScrollbarsShown(true);
     frameSummaryBox.setColour(juce::TextEditor::backgroundColourId,
-                              juce::Colour(0x66111827));
+                              juce::Colour(0x55111827));
     frameSummaryBox.setColour(juce::TextEditor::outlineColourId,
-                              juce::Colour(0xff324154));
+                              juce::Colour(0xff2b394a));
     frameSummaryBox.setColour(juce::TextEditor::textColourId,
-                              juce::Colours::white.withAlpha(0.78f));
+                              juce::Colours::white.withAlpha(0.74f));
     frameSummaryBox.setVisible(false);
 
     frameCaptureButton.setButtonText("Capture Sel");
@@ -769,9 +770,9 @@ public:
     if (!isPanelOpen())
       return;
 
-    auto area = getLocalBounds().reduced(12);
+    auto area = getLocalBounds().reduced(10);
     area.removeFromTop(24);
-    area.removeFromTop(4);
+    area.removeFromTop(3);
     area.removeFromTop(18);
     area.removeFromTop(10);
     auto overview = area.removeFromTop(112);
@@ -845,37 +846,37 @@ public:
   }
 
   void resized() override {
-    auto area = getLocalBounds().reduced(12);
-    auto header = area.removeFromTop(24);
-    closeButton.setBounds(header.removeFromRight(56));
+    auto area = getLocalBounds().reduced(10);
+    auto header = area.removeFromTop(22);
+    closeButton.setBounds(header.removeFromRight(52));
     headerLabel.setBounds(header);
-    area.removeFromTop(4);
-    typeLabel.setBounds(area.removeFromTop(18));
-    area.removeFromTop(10);
+    area.removeFromTop(3);
+    typeLabel.setBounds(area.removeFromTop(16));
+    area.removeFromTop(8);
 
-    auto overview = area.removeFromTop(112).reduced(12, 28);
-    nameEditor.setBounds(overview.removeFromTop(26));
-    overview.removeFromTop(12);
-    colorBox.setBounds(overview.removeFromTop(24));
+    auto overview = area.removeFromTop(102).reduced(10, 24);
+    nameEditor.setBounds(overview.removeFromTop(24));
+    overview.removeFromTop(8);
+    colorBox.setBounds(overview.removeFromTop(22));
 
-    area.removeFromTop(10);
-    auto state = area.removeFromTop(72).reduced(12, 28);
-    auto toggles = state.removeFromTop(24);
-    const int toggleWidth = juce::jmax(40, (toggles.getWidth() - 8) / 2);
+    area.removeFromTop(8);
+    auto state = area.removeFromTop(62).reduced(10, 24);
+    auto toggles = state.removeFromTop(22);
+    const int toggleWidth = juce::jmax(38, (toggles.getWidth() - 8) / 2);
     bypassToggle.setBounds(toggles.removeFromLeft(toggleWidth));
     toggles.removeFromLeft(8);
     collapsedToggle.setBounds(toggles);
-    state.removeFromTop(10);
-    applyButton.setBounds(state.removeFromTop(24).removeFromLeft(88));
+    state.removeFromTop(8);
+    applyButton.setBounds(state.removeFromTop(22).removeFromLeft(82));
 
     juce::Rectangle<int> connections;
-    area.removeFromTop(12);
+    area.removeFromTop(10);
     if (!isInspectingFrame())
-      connections = area.removeFromTop(108).reduced(12, 28);
+      connections = area.removeFromTop(96).reduced(10, 24);
     if (!isInspectingFrame())
-      area.removeFromTop(12);
+      area.removeFromTop(10);
     auto params = area;
-    params.removeFromTop(34);
+    params.removeFromTop(28);
     if (isInspectingFrame()) {
       nodeConnectionsBox.setBounds(0, 0, 0, 0);
       nodeConnectionsBox.setVisible(false);
@@ -883,8 +884,8 @@ public:
       paramViewport.setVisible(false);
       frameSummaryBox.setVisible(true);
 
-      auto actions = params.removeFromTop(56);
-      auto topRow = actions.removeFromTop(24);
+      auto actions = params.removeFromTop(52);
+      auto topRow = actions.removeFromTop(22);
       const int topWidth = juce::jmax(80, (topRow.getWidth() - 8) / 2);
       frameCaptureButton.setVisible(true);
       frameCaptureButton.setBounds(topRow.removeFromLeft(topWidth));
@@ -893,7 +894,7 @@ public:
       frameReleaseButton.setBounds(topRow);
 
       actions.removeFromTop(8);
-      auto bottomRow = actions.removeFromTop(24);
+      auto bottomRow = actions.removeFromTop(22);
       const int bottomWidth = juce::jmax(80, (bottomRow.getWidth() - 8) / 2);
       frameFitButton.setVisible(true);
       frameFitButton.setBounds(bottomRow.removeFromLeft(bottomWidth));
@@ -1298,67 +1299,67 @@ private:
     if (paramsContent == nullptr)
       return;
 
-    const int width = juce::jmax(140, paramViewport.getWidth() - 18);
+    const int width = juce::jmax(140, paramViewport.getWidth() - 14);
     int y = 0;
 
     for (auto &entry : paramEditors) {
       if (entry->groupLabel != nullptr) {
-        entry->groupLabel->setBounds(0, y, width, 18);
-        y += 22;
+        entry->groupLabel->setBounds(0, y, width, 16);
+        y += 20;
       }
 
-      entry->caption->setBounds(0, y, width, 18);
-      y += 20;
+      entry->caption->setBounds(0, y, width, 16);
+      y += 18;
 
       const int editorHeight = editorHeightFor(*entry->editor);
       entry->editor->setBounds(0, y, width, editorHeight);
-      y += editorHeight + 6;
+      y += editorHeight + 5;
 
       if (entry->descriptionLabel->isVisible()) {
-        entry->descriptionLabel->setBounds(0, y, width, 14);
-        y += 18;
+        entry->descriptionLabel->setBounds(0, y, width, 13);
+        y += 16;
       }
 
       if (entry->runtimeValueLabel->isVisible()) {
-        entry->runtimeValueLabel->setBounds(0, y, width, 18);
-        y += 22;
+        entry->runtimeValueLabel->setBounds(0, y, width, 16);
+        y += 18;
       } else {
         entry->runtimeValueLabel->setBounds(0, 0, 0, 0);
       }
 
       if (entry->bindingInfoLabel->isVisible()) {
-        entry->bindingInfoLabel->setBounds(0, y, width, 18);
-        y += 22;
+        entry->bindingInfoLabel->setBounds(0, y, width, 16);
+        y += 18;
       } else {
         entry->bindingInfoLabel->setBounds(0, 0, 0, 0);
       }
 
       if (entry->gyeolBindingLabel->isVisible()) {
-        entry->gyeolBindingLabel->setBounds(0, y, width, 18);
-        y += 22;
+        entry->gyeolBindingLabel->setBounds(0, y, width, 16);
+        y += 18;
       } else {
         entry->gyeolBindingLabel->setBounds(0, 0, 0, 0);
       }
 
       if (entry->controlAssignmentLabel->isVisible()) {
-        auto assignmentRow = juce::Rectangle<int>(0, y, width, 18);
+        auto assignmentRow = juce::Rectangle<int>(0, y, width, 16);
         if (entry->clearControlAssignmentButton != nullptr &&
             entry->clearControlAssignmentButton->isVisible()) {
-          auto buttonBounds = assignmentRow.removeFromRight(52);
+          auto buttonBounds = assignmentRow.removeFromRight(48);
           entry->clearControlAssignmentButton->setBounds(buttonBounds);
           assignmentRow.removeFromRight(6);
         } else if (entry->clearControlAssignmentButton != nullptr) {
           entry->clearControlAssignmentButton->setBounds(0, 0, 0, 0);
         }
         entry->controlAssignmentLabel->setBounds(assignmentRow);
-        y += 22;
+        y += 18;
 
         if (entry->controlAssignmentSettingsLabel != nullptr &&
             entry->controlAssignmentSettingsLabel->isVisible()) {
-          auto settingsRow = juce::Rectangle<int>(0, y, width, 20);
+          auto settingsRow = juce::Rectangle<int>(0, y, width, 18);
           if (entry->controlAssignmentInvertButton != nullptr &&
               entry->controlAssignmentInvertButton->isVisible()) {
-            auto invertBounds = settingsRow.removeFromRight(44);
+            auto invertBounds = settingsRow.removeFromRight(40);
             entry->controlAssignmentInvertButton->setBounds(invertBounds);
             settingsRow.removeFromRight(6);
           } else if (entry->controlAssignmentInvertButton != nullptr) {
@@ -1366,7 +1367,7 @@ private:
           }
           if (entry->controlAssignmentEnabledButton != nullptr &&
               entry->controlAssignmentEnabledButton->isVisible()) {
-            auto enabledBounds = settingsRow.removeFromRight(44);
+            auto enabledBounds = settingsRow.removeFromRight(40);
             entry->controlAssignmentEnabledButton->setBounds(enabledBounds);
             settingsRow.removeFromRight(6);
           } else if (entry->controlAssignmentEnabledButton != nullptr) {
@@ -1374,7 +1375,7 @@ private:
           }
           if (entry->controlAssignmentRangeMaxEditor != nullptr &&
               entry->controlAssignmentRangeMaxEditor->isVisible()) {
-            auto maxBounds = settingsRow.removeFromRight(52);
+            auto maxBounds = settingsRow.removeFromRight(48);
             entry->controlAssignmentRangeMaxEditor->setBounds(maxBounds);
             settingsRow.removeFromRight(4);
           } else if (entry->controlAssignmentRangeMaxEditor != nullptr) {
@@ -1382,14 +1383,14 @@ private:
           }
           if (entry->controlAssignmentRangeMinEditor != nullptr &&
               entry->controlAssignmentRangeMinEditor->isVisible()) {
-            auto minBounds = settingsRow.removeFromRight(52);
+            auto minBounds = settingsRow.removeFromRight(48);
             entry->controlAssignmentRangeMinEditor->setBounds(minBounds);
             settingsRow.removeFromRight(6);
           } else if (entry->controlAssignmentRangeMinEditor != nullptr) {
             entry->controlAssignmentRangeMinEditor->setBounds(0, 0, 0, 0);
           }
           entry->controlAssignmentSettingsLabel->setBounds(settingsRow);
-          y += 24;
+          y += 20;
         } else {
           if (entry->controlAssignmentSettingsLabel != nullptr)
             entry->controlAssignmentSettingsLabel->setBounds(0, 0, 0, 0);
@@ -1418,7 +1419,7 @@ private:
           entry->clearControlAssignmentButton->setBounds(0, 0, 0, 0);
       }
 
-      y += 8;
+      y += 6;
     }
 
     paramsContent->setSize(width, juce::jmax(y, paramViewport.getHeight()));

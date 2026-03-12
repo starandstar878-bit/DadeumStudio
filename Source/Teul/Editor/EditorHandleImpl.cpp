@@ -3056,7 +3056,7 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   const bool propertiesOpen = propertiesPanel != nullptr &&
                               propertiesPanel->isPanelOpen();
   if (endpointInspectorOpen || controlInspectorOpen || propertiesOpen) {
-    auto right = area.removeFromRight(312);
+    auto right = area.removeFromRight(296);
     const auto inspectorBounds = right.reduced(0, 2);
     if (systemEndpointInspector != nullptr)
       systemEndpointInspector->setBounds(endpointInspectorOpen
