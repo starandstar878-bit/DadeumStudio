@@ -2538,6 +2538,15 @@ public:
     repaint();
   }
 
+  void setControlStatus(const juce::String &summaryText, int issueCount,
+                        int sourceCount, int profileCount) {
+    controlSummary = summaryText;
+    controlIssueCount = issueCount;
+    controlSourceCount = sourceCount;
+    controlProfileCount = profileCount;
+    repaint();
+  }
+
   void setTransientMessage(const juce::String &text, juce::Colour accent) {
     transientMessage = text;
     transientAccent = accent;
@@ -2665,6 +2674,14 @@ public:
                                  : juce::String("--:--");
       drawBadge("Autosave " + timeLabel, juce::Colour(0xff38bdf8));
     }
+    if (controlSourceCount > 0 || controlProfileCount > 0) {
+      drawBadge("Ctrl " + juce::String(controlSourceCount),
+                juce::Colour(0xfff59e0b));
+      if (controlIssueCount > 0) {
+        drawBadge("Issues " + juce::String(controlIssueCount),
+                  juce::Colour(0xfffb7185));
+      }
+    }
   }
 
 private:
@@ -2721,6 +2738,10 @@ private:
   bool dirty = false;
   juce::String transientMessage;
   juce::Colour transientAccent = juce::Colour(0xff60a5fa);
+  juce::String controlSummary;
+  int controlIssueCount = 0;
+  int controlSourceCount = 0;
+  int controlProfileCount = 0;
 };
 
 class DocumentNoticeBanner : public juce::Component {
@@ -3995,14 +4016,27 @@ void EditorHandle::Impl::refreshSessionStatusUi(bool force) {
   const bool dirty =
       doc.getDocumentRevision() != sessionStatus.lastPersistedDocumentRevision;
   const auto autosaveMillis = sessionStatus.lastAutosaveTime.toMilliseconds();
+  const auto controlSnapshot = captureControlStateSnapshot(doc.controlState);
+  const auto controlIssueCount = totalControlIssueCount(controlSnapshot);
+  juce::String controlSummary;
+  if (controlSnapshot.sourceCount > 0 || controlSnapshot.profileCount > 0) {
+    controlSummary = "Controls: " + formatCompactControlStateSummary(controlSnapshot);
+    if (controlIssueCount > 0)
+      controlSummary << " (" << formatControlIssueSummary(controlSnapshot) << ")";
+  }
   if (!force && dirty == lastSessionDirty &&
       sessionStatus.hasAutosaveSnapshot == lastSessionHasAutosaveSnapshot &&
-      autosaveMillis == lastSessionAutosaveMillis) {
+      autosaveMillis == lastSessionAutosaveMillis &&
+      controlSummary == lastSessionControlSummary) {
     return;
   }
 
-  if (runtimeStatusStrip != nullptr)
+  if (runtimeStatusStrip != nullptr) {
     runtimeStatusStrip->setSessionStatus(sessionStatus, dirty);
+    runtimeStatusStrip->setControlStatus(
+        controlSummary, controlIssueCount, controlSnapshot.sourceCount,
+        controlSnapshot.profileCount);
+  }
 
   if (presetBrowserPanel != nullptr) {
     juce::String summary;
@@ -4029,6 +4063,8 @@ void EditorHandle::Impl::refreshSessionStatusUi(bool force) {
 
     if (sessionStatus.hasAutosaveSnapshot)
       detail << " | Use Recovery to inspect or discard the snapshot.";
+    if (controlSummary.isNotEmpty())
+      detail << " | " << controlSummary;
 
     presetBrowserPanel->setSessionPreview(summary, detail, dirty);
   }
@@ -4036,6 +4072,7 @@ void EditorHandle::Impl::refreshSessionStatusUi(bool force) {
   lastSessionDirty = dirty;
   lastSessionHasAutosaveSnapshot = sessionStatus.hasAutosaveSnapshot;
   lastSessionAutosaveMillis = autosaveMillis;
+  lastSessionControlSummary = controlSummary;
 }
 
 void EditorHandle::Impl::refreshRailUi(bool relayout) {

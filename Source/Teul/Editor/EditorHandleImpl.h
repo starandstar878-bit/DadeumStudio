@@ -124,6 +124,7 @@ private:
   bool lastSessionDirty = false;
   bool lastSessionHasAutosaveSnapshot = false;
   std::int64_t lastSessionAutosaveMillis = 0;
+  juce::String lastSessionControlSummary;
   TEditorSessionStatus sessionStatus;
   TGraphRuntime::RuntimeStats lastRuntimeStats;
   juce::String runtimeMessageText;
