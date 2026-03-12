@@ -231,37 +231,72 @@ bool endpointHasIncomingConnection(const TGraphDocument &document,
   return endpointIncomingConnectionCount(document, target) > 0;
 }
 
-bool canConnectEndpointVectors(const TGraphDocument &document,
-                               const std::vector<TEndpoint> &fromEndpoints,
-                               const std::vector<TEndpoint> &toEndpoints) {
+enum class EndpointVectorRejectReason {
+  none,
+  duplicateConnection,
+  sourceAtCapacity,
+  targetAtCapacity,
+  overlappingTargets,
+};
+
+EndpointVectorRejectReason
+endpointVectorRejectReason(const TGraphDocument &document,
+                           const std::vector<TEndpoint> &fromEndpoints,
+                           const std::vector<TEndpoint> &toEndpoints) {
   if (fromEndpoints.empty() || fromEndpoints.size() != toEndpoints.size())
-    return false;
+    return EndpointVectorRejectReason::targetAtCapacity;
 
   for (size_t index = 0; index < fromEndpoints.size(); ++index) {
     if (connectionExists(document, fromEndpoints[index], toEndpoints[index]))
-      return false;
+      return EndpointVectorRejectReason::duplicateConnection;
     const int outgoingCount =
         endpointOutgoingConnectionCount(document, fromEndpoints[index]);
     const int outgoingCapacity =
         endpointOutgoingCapacity(document, fromEndpoints[index]);
     if (outgoingCount + 1 > outgoingCapacity)
-      return false;
+      return EndpointVectorRejectReason::sourceAtCapacity;
     const int incomingCount =
         endpointIncomingConnectionCount(document, toEndpoints[index]);
     const int incomingCapacity =
         endpointIncomingCapacity(document, toEndpoints[index]);
     if (incomingCount + 1 > incomingCapacity)
-      return false;
+      return EndpointVectorRejectReason::targetAtCapacity;
   }
 
   for (size_t i = 0; i < toEndpoints.size(); ++i) {
     for (size_t j = i + 1; j < toEndpoints.size(); ++j) {
       if (endpointsEqual(toEndpoints[i], toEndpoints[j]))
-        return false;
+        return EndpointVectorRejectReason::overlappingTargets;
     }
   }
 
-  return true;
+  return EndpointVectorRejectReason::none;
+}
+
+bool canConnectEndpointVectors(const TGraphDocument &document,
+                               const std::vector<TEndpoint> &fromEndpoints,
+                               const std::vector<TEndpoint> &toEndpoints) {
+  return endpointVectorRejectReason(document, fromEndpoints, toEndpoints) ==
+         EndpointVectorRejectReason::none;
+}
+
+juce::String connectionRejectHint(EndpointVectorRejectReason reason,
+                                  bool targetIsExternal) {
+  switch (reason) {
+  case EndpointVectorRejectReason::duplicateConnection:
+    return "That connection already exists.";
+  case EndpointVectorRejectReason::sourceAtCapacity:
+    return "That output is already at its fan-out limit.";
+  case EndpointVectorRejectReason::targetAtCapacity:
+    return targetIsExternal
+               ? "That rail target is already occupied or at capacity."
+               : "That input is already occupied or at capacity.";
+  case EndpointVectorRejectReason::overlappingTargets:
+    return "That bundle overlaps target channels.";
+  case EndpointVectorRejectReason::none:
+    break;
+  }
+  return {};
 }
 
 bool isBundleDrag(int sourceBundleCount) {
@@ -530,6 +565,74 @@ juce::String TGraphCanvas::currentDragStatusHint() const {
     return "Bundle sizes must match.";
 
   if (!isCurrentDragTargetConnectable()) {
+    if (wireDragState.sourceExternalId.isNotEmpty()) {
+      std::vector<TEndpoint> fromEndpoints;
+      std::vector<TEndpoint> toEndpoints;
+      if (buildRailBundleEndpoints(document, wireDragState.sourceExternalId,
+                                   wireDragState.sourceExternalPortId,
+                                   fromEndpoints) &&
+          (int)fromEndpoints.size() == targetCount &&
+          buildNodeBundleEndpoints(document, wireDragState.targetNodeId,
+                                   wireDragState.targetPortId, targetCount,
+                                   toEndpoints)) {
+        const auto reason =
+            endpointVectorRejectReason(document, fromEndpoints, toEndpoints);
+        const auto hint = connectionRejectHint(reason, false);
+        if (hint.isNotEmpty())
+          return hint;
+      }
+    } else if (wireDragState.targetExternalZoneId.isNotEmpty()) {
+      juce::String endpointId;
+      juce::String portToken;
+      std::vector<TEndpoint> fromEndpoints;
+      std::vector<TEndpoint> toEndpoints;
+      if (splitRailPortZoneId(wireDragState.targetExternalZoneId, endpointId,
+                              portToken) &&
+          buildNodeBundleEndpoints(document, wireDragState.sourceNodeId,
+                                   wireDragState.sourcePortId, sourceCount,
+                                   fromEndpoints) &&
+          buildRailBundleEndpoints(document, endpointId, portToken,
+                                   toEndpoints)) {
+        const auto reason =
+            endpointVectorRejectReason(document, fromEndpoints, toEndpoints);
+        const auto hint = connectionRejectHint(reason, true);
+        if (hint.isNotEmpty())
+          return hint;
+      }
+    } else {
+      if (wireDragState.sourceNodeId == wireDragState.targetNodeId &&
+          wireDragState.sourcePortId == wireDragState.targetPortId) {
+        return "A port cannot connect to itself.";
+      }
+
+      std::vector<TEndpoint> fromEndpoints;
+      std::vector<TEndpoint> toEndpoints;
+      if (sourceCount > 1 || targetCount > 1) {
+        if (buildNodeBundleEndpoints(document, wireDragState.sourceNodeId,
+                                     wireDragState.sourcePortId, sourceCount,
+                                     fromEndpoints) &&
+            buildNodeBundleEndpoints(document, wireDragState.targetNodeId,
+                                     wireDragState.targetPortId, targetCount,
+                                     toEndpoints)) {
+          const auto reason =
+              endpointVectorRejectReason(document, fromEndpoints, toEndpoints);
+          const auto hint = connectionRejectHint(reason, false);
+          if (hint.isNotEmpty())
+            return hint;
+        }
+      } else {
+        fromEndpoints.push_back(TEndpoint::makeNodePort(
+            wireDragState.sourceNodeId, wireDragState.sourcePortId));
+        toEndpoints.push_back(TEndpoint::makeNodePort(
+            wireDragState.targetNodeId, wireDragState.targetPortId));
+        const auto reason =
+            endpointVectorRejectReason(document, fromEndpoints, toEndpoints);
+        const auto hint = connectionRejectHint(reason, false);
+        if (hint.isNotEmpty())
+          return hint;
+      }
+    }
+
     if (wireDragState.targetExternalZoneId.isNotEmpty())
       return "That rail target is already occupied or at capacity.";
     return "That target is already occupied or at capacity.";
