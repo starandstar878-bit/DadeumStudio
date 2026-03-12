@@ -3092,10 +3092,10 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   }
 
   if (presetBrowserPanel != nullptr && presetBrowserPanel->isBrowserOpen()) {
-    auto drawerArea = area.removeFromBottom(548).reduced(0, 2);
+    auto drawerArea = area.removeFromBottom(520).reduced(0, 2);
     presetBrowserPanel->setBounds(drawerArea);
   } else if (diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen()) {
-    auto drawerArea = area.removeFromBottom(654).reduced(0, 2);
+    auto drawerArea = area.removeFromBottom(608).reduced(0, 2);
     diagnosticsDrawer->setBounds(drawerArea);
   }
 

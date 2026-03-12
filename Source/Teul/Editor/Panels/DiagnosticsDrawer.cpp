@@ -844,23 +844,23 @@ public:
     addAndMakeVisible(openButton);
     addAndMakeVisible(copyButton);
 
-    titleLabel.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    titleLabel.setFont(juce::FontOptions(12.2f, juce::Font::bold));
     titleLabel.setColour(juce::Label::textColourId,
                          juce::Colours::white.withAlpha(0.96f));
     titleLabel.setInterceptsMouseClicks(false, false);
 
-    statusLabel.setFont(juce::FontOptions(10.5f, juce::Font::bold));
+    statusLabel.setFont(juce::FontOptions(9.8f, juce::Font::bold));
     statusLabel.setJustificationType(juce::Justification::centred);
     statusLabel.setInterceptsMouseClicks(false, false);
 
     summaryLabel.setColour(juce::Label::textColourId,
                            juce::Colours::white.withAlpha(0.82f));
-    summaryLabel.setFont(juce::FontOptions(11.0f, juce::Font::plain));
+    summaryLabel.setFont(juce::FontOptions(10.2f, juce::Font::plain));
     summaryLabel.setInterceptsMouseClicks(false, false);
 
     contextLabel.setColour(juce::Label::textColourId,
                            juce::Colours::white.withAlpha(0.56f));
-    contextLabel.setFont(juce::FontOptions(10.0f, juce::Font::plain));
+    contextLabel.setFont(juce::FontOptions(9.4f, juce::Font::plain));
     contextLabel.setInterceptsMouseClicks(false, false);
 
     openButton.setButtonText("Artifact");
@@ -896,32 +896,32 @@ public:
                                        : juce::Colour(0xff101827);
 
     g.setColour(background);
-    g.fillRoundedRectangle(bounds, 10.0f);
+    g.fillRoundedRectangle(bounds, 9.0f);
     g.setColour(accent.withAlpha(isSelected ? 0.92f : 0.56f));
-    g.drawRoundedRectangle(bounds.reduced(0.5f), 10.0f, isSelected ? 1.5f : 1.0f);
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 9.0f, isSelected ? 1.4f : 1.0f);
 
-    const auto chip = juce::Rectangle<float>(bounds.getX() + 10.0f,
-                                             bounds.getY() + 10.0f, 56.0f, 18.0f);
+    const auto chip = juce::Rectangle<float>(bounds.getX() + 9.0f,
+                                             bounds.getY() + 9.0f, 52.0f, 16.0f);
     g.setColour(accent.withAlpha(0.18f));
-    g.fillRoundedRectangle(chip, 9.0f);
+    g.fillRoundedRectangle(chip, 8.0f);
     g.setColour(accent.withAlpha(0.92f));
-    g.drawRoundedRectangle(chip, 9.0f, 1.0f);
+    g.drawRoundedRectangle(chip, 8.0f, 1.0f);
   }
 
   void resized() override {
-    auto area = getLocalBounds().reduced(10, 8);
-    auto buttons = area.removeFromRight(138);
-    openButton.setBounds(buttons.removeFromTop(24));
-    buttons.removeFromTop(6);
-    copyButton.setBounds(buttons.removeFromTop(24));
+    auto area = getLocalBounds().reduced(9, 7);
+    auto buttons = area.removeFromRight(126);
+    openButton.setBounds(buttons.removeFromTop(22));
+    buttons.removeFromTop(4);
+    copyButton.setBounds(buttons.removeFromTop(22));
 
-    auto topRow = area.removeFromTop(22);
-    topRow.removeFromLeft(70);
+    auto topRow = area.removeFromTop(20);
+    topRow.removeFromLeft(64);
     titleLabel.setBounds(topRow);
-    statusLabel.setBounds(12, 10, 52, 18);
-    auto summaryRow = area.removeFromTop(20);
+    statusLabel.setBounds(11, 9, 48, 16);
+    auto summaryRow = area.removeFromTop(18);
     summaryLabel.setBounds(summaryRow);
-    contextLabel.setBounds(area.removeFromTop(16));
+    contextLabel.setBounds(area.removeFromTop(14));
   }
 
   void mouseUp(const juce::MouseEvent &event) override {
@@ -983,7 +983,7 @@ public:
     titleLabel.setJustificationType(juce::Justification::centredLeft);
     titleLabel.setColour(juce::Label::textColourId,
                          juce::Colours::white.withAlpha(0.94f));
-    titleLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    titleLabel.setFont(juce::FontOptions(14.0f, juce::Font::bold));
 
     summaryLabel.setColour(juce::Label::textColourId,
                            juce::Colours::white.withAlpha(0.68f));
@@ -1192,84 +1192,84 @@ public:
                                            juce::Colour(0xff0f172a),
                                            bounds.getCentreX(), bounds.getBottom(),
                                            false));
-    g.fillRoundedRectangle(bounds, 12.0f);
+    g.fillRoundedRectangle(bounds, 11.0f);
     g.setColour(overallAccent.withAlpha(0.32f));
-    g.drawRoundedRectangle(bounds, 12.0f, 1.0f);
+    g.drawRoundedRectangle(bounds, 11.0f, 1.0f);
   }
 
   void resized() override {
-    auto area = getLocalBounds().reduced(12);
-    auto header = area.removeFromTop(26);
-    auto buttons = header.removeFromRight(140);
-    refreshButton.setBounds(buttons.removeFromLeft(66));
+    auto area = getLocalBounds().reduced(10);
+    auto header = area.removeFromTop(24);
+    auto buttons = header.removeFromRight(128);
+    refreshButton.setBounds(buttons.removeFromLeft(60));
     buttons.removeFromLeft(8);
-    closeButton.setBounds(buttons.removeFromLeft(66));
+    closeButton.setBounds(buttons.removeFromLeft(60));
     titleLabel.setBounds(header);
 
-    auto summaryArea = area.removeFromTop(24);
+    auto summaryArea = area.removeFromTop(20);
     summaryLabel.setBounds(summaryArea);
 
-    auto controlArea = area.removeFromTop(26);
-    filterLabel.setBounds(controlArea.removeFromLeft(56));
-    controlArea.removeFromLeft(6);
-    filterBox.setBounds(controlArea.removeFromLeft(132));
-    controlArea.removeFromLeft(12);
-    compareLabel.setBounds(controlArea.removeFromLeft(56));
-    controlArea.removeFromLeft(6);
-    compareBox.setBounds(controlArea.removeFromLeft(220));
-
-    area.removeFromTop(6);
-    auto actionRow = area.removeFromTop(26);
-    runGoldenVerifyButton.setBounds(actionRow.removeFromLeft(108));
-    actionRow.removeFromLeft(4);
-    runParityMatrixButton.setBounds(actionRow.removeFromLeft(102));
-    actionRow.removeFromLeft(4);
-    runCompiledParityButton.setBounds(actionRow.removeFromLeft(114));
-    actionRow.removeFromLeft(4);
-    runCompileSmokeButton.setBounds(actionRow.removeFromLeft(110));
-    actionRow.removeFromLeft(4);
-    runBenchmarkButton.setBounds(actionRow.removeFromLeft(94));
+    auto controlArea = area.removeFromTop(24);
+    filterLabel.setBounds(controlArea.removeFromLeft(52));
+    controlArea.removeFromLeft(4);
+    filterBox.setBounds(controlArea.removeFromLeft(124));
+    controlArea.removeFromLeft(10);
+    compareLabel.setBounds(controlArea.removeFromLeft(52));
+    controlArea.removeFromLeft(4);
+    compareBox.setBounds(controlArea.removeFromLeft(208));
 
     area.removeFromTop(4);
-    auto actionStatusArea = area.removeFromTop(24);
-    auto shareButtons = actionStatusArea.removeFromRight(536);
-    copySummaryButton.setBounds(shareButtons.removeFromLeft(102));
+    auto actionRow = area.removeFromTop(24);
+    runGoldenVerifyButton.setBounds(actionRow.removeFromLeft(100));
+    actionRow.removeFromLeft(4);
+    runParityMatrixButton.setBounds(actionRow.removeFromLeft(96));
+    actionRow.removeFromLeft(4);
+    runCompiledParityButton.setBounds(actionRow.removeFromLeft(106));
+    actionRow.removeFromLeft(4);
+    runCompileSmokeButton.setBounds(actionRow.removeFromLeft(102));
+    actionRow.removeFromLeft(4);
+    runBenchmarkButton.setBounds(actionRow.removeFromLeft(88));
+
+    area.removeFromTop(3);
+    auto actionStatusArea = area.removeFromTop(22);
+    auto shareButtons = actionStatusArea.removeFromRight(500);
+    copySummaryButton.setBounds(shareButtons.removeFromLeft(96));
     shareButtons.removeFromLeft(4);
-    copyCompareButton.setBounds(shareButtons.removeFromLeft(102));
+    copyCompareButton.setBounds(shareButtons.removeFromLeft(96));
     shareButtons.removeFromLeft(4);
-    openSelectedArtifactButton.setBounds(shareButtons.removeFromLeft(106));
+    openSelectedArtifactButton.setBounds(shareButtons.removeFromLeft(100));
     shareButtons.removeFromLeft(4);
-    openBundleButton.setBounds(shareButtons.removeFromLeft(102));
+    openBundleButton.setBounds(shareButtons.removeFromLeft(96));
     shareButtons.removeFromLeft(4);
-    focusJumpButton.setBounds(shareButtons.removeFromLeft(108));
+    focusJumpButton.setBounds(shareButtons.removeFromLeft(100));
     actionStatusLabel.setBounds(actionStatusArea);
 
-    area.removeFromTop(8);
-    timelineLabel.setBounds(area.removeFromTop(18));
-    area.removeFromTop(4);
-    benchmarkTimeline.setBounds(area.removeFromTop(98));
+    area.removeFromTop(6);
+    timelineLabel.setBounds(area.removeFromTop(16));
+    area.removeFromTop(3);
+    benchmarkTimeline.setBounds(area.removeFromTop(88));
 
-    area.removeFromTop(8);
-    auto listArea = area.removeFromTop(juce::roundToInt(area.getHeight() * 0.24f));
+    area.removeFromTop(6);
+    auto listArea = area.removeFromTop(juce::roundToInt(area.getHeight() * 0.22f));
     listViewport.setBounds(listArea);
 
-    area.removeFromTop(8);
-    compareScreenLabel.setBounds(area.removeFromTop(18));
-    area.removeFromTop(4);
-    compareScreen.setBounds(area.removeFromTop(132));
+    area.removeFromTop(6);
+    compareScreenLabel.setBounds(area.removeFromTop(16));
+    area.removeFromTop(3);
+    compareScreen.setBounds(area.removeFromTop(116));
 
-    area.removeFromTop(8);
+    area.removeFromTop(6);
     auto bottomArea = area;
     auto left = bottomArea.removeFromLeft(bottomArea.getWidth() / 2);
     left.removeFromRight(4);
     bottomArea.removeFromLeft(4);
 
-    detailLabel.setBounds(left.removeFromTop(18));
-    left.removeFromTop(4);
+    detailLabel.setBounds(left.removeFromTop(16));
+    left.removeFromTop(3);
     detailEditor.setBounds(left);
 
-    diffLabel.setBounds(bottomArea.removeFromTop(18));
-    bottomArea.removeFromTop(4);
+    diffLabel.setBounds(bottomArea.removeFromTop(16));
+    bottomArea.removeFromTop(3);
     diffEditor.setBounds(bottomArea);
 
     layoutVisibleEntries();
@@ -1288,7 +1288,7 @@ private:
                      juce::Colours::white.withAlpha(0.88f));
     editor.setColour(juce::TextEditor::outlineColourId,
                      juce::Colour(0xff334155));
-    editor.setFont(juce::FontOptions(12.0f, juce::Font::plain));
+    editor.setFont(juce::FontOptions(11.0f, juce::Font::plain));
   }
 
   void updateActionButtons() {
@@ -1523,7 +1523,7 @@ private:
       if (!hasPreviousCategory || snapshot.category != previousCategory) {
         auto label = std::make_unique<juce::Label>();
         label->setText(categoryTitle(snapshot.category), juce::dontSendNotification);
-        label->setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        label->setFont(juce::FontOptions(11.2f, juce::Font::bold));
         label->setColour(juce::Label::textColourId,
                          categoryColour(snapshot.category).withAlpha(0.92f));
         label->setJustificationType(juce::Justification::centredLeft);
@@ -1553,8 +1553,8 @@ private:
     int y = 0;
 
     if (visibleSnapshotIndices.empty()) {
-      emptyStateLabel.setBounds(0, 12, width, 28);
-      listContent.setSize(width, 56);
+      emptyStateLabel.setBounds(0, 10, width, 24);
+      listContent.setSize(width, 48);
       return;
     }
 
@@ -1566,14 +1566,14 @@ private:
       const auto category = snapshots[static_cast<std::size_t>(snapshotIndex)].category;
       if (!hasPreviousCategory || category != previousCategory) {
         auto *header = sectionLabels[headerIndex++].get();
-        header->setBounds(0, y, width, 20);
-        y += 24;
+        header->setBounds(0, y, width, 18);
+        y += 22;
         previousCategory = category;
         hasPreviousCategory = true;
       }
 
-      cards[cardIndex]->setBounds(0, y, width, 72);
-      y += 80;
+      cards[cardIndex]->setBounds(0, y, width, 64);
+      y += 70;
     }
 
     listContent.setSize(width, y);
