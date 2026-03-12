@@ -2248,17 +2248,17 @@ public:
                                            juce::Colour(0xee111827),
                                            bounds.getCentreX(),
                                            bounds.getBottom(), false));
-    g.fillRoundedRectangle(bounds, 12.0f);
+    g.fillRoundedRectangle(bounds, 11.0f);
     g.setColour(frameAccent);
-    g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 11.0f, 1.0f);
 
-    auto content = getLocalBounds().reduced(8, 5);
-    auto primaryRow = content.removeFromTop(16);
-    auto secondaryRow = content.removeFromTop(12);
+    auto content = getLocalBounds().reduced(7, 4);
+    auto primaryRow = content.removeFromTop(15);
+    auto secondaryRow = content.removeFromTop(11);
     content.removeFromTop(2);
-    auto badgeRow = content.removeFromTop(14);
+    auto badgeRow = content.removeFromTop(13);
 
-    auto cpuChip = primaryRow.removeFromRight(76);
+    auto cpuChip = primaryRow.removeFromRight(72);
     const juce::String primaryText = juce::String::formatted(
         "%.1f kHz  |  %d blk  |  %d in / %d out",
         stats.sampleRate * 0.001,
@@ -2273,7 +2273,7 @@ public:
         stats.lastProcessMilliseconds);
 
     g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.setFont(juce::FontOptions(11.2f, juce::Font::bold));
+    g.setFont(juce::FontOptions(10.6f, juce::Font::bold));
     g.drawText(primaryText, primaryRow, juce::Justification::centredLeft,
                false);
 
@@ -2282,8 +2282,8 @@ public:
     auto summaryArea = secondaryRow;
     if (transientMessage.isNotEmpty() && secondaryRow.getWidth() > 180) {
       const int messageWidth = juce::jlimit(
-          144, juce::jmax(190, secondaryRow.getWidth() / 2),
-          30 + transientMessage.length() * 7);
+          136, juce::jmax(180, secondaryRow.getWidth() / 2),
+          28 + transientMessage.length() * 6);
       auto messageArea = summaryArea.removeFromRight(
           juce::jmin(messageWidth, summaryArea.getWidth()));
       summaryArea.removeFromRight(8);
@@ -2292,7 +2292,7 @@ public:
 
     if (summaryArea.getWidth() > 40) {
       g.setColour(juce::Colours::white.withAlpha(0.52f));
-      g.setFont(9.8f);
+      g.setFont(9.2f);
       g.drawText(summaryText, summaryArea, juce::Justification::centredLeft,
                  false);
     }
@@ -2302,20 +2302,20 @@ public:
       if (text.isEmpty())
         return;
 
-      const int badgeWidth = juce::jlimit(58, 152, 18 + text.length() * 7);
+      const int badgeWidth = juce::jlimit(54, 144, 16 + text.length() * 6);
       if (badgeX + badgeWidth > badgeRow.getRight())
         return;
 
       juce::Rectangle<int> badge(badgeX, badgeRow.getY(), badgeWidth,
                                  badgeRow.getHeight());
-      badgeX += badgeWidth + 5;
+      badgeX += badgeWidth + 4;
 
       g.setColour(colour.withAlpha(0.14f));
-      g.fillRoundedRectangle(badge.toFloat(), 7.0f);
+      g.fillRoundedRectangle(badge.toFloat(), 6.0f);
       g.setColour(colour.withAlpha(0.70f));
-      g.drawRoundedRectangle(badge.toFloat(), 7.0f, 1.0f);
+      g.drawRoundedRectangle(badge.toFloat(), 6.0f, 1.0f);
       g.setColour(colour.brighter(0.12f));
-      g.setFont(9.0f);
+      g.setFont(8.6f);
       g.drawText(text, badge, juce::Justification::centred, false);
     };
 
@@ -2386,11 +2386,11 @@ private:
   void drawCpuChip(juce::Graphics &g, juce::Rectangle<int> area) const {
     const juce::Colour accent = cpuAccent();
     g.setColour(accent.withAlpha(0.16f));
-    g.fillRoundedRectangle(area.toFloat(), 8.0f);
+    g.fillRoundedRectangle(area.toFloat(), 7.0f);
     g.setColour(accent.withAlpha(0.86f));
-    g.drawRoundedRectangle(area.toFloat(), 8.0f, 1.0f);
+    g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
     g.setColour(juce::Colours::white.withAlpha(0.96f));
-    g.setFont(juce::FontOptions(10.4f, juce::Font::bold));
+    g.setFont(juce::FontOptions(9.8f, juce::Font::bold));
     g.drawText(juce::String::formatted("CPU %.1f%%", stats.cpuLoadPercent),
                area, juce::Justification::centred, false);
   }
@@ -2398,12 +2398,12 @@ private:
   void drawMessageChip(juce::Graphics &g, juce::Rectangle<int> area,
                        const juce::String &text, juce::Colour accent) const {
     g.setColour(accent.withAlpha(0.12f));
-    g.fillRoundedRectangle(area.toFloat(), 6.0f);
+    g.fillRoundedRectangle(area.toFloat(), 5.0f);
     g.setColour(accent.withAlpha(0.78f));
-    g.drawRoundedRectangle(area.toFloat(), 6.0f, 1.0f);
+    g.drawRoundedRectangle(area.toFloat(), 5.0f, 1.0f);
     g.setColour(accent.brighter(0.12f));
-    g.setFont(juce::FontOptions(9.2f, juce::Font::bold));
-    g.drawText(text, area.reduced(8, 0), juce::Justification::centredLeft,
+    g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
+    g.drawText(text, area.reduced(7, 0), juce::Justification::centredLeft,
                false);
   }
 
@@ -3018,34 +3018,34 @@ void EditorHandle::Impl::setSessionStatus(const TEditorSessionStatus &status) {
 }
 
 void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
-  auto top = area.removeFromTop(36).reduced(6, 3);
+  auto top = area.removeFromTop(34).reduced(6, 3);
 
-  toggleLibraryButton.setBounds(top.removeFromLeft(74));
-  top.removeFromLeft(3);
-  quickAddButton.setBounds(top.removeFromLeft(86));
-  top.removeFromLeft(3);
-  findNodeButton.setBounds(top.removeFromLeft(86));
-  top.removeFromLeft(3);
-  commandPaletteButton.setBounds(top.removeFromLeft(54));
-  top.removeFromLeft(6);
-  toggleHeatmapButton.setBounds(top.removeFromLeft(74));
-  top.removeFromLeft(3);
-  toggleProbeButton.setBounds(top.removeFromLeft(82));
-  top.removeFromLeft(3);
-  toggleOverlayButton.setBounds(top.removeFromLeft(96));
-  top.removeFromLeft(3);
-  toggleDiagnosticsButton.setBounds(top.removeFromLeft(106));
-  top.removeFromLeft(3);
-  togglePresetsButton.setBounds(top.removeFromLeft(88));
+  toggleLibraryButton.setBounds(top.removeFromLeft(68));
+  top.removeFromLeft(2);
+  quickAddButton.setBounds(top.removeFromLeft(80));
+  top.removeFromLeft(2);
+  findNodeButton.setBounds(top.removeFromLeft(80));
+  top.removeFromLeft(2);
+  commandPaletteButton.setBounds(top.removeFromLeft(50));
+  top.removeFromLeft(4);
+  toggleHeatmapButton.setBounds(top.removeFromLeft(68));
+  top.removeFromLeft(2);
+  toggleProbeButton.setBounds(top.removeFromLeft(74));
+  top.removeFromLeft(2);
+  toggleOverlayButton.setBounds(top.removeFromLeft(88));
+  top.removeFromLeft(2);
+  toggleDiagnosticsButton.setBounds(top.removeFromLeft(96));
+  top.removeFromLeft(2);
+  togglePresetsButton.setBounds(top.removeFromLeft(82));
 
   if (runtimeStatusStrip != nullptr) {
-    auto statusArea = area.removeFromTop(48).reduced(6, 2);
+    auto statusArea = area.removeFromTop(44).reduced(6, 2);
     runtimeStatusStrip->setBounds(statusArea);
   }
 
   if (documentNoticeBanner != nullptr) {
     if (documentNoticeBanner->isVisible()) {
-      auto bannerArea = area.removeFromTop(34).reduced(6, 2);
+      auto bannerArea = area.removeFromTop(32).reduced(6, 2);
       documentNoticeBanner->setBounds(bannerArea);
     } else {
       documentNoticeBanner->setBounds({});
