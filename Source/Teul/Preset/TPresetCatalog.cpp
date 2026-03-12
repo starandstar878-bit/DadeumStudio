@@ -38,6 +38,56 @@ juce::String formatTimestamp(const juce::Time &time) {
   return time.formatted("%Y-%m-%d %H:%M");
 }
 
+struct TControlSnapshotSummary {
+  int sourceCount = 0;
+  int profileCount = 0;
+  int assignmentCount = 0;
+  int bindingCount = 0;
+  int missingSourceCount = 0;
+  int degradedSourceCount = 0;
+  int missingProfileCount = 0;
+};
+
+TControlSnapshotSummary summarizeControlState(const TControlSourceState &state) {
+  TControlSnapshotSummary summary;
+  summary.sourceCount = (int)state.sources.size();
+  summary.profileCount = (int)state.deviceProfiles.size();
+  summary.assignmentCount = (int)state.assignments.size();
+  summary.missingProfileCount = (int)state.missingDeviceProfileIds.size();
+
+  for (const auto &source : state.sources) {
+    if (source.missing)
+      ++summary.missingSourceCount;
+    if (source.degraded)
+      ++summary.degradedSourceCount;
+  }
+
+  for (const auto &profile : state.deviceProfiles) {
+    for (const auto &deviceSource : profile.sources)
+      summary.bindingCount += (int)deviceSource.bindings.size();
+  }
+
+  return summary;
+}
+
+int totalControlIssueCount(const TControlSnapshotSummary &summary) {
+  return summary.missingSourceCount + summary.degradedSourceCount +
+         summary.missingProfileCount;
+}
+
+juce::String formatControlIssueSummary(const TControlSnapshotSummary &summary) {
+  juce::StringArray parts;
+  if (summary.missingSourceCount > 0)
+    parts.add(juce::String(summary.missingSourceCount) + " missing sources");
+  if (summary.degradedSourceCount > 0)
+    parts.add(juce::String(summary.degradedSourceCount) + " degraded sources");
+  if (summary.missingProfileCount > 0)
+    parts.add(juce::String(summary.missingProfileCount) + " missing profiles");
+  if (parts.isEmpty())
+    return "none";
+  return parts.joinIntoString(" | ");
+}
+
 juce::File resolveLibraryStateFile() {
   auto directory = juce::File::getCurrentWorkingDirectory()
                        .getChildFile("Builds")
@@ -308,11 +358,19 @@ juce::String buildRecoverySummary(const TGraphDocument &document,
   if (!available)
     return "Autosave snapshot could not be parsed";
 
+  const auto controlSummary = summarizeControlState(document.controlState);
   juce::StringArray parts;
   parts.add(juce::String(document.nodes.size()) + " nodes");
   parts.add(juce::String(document.connections.size()) + " wires");
   if (!document.frames.empty())
     parts.add(juce::String(document.frames.size()) + " frames");
+  if (controlSummary.sourceCount > 0 || controlSummary.profileCount > 0) {
+    parts.add("ctrl " + juce::String(controlSummary.sourceCount) + " src / " +
+              juce::String(controlSummary.profileCount) + " prof");
+  }
+  if (totalControlIssueCount(controlSummary) > 0)
+    parts.add(juce::String(totalControlIssueCount(controlSummary)) +
+              " control issues");
   parts.add(cleanShutdown ? "clean marker" : "active autosave marker");
   if (report.degraded)
     parts.add("degraded");
@@ -348,6 +406,12 @@ juce::String buildRecoveryDetail(const juce::File &autosaveFile,
   lines.add("Nodes: " + juce::String(document.nodes.size()));
   lines.add("Connections: " + juce::String(document.connections.size()));
   lines.add("Frames: " + juce::String(document.frames.size()));
+  const auto controlSummary = summarizeControlState(document.controlState);
+  lines.add("Control Sources: " + juce::String(controlSummary.sourceCount));
+  lines.add("Control Profiles: " + juce::String(controlSummary.profileCount));
+  lines.add("Control Assignments: " + juce::String(controlSummary.assignmentCount));
+  lines.add("Learned Bindings: " + juce::String(controlSummary.bindingCount));
+  lines.add("Control Issues: " + formatControlIssueSummary(controlSummary));
   lines.add("Schema: " + juce::String(report.sourceSchemaVersion) + " -> " +
             juce::String(report.targetSchemaVersion));
   lines.add("Migrated: " + juce::String(report.migrated ? "yes" : "no"));
@@ -497,7 +561,8 @@ public:
     const bool cleanShutdown = readCleanShutdownMarker(stateFile);
 
     entry.available = loadResult.wasOk();
-    entry.degraded = report.degraded;
+    const auto controlSummary = summarizeControlState(autosaveDocument.controlState);
+    entry.degraded = report.degraded || totalControlIssueCount(controlSummary) > 0;
     entry.displayName = autosaveDocument.meta.name.isNotEmpty()
                             ? autosaveDocument.meta.name + " Autosave"
                             : juce::String("Latest Teul Autosave");
@@ -508,6 +573,12 @@ public:
                                            autosaveDocument, report, loadResult,
                                            cleanShutdown);
     entry.warningText = joinWarnings(report.warnings);
+    if (totalControlIssueCount(controlSummary) > 0) {
+      if (entry.warningText.isNotEmpty())
+        entry.warningText << " | ";
+      entry.warningText << "Control issues: "
+                        << formatControlIssueSummary(controlSummary);
+    }
     if (!cleanShutdown) {
       if (entry.warningText.isNotEmpty())
         entry.warningText << " | ";
