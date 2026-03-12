@@ -1195,7 +1195,7 @@ private:
     const bool portsOnRight = currentRailKind() != TRailKind::output;
     const int gap = 8;
     const int count = juce::jmax(1, (int)cards.size());
-    const int cardHeight = juce::jlimit(54, 76,
+    const int cardHeight = juce::jlimit(52, 72,
                                         (area.getHeight() - gap * (count - 1)) /
                                             count);
 
@@ -1231,17 +1231,17 @@ private:
     g.setColour(accent.withAlpha(selected ? 0.92f : 0.68f));
     g.fillRoundedRectangle(strip, 2.0f);
 
-    auto content = area.toNearestInt().reduced(10, 7);
-    const int portColumnWidth = card.groupedBus ? 30 : 18;
+    auto content = area.toNearestInt().reduced(8, 6);
+    const int portColumnWidth = card.groupedBus ? 32 : 20;
     auto portColumn = portsOnRight ? content.removeFromRight(portColumnWidth)
                                    : content.removeFromLeft(portColumnWidth);
     if (portsOnRight)
-      content.removeFromRight(6);
+      content.removeFromRight(5);
     else
-      content.removeFromLeft(6);
+      content.removeFromLeft(5);
 
-    auto titleBlock = content.removeFromTop(card.subtitle.isNotEmpty() ? 34 : 22);
-    auto titleRow = titleBlock.removeFromTop(18);
+    auto titleBlock = content.removeFromTop(card.subtitle.isNotEmpty() ? 30 : 20);
+    auto titleRow = titleBlock.removeFromTop(16);
     if (card.badge.isNotEmpty()) {
       const int badgeWidth = juce::jlimit(28, 42, 14 + card.badge.length() * 7);
       auto badgeArea = titleRow.removeFromRight(badgeWidth);
@@ -1249,20 +1249,25 @@ private:
       titleRow.removeFromRight(4);
     }
     const bool compactText = titleRow.getWidth() < 90;
-    g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.setFont(juce::FontOptions(compactText ? 10.8f : 11.7f, juce::Font::bold));
+    g.setColour(juce::Colours::white.withAlpha(0.94f));
+    g.setFont(juce::FontOptions(compactText ? 10.5f : 11.3f, juce::Font::bold));
     g.drawFittedText(card.title, titleRow, juce::Justification::topLeft,
-                     compactText ? 2 : 1, 0.88f);
+                     compactText ? 2 : 1, 0.86f);
 
     if (card.subtitle.isNotEmpty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.62f));
-      g.setFont(9.6f);
-      g.drawFittedText(card.subtitle, titleBlock.removeFromTop(14),
-                       juce::Justification::topLeft, compactText ? 2 : 1,
-                       0.9f);
+      g.setColour(juce::Colours::white.withAlpha(0.58f));
+      g.setFont(9.2f);
+      g.drawFittedText(card.subtitle, titleBlock.removeFromTop(12),
+                       juce::Justification::topLeft, 1, 0.88f);
     }
 
-    auto portArea = portColumn.toFloat().reduced(0.5f, 0.5f);
+    auto portTrack = portColumn.toFloat().reduced(0.0f, 1.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.024f));
+    g.fillRoundedRectangle(portTrack, 9.0f);
+    g.setColour(accent.withAlpha(0.12f));
+    g.drawRoundedRectangle(portTrack, 9.0f, 1.0f);
+
+    auto portArea = portColumn.toFloat().reduced(1.0f, 1.5f);
     if (card.groupedBus) {
       drawBusPortSlot(g, card, portArea, portsOnRight, card.issueState);
     } else if (!card.ports.empty()) {
