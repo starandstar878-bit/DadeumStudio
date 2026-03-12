@@ -3228,6 +3228,32 @@ void EditorHandle::Impl::setSessionStatus(const TEditorSessionStatus &status) {
   refreshSessionStatusUi(true);
 }
 
+bool EditorHandle::Impl::applyLearnedControlBinding(
+    const TDeviceBindingSignature &binding, const juce::String &profileId,
+    const juce::String &deviceId, const juce::String &profileDisplayName,
+    TControlSourceKind kind, TControlSourceMode mode,
+    const juce::String &sourceDisplayName, bool autoDetected, bool confirmed) {
+  const bool applied = doc.controlState.applyLearnedBindingToArmedSource(
+      binding, profileId, deviceId, profileDisplayName, kind, mode,
+      sourceDisplayName, autoDetected, confirmed);
+  if (!applied) {
+    pushRuntimeMessage("No armed control source to learn",
+                       juce::Colour(0xfff59e0b), 60);
+    return false;
+  }
+
+  if (propertiesPanel != nullptr) {
+    propertiesPanel->refreshBindingSummaries();
+    propertiesPanel->refreshFromDocument();
+  }
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->refreshFromDocument();
+  refreshRailUi();
+  refreshDocumentNoticeUi(true);
+  pushRuntimeMessage("Learned binding applied", juce::Colour(0xff22c55e), 60);
+  return true;
+}
+
 void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   auto top = area.removeFromTop(33).reduced(6, 3);
 

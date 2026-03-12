@@ -9,6 +9,9 @@
 
 namespace Teul {
 struct TGraphDocument;
+struct TDeviceBindingSignature;
+enum class TControlSourceKind;
+enum class TControlSourceMode;
 }
 
 namespace Teul {
@@ -36,6 +39,15 @@ public:
 
   void refreshFromDocument();
   void setSessionStatus(const TEditorSessionStatus &status);
+  bool applyLearnedControlBinding(const TDeviceBindingSignature &binding,
+                                  const juce::String &profileId,
+                                  const juce::String &deviceId,
+                                  const juce::String &profileDisplayName,
+                                  TControlSourceKind kind,
+                                  TControlSourceMode mode,
+                                  const juce::String &sourceDisplayName = {},
+                                  bool autoDetected = true,
+                                  bool confirmed = true);
   TExportResult runExportDryRun(const TExportOptions &options = {}) const;
 
   void paint(juce::Graphics &g) override;

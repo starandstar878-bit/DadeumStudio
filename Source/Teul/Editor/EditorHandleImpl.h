@@ -33,6 +33,15 @@ struct EditorHandle::Impl : private juce::Timer {
   const TNodeRegistry *registry() const noexcept;
   void refreshFromDocument();
   void setSessionStatus(const TEditorSessionStatus &status);
+  bool applyLearnedControlBinding(const TDeviceBindingSignature &binding,
+                                  const juce::String &profileId,
+                                  const juce::String &deviceId,
+                                  const juce::String &profileDisplayName,
+                                  TControlSourceKind kind,
+                                  TControlSourceMode mode,
+                                  const juce::String &sourceDisplayName,
+                                  bool autoDetected,
+                                  bool confirmed);
   void layout(juce::Rectangle<int> area);
 
 private:

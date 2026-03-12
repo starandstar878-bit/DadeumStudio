@@ -27,6 +27,20 @@ void EditorHandle::setSessionStatus(const TEditorSessionStatus &status) {
     impl->setSessionStatus(status);
 }
 
+bool EditorHandle::applyLearnedControlBinding(
+    const TDeviceBindingSignature &binding, const juce::String &profileId,
+    const juce::String &deviceId, const juce::String &profileDisplayName,
+    TControlSourceKind kind, TControlSourceMode mode,
+    const juce::String &sourceDisplayName, bool autoDetected, bool confirmed) {
+  if (impl == nullptr)
+    return false;
+
+  return impl->applyLearnedControlBinding(binding, profileId, deviceId,
+                                          profileDisplayName, kind, mode,
+                                          sourceDisplayName, autoDetected,
+                                          confirmed);
+}
+
 TExportResult EditorHandle::runExportDryRun(
     const TExportOptions &options) const {
   if (impl == nullptr || impl->registry() == nullptr)
