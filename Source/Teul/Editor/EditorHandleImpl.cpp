@@ -1216,20 +1216,23 @@ private:
     else
       content.removeFromLeft(6);
 
-    auto titleRow = content.removeFromTop(16);
+    auto titleRow = content.removeFromTop(18);
     if (card.badge.isNotEmpty()) {
-      auto badgeArea = titleRow.removeFromRight(48);
+      const int badgeWidth = juce::jlimit(30, 44, 16 + card.badge.length() * 7);
+      auto badgeArea = titleRow.removeFromRight(badgeWidth);
       drawBadge(g, badgeArea, card.badge, accent);
+      titleRow.removeFromRight(4);
     }
+    const bool compactText = titleRow.getWidth() < 86;
     g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.setFont(juce::FontOptions(11.5f, juce::Font::bold));
-    g.drawFittedText(card.title, titleRow, juce::Justification::centredLeft, 1,
-                     0.9f);
+    g.setFont(juce::FontOptions(compactText ? 10.6f : 11.5f, juce::Font::bold));
+    g.drawFittedText(card.title, titleRow, juce::Justification::centredLeft,
+                     compactText ? 2 : 1, 0.88f);
 
-    if (card.subtitle.isNotEmpty()) {
+    if (card.subtitle.isNotEmpty() && !compactText) {
       g.setColour(juce::Colours::white.withAlpha(0.62f));
-      g.setFont(10.0f);
-      g.drawFittedText(card.subtitle, content.removeFromTop(15),
+      g.setFont(9.8f);
+      g.drawFittedText(card.subtitle, content.removeFromTop(14),
                        juce::Justification::centredLeft, 1, 0.9f);
     }
 
@@ -1281,16 +1284,24 @@ private:
 
     auto content = area.toNearestInt().reduced(12, 10);
     auto titleRow = content.removeFromTop(18);
-    auto badgeArea = titleRow.removeFromRight(60);
+    if (card.badge.isNotEmpty()) {
+      const int badgeWidth = juce::jlimit(30, 44, 16 + card.badge.length() * 7);
+      auto badgeArea = titleRow.removeFromRight(badgeWidth);
+      drawBadge(g, badgeArea, card.badge, accent);
+      titleRow.removeFromRight(4);
+    }
+    const bool compactText = titleRow.getWidth() < 110;
     g.setColour(juce::Colours::white.withAlpha(0.95f));
-    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-    g.drawText(card.title, titleRow, juce::Justification::centredLeft, false);
-    drawBadge(g, badgeArea, card.badge, accent);
+    g.setFont(juce::FontOptions(compactText ? 10.8f : 12.0f, juce::Font::bold));
+    g.drawFittedText(card.title, titleRow, juce::Justification::centredLeft,
+                     compactText ? 2 : 1, 0.88f);
 
-    g.setColour(juce::Colours::white.withAlpha(0.64f));
-    g.setFont(10.5f);
-    g.drawFittedText(card.subtitle, content.removeFromTop(30),
-                     juce::Justification::topLeft, 2, 0.9f);
+    if (card.subtitle.isNotEmpty() && !compactText) {
+      g.setColour(juce::Colours::white.withAlpha(0.64f));
+      g.setFont(10.2f);
+      g.drawFittedText(card.subtitle, content.removeFromTop(28),
+                       juce::Justification::topLeft, 2, 0.9f);
+    }
 
     auto portArea = content.removeFromBottom(18);
     int portX = portArea.getX();

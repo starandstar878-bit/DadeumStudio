@@ -204,9 +204,9 @@ void TGraphCanvas::drawZoomIndicator(juce::Graphics &g) {
 
   auto area =
       getLocalBounds().removeFromBottom(38).removeFromRight(112).reduced(8, 6);
-  g.setColour(juce::Colour(0xdd0b1220));
+  g.setColour(juce::Colour(0xc80b1220));
   g.fillRoundedRectangle(area.toFloat(), 8.0f);
-  g.setColour(juce::Colour(0x4438bdf8));
+  g.setColour(juce::Colour(0x3038bdf8));
   g.drawRoundedRectangle(area.toFloat(), 8.0f, 1.0f);
 
   auto content = area.reduced(10, 5);
@@ -447,7 +447,7 @@ void TGraphCanvas::drawConnections(juce::Graphics &g) {
       if (isSelected)
         wireColor = wireColor.brighter(0.2f);
 
-      const float capWidth = isSelected ? 8.8f : 7.0f;
+      const float capWidth = isSelected ? 10.4f : 8.2f;
       const auto fromCap = makeBundleCap(fromA, fromB, capWidth);
       const auto toCap = makeBundleCap(toA, toB, capWidth);
       const float capRadius = juce::jmax(3.2f, capWidth * 0.5f);
@@ -458,26 +458,26 @@ void TGraphCanvas::drawConnections(juce::Graphics &g) {
       g.drawRoundedRectangle(fromCap, capRadius, isSelected ? 1.8f : 1.2f);
       g.drawRoundedRectangle(toCap, capRadius, isSelected ? 1.8f : 1.2f);
 
-      const auto underlayColor = wireColor.darker(0.72f).withAlpha(
-          isSelected ? 0.44f : 0.30f);
+      const auto underlayColor = wireColor.darker(0.70f).withAlpha(
+          isSelected ? 0.50f : 0.36f);
       g.setColour(underlayColor);
       g.strokePath(
           wirePath,
-          juce::PathStrokeType(isSelected ? 5.2f : 4.2f,
+          juce::PathStrokeType(isSelected ? 6.2f : 5.0f,
                                juce::PathStrokeType::curved,
                                juce::PathStrokeType::rounded));
 
       g.setColour(wireColor.withAlpha(isSelected ? 0.98f : 0.92f));
       g.strokePath(
           wirePath,
-          juce::PathStrokeType(isSelected ? 3.4f : 2.7f,
+          juce::PathStrokeType(isSelected ? 4.1f : 3.2f,
                                juce::PathStrokeType::curved,
                                juce::PathStrokeType::rounded));
 
-      g.setColour(wireColor.brighter(0.45f).withAlpha(isSelected ? 0.68f : 0.42f));
+      g.setColour(wireColor.brighter(0.52f).withAlpha(isSelected ? 0.74f : 0.52f));
       g.strokePath(
           wirePath,
-          juce::PathStrokeType(isSelected ? 1.55f : 1.15f,
+          juce::PathStrokeType(isSelected ? 1.85f : 1.35f,
                                juce::PathStrokeType::curved,
                                juce::PathStrokeType::rounded));
 
@@ -491,7 +491,7 @@ void TGraphCanvas::drawConnections(juce::Graphics &g) {
                               flowPhase * (dashLengths[0] + dashLengths[1]));
 
       const float pulseAlpha =
-          juce::jlimit(0.15f, 0.85f, 0.24f + bundleLevel * 0.55f);
+          juce::jlimit(0.18f, 0.88f, 0.30f + bundleLevel * 0.55f);
       g.setColour(wireColor.brighter(0.65f).withAlpha(pulseAlpha));
       g.fillPath(pulsePath);
       continue;
@@ -587,8 +587,8 @@ void TGraphCanvas::drawConnections(juce::Graphics &g) {
 
 
 void TGraphCanvas::drawMiniMap(juce::Graphics &g) {
-  const float miniW = 220.0f;
-  const float miniH = 140.0f;
+  const float miniW = 196.0f;
+  const float miniH = 122.0f;
   const float margin = 12.0f;
 
   miniMapRectView = {getWidth() - miniW - margin, getHeight() - miniH - margin,
@@ -605,9 +605,9 @@ void TGraphCanvas::drawMiniMap(juce::Graphics &g) {
         miniMapInnerRect.getY() + (p.y - miniMapWorldBounds.getY()) * sy);
   };
 
-  g.setColour(juce::Colour(0xe0121212));
+  g.setColour(juce::Colour(0xd0141720));
   g.fillRoundedRectangle(miniMapRectView, 6.0f);
-  g.setColour(juce::Colour(0xff3b3b3b));
+  g.setColour(juce::Colour(0xaa475569));
   g.drawRoundedRectangle(miniMapRectView, 6.0f, 1.0f);
 
   g.saveState();
@@ -839,27 +839,27 @@ void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
     return;
 
   auto area =
-      getLocalBounds().removeFromBottom(108).removeFromLeft(408).reduced(12);
+      getLocalBounds().removeFromBottom(92).removeFromLeft(352).reduced(12);
   if (area.getWidth() < 220 || area.getHeight() < 68)
     return;
 
   g.setGradientFill(juce::ColourGradient(juce::Colour(0xdd0b1220),
                                          (float)area.getCentreX(),
                                          (float)area.getY(),
-                                         juce::Colour(0xdd111827),
+                                         juce::Colour(0xc8111827),
                                          (float)area.getCentreX(),
                                          (float)area.getBottom(), false));
   g.fillRoundedRectangle(area.toFloat(), 12.0f);
   g.setColour(juce::Colour(0x4438bdf8));
   g.drawRoundedRectangle(area.toFloat(), 12.0f, 1.0f);
 
-  auto content = area.reduced(12, 10);
-  auto titleRow = content.removeFromTop(14);
-  auto primaryRow = content.removeFromTop(18);
-  auto detailRow = content.removeFromTop(16);
-  auto viewRow = content.removeFromTop(16);
-  content.removeFromTop(4);
-  auto badgeRow = content.removeFromTop(18);
+  auto content = area.reduced(11, 9);
+  auto titleRow = content.removeFromTop(12);
+  auto primaryRow = content.removeFromTop(16);
+  auto detailRow = content.removeFromTop(15);
+  auto viewRow = content.removeFromTop(14);
+  content.removeFromTop(3);
+  auto badgeRow = content.removeFromTop(17);
 
   const juce::String primaryText = juce::String::formatted(
       "%.1f kHz  |  %d blk  |  %d in / %d out  |  CPU %.1f%%",
@@ -886,11 +886,11 @@ void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
              false);
 
   g.setColour(juce::Colours::white.withAlpha(0.95f));
-  g.setFont(juce::FontOptions(12.5f, juce::Font::bold));
+  g.setFont(juce::FontOptions(11.8f, juce::Font::bold));
   g.drawText(primaryText, primaryRow, juce::Justification::centredLeft, false);
 
   g.setColour(juce::Colours::white.withAlpha(0.62f));
-  g.setFont(10.5f);
+  g.setFont(10.0f);
   g.drawText(detailText, detailRow, juce::Justification::centredLeft, false);
   g.setColour(juce::Colours::white.withAlpha(0.5f));
   g.drawText(viewText, viewRow, juce::Justification::centredLeft, false);
