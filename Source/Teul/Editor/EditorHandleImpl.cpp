@@ -3055,7 +3055,7 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   if (libraryPanel != nullptr) {
     libraryPanel->setVisible(libraryVisible);
     if (libraryVisible) {
-      auto left = area.removeFromLeft(216);
+      auto left = area.removeFromLeft(204);
       libraryPanel->setBounds(left.reduced(0, 2));
     }
   }
@@ -3067,7 +3067,7 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   const bool propertiesOpen = propertiesPanel != nullptr &&
                               propertiesPanel->isPanelOpen();
   if (endpointInspectorOpen || controlInspectorOpen || propertiesOpen) {
-    auto right = area.removeFromRight(296);
+    auto right = area.removeFromRight(284);
     const auto inspectorBounds = right.reduced(0, 2);
     if (systemEndpointInspector != nullptr)
       systemEndpointInspector->setBounds(endpointInspectorOpen
@@ -3092,10 +3092,10 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   }
 
   if (presetBrowserPanel != nullptr && presetBrowserPanel->isBrowserOpen()) {
-    auto drawerArea = area.removeFromBottom(520).reduced(0, 2);
+    auto drawerArea = area.removeFromBottom(496).reduced(0, 2);
     presetBrowserPanel->setBounds(drawerArea);
   } else if (diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen()) {
-    auto drawerArea = area.removeFromBottom(608).reduced(0, 2);
+    auto drawerArea = area.removeFromBottom(584).reduced(0, 2);
     diagnosticsDrawer->setBounds(drawerArea);
   }
 
@@ -3108,10 +3108,10 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
     const bool collapsed = controlRail->isRailCollapsed();
     const int targetHeight =
         collapsed ? 48
-                  : juce::jlimit(104, 188,
-                                 juce::roundToInt((float)area.getHeight() * 0.16f));
+                  : juce::jlimit(100, 176,
+                                 juce::roundToInt((float)area.getHeight() * 0.155f));
     const int railHeight = juce::jmin(targetHeight,
-                                      juce::jmax(collapsed ? 48 : 96,
+                                      juce::jmax(collapsed ? 48 : 92,
                                                  area.getHeight() / 3));
     controlRail->setBounds(area.removeFromBottom(railHeight).reduced(0, 2));
   }
@@ -3120,10 +3120,10 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
     const bool collapsed = inputRail->isRailCollapsed();
     const int targetWidth =
         collapsed ? 48
-                  : juce::jlimit(104, 168,
-                                 juce::roundToInt((float)area.getWidth() * 0.13f));
+                  : juce::jlimit(100, 160,
+                                 juce::roundToInt((float)area.getWidth() * 0.125f));
     const int railWidth = juce::jmin(targetWidth,
-                                     juce::jmax(collapsed ? 48 : 92,
+                                     juce::jmax(collapsed ? 48 : 88,
                                                 area.getWidth() / 4));
     inputRail->setBounds(area.removeFromLeft(railWidth).reduced(0, 2));
   }
@@ -3132,10 +3132,10 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
     const bool collapsed = outputRail->isRailCollapsed();
     const int targetWidth =
         collapsed ? 48
-                  : juce::jlimit(104, 168,
-                                 juce::roundToInt((float)area.getWidth() * 0.13f));
+                  : juce::jlimit(100, 160,
+                                 juce::roundToInt((float)area.getWidth() * 0.125f));
     const int railWidth = juce::jmin(targetWidth,
-                                     juce::jmax(collapsed ? 48 : 92,
+                                     juce::jmax(collapsed ? 48 : 88,
                                                 area.getWidth() / 4));
     outputRail->setBounds(area.removeFromRight(railWidth).reduced(0, 2));
   }
