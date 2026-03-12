@@ -15,9 +15,9 @@ struct MeterBar {
   juce::Colour colour;
 };
 
-constexpr int kNodeHeaderHeight = 32;
-constexpr int kNodePortRowHeight = 22;
-constexpr int kNodeMinWidth = 140;
+constexpr int kNodeHeaderHeight = 30;
+constexpr int kNodePortRowHeight = 20;
+constexpr int kNodeMinWidth = 132;
 
 static InlinePreviewKind inlinePreviewKindForImpl(const TNodeDescriptor *descriptor) {
   if (descriptor == nullptr)
@@ -40,11 +40,11 @@ static int previewHeightForKindImpl(InlinePreviewKind kind) {
   switch (kind) {
   case InlinePreviewKind::oscillator:
   case InlinePreviewKind::adsr:
-    return 54;
+    return 48;
   case InlinePreviewKind::meter:
-    return 44;
+    return 38;
   case InlinePreviewKind::meterTall:
-    return 68;
+    return 58;
   case InlinePreviewKind::none:
   default:
     return 0;
@@ -55,11 +55,11 @@ static int minWidthForKindImpl(InlinePreviewKind kind) {
   switch (kind) {
   case InlinePreviewKind::oscillator:
   case InlinePreviewKind::adsr:
-    return 160;
+    return 152;
   case InlinePreviewKind::meter:
-    return 168;
+    return 158;
   case InlinePreviewKind::meterTall:
-    return 184;
+    return 172;
   case InlinePreviewKind::none:
   default:
     return 140;
@@ -146,9 +146,9 @@ makePreviewBoundsImpl(const juce::Rectangle<float> &bounds, InlinePreviewKind ki
   if (height <= 0.0f)
     return {};
 
-  auto preview = bounds.withTrimmedTop(bounds.getHeight() - (height + 10.0f));
-  preview = preview.reduced(10.0f, 0.0f);
-  preview.removeFromBottom(6.0f);
+  auto preview = bounds.withTrimmedTop(bounds.getHeight() - (height + 8.0f));
+  preview = preview.reduced(8.0f, 0.0f);
+  preview.removeFromBottom(5.0f);
   return preview;
 }
 
@@ -162,13 +162,13 @@ static void drawPreviewPanel(juce::Graphics &g,
                             bounds.getY(), juce::Colour(0xff181818),
                             bounds.getRight(), bounds.getBottom(), false);
   g.setGradientFill(fill);
-  g.fillRoundedRectangle(bounds, 7.0f);
+  g.fillRoundedRectangle(bounds, 6.0f);
 
   g.setColour(juce::Colours::black.withAlpha(0.16f));
-  g.drawRoundedRectangle(bounds.translated(0.0f, 1.0f), 7.0f, 1.0f);
+  g.drawRoundedRectangle(bounds.translated(0.0f, 1.0f), 6.0f, 1.0f);
 
   g.setColour(accent.withAlpha(0.32f));
-  g.drawRoundedRectangle(bounds, 7.0f, 1.0f);
+  g.drawRoundedRectangle(bounds, 6.0f, 1.0f);
 }
 
 static void drawOscillatorPreviewImpl(juce::Graphics &g,
@@ -190,7 +190,7 @@ static void drawOscillatorPreviewImpl(juce::Graphics &g,
 
   drawPreviewPanel(g, bounds, TeulPalette::PortAudio);
 
-  auto area = bounds.reduced(8.0f, 7.0f);
+  auto area = bounds.reduced(7.0f, 6.0f);
   const auto baselineY = area.getCentreY();
   const auto usableHeight = area.getHeight() * 0.5f * amplitude;
 
@@ -259,7 +259,7 @@ static void drawAdsrPreviewImpl(juce::Graphics &g, const juce::Rectangle<float> 
 
   drawPreviewPanel(g, bounds, TeulPalette::PortCV);
 
-  auto area = bounds.reduced(8.0f, 8.0f);
+  auto area = bounds.reduced(7.0f, 7.0f);
   const float bottom = area.getBottom();
   const float top = area.getY() + 2.0f;
   const float sustainY = juce::jmap(sustain, bottom - 2.0f, top + 2.0f);
@@ -408,17 +408,17 @@ static void drawMeterPreviewImpl(juce::Graphics &g, const juce::Rectangle<float>
 
   drawPreviewPanel(g, bounds, juce::Colour(0xff38bdf8));
 
-  auto area = bounds.reduced(8.0f, 7.0f);
-  const float rowGap = 4.0f;
+  auto area = bounds.reduced(7.0f, 6.0f);
+  const float rowGap = 3.0f;
   const float rowHeight = (area.getHeight() - rowGap * (float)(bars.size() - 1)) /
                           (float)bars.size();
 
-  g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
+  g.setFont(juce::FontOptions(8.0f, juce::Font::bold));
   for (size_t i = 0; i < bars.size(); ++i) {
     auto row = juce::Rectangle<float>(area.getX(),
                                       area.getY() + (float)i * (rowHeight + rowGap),
                                       area.getWidth(), rowHeight);
-    auto label = row.removeFromLeft(22.0f);
+    auto label = row.removeFromLeft(18.0f);
     auto track = row.reduced(0.0f, 2.0f);
     const auto level = clampUnit(bars[i].level);
 
@@ -468,7 +468,7 @@ juce::Point<int> measureNodeSize(const TNodeDescriptor *descriptor,
 
   const int maxPortCount = juce::jmax(inputPortCount, outputPortCount);
   const int height = kNodeHeaderHeight +
-                     maxPortCount * kNodePortRowHeight + 20 +
+                     maxPortCount * kNodePortRowHeight + 16 +
                      previewHeightForKindImpl(previewKind);
   return {width, height};
 }
