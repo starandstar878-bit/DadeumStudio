@@ -18,6 +18,7 @@ class PresetBrowserPanel;
 class RuntimeStatusStrip;
 class DocumentNoticeBanner;
 class RailPanel;
+class PlaceholderInspectorPanel;
 class ControlSourceInspectorPanel;
 class SystemEndpointInspectorPanel;
 
@@ -129,6 +130,7 @@ private:
   std::unique_ptr<PresetBrowserPanel> presetBrowserPanel;
   std::unique_ptr<RuntimeStatusStrip> runtimeStatusStrip;
   std::unique_ptr<DocumentNoticeBanner> documentNoticeBanner;
+  std::unique_ptr<PlaceholderInspectorPanel> placeholderInspector;
   std::unique_ptr<ControlSourceInspectorPanel> controlSourceInspector;
   std::unique_ptr<SystemEndpointInspectorPanel> systemEndpointInspector;
   std::unique_ptr<RailPanel> inputRail;

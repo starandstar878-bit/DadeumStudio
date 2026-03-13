@@ -1840,6 +1840,78 @@ private:
   TGraphCanvas &canvas;
 };
 
+class PlaceholderInspectorPanel : public juce::Component {
+public:
+  explicit PlaceholderInspectorPanel(const TGraphDocument &documentIn)
+      : document(documentIn) {
+    addAndMakeVisible(headerLabel);
+    addAndMakeVisible(messageLabel);
+    addAndMakeVisible(summaryLabel);
+    addAndMakeVisible(helperLabel);
+    headerLabel.setText("Inspector", juce::dontSendNotification);
+    headerLabel.setJustificationType(juce::Justification::centredLeft);
+    headerLabel.setColour(juce::Label::textColourId,
+                          TeulPalette::PanelTextStrong().withAlpha(0.95f));
+    headerLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    messageLabel.setText("Nothing selected", juce::dontSendNotification);
+    messageLabel.setJustificationType(juce::Justification::centredLeft);
+    messageLabel.setColour(juce::Label::textColourId,
+                           TeulPalette::PanelText().withAlpha(0.82f));
+    messageLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    summaryLabel.setJustificationType(juce::Justification::topLeft);
+    summaryLabel.setColour(juce::Label::textColourId,
+                           TeulPalette::PanelText().withAlpha(0.72f));
+    summaryLabel.setFont(juce::FontOptions(10.6f, juce::Font::plain));
+    helperLabel.setText(
+        "Select a node, wire, input/output endpoint, or control source.",
+        juce::dontSendNotification);
+    helperLabel.setJustificationType(juce::Justification::topLeft);
+    helperLabel.setColour(juce::Label::textColourId,
+                          TeulPalette::PanelTextMuted().withAlpha(0.58f));
+    helperLabel.setFont(juce::FontOptions(10.2f, juce::Font::plain));
+    refreshFromDocument();
+  }
+  void refreshFromDocument() {
+    const auto controlSnapshot = captureControlStateSnapshot(document.controlState);
+    juce::StringArray lines;
+    lines.add("Nodes: " + juce::String((int)document.nodes.size()));
+    lines.add("Connections: " + juce::String((int)document.connections.size()));
+    lines.add("Control Sources: " + juce::String(controlSnapshot.sourceCount));
+    lines.add("Issues: " + juce::String(totalControlIssueCount(controlSnapshot)));
+    summaryLabel.setText(lines.joinIntoString("\n"), juce::dontSendNotification);
+    repaint();
+  }
+  void paint(juce::Graphics &g) override {
+    const auto bounds = getLocalBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+    g.setGradientFill(juce::ColourGradient(
+        TeulPalette::PanelBackgroundRaised().withAlpha(0.94f),
+        bounds.getCentreX(), bounds.getY(),
+        TeulPalette::PanelBackgroundDeep().withAlpha(0.94f),
+        bounds.getCentreX(), bounds.getBottom(), false));
+    g.fillRoundedRectangle(bounds, 12.0f);
+    g.setColour(TeulPalette::PanelStrokeStrong().withAlpha(0.42f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
+  }
+  void resized() override {
+    auto area = getLocalBounds().reduced(10, 8);
+    headerLabel.setBounds(area.removeFromTop(22));
+    area.removeFromTop(4);
+    messageLabel.setBounds(area.removeFromTop(18));
+    area.removeFromTop(6);
+    summaryLabel.setBounds(area.removeFromTop(64));
+    area.removeFromTop(4);
+    helperLabel.setBounds(area.removeFromTop(36));
+  }
+private:
+  const TGraphDocument &document;
+  juce::Label headerLabel;
+  juce::Label messageLabel;
+  juce::Label summaryLabel;
+  juce::Label helperLabel;
+};
+
 class ControlSourceInspectorPanel : public juce::Component {
 public:
   ControlSourceInspectorPanel(TGraphDocument &documentIn,
@@ -3068,6 +3140,9 @@ EditorHandle::Impl::Impl(
       });
   owner.addAndMakeVisible(*libraryPanel);
 
+  placeholderInspector = std::make_unique<PlaceholderInspectorPanel>(doc);
+  owner.addAndMakeVisible(*placeholderInspector);
+
   propertiesPanel = NodePropertiesPanel::create(
       doc, *canvas, *registryStore, &runtime,
       std::move(bindingSummaryResolverIn));
@@ -3924,30 +3999,28 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
                                     controlSourceInspector->isPanelOpen();
   const bool propertiesOpen = propertiesPanel != nullptr &&
                               propertiesPanel->isPanelOpen();
-  if (endpointInspectorOpen || controlInspectorOpen || propertiesOpen) {
-    auto right = area.removeFromRight(284);
-    const auto inspectorBounds = right.reduced(0, 2);
-    if (systemEndpointInspector != nullptr)
-      systemEndpointInspector->setBounds(endpointInspectorOpen
-                                             ? inspectorBounds
-                                             : juce::Rectangle<int>());
-    if (controlSourceInspector != nullptr)
-      controlSourceInspector->setBounds(controlInspectorOpen
-                                            ? inspectorBounds
-                                            : juce::Rectangle<int>());
-    if (propertiesPanel != nullptr)
-      propertiesPanel->setBounds((!endpointInspectorOpen &&
-                                  !controlInspectorOpen && propertiesOpen)
-                                     ? inspectorBounds
-                                     : juce::Rectangle<int>());
-  } else {
-    if (systemEndpointInspector != nullptr)
-      systemEndpointInspector->setBounds({});
-    if (controlSourceInspector != nullptr)
-      controlSourceInspector->setBounds({});
-    if (propertiesPanel != nullptr)
-      propertiesPanel->setBounds({});
+  const bool anyInspectorOpen = endpointInspectorOpen || controlInspectorOpen ||
+                                propertiesOpen;
+  auto right = area.removeFromRight(284);
+  const auto inspectorBounds = right.reduced(0, 2);
+  if (placeholderInspector != nullptr) {
+    placeholderInspector->setVisible(!anyInspectorOpen);
+    placeholderInspector->setBounds(!anyInspectorOpen ? inspectorBounds
+                                                      : juce::Rectangle<int>());
   }
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->setBounds(endpointInspectorOpen
+                                           ? inspectorBounds
+                                           : juce::Rectangle<int>());
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->setBounds(controlInspectorOpen
+                                          ? inspectorBounds
+                                          : juce::Rectangle<int>());
+  if (propertiesPanel != nullptr)
+    propertiesPanel->setBounds((!endpointInspectorOpen &&
+                                !controlInspectorOpen && propertiesOpen)
+                                   ? inspectorBounds
+                                   : juce::Rectangle<int>());
 
   if (presetBrowserPanel != nullptr && presetBrowserPanel->isBrowserOpen()) {
     auto drawerArea = area.removeFromBottom(496).reduced(0, 2);
@@ -4035,6 +4108,8 @@ void EditorHandle::Impl::timerCallback() {
       controlSourceInspector->refreshFromDocument();
     if (systemEndpointInspector != nullptr)
       systemEndpointInspector->refreshFromDocument();
+    if (placeholderInspector != nullptr)
+      placeholderInspector->refreshFromDocument();
     refreshRailUi();
     lastDocumentRevision = currentDocumentRevision;
   }
@@ -4075,6 +4150,8 @@ void EditorHandle::Impl::rebuildAll(bool rebuildRuntime) {
     controlSourceInspector->refreshFromDocument();
   if (systemEndpointInspector != nullptr)
     systemEndpointInspector->refreshFromDocument();
+  if (placeholderInspector != nullptr)
+    placeholderInspector->refreshFromDocument();
 
   if (!controlInputAdapters.empty())
     refreshControlInputAdapters(false);
