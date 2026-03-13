@@ -1,14 +1,6 @@
 #include "Teul/Verification/TVerificationFixtures.h"
 namespace Teul {
 namespace {
-int inferPortChannelIndex(juce::StringRef portName) {
-  const auto lowered = juce::String(portName).trim().toLowerCase();
-  if (lowered == "r" || lowered == "r in" || lowered == "r out" ||
-      lowered.startsWith("r ") || lowered.startsWith("right")) {
-    return 1;
-  }
-  return 0;
-}
 TGraphDocument makeBaseDocument(const juce::String &name) {
   TGraphDocument document;
   document.meta.name = name;
@@ -34,16 +26,23 @@ TNode makeNodeFromDescriptor(const TNodeDescriptor &descriptor,
   for (const auto &spec : descriptor.paramSpecs)
     node.params[spec.key] = spec.defaultValue;
   for (const auto &portSpec : descriptor.portSpecs) {
-    TPort port;
-    port.portId = document.allocPortId();
-    port.ownerNodeId = node.nodeId;
-    port.direction = portSpec.direction;
-    port.dataType = portSpec.dataType;
-    port.name = portSpec.name;
-    port.channelIndex = inferPortChannelIndex(portSpec.name);
-    port.maxIncomingConnections = portSpec.maxIncomingConnections;
-    port.maxOutgoingConnections = portSpec.maxOutgoingConnections;
-    node.ports.push_back(port);
+    for (int ch = 0; ch < portSpec.channelCount; ++ch) {
+      TPort port;
+      port.portId = document.allocPortId();
+      port.ownerNodeId = node.nodeId;
+      port.direction = portSpec.direction;
+      port.dataType = portSpec.dataType;
+      if (portSpec.channelCount > 1 &&
+          ch < static_cast<int>(portSpec.channelNames.size())) {
+        port.name = portSpec.channelNames[static_cast<size_t>(ch)];
+      } else {
+        port.name = portSpec.name;
+      }
+      port.channelIndex = ch;
+      port.maxIncomingConnections = portSpec.maxIncomingConnections;
+      port.maxOutgoingConnections = portSpec.maxOutgoingConnections;
+      node.ports.push_back(port);
+    }
   }
   return node;
 }

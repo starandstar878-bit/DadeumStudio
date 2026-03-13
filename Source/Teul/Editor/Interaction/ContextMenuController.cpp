@@ -520,7 +520,7 @@ bool TGraphCanvas::isReplacementCompatible(const TNode &oldNode,
     int count = 0;
     for (const auto &p : ports) {
       if (p.direction == dir && p.dataType == type)
-        ++count;
+        count += juce::jmax(1, p.channelCount);
     }
     return count;
   };
