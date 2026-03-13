@@ -26,9 +26,9 @@ public:
 
     desc.paramSpecs = {cutoff, resonance};
 
-    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, 2, {"L In", "R In"}),
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In", 2, {"L In", "R In"}),
                       makePortSpec(TPortDirection::Input, TPortDataType::CV, "Freq CV"),
-                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, 2, {"L Out", "R Out"})};
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
     return desc;
   }
 };
@@ -45,9 +45,9 @@ public:
 
     desc.paramSpecs = {{"cutoff", "Cutoff", 1000.0f},
                        {"resonance", "Resonance", 0.707f}};
-    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, 2, {"L In", "R In"}),
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In", 2, {"L In", "R In"}),
                       makePortSpec(TPortDirection::Input, TPortDataType::CV, "Freq CV"),
-                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, 2, {"L Out", "R Out"})};
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
     return desc;
   }
 };
@@ -63,9 +63,9 @@ public:
     desc.category = "Filter";
 
     desc.paramSpecs = {{"cutoff", "Cutoff", 1000.0f}, {"q", "Q Factor", 1.0f}};
-    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, 2, {"L In", "R In"}),
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In", 2, {"L In", "R In"}),
                       makePortSpec(TPortDirection::Input, TPortDataType::CV, "Freq CV"),
-                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, 2, {"L Out", "R Out"})};
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
     return desc;
   }
 };

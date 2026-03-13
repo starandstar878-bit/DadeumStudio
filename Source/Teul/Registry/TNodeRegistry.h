@@ -45,16 +45,12 @@ inline TParamOptionSpec makeParamOption(const juce::String &id,
   return option;
 }
 
-inline TParamSpec makeFloatParamSpec(const juce::String &key,
-                                     const juce::String &label,
-                                     float defaultValue,
-                                     float minValue,
-                                     float maxValue,
-                                     float step = 0.0f,
-                                     const juce::String &unitLabel = {},
-                                     int displayPrecision = 2,
-                                     const juce::String &group = {},
-                                     const juce::String &description = {}) {
+inline TParamSpec
+makeFloatParamSpec(const juce::String &key, const juce::String &label,
+                   float defaultValue, float minValue, float maxValue,
+                   float step = 0.0f, const juce::String &unitLabel = {},
+                   int displayPrecision = 2, const juce::String &group = {},
+                   const juce::String &description = {}) {
   TParamSpec spec;
   spec.key = key;
   spec.label = label;
@@ -72,8 +68,7 @@ inline TParamSpec makeFloatParamSpec(const juce::String &key,
 }
 
 inline TParamSpec makeEnumParamSpec(const juce::String &key,
-                                    const juce::String &label,
-                                    int defaultValue,
+                                    const juce::String &label, int defaultValue,
                                     std::vector<TParamOptionSpec> enumOptions,
                                     const juce::String &group = {},
                                     const juce::String &description = {}) {
@@ -93,16 +88,16 @@ inline TParamSpec makeEnumParamSpec(const juce::String &key,
 struct TPortSpec {
   TPortDirection direction;
   TPortDataType dataType;
-  juce::String name; // 포트 기본 명칭
-  
-  int channelCount = 1; // 1: Mono, 2 이상: 다중 채널
-  std::vector<juce::String> channelNames; // 다중 채널 시 각 채널에 대응할 세부 명칭
+
+  juce::String name;                      // 대표 이름
+  int channelCount = 1;                   // 구조상 채널 수
+  std::vector<juce::String> channelNames; // 채널별 세부 이름(optional)
 
   int maxIncomingConnections = 1;
   int maxOutgoingConnections = -1;
 };
 
-// 1) 기본 Mono 포트 생성
+// mono shorthand
 inline TPortSpec makePortSpec(TPortDirection direction, TPortDataType dataType,
                               const juce::String &name) {
   TPortSpec spec;
@@ -113,34 +108,34 @@ inline TPortSpec makePortSpec(TPortDirection direction, TPortDataType dataType,
   return spec;
 }
 
-// 2) 다중 채널 포트 생성 (접두사 기반으로 "이름 1", "이름 2" 자동 생성)
+// bus shorthand
 inline TPortSpec makePortSpec(TPortDirection direction, TPortDataType dataType,
-                              int channelCount, const juce::String &baseName) {
+                              const juce::String &name, int channelCount) {
   TPortSpec spec;
   spec.direction = direction;
   spec.dataType = dataType;
-  spec.name = baseName;
-  spec.channelCount = juce::jmax(1, channelCount); // 최소 1
+  spec.name = name;
+  spec.channelCount = juce::jmax(1, channelCount);
   for (int i = 0; i < spec.channelCount; ++i) {
-    spec.channelNames.push_back(baseName + " " + juce::String(i + 1));
+    spec.channelNames.push_back(name + " " + juce::String(i + 1));
   }
   return spec;
 }
 
-// 3) 다중 채널 포트 생성 (명시적으로 각 채널별 이름을 {"L", "R"} 등으로 넘김)
+// bus with explicit channel names
 inline TPortSpec makePortSpec(TPortDirection direction, TPortDataType dataType,
-                              int channelCount, std::vector<juce::String> targetNames) {
+                              const juce::String &name, int channelCount,
+                              std::vector<juce::String> channelNames) {
   TPortSpec spec;
   spec.direction = direction;
   spec.dataType = dataType;
-  // 이름이 제공되지 않았을 땐 기본적으로 "Bus"라고 이름 붙임
-  spec.name = targetNames.empty() ? "Bus" : targetNames.front();
+  spec.name = name;
   spec.channelCount = juce::jmax(1, channelCount);
-  spec.channelNames = std::move(targetNames);
-  
-  // 이름 배열이 갯수보다 모자라면 번호를 매겨서 채움
+  spec.channelNames = std::move(channelNames);
+
   while ((int)spec.channelNames.size() < spec.channelCount) {
-     spec.channelNames.push_back(spec.name + " " + juce::String(spec.channelNames.size() + 1));
+    spec.channelNames.push_back(
+        spec.name + " " + juce::String((int)spec.channelNames.size() + 1));
   }
   return spec;
 }
@@ -190,8 +185,8 @@ public:
   void registerNode(const TNodeDescriptor &desc);
   const TNodeDescriptor *descriptorFor(const juce::String &typeKey) const;
   const std::vector<TNodeDescriptor> &getAllDescriptors() const;
-  std::vector<TTeulExposedParam> listExposedParamsForNode(
-      const TNode &node) const;
+  std::vector<TTeulExposedParam>
+  listExposedParamsForNode(const TNode &node) const;
 
 private:
   std::vector<TNodeDescriptor> descriptors;
