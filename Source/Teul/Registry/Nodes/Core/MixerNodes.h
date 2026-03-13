@@ -1,6 +1,6 @@
 #pragma once
 #include "../../../Runtime/TNodeInstance.h"
-#include "../TNodeSDK.h"
+#include "../../TNodeSDK.h"
 
 #include <array>
 #include <cmath>
@@ -23,7 +23,8 @@ static int findPortChannel(const TProcessContext &ctx,
   return -1;
 }
 
-static int findNthAudioInputChannel(const TProcessContext &ctx, int inputIndex) {
+static int findNthAudioInputChannel(const TProcessContext &ctx,
+                                    int inputIndex) {
   if (ctx.nodeData == nullptr || ctx.portToChannel == nullptr)
     return -1;
 
@@ -56,17 +57,20 @@ public:
     desc.category = "Mixer";
     desc.capabilities.canMute = true;
 
-    auto gain = makeFloatParamSpec("gain", "Gain", 1.0f, 0.0f, 2.0f, 0.001f,
-                                   {}, 3, "Level",
+    auto gain = makeFloatParamSpec("gain", "Gain", 1.0f, 0.0f, 2.0f, 0.001f, {},
+                                   3, "Level",
                                    "Linear gain applied before CV modulation.");
     gain.showInNodeBody = true;
     gain.preferredBindingKey = "vcaGain";
     gain.categoryPath = "VCA/Level";
     desc.paramSpecs = {gain};
 
-    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In", 2, {"L In", "R In"}),
-                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "CV"),
-                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
+    desc.portSpecs = {
+        makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In", 2,
+                     {"L In", "R In"}),
+        makePortSpec(TPortDirection::Input, TPortDataType::CV, "CV"),
+        makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2,
+                     {"L Out", "R Out"})};
     return desc;
   }
 
@@ -86,32 +90,39 @@ public:
         int leftInputChannel = MixerNodeHelpers::findPortChannel(ctx, "L In");
         int rightInputChannel = MixerNodeHelpers::findPortChannel(ctx, "R In");
         const int cvChannel = MixerNodeHelpers::findPortChannel(ctx, "CV");
-        const int leftOutputChannel = MixerNodeHelpers::findPortChannel(ctx, "L Out");
-        const int rightOutputChannel = MixerNodeHelpers::findPortChannel(ctx, "R Out");
+        const int leftOutputChannel =
+            MixerNodeHelpers::findPortChannel(ctx, "L Out");
+        const int rightOutputChannel =
+            MixerNodeHelpers::findPortChannel(ctx, "R Out");
         if (leftOutputChannel < 0 && rightOutputChannel < 0)
           return;
 
         if (leftInputChannel < 0)
           leftInputChannel = MixerNodeHelpers::findNthAudioInputChannel(ctx, 0);
         if (rightInputChannel < 0)
-          rightInputChannel = MixerNodeHelpers::findNthAudioInputChannel(ctx, 1);
+          rightInputChannel =
+              MixerNodeHelpers::findNthAudioInputChannel(ctx, 1);
 
         const int numSamples = ctx.globalPortBuffer->getNumSamples();
-        auto *leftOutput = leftOutputChannel >= 0
-                               ? ctx.globalPortBuffer->getWritePointer(leftOutputChannel)
-                               : nullptr;
-        auto *rightOutput = rightOutputChannel >= 0
-                                ? ctx.globalPortBuffer->getWritePointer(rightOutputChannel)
-                                : nullptr;
+        auto *leftOutput =
+            leftOutputChannel >= 0
+                ? ctx.globalPortBuffer->getWritePointer(leftOutputChannel)
+                : nullptr;
+        auto *rightOutput =
+            rightOutputChannel >= 0
+                ? ctx.globalPortBuffer->getWritePointer(rightOutputChannel)
+                : nullptr;
         const float *leftInput =
-            leftInputChannel >= 0 ? ctx.globalPortBuffer->getReadPointer(leftInputChannel)
-                                  : nullptr;
-        const float *rightInput = rightInputChannel >= 0
-                                      ? ctx.globalPortBuffer->getReadPointer(rightInputChannel)
-                                      : leftInput;
-        const float *cv =
-            cvChannel >= 0 ? ctx.globalPortBuffer->getReadPointer(cvChannel)
-                           : nullptr;
+            leftInputChannel >= 0
+                ? ctx.globalPortBuffer->getReadPointer(leftInputChannel)
+                : nullptr;
+        const float *rightInput =
+            rightInputChannel >= 0
+                ? ctx.globalPortBuffer->getReadPointer(rightInputChannel)
+                : leftInput;
+        const float *cv = cvChannel >= 0
+                              ? ctx.globalPortBuffer->getReadPointer(cvChannel)
+                              : nullptr;
 
         for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
           const float modulation =
@@ -145,17 +156,18 @@ public:
     desc.category = "Mixer";
     desc.capabilities.canMute = true;
 
-    auto pan = makeFloatParamSpec("pan", "Pan", 0.0f, -1.0f, 1.0f, 0.001f,
-                                  {}, 3, "Placement",
-                                  "-1 is left, +1 is right.");
+    auto pan = makeFloatParamSpec("pan", "Pan", 0.0f, -1.0f, 1.0f, 0.001f, {},
+                                  3, "Placement", "-1 is left, +1 is right.");
     pan.showInNodeBody = true;
     pan.preferredBindingKey = "pan";
     pan.categoryPath = "StereoPanner/Placement";
     desc.paramSpecs = {pan};
 
-    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In"),
-                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "Pan CV"),
-                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
+    desc.portSpecs = {
+        makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In"),
+        makePortSpec(TPortDirection::Input, TPortDataType::CV, "Pan CV"),
+        makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2,
+                     {"L Out", "R Out"})};
     return desc;
   }
 
@@ -175,17 +187,19 @@ public:
         const int inputChannel = MixerNodeHelpers::findPortChannel(ctx, "In");
         const int cvChannel = MixerNodeHelpers::findPortChannel(ctx, "Pan CV");
         const int leftChannel = MixerNodeHelpers::findPortChannel(ctx, "L Out");
-        const int rightChannel = MixerNodeHelpers::findPortChannel(ctx, "R Out");
+        const int rightChannel =
+            MixerNodeHelpers::findPortChannel(ctx, "R Out");
         if (leftChannel < 0 || rightChannel < 0)
           return;
 
         const int numSamples = ctx.globalPortBuffer->getNumSamples();
         const float *input =
-            inputChannel >= 0 ? ctx.globalPortBuffer->getReadPointer(inputChannel)
+            inputChannel >= 0
+                ? ctx.globalPortBuffer->getReadPointer(inputChannel)
+                : nullptr;
+        const float *cv = cvChannel >= 0
+                              ? ctx.globalPortBuffer->getReadPointer(cvChannel)
                               : nullptr;
-        const float *cv =
-            cvChannel >= 0 ? ctx.globalPortBuffer->getReadPointer(cvChannel)
-                           : nullptr;
         auto *left = ctx.globalPortBuffer->getWritePointer(leftChannel);
         auto *right = ctx.globalPortBuffer->getWritePointer(rightChannel);
 
@@ -219,9 +233,10 @@ public:
     desc.capabilities.canMute = true;
 
     desc.paramSpecs = {{"gain1", "Gain 1", 1.0f}, {"gain2", "Gain 2", 1.0f}};
-    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 1"),
-                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 2"),
-                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out")};
+    desc.portSpecs = {
+        makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 1"),
+        makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 2"),
+        makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out")};
     return desc;
   }
 
@@ -240,19 +255,23 @@ public:
         if (ctx.globalPortBuffer == nullptr)
           return;
 
-        const int input1Channel = MixerNodeHelpers::findPortChannel(ctx, "In 1");
-        const int input2Channel = MixerNodeHelpers::findPortChannel(ctx, "In 2");
+        const int input1Channel =
+            MixerNodeHelpers::findPortChannel(ctx, "In 1");
+        const int input2Channel =
+            MixerNodeHelpers::findPortChannel(ctx, "In 2");
         const int outputChannel = MixerNodeHelpers::findPortChannel(ctx, "Out");
         if (outputChannel < 0)
           return;
 
         const int numSamples = ctx.globalPortBuffer->getNumSamples();
-        const float *input1 = input1Channel >= 0
-                                  ? ctx.globalPortBuffer->getReadPointer(input1Channel)
-                                  : nullptr;
-        const float *input2 = input2Channel >= 0
-                                  ? ctx.globalPortBuffer->getReadPointer(input2Channel)
-                                  : nullptr;
+        const float *input1 =
+            input1Channel >= 0
+                ? ctx.globalPortBuffer->getReadPointer(input1Channel)
+                : nullptr;
+        const float *input2 =
+            input2Channel >= 0
+                ? ctx.globalPortBuffer->getReadPointer(input2Channel)
+                : nullptr;
         auto *output = ctx.globalPortBuffer->getWritePointer(outputChannel);
 
         for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
@@ -293,11 +312,12 @@ public:
     }
     desc.paramSpecs = std::move(params);
 
-    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 1"),
-                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 2"),
-                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 3"),
-                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 4"),
-                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out")};
+    desc.portSpecs = {
+        makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 1"),
+        makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 2"),
+        makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 3"),
+        makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 4"),
+        makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out")};
     return desc;
   }
 
@@ -366,19 +386,24 @@ public:
     params.reserve(4);
     for (int busIndex = 0; busIndex < 4; ++busIndex) {
       const juce::String suffix(busIndex + 1);
-      auto gain = makeFloatParamSpec("gain" + suffix, "Gain " + suffix, 1.0f,
-                                     0.0f, 2.0f, 0.001f, {}, 3, "Levels",
-                                     "Linear gain applied to the stereo input bus.");
+      auto gain = makeFloatParamSpec(
+          "gain" + suffix, "Gain " + suffix, 1.0f, 0.0f, 2.0f, 0.001f, {}, 3,
+          "Levels", "Linear gain applied to the stereo input bus.");
       gain.categoryPath = "StereoMixer/Level " + suffix;
       params.push_back(std::move(gain));
     }
     desc.paramSpecs = std::move(params);
 
-    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 1", 2, {"L In 1", "R In 1"}),
-                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 2", 2, {"L In 2", "R In 2"}),
-                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 3", 2, {"L In 3", "R In 3"}),
-                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 4", 2, {"L In 4", "R In 4"}),
-                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio,
+                                   "In 1", 2, {"L In 1", "R In 1"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio,
+                                   "In 2", 2, {"L In 2", "R In 2"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio,
+                                   "In 3", 2, {"L In 3", "R In 3"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio,
+                                   "In 4", 2, {"L In 4", "R In 4"}),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio,
+                                   "Out", 2, {"L Out", "R Out"})};
     return desc;
   }
 
@@ -399,8 +424,10 @@ public:
         if (ctx.globalPortBuffer == nullptr)
           return;
 
-        const int leftOutputChannel = MixerNodeHelpers::findPortChannel(ctx, "L Out");
-        const int rightOutputChannel = MixerNodeHelpers::findPortChannel(ctx, "R Out");
+        const int leftOutputChannel =
+            MixerNodeHelpers::findPortChannel(ctx, "L Out");
+        const int rightOutputChannel =
+            MixerNodeHelpers::findPortChannel(ctx, "R Out");
         if (leftOutputChannel < 0 && rightOutputChannel < 0)
           return;
 
@@ -424,12 +451,14 @@ public:
         }
 
         const int numSamples = ctx.globalPortBuffer->getNumSamples();
-        auto *leftOutput = leftOutputChannel >= 0
-                               ? ctx.globalPortBuffer->getWritePointer(leftOutputChannel)
-                               : nullptr;
-        auto *rightOutput = rightOutputChannel >= 0
-                                ? ctx.globalPortBuffer->getWritePointer(rightOutputChannel)
-                                : nullptr;
+        auto *leftOutput =
+            leftOutputChannel >= 0
+                ? ctx.globalPortBuffer->getWritePointer(leftOutputChannel)
+                : nullptr;
+        auto *rightOutput =
+            rightOutputChannel >= 0
+                ? ctx.globalPortBuffer->getWritePointer(rightOutputChannel)
+                : nullptr;
 
         for (int sampleIndex = 0; sampleIndex < numSamples; ++sampleIndex) {
           float leftMix = 0.0f;
@@ -458,6 +487,190 @@ public:
 };
 TEUL_NODE_AUTOREGISTER(StereoMixer4Node);
 
+class StereoSplitterNode final : public TNodeClass {
+public:
+  TNodeDescriptor makeDescriptor() const override {
+    TNodeDescriptor desc;
+    desc.typeKey = "Teul.Routing.StereoSplitter";
+    desc.displayName = "Stereo Splitter";
+    desc.category = "Routing";
+    desc.capabilities.canMute = true;
+
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In", 2, {"L In", "R In"}),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "L Out"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "R Out")};
+    return desc;
+  }
+
+  std::unique_ptr<TNodeInstance> createInstance() const override {
+    class Implementation final : public TNodeInstance {
+    public:
+      void processSamples(const TProcessContext &ctx) override {
+        if (ctx.globalPortBuffer == nullptr)
+          return;
+
+        const int leftInCh = MixerNodeHelpers::findPortChannel(ctx, "L In");
+        const int rightInCh = MixerNodeHelpers::findPortChannel(ctx, "R In");
+        const int leftOutCh = MixerNodeHelpers::findPortChannel(ctx, "L Out");
+        const int rightOutCh = MixerNodeHelpers::findPortChannel(ctx, "R Out");
+
+        if (leftOutCh < 0 && rightOutCh < 0)
+          return;
+
+        const int numSamples = ctx.globalPortBuffer->getNumSamples();
+        const float *leftIn = leftInCh >= 0 ? ctx.globalPortBuffer->getReadPointer(leftInCh) : nullptr;
+        const float *rightIn = rightInCh >= 0 ? ctx.globalPortBuffer->getReadPointer(rightInCh) : leftIn;
+
+        float *leftOut = leftOutCh >= 0 ? ctx.globalPortBuffer->getWritePointer(leftOutCh) : nullptr;
+        float *rightOut = rightOutCh >= 0 ? ctx.globalPortBuffer->getWritePointer(rightOutCh) : nullptr;
+
+        for (int i = 0; i < numSamples; ++i) {
+          if (leftOut != nullptr)
+            leftOut[i] = leftIn != nullptr ? leftIn[i] : 0.0f;
+          if (rightOut != nullptr)
+            rightOut[i] = rightIn != nullptr ? rightIn[i] : 0.0f;
+        }
+      }
+    };
+    return std::make_unique<Implementation>();
+  }
+};
+TEUL_NODE_AUTOREGISTER(StereoSplitterNode);
+
+class StereoMergerNode final : public TNodeClass {
+public:
+  TNodeDescriptor makeDescriptor() const override {
+    TNodeDescriptor desc;
+    desc.typeKey = "Teul.Routing.StereoMerger";
+    desc.displayName = "Stereo Merger";
+    desc.category = "Routing";
+    desc.capabilities.canMute = true;
+
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "L In"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "R In"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
+    return desc;
+  }
+
+  std::unique_ptr<TNodeInstance> createInstance() const override {
+    class Implementation final : public TNodeInstance {
+    public:
+      void processSamples(const TProcessContext &ctx) override {
+        if (ctx.globalPortBuffer == nullptr)
+          return;
+
+        const int leftInCh = MixerNodeHelpers::findPortChannel(ctx, "L In");
+        const int rightInCh = MixerNodeHelpers::findPortChannel(ctx, "R In");
+        const int leftOutCh = MixerNodeHelpers::findPortChannel(ctx, "L Out");
+        const int rightOutCh = MixerNodeHelpers::findPortChannel(ctx, "R Out");
+
+        if (leftOutCh < 0 && rightOutCh < 0)
+          return;
+
+        const int numSamples = ctx.globalPortBuffer->getNumSamples();
+        const float *leftIn = leftInCh >= 0 ? ctx.globalPortBuffer->getReadPointer(leftInCh) : nullptr;
+        const float *rightIn = rightInCh >= 0 ? ctx.globalPortBuffer->getReadPointer(rightInCh) : nullptr;
+
+        float *leftOut = leftOutCh >= 0 ? ctx.globalPortBuffer->getWritePointer(leftOutCh) : nullptr;
+        float *rightOut = rightOutCh >= 0 ? ctx.globalPortBuffer->getWritePointer(rightOutCh) : nullptr;
+
+        for (int i = 0; i < numSamples; ++i) {
+          if (leftOut != nullptr)
+            leftOut[i] = leftIn != nullptr ? leftIn[i] : 0.0f;
+          if (rightOut != nullptr)
+            rightOut[i] = rightIn != nullptr ? rightIn[i] : (leftIn != nullptr ? leftIn[i] : 0.0f);
+        }
+      }
+    };
+    return std::make_unique<Implementation>();
+  }
+};
+TEUL_NODE_AUTOREGISTER(StereoMergerNode);
+
+class CrossfaderNode final : public TNodeClass {
+public:
+  TNodeDescriptor makeDescriptor() const override {
+    TNodeDescriptor desc;
+    desc.typeKey = "Teul.Mixer.Crossfader";
+    desc.displayName = "Crossfader";
+    desc.category = "Mixer";
+    desc.capabilities.canMute = true;
+
+    auto mixParam = makeFloatParamSpec("mix", "Mix", 0.5f, 0.0f, 1.0f, 0.001f, {}, 3, "Fade", "A/B blend ratio.");
+    mixParam.showInNodeBody = true;
+    mixParam.preferredBindingKey = "mix";
+    mixParam.categoryPath = "Crossfader/Mix";
+
+    desc.paramSpecs = {mixParam};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "A", 2, {"L In A", "R In A"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "B", 2, {"L In B", "R In B"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "Mix CV"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
+    return desc;
+  }
+
+  std::unique_ptr<TNodeInstance> createInstance() const override {
+    class Implementation final : public TNodeInstance {
+    public:
+      void setParameterValue(const juce::String &paramKey, float newValue) override {
+        if (paramKey == "mix")
+          mixRatio = juce::jlimit(0.0f, 1.0f, newValue);
+      }
+
+      void processSamples(const TProcessContext &ctx) override {
+        if (ctx.globalPortBuffer == nullptr)
+          return;
+
+        const int lInACh = MixerNodeHelpers::findPortChannel(ctx, "L In A");
+        const int rInACh = MixerNodeHelpers::findPortChannel(ctx, "R In A");
+        const int lInBCh = MixerNodeHelpers::findPortChannel(ctx, "L In B");
+        const int rInBCh = MixerNodeHelpers::findPortChannel(ctx, "R In B");
+        const int cvCh = MixerNodeHelpers::findPortChannel(ctx, "Mix CV");
+        const int lOutCh = MixerNodeHelpers::findPortChannel(ctx, "L Out");
+        const int rOutCh = MixerNodeHelpers::findPortChannel(ctx, "R Out");
+
+        if (lOutCh < 0 && rOutCh < 0)
+          return;
+
+        const int numSamples = ctx.globalPortBuffer->getNumSamples();
+        const float *lInA = lInACh >= 0 ? ctx.globalPortBuffer->getReadPointer(lInACh) : nullptr;
+        const float *rInA = rInACh >= 0 ? ctx.globalPortBuffer->getReadPointer(rInACh) : lInA;
+        const float *lInB = lInBCh >= 0 ? ctx.globalPortBuffer->getReadPointer(lInBCh) : nullptr;
+        const float *rInB = rInBCh >= 0 ? ctx.globalPortBuffer->getReadPointer(rInBCh) : lInB;
+        const float *cv = cvCh >= 0 ? ctx.globalPortBuffer->getReadPointer(cvCh) : nullptr;
+
+        float *lOut = lOutCh >= 0 ? ctx.globalPortBuffer->getWritePointer(lOutCh) : nullptr;
+        float *rOut = rOutCh >= 0 ? ctx.globalPortBuffer->getWritePointer(rOutCh) : nullptr;
+
+        for (int i = 0; i < numSamples; ++i) {
+          const float cvVal = cv != nullptr ? cv[i] : 0.0f;
+          const float currentMix = juce::jlimit(0.0f, 1.0f, mixRatio + cvVal);
+
+          const float angle = currentMix * juce::MathConstants<float>::halfPi;
+          const float gainA = std::cos(angle);
+          const float gainB = std::sin(angle);
+
+          if (lOut != nullptr) {
+            const float a = lInA != nullptr ? lInA[i] : 0.0f;
+            const float b = lInB != nullptr ? lInB[i] : 0.0f;
+            lOut[i] = a * gainA + b * gainB;
+          }
+          if (rOut != nullptr) {
+            const float a = rInA != nullptr ? rInA[i] : 0.0f;
+            const float b = rInB != nullptr ? rInB[i] : 0.0f;
+            rOut[i] = a * gainA + b * gainB;
+          }
+        }
+      }
+
+    private:
+      float mixRatio = 0.5f;
+    };
+    return std::make_unique<Implementation>();
+  }
+};
+TEUL_NODE_AUTOREGISTER(CrossfaderNode);
+
 class AudioInputNode final : public TNodeClass {
 public:
   TNodeDescriptor makeDescriptor() const override {
@@ -469,7 +682,8 @@ public:
     desc.capabilities.canMute = false;
     desc.capabilities.canBypass = false;
 
-    desc.portSpecs = {makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
+    desc.portSpecs = {makePortSpec(TPortDirection::Output, TPortDataType::Audio,
+                                   "Out", 2, {"L Out", "R Out"})};
     return desc;
   }
 
@@ -477,19 +691,23 @@ public:
     class Implementation final : public TNodeInstance {
     public:
       void processSamples(const TProcessContext &ctx) override {
-        if (ctx.globalPortBuffer == nullptr || ctx.inputAudioBuffer == nullptr ||
-            ctx.nodeData == nullptr || ctx.portToChannel == nullptr) {
+        if (ctx.globalPortBuffer == nullptr ||
+            ctx.inputAudioBuffer == nullptr || ctx.nodeData == nullptr ||
+            ctx.portToChannel == nullptr) {
           return;
         }
 
         const int leftChannel = MixerNodeHelpers::findPortChannel(ctx, "L Out");
-        const int rightChannel = MixerNodeHelpers::findPortChannel(ctx, "R Out");
+        const int rightChannel =
+            MixerNodeHelpers::findPortChannel(ctx, "R Out");
         if (leftChannel < 0 && rightChannel < 0)
           return;
 
-        const int availableInputChannels = ctx.inputAudioBuffer->getNumChannels();
-        const int numSamples = juce::jmin(ctx.globalPortBuffer->getNumSamples(),
-                                          ctx.inputAudioBuffer->getNumSamples());
+        const int availableInputChannels =
+            ctx.inputAudioBuffer->getNumChannels();
+        const int numSamples =
+            juce::jmin(ctx.globalPortBuffer->getNumSamples(),
+                       ctx.inputAudioBuffer->getNumSamples());
         if (numSamples <= 0 || availableInputChannels <= 0)
           return;
 
@@ -503,15 +721,18 @@ public:
         if (leftChannel >= 0) {
           auto *leftOutput = ctx.globalPortBuffer->getWritePointer(leftChannel);
           if (leftInput != nullptr)
-            juce::FloatVectorOperations::copy(leftOutput, leftInput, numSamples);
+            juce::FloatVectorOperations::copy(leftOutput, leftInput,
+                                              numSamples);
           else
             juce::FloatVectorOperations::clear(leftOutput, numSamples);
         }
 
         if (rightChannel >= 0) {
-          auto *rightOutput = ctx.globalPortBuffer->getWritePointer(rightChannel);
+          auto *rightOutput =
+              ctx.globalPortBuffer->getWritePointer(rightChannel);
           if (rightInput != nullptr)
-            juce::FloatVectorOperations::copy(rightOutput, rightInput, numSamples);
+            juce::FloatVectorOperations::copy(rightOutput, rightInput,
+                                              numSamples);
           else
             juce::FloatVectorOperations::clear(rightOutput, numSamples);
         }
@@ -537,7 +758,8 @@ public:
     desc.capabilities.maxInstances = 1;
 
     desc.paramSpecs = {{"volume", "Volume", 1.0f}};
-    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In", 2, {"L In", "R In"})};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio,
+                                   "In", 2, {"L In", "R In"})};
     return desc;
   }
 
@@ -559,19 +781,23 @@ public:
         if (leftInputChannel < 0)
           leftInputChannel = MixerNodeHelpers::findNthAudioInputChannel(ctx, 0);
         if (rightInputChannel < 0)
-          rightInputChannel = MixerNodeHelpers::findNthAudioInputChannel(ctx, 1);
+          rightInputChannel =
+              MixerNodeHelpers::findNthAudioInputChannel(ctx, 1);
 
-        const int numSamples = juce::jmin(ctx.globalPortBuffer->getNumSamples(),
-                                          ctx.deviceAudioBuffer->getNumSamples());
+        const int numSamples =
+            juce::jmin(ctx.globalPortBuffer->getNumSamples(),
+                       ctx.deviceAudioBuffer->getNumSamples());
         if (numSamples <= 0 || ctx.deviceAudioBuffer->getNumChannels() <= 0)
           return;
 
-        const float *leftInput = leftInputChannel >= 0
-                                     ? ctx.globalPortBuffer->getReadPointer(leftInputChannel)
-                                     : nullptr;
-        const float *rightInput = rightInputChannel >= 0
-                                      ? ctx.globalPortBuffer->getReadPointer(rightInputChannel)
-                                      : leftInput;
+        const float *leftInput =
+            leftInputChannel >= 0
+                ? ctx.globalPortBuffer->getReadPointer(leftInputChannel)
+                : nullptr;
+        const float *rightInput =
+            rightInputChannel >= 0
+                ? ctx.globalPortBuffer->getReadPointer(rightInputChannel)
+                : leftInput;
 
         auto *leftOutput = ctx.deviceAudioBuffer->getWritePointer(0);
         float *rightOutput = ctx.deviceAudioBuffer->getNumChannels() > 1
@@ -582,7 +808,8 @@ public:
           const float leftSample =
               (leftInput != nullptr ? leftInput[sampleIndex] : 0.0f) * volume;
           const float rightSample =
-              (rightInput != nullptr ? rightInput[sampleIndex] : leftSample) * volume;
+              (rightInput != nullptr ? rightInput[sampleIndex] : leftSample) *
+              volume;
 
           leftOutput[sampleIndex] += leftSample;
           if (rightOutput != nullptr)
