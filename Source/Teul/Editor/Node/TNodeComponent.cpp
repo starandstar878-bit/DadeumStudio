@@ -45,32 +45,6 @@ static juce::Colour heatColourForLevel(float heatLevel) {
                         juce::jlimit(0.0f, 1.0f, heatLevel * 1.1f));
 }
 
-static bool splitStereoPortLabel(juce::StringRef name, bool &isLeft,
-                                 juce::String &suffix) {
-  const juce::String trimmed = juce::String(name).trim();
-  if (trimmed.equalsIgnoreCase("L")) {
-    isLeft = true;
-    suffix.clear();
-    return true;
-  }
-  if (trimmed.equalsIgnoreCase("R")) {
-    isLeft = false;
-    suffix.clear();
-    return true;
-  }
-  if (trimmed.startsWithIgnoreCase("L ")) {
-    isLeft = true;
-    suffix = trimmed.substring(2).trim();
-    return true;
-  }
-  if (trimmed.startsWithIgnoreCase("R ")) {
-    isLeft = false;
-    suffix = trimmed.substring(2).trim();
-    return true;
-  }
-  return false;
-}
-
 static juce::String laneCaptionText(const std::vector<std::unique_ptr<TPortComponent>> &ports,
                                     juce::StringRef singularLabel,
                                     juce::StringRef pluralLabel) {
@@ -92,53 +66,25 @@ static std::vector<std::unique_ptr<TPortComponent>> buildPortComponents(
   }
 
   std::vector<std::unique_ptr<TPortComponent>> result;
-  std::vector<bool> used(directionalPorts.size(), false);
-  for (size_t index = 0; index < directionalPorts.size(); ++index) {
-    if (used[index])
-      continue;
 
-    const auto &port = directionalPorts[index];
+  for (size_t i = 0; i < directionalPorts.size(); ) {
     std::vector<TPort> group;
-    group.push_back(port);
+    group.push_back(directionalPorts[i]);
+    size_t j = i + 1;
 
-    if (port.dataType == TPortDataType::Audio) {
-      bool isLeft = false;
-      juce::String suffix;
-      if (splitStereoPortLabel(port.name, isLeft, suffix)) {
-        for (size_t candidateIndex = index + 1; candidateIndex < directionalPorts.size(); ++candidateIndex) {
-          if (used[candidateIndex])
-            continue;
-
-          const auto &candidate = directionalPorts[candidateIndex];
-          if (candidate.dataType != port.dataType ||
-              candidate.direction != port.direction)
-            continue;
-
-          bool candidateIsLeft = false;
-          juce::String candidateSuffix;
-          if (!splitStereoPortLabel(candidate.name, candidateIsLeft, candidateSuffix) ||
-              candidateIsLeft == isLeft || candidateSuffix != suffix) {
-            continue;
-          }
-
-          group.clear();
-          if (isLeft) {
-            group.push_back(port);
-            group.push_back(candidate);
-          } else {
-            group.push_back(candidate);
-            group.push_back(port);
-          }
-          used[candidateIndex] = true;
-          break;
-        }
-      }
+    // channelIndex 값이 이전 포트보다 1만큼 증가하는 경우 연속된 Bus 묶음으로 간주 (dataType도 동일해야 함)
+    while (j < directionalPorts.size() &&
+           directionalPorts[j].channelIndex == directionalPorts[j - 1].channelIndex + 1 &&
+           directionalPorts[j].dataType == group[0].dataType) {
+      group.push_back(directionalPorts[j]);
+      ++j;
     }
 
-    used[index] = true;
     auto component = std::make_unique<TPortComponent>(owner, std::move(group));
     component->setScaleFactor(viewScale);
     result.push_back(std::move(component));
+
+    i = j;
   }
 
   return result;
