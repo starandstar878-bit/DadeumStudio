@@ -227,52 +227,47 @@
    - Input / Output / Control rail drag paths rebuilt on direct endpoints
    - Legacy bridge-node dependency removed from active wiring flow
 
-4. **Port Renderer Implementation** `[Near-complete]`
+4. **Port Renderer Implementation** `[Done]`
    - Rail and DSP ports aligned on the `Mono + Bus` grammar
-   - Shared geometry / hit test / visual-state helpers added
-   - `Missing / Degraded / InvalidConfig` issue rings rendered
-   - Remaining work is minor balance and final screenshot polish
+   - Shared geometry / hit test / visual-state helpers are in place
+   - `Missing / Degraded / InvalidConfig` issue rings render consistently
 
-5. **Port Hit Test / Cable Start Rules** `[Near-complete]`
+5. **Port Hit Test / Cable Start Rules** `[Done]`
    - Mono drag and bundle drag hover / valid states split correctly
    - Bus channel circles vs bundle body hit zones aligned
    - Rail and DSP ports now follow the same interaction rules
-   - Remaining work is edge-case regression checking
 
-6. **Cable Renderer Expansion** `[Near-complete]`
+6. **Cable Renderer Expansion** `[Done]`
    - Direct rail endpoint cable rendering works
    - Bundle underlay / core / highlight layers added
    - Rail / DSP anchors and bundle hover behavior corrected
    - Stereo / bundle quick-add insertion supported
-   - Remaining work is final split / merge visual polish
 
-7. **Bus / Multi Capacity Rules** `[Near-complete]`
+7. **Bus / Multi Capacity Rules** `[Done]`
    - `maxIncomingConnections` and `maxOutgoingConnections` added
    - Input / output capacity validation wired into connection checks
-   - `Mono Mixer (4-In)` and `Stereo Mixer (4-Bus)` added to verify repeated ports
+   - `Mono Mixer (4-In)` and `Stereo Mixer (4-Bus)` verify repeated ports
    - Inspector `Port Usage`, `Free / Partial / Full`, and reject hints added
-   - Remaining work is expansion into more product nodes and long-run regression coverage
 
-8. **Automatic Channel Conversion Rules** `[Near-complete]`
+8. **Automatic Channel Conversion Rules** `[Done]`
    - `Mono -> Bus` allowed only on channel circles
    - `Bus -> Mono` allowed only from channel circles
    - `Bus -> Bus` bundle allowed only on same-size body-to-body targets
    - Different-size buses require explicit per-channel routing
    - Invalid reasons are surfaced in drag status hints
 
-9. **Inspector v1 Completion** `[Near-complete]`
+9. **Inspector v1 Completion** `[Done]`
    - `Connection Setup`, `Port Usage`, and `Connection Rules` are in place
    - Assignment `Clear / On / Inv / Range` editing is available
    - Issue summary, grouped port usage, and channel occupancy are shown
-   - Remaining work is advanced editing UX and message polish
 
-10. **Rail UI Polish** `[Near-complete]`
+10. **Rail UI Polish** `[Done]`
     - Rail, DSP node, inspector, library, HUD, drawers, and search overlay compacted
     - Minimap / runtime overlay / notice banner / toolbar footprints reduced
     - Collapsed rail affordance and `6ch+` dense bus compression added
-    - Remaining work is final visual balancing and screenshot-level cleanup
+    - Final pass completed to bring the editor into compact MVP balance
 
-11. **Control Source / Device Profile Logic** `[In progress]`
+11. **Control Source / Device Profile Logic** `[Near-complete]`
     - Completed so far
       - `Learn armed` state
       - Kind / mode editing with source-shape rebuild
@@ -280,30 +275,37 @@
       - Source / profile reconcile
       - Compatible profile auto-relink
       - Bulk profile sync API
-      - MIDI device polling
-      - Live MIDI learn callback path
+      - MIDI device polling and live MIDI learn callback path
+      - Control input adapter abstraction
+      - External queue APIs for learned bindings and profile sync
+      - Session / HUD control summaries and runtime state diff messages
+      - Rebuild-time adapter resync
+      - Hardened control-model smoke coverage for missing / reconnect / learn / sync
     - Remaining work
-      - Profile persist / reconnect finish
-      - Generalize beyond MIDI inputs
-      - Preset / state / recovery integration
-      - Final degraded / missing recovery flow
+      - Generalize live learn/profile sync beyond MIDI adapters
+      - Close preset / state / recovery integration loops
+      - Finalize missing / degraded recovery edge cases
 
-12. **Verification** `[Planned]`
-    - Save / load
-    - Profile persist / reconnect
-    - Degraded / profile mismatch / recovery
-    - Routing / inspector / drag-drop regression coverage
-    - MIDI learn / profile sync / restore scenarios
+12. **Verification** `[In progress]`
+    - Completed so far
+      - `build_check.bat`
+      - `teul_control_model_smoke.bat`
+    - Remaining work
+      - Save / load regression coverage
+      - Profile persist / reconnect verification
+      - Degraded / profile mismatch / recovery verification
+      - Routing / inspector / drag-drop regression coverage
+      - Live MIDI learn / profile sync / restore scenarios
 
 ### Current Focus
 
 - The active main task is **11. Control Source / Device Profile Logic**.
-- MIDI learn and profile sync APIs are already connected.
-- The remaining core work is persist / reconnect / recovery.
-- **12. Verification** should follow after that logic is closed.
+- `10` is closed for the current MVP milestone.
+- The next target is to finish the remaining non-MIDI / recovery gaps in `11` and then close `12`.
 
 ### Current Stage Summary
 
-- Steps `1` through `10` are at MVP-complete or near-complete level.
-- The real remaining large blocks are `11` and `12`.
-- The most accurate overall label is **Milestone 3C, early phase**.
+- Steps `1` through `10` are closed at MVP-complete level.
+- Step `11` is close to completion, with the remaining work concentrated in adapter generalization and recovery edge cases.
+- Step `12` has started, and the control-model smoke is already green.
+- The most accurate overall label is **Milestone 3C, verification-entry phase**.
