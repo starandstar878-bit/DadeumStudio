@@ -449,6 +449,12 @@ void TGraphRuntime::setCurrentChannelLayout(int inputChannels,
                            std::memory_order_relaxed);
 }
 
+void TGraphRuntime::setMidiOutputSink(
+    std::function<void(const juce::MidiBuffer &)> sinkCallback) {
+  const juce::SpinLock::ScopedLockType lock(midiOutputSinkLock);
+  midiOutputSink = std::move(sinkCallback);
+}
+
 void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
                                  juce::MidiBuffer &midiMessages) {
   const int inputChannels = juce::jmin(

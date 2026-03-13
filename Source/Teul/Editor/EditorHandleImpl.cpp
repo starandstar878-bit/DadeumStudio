@@ -4341,7 +4341,7 @@ void EditorHandle::Impl::refreshMidiOutputDevice(bool announceChanges) {
   if (const auto *existing = findDeviceById(currentId))
     targetDevice = existing;
   else if (!devices.isEmpty())
-    targetDevice = &devices.front();
+    targetDevice = &devices.getReference(0);
 
   if (targetDevice == nullptr) {
     bool changed = false;
