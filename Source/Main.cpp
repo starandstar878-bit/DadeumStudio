@@ -21,6 +21,7 @@
 #include "Teul/Serialization/TStatePresetIO.h"
 #include "Teul/Serialization/TFileIo.h"
 #include "Teul/Serialization/TSerializer.h"
+#include "Teul/Public/EditorHandle.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
 #include <algorithm>
@@ -2168,6 +2169,10 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
   Teul::TGraphDocument sourceDocument;
   sourceDocument.meta.name = "Teul Control Model Smoke";
   sourceDocument.controlState.ensureDefaultRails();
+  sourceDocument.controlState.sources.clear();
+  sourceDocument.controlState.deviceProfiles.clear();
+  sourceDocument.controlState.assignments.clear();
+  sourceDocument.controlState.missingDeviceProfileIds.clear();
 
   Teul::TControlSource expressionSource;
   expressionSource.sourceId = "exp-1";
@@ -2179,7 +2184,7 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
   expressionSource.autoDetected = true;
   expressionSource.confirmed = true;
   expressionSource.ports.push_back(
-      {"value", "Value", Teul::TControlPortKind::value});
+      {"exp-1-value", "Value", Teul::TControlPortKind::value});
 
   Teul::TControlSource footswitchSource;
   footswitchSource.sourceId = "fs-1";
@@ -2191,9 +2196,9 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
   footswitchSource.autoDetected = true;
   footswitchSource.confirmed = true;
   footswitchSource.ports.push_back(
-      {"gate", "Gate", Teul::TControlPortKind::gate});
+      {"fs-1-gate", "Gate", Teul::TControlPortKind::gate});
   footswitchSource.ports.push_back(
-      {"trigger", "Trigger", Teul::TControlPortKind::trigger});
+      {"fs-1-trigger", "Trigger", Teul::TControlPortKind::trigger});
 
   sourceDocument.controlState.sources.push_back(expressionSource);
   sourceDocument.controlState.sources.push_back(footswitchSource);
@@ -2210,7 +2215,7 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
   expressionProfile.kind = Teul::TControlSourceKind::expression;
   expressionProfile.mode = Teul::TControlSourceMode::continuous;
   expressionProfile.ports.push_back(
-      {"value", "Value", Teul::TControlPortKind::value});
+      {"exp-1-value", "Value", Teul::TControlPortKind::value});
   expressionProfile.bindings.push_back(
       {"VOX Floor Controller", "vox-floor-hw", 1, 11, -1});
 
@@ -2220,9 +2225,9 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
   footswitchProfile.kind = Teul::TControlSourceKind::footswitch;
   footswitchProfile.mode = Teul::TControlSourceMode::momentary;
   footswitchProfile.ports.push_back(
-      {"gate", "Gate", Teul::TControlPortKind::gate});
+      {"fs-1-gate", "Gate", Teul::TControlPortKind::gate});
   footswitchProfile.ports.push_back(
-      {"trigger", "Trigger", Teul::TControlPortKind::trigger});
+      {"fs-1-trigger", "Trigger", Teul::TControlPortKind::trigger});
   footswitchProfile.bindings.push_back(
       {"VOX Floor Controller", "vox-floor-hw", 1, -1, 36});
 
@@ -2231,9 +2236,9 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
   sourceDocument.controlState.deviceProfiles.push_back(deviceProfile);
 
   sourceDocument.controlState.assignments.push_back(
-      {"exp-1", "value", 1, "mix"});
+      {"exp-1", "exp-1-value", 1, "mix"});
   sourceDocument.controlState.assignments.push_back(
-      {"fs-1", "trigger", 1, "bypass"});
+      {"fs-1", "fs-1-trigger", 1, "bypass"});
   sourceDocument.controlState.missingDeviceProfileIds.push_back(
       "missing-stage-rig");
 
@@ -2262,7 +2267,7 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
       restoredDocument.controlState.findSource("fs-1");
   const auto *profileRestored =
       restoredDocument.controlState.findDeviceProfile("vox-floor");
-  const bool passed =
+  const bool roundTripPassed =
       restoredDocument.controlState.rails.size() == 3 &&
       controlRail != nullptr &&
       controlRail->kind == Teul::TRailKind::controlSource &&
@@ -2275,27 +2280,168 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
       restoredDocument.controlState.missingDeviceProfileIds.size() == 1 &&
       !migrationReport.degraded;
 
+  const bool markedMissing =
+      restoredDocument.controlState.markDeviceProfileMissing("vox-floor");
+  const auto *expressionMissing =
+      restoredDocument.controlState.findSource("exp-1");
+  const auto *footswitchMissing =
+      restoredDocument.controlState.findSource("fs-1");
+  const bool missingPropagationPassed =
+      markedMissing && expressionMissing != nullptr && expressionMissing->missing &&
+      footswitchMissing != nullptr && footswitchMissing->missing &&
+      restoredDocument.controlState.missingDeviceProfileIds.size() == 2;
+
+  const bool reconnected = restoredDocument.controlState.markDeviceProfilePresent(
+      "vox-floor-reconnected", "midi:vox-floor", "VOX Floor Controller", true);
+  const auto *reconnectedProfile =
+      restoredDocument.controlState.findDeviceProfile("vox-floor-reconnected");
+  const auto *oldProfile =
+      restoredDocument.controlState.findDeviceProfile("vox-floor");
+  const auto *expressionReconnected =
+      restoredDocument.controlState.findSource("exp-1");
+  const bool reconnectPassed =
+      reconnected && reconnectedProfile != nullptr && oldProfile == nullptr &&
+      expressionReconnected != nullptr &&
+      expressionReconnected->deviceProfileId == "vox-floor-reconnected" &&
+      !expressionReconnected->missing &&
+      restoredDocument.controlState.missingDeviceProfileIds.size() == 1;
+
+  const bool armed = restoredDocument.controlState.setLearnArmed("exp-1", true);
+  const bool learned =
+      restoredDocument.controlState.applyLearnedBindingToArmedSource(
+          {"VOX Floor Controller", "vox-floor-hw", 1, 74, -1},
+          "vox-floor-reconnected", "midi:vox-floor", "VOX Floor Controller",
+          Teul::TControlSourceKind::midiCc,
+          Teul::TControlSourceMode::continuous, "EXP Learn", true, true);
+  const auto *expressionLearned =
+      restoredDocument.controlState.findSource("exp-1");
+  const auto *learnedProfileSource =
+      restoredDocument.controlState.findDeviceSourceProfile(
+          "vox-floor-reconnected", "exp-1");
+  const bool learnedBindingPresent =
+      learnedProfileSource != nullptr &&
+      std::any_of(learnedProfileSource->bindings.begin(),
+                  learnedProfileSource->bindings.end(),
+                  [](const Teul::TDeviceBindingSignature &binding) {
+                    return binding.controllerNumber == 74 &&
+                           binding.midiChannel == 1 &&
+                           binding.hardwareId == "vox-floor-hw";
+                  });
+  const bool learnApplyPassed =
+      armed && learned && expressionLearned != nullptr &&
+      expressionLearned->kind == Teul::TControlSourceKind::midiCc &&
+      expressionLearned->mode == Teul::TControlSourceMode::continuous &&
+      expressionLearned->displayName == "EXP Learn" &&
+      !restoredDocument.controlState.isLearnArmed("exp-1") &&
+      learnedBindingPresent;
+
+  auto pumpControlQueues = []() {
+    for (int attempt = 0; attempt < 6; ++attempt) {
+      juce::Thread::sleep(40);
+      juce::Timer::callPendingTimersSynchronously();
+    }
+  };
+
+  Teul::EditorHandle editor(nullptr);
+  editor.document() = restoredDocument;
+  editor.refreshFromDocument();
+  const bool editorMarkedMissing =
+      editor.reportControlDeviceProfileMissing("vox-floor-reconnected");
+  const auto *editorExpressionMissing =
+      editor.document().controlState.findSource("exp-1");
+  const bool editorMissingPassed =
+      editorMarkedMissing && editorExpressionMissing != nullptr &&
+      editorExpressionMissing->missing;
+
+  const bool queuedSyncApplied = editor.syncControlDeviceProfiles(
+      {{"vox-floor-runtime", "midi:vox-floor", "VOX Floor Controller", true}},
+      true);
+  const auto *runtimeProfile =
+      editor.document().controlState.findDeviceProfile("vox-floor-runtime");
+  const auto *editorExpressionResynced =
+      editor.document().controlState.findSource("exp-1");
+  const juce::String queuedSyncSourceProfileId =
+      editorExpressionResynced != nullptr ? editorExpressionResynced->deviceProfileId
+                                          : juce::String{};
+  const bool queuedSyncSourceMissing =
+      editorExpressionResynced != nullptr && editorExpressionResynced->missing;
+  const bool queuedSyncPassed =
+      queuedSyncApplied && runtimeProfile != nullptr &&
+      editorExpressionResynced != nullptr &&
+      editorExpressionResynced->deviceProfileId == "vox-floor-runtime" &&
+      !editorExpressionResynced->missing;
+
+  editor.document().controlState.setLearnArmed("fs-1", true);
+  editor.enqueueLearnedControlBinding(
+      {"VOX Floor Controller", "vox-floor-hw", 1, -1, 42},
+      "vox-floor-runtime", "midi:vox-floor", "VOX Floor Controller",
+      Teul::TControlSourceKind::midiNote,
+      Teul::TControlSourceMode::momentary, "FS Learn", true, true);
+  pumpControlQueues();
+  const auto *queueLearnedSource =
+      editor.document().controlState.findSource("fs-1");
+  const auto *queueLearnedProfileSource =
+      editor.document().controlState.findDeviceSourceProfile(
+          "vox-floor-runtime", "fs-1");
+  const bool queuedBindingPresent =
+      queueLearnedProfileSource != nullptr &&
+      std::any_of(queueLearnedProfileSource->bindings.begin(),
+                  queueLearnedProfileSource->bindings.end(),
+                  [](const Teul::TDeviceBindingSignature &binding) {
+                    return binding.noteNumber == 42 &&
+                           binding.midiChannel == 1 &&
+                           binding.hardwareId == "vox-floor-hw";
+                  });
+  const bool queuedLearnPassed =
+      queueLearnedSource != nullptr &&
+      queueLearnedSource->kind == Teul::TControlSourceKind::midiNote &&
+      queueLearnedSource->displayName == "FS Learn" &&
+      !editor.document().controlState.isLearnArmed("fs-1") &&
+      queuedBindingPresent;
+
+  const bool passed = roundTripPassed && missingPropagationPassed &&
+                      reconnectPassed && learnApplyPassed &&
+                      editorMissingPassed && queuedSyncPassed &&
+                      queuedLearnPassed;
+
   const auto summaryFile =
       outputDirectory.getChildFile("control-model-summary.txt");
   const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
-  const auto summaryText =
-      "railCount=" +
-      juce::String((int)restoredDocument.controlState.rails.size()) + "\r\n" +
-      "sourceCount=" +
-      juce::String((int)restoredDocument.controlState.sources.size()) + "\r\n" +
-      "deviceProfileCount=" +
-      juce::String((int)restoredDocument.controlState.deviceProfiles.size()) +
-      "\r\n" +
-      "assignmentCount=" +
-      juce::String((int)restoredDocument.controlState.assignments.size()) +
-      "\r\n" +
-      "missingDeviceProfileCount=" +
-      juce::String(
-          (int)restoredDocument.controlState.missingDeviceProfileIds.size()) +
-      "\r\n" +
-      "migrated=" +
-      juce::String(migrationReport.migrated ? "true" : "false") + "\r\n" +
-      "passed=" + juce::String(passed ? "true" : "false") + "\r\n";
+  const juce::String summaryText =
+      juce::StringArray{
+          "railCount=" +
+              juce::String((int)restoredDocument.controlState.rails.size()),
+          "sourceCount=" +
+              juce::String((int)restoredDocument.controlState.sources.size()),
+          "deviceProfileCount=" +
+              juce::String((int)restoredDocument.controlState.deviceProfiles.size()),
+          "assignmentCount=" +
+              juce::String((int)restoredDocument.controlState.assignments.size()),
+          "missingDeviceProfileCount=" +
+              juce::String(
+                  (int)restoredDocument.controlState.missingDeviceProfileIds.size()),
+          "roundTripPassed=" +
+              juce::String(roundTripPassed ? "true" : "false"),
+          "missingPropagationPassed=" +
+              juce::String(missingPropagationPassed ? "true" : "false"),
+          "reconnectPassed=" +
+              juce::String(reconnectPassed ? "true" : "false"),
+          "learnApplyPassed=" +
+              juce::String(learnApplyPassed ? "true" : "false"),
+          "editorMissingPassed=" +
+              juce::String(editorMissingPassed ? "true" : "false"),
+          "queuedSyncPassed=" +
+              juce::String(queuedSyncPassed ? "true" : "false"),
+          "queuedSyncSourceProfileId=" + queuedSyncSourceProfileId,
+          "queuedSyncSourceMissing=" +
+              juce::String(queuedSyncSourceMissing ? "true" : "false"),
+          "queuedLearnPassed=" +
+              juce::String(queuedLearnPassed ? "true" : "false"),
+          "migrated=" +
+              juce::String(migrationReport.migrated ? "true" : "false"),
+          "passed=" + juce::String(passed ? "true" : "false")}
+          .joinIntoString("\r\n") +
+      "\r\n";
   if (!summaryFile.replaceWithText(summaryText, false, false, "\r\n")) {
     return juce::Result::fail(
         "Teul control model smoke could not write its summary file.");
@@ -2323,6 +2469,16 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
   bundleRoot->setProperty(
       "missingDeviceProfileCount",
       (int)restoredDocument.controlState.missingDeviceProfileIds.size());
+  bundleRoot->setProperty("roundTripPassed", roundTripPassed);
+  bundleRoot->setProperty("missingPropagationPassed", missingPropagationPassed);
+  bundleRoot->setProperty("reconnectPassed", reconnectPassed);
+  bundleRoot->setProperty("learnApplyPassed", learnApplyPassed);
+  bundleRoot->setProperty("editorMissingPassed", editorMissingPassed);
+  bundleRoot->setProperty("queuedSyncPassed", queuedSyncPassed);
+  bundleRoot->setProperty("queuedSyncSourceProfileId",
+                          queuedSyncSourceProfileId);
+  bundleRoot->setProperty("queuedSyncSourceMissing", queuedSyncSourceMissing);
+  bundleRoot->setProperty("queuedLearnPassed", queuedLearnPassed);
   bundleRoot->setProperty("files", juce::var(files));
   if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
     return juce::Result::fail(
@@ -2338,7 +2494,6 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
   std::cout << "Teul Phase8 control model smoke checks: PASS" << std::endl;
   return juce::Result::ok();
 }
-
 
 juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
   const auto outputArg = argValue(args, "--output-dir=");

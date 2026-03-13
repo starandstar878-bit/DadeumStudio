@@ -1058,7 +1058,7 @@ struct TControlSourceState {
     std::vector<juce::String> normalizedMissingIds;
     auto appendMissingProfileId = [&](const juce::String &profileId) {
       const auto trimmedId = profileId.trim();
-      if (trimmedId.isEmpty())
+      if (trimmedId.isEmpty() || trimmedId == "preview-device")
         return;
 
       const bool alreadyPresent = std::any_of(
@@ -1068,9 +1068,32 @@ struct TControlSourceState {
         normalizedMissingIds.push_back(trimmedId);
     };
 
+    auto isMarkedMissing = [&](const juce::String &profileId) {
+      const auto trimmedId = profileId.trim();
+      if (trimmedId.isEmpty())
+        return false;
+
+      return std::any_of(
+          normalizedMissingIds.begin(), normalizedMissingIds.end(),
+          [&](const juce::String &existingId) { return existingId == trimmedId; });
+    };
+
+    auto profileIdReferencedByAnySource = [&](const juce::String &profileId) {
+      const auto trimmedId = profileId.trim();
+      if (trimmedId.isEmpty())
+        return false;
+
+      return std::any_of(
+          sources.begin(), sources.end(), [&](const TControlSource &source) {
+            return source.deviceProfileId.trim() == trimmedId;
+          });
+    };
+
     for (const auto &profileId : missingDeviceProfileIds) {
-      if (findDeviceProfile(profileId.trim()) == nullptr)
-        appendMissingProfileId(profileId);
+      const auto trimmedId = profileId.trim();
+      if (trimmedId.isEmpty() || trimmedId == "preview-device")
+        continue;
+      appendMissingProfileId(trimmedId);
     }
 
     for (auto &source : sources) {
@@ -1098,6 +1121,8 @@ struct TControlSourceState {
       const auto *profileSource = findDeviceSourceProfile(profileId, source.sourceId);
       if (profileSource == nullptr) {
         source.degraded = true;
+        if (isMarkedMissing(profileId))
+          source.missing = true;
         continue;
       }
 
@@ -1111,6 +1136,9 @@ struct TControlSourceState {
           !controlPortsMatch(source.ports, profileSource->ports)) {
         source.degraded = true;
       }
+
+      if (isMarkedMissing(profileId))
+        source.missing = true;
     }
 
     for (const auto &profile : deviceProfiles)
