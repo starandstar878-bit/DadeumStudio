@@ -1,0 +1,5296 @@
+
+#include "Teul2/Editor/TTeulEditor.h"
+#include "Teul2/Document/TTeulDocument.h"
+#include "Teul/Runtime/TGraphRuntime.h"
+
+#include <memory>
+#include <vector>
+
+namespace Teul {
+
+class TGraphCanvas;
+class TNodeRegistry;
+class NodeLibraryPanel;
+class NodePropertiesPanel;
+class DiagnosticsDrawer;
+class PresetBrowserPanel;
+class RuntimeStatusStrip;
+class DocumentNoticeBanner;
+class RailPanel;
+class PlaceholderInspectorPanel;
+class ControlSourceInspectorPanel;
+class SystemEndpointInspectorPanel;
+
+struct TTeulEditor::Impl : private juce::Timer {
+  explicit Impl(TTeulEditor &owner,
+                juce::AudioDeviceManager *audioDeviceManager,
+                ParamBindingSummaryResolver bindingSummaryResolver,
+                ParamBindingRevisionProvider bindingRevisionProvider);
+  ~Impl() override;
+
+  TTeulDocument &document() noexcept;
+  const TTeulDocument &document() const noexcept;
+  const TNodeRegistry *registry() const noexcept;
+  void refreshFromDocument();
+  void setSessionStatus(const TEditorSessionStatus &status);
+  bool applyLearnedControlBinding(const TDeviceBindingSignature &binding,
+                                  const juce::String &profileId,
+                                  const juce::String &deviceId,
+                                  const juce::String &profileDisplayName,
+                                  TControlSourceKind kind,
+                                  TControlSourceMode mode,
+                                  const juce::String &sourceDisplayName,
+                                  bool autoDetected,
+                                  bool confirmed);
+  bool applyLearnedMidiMessage(const juce::MidiMessage &message,
+                              const juce::String &midiDeviceName,
+                              const juce::String &hardwareId,
+                              const juce::String &profileId,
+                              const juce::String &profileDisplayName,
+                              bool autoDetected,
+                              bool confirmed);
+  bool reportControlDeviceProfilePresent(const juce::String &profileId,
+                                       const juce::String &deviceId,
+                                       const juce::String &displayName,
+                                       bool autoDetected);
+  bool reportControlDeviceProfileMissing(const juce::String &profileId);
+  bool syncControlDeviceProfiles(
+      const std::vector<TControlDeviceProfilePresence> &profiles,
+      bool autoMarkMissing);
+  void queueLearnedControlBinding(const TDeviceBindingSignature &binding,
+                                  const juce::String &profileId,
+                                  const juce::String &deviceId,
+                                  const juce::String &profileDisplayName,
+                                  TControlSourceKind kind,
+                                  TControlSourceMode mode,
+                                  const juce::String &sourceDisplayName,
+                                  bool autoDetected,
+                                  bool confirmed);
+  void queueControlDeviceProfileSync(
+      const std::vector<TControlDeviceProfilePresence> &profiles,
+      bool autoMarkMissing);
+  void queueControlDeviceProfilePresent(const juce::String &profileId,
+                                        const juce::String &deviceId,
+                                        const juce::String &displayName,
+                                        bool autoDetected);
+  void queueControlDeviceProfileMissing(const juce::String &profileId);
+  void layout(juce::Rectangle<int> area);
+
+private:
+  struct ControlInputAdapter;
+  struct MidiControlInputAdapter;
+
+  struct PendingLearnBindingEvent {
+    TDeviceBindingSignature binding;
+    juce::String profileId;
+    juce::String deviceId;
+    juce::String profileDisplayName;
+    juce::String sourceDisplayName;
+    TControlSourceKind kind = TControlSourceKind::expression;
+    TControlSourceMode mode = TControlSourceMode::continuous;
+    bool autoDetected = true;
+    bool confirmed = true;
+  };
+
+  struct PendingProfileSyncEvent {
+    std::vector<TControlDeviceProfilePresence> profiles;
+    bool autoMarkMissing = true;
+  };
+
+  struct PendingProfileDeltaEvent {
+    enum class Kind { present, missing };
+
+    Kind kind = Kind::present;
+    juce::String profileId;
+    juce::String deviceId;
+    juce::String displayName;
+    bool autoDetected = true;
+  };
+
+  void timerCallback() override;
+  void rebuildAll(bool rebuildRuntime);
+  void handleSelectionChanged(const std::vector<NodeId> &selectedNodeIds);
+  void handleFrameSelectionChanged(int frameId);
+  void openProperties(NodeId nodeId);
+  void inspectNodeWithReveal(NodeId nodeId);
+  void inspectControlSource(const juce::String &sourceId);
+  void inspectSystemEndpoint(const juce::String &endpointId);
+  void clearControlSourceInspector();
+  void clearSystemEndpointInspector();
+  void clearRailInspectors();
+  bool focusDiagnosticTarget(const juce::String &graphId,
+                             const juce::String &query);
+  void refreshRuntimeUi(bool forceMessage = false);
+  void refreshDocumentNoticeUi(bool force = false);
+  void refreshSessionStatusUi(bool force = false);
+  void refreshRailUi(bool relayout = false);
+  void syncRuntimeViewButtons();
+  void pushRuntimeMessage(const juce::String &text,
+                          juce::Colour accent,
+                          int ticks = 50);
+  void refreshControlInputAdapters(bool announceChanges);
+  void refreshMidiOutputDevice(bool announceChanges);
+  void sendRuntimeMidiOutput(const juce::MidiBuffer &midiMessages);
+  bool applyRuntimeControlMidiMessage(const juce::MidiMessage &message,
+                                     const juce::String &profileId,
+                                     const juce::String &midiDeviceName,
+                                     const juce::String &hardwareId);
+  juce::String railEndpointSubtitleOverride(const TSystemRailEndpoint &endpoint) const;
+  juce::String systemEndpointExtraStatusLine(const TSystemRailEndpoint &endpoint) const;
+  juce::String systemEndpointExtraDetailSummary(const TSystemRailEndpoint &endpoint) const;
+  void drainPendingProfileSyncEvents();
+  void drainPendingProfileDeltaEvents();
+  void drainPendingLearnBindings();
+
+  TTeulEditor &owner;
+  TTeulDocument doc;
+  std::unique_ptr<TNodeRegistry> registryStore;
+  TGraphRuntime runtime;
+  std::unique_ptr<TGraphCanvas> canvas;
+  std::unique_ptr<juce::Component> canvasOverlayLayer;
+  std::unique_ptr<NodeLibraryPanel> libraryPanel;
+  std::unique_ptr<NodePropertiesPanel> propertiesPanel;
+  std::unique_ptr<DiagnosticsDrawer> diagnosticsDrawer;
+  std::unique_ptr<PresetBrowserPanel> presetBrowserPanel;
+  std::unique_ptr<RuntimeStatusStrip> runtimeStatusStrip;
+  std::unique_ptr<DocumentNoticeBanner> documentNoticeBanner;
+  std::unique_ptr<PlaceholderInspectorPanel> placeholderInspector;
+  std::unique_ptr<ControlSourceInspectorPanel> controlSourceInspector;
+  std::unique_ptr<SystemEndpointInspectorPanel> systemEndpointInspector;
+  std::unique_ptr<RailPanel> inputRail;
+  std::unique_ptr<RailPanel> outputRail;
+  std::unique_ptr<RailPanel> controlRail;
+  juce::AudioDeviceManager *audioDeviceManager = nullptr;
+  juce::CriticalSection midiOutputDeviceLock;
+  std::shared_ptr<juce::MidiOutput> midiOutputDevice;
+  juce::String midiOutputDeviceId;
+  juce::String midiOutputDeviceName;
+
+  juce::TextButton toggleLibraryButton;
+  juce::TextButton quickAddButton;
+  juce::TextButton findNodeButton;
+  juce::TextButton commandPaletteButton;
+  juce::TextButton toggleHeatmapButton;
+  juce::TextButton toggleProbeButton;
+  juce::TextButton toggleOverlayButton;
+  juce::TextButton toggleDiagnosticsButton;
+  juce::TextButton togglePresetsButton;
+
+  bool libraryVisible = true;
+  std::uint64_t lastDocumentRevision = 0;
+  std::uint64_t lastRuntimeRevision = 0;
+  std::uint64_t lastDocumentNoticeRevision = 0;
+  std::uint64_t lastBindingRevision = 0;
+  bool lastSessionDirty = false;
+  bool lastSessionHasAutosaveSnapshot = false;
+  std::int64_t lastSessionAutosaveMillis = 0;
+  juce::String lastSessionControlSummary;
+  TEditorSessionStatus sessionStatus;
+  TGraphRuntime::RuntimeStats lastRuntimeStats;
+  juce::String runtimeMessageText;
+  juce::Colour runtimeMessageAccent = juce::Colour(0xff60a5fa);
+  int runtimeMessageTicksRemaining = 0;
+  int controlInputRefreshCounter = 0;
+  juce::CriticalSection controlLearnStateLock;
+    std::vector<PendingProfileSyncEvent> pendingProfileSyncEvents;
+  std::vector<PendingProfileDeltaEvent> pendingProfileDeltaEvents;
+  std::vector<PendingLearnBindingEvent> pendingLearnBindingEvents;
+  std::vector<std::unique_ptr<ControlInputAdapter>> controlInputAdapters;
+  ParamBindingRevisionProvider bindingRevisionProvider;
+};
+
+} // namespace Teul
+
+#include "Teul2/Editor/TTeulEditor.h"
+#include "Teul2/Editor/TTeulEditor.h"
+#include "Teul2/Editor/Theme/TeulPalette.h"
+
+namespace Teul {
+
+TTeulEditor::TTeulEditor(juce::AudioDeviceManager *audioDeviceManager,
+                           ParamBindingSummaryResolver bindingSummaryResolver,
+                           ParamBindingRevisionProvider bindingRevisionProvider) {
+  impl = std::make_unique<Impl>(*this, audioDeviceManager,
+                                std::move(bindingSummaryResolver),
+                                std::move(bindingRevisionProvider));
+  resized();
+}
+
+TTeulEditor::~TTeulEditor() = default;
+
+TTeulDocument &TTeulEditor::document() noexcept { return impl->document(); }
+
+const TTeulDocument &TTeulEditor::document() const noexcept {
+  return impl->document();
+}
+
+void TTeulEditor::refreshFromDocument() { impl->refreshFromDocument(); }
+
+void TTeulEditor::setSessionStatus(const TEditorSessionStatus &status) {
+  if (impl != nullptr)
+    impl->setSessionStatus(status);
+}
+
+bool TTeulEditor::applyLearnedControlBinding(
+    const TDeviceBindingSignature &binding, const juce::String &profileId,
+    const juce::String &deviceId, const juce::String &profileDisplayName,
+    TControlSourceKind kind, TControlSourceMode mode,
+    const juce::String &sourceDisplayName, bool autoDetected, bool confirmed) {
+  if (impl == nullptr)
+    return false;
+
+  return impl->applyLearnedControlBinding(binding, profileId, deviceId,
+                                          profileDisplayName, kind, mode,
+                                          sourceDisplayName, autoDetected,
+                                          confirmed);
+}
+
+bool TTeulEditor::applyLearnedMidiMessage(
+    const juce::MidiMessage &message, const juce::String &midiDeviceName,
+    const juce::String &hardwareId, const juce::String &profileId,
+    const juce::String &profileDisplayName, bool autoDetected, bool confirmed) {
+  if (impl == nullptr)
+    return false;
+
+  return impl->applyLearnedMidiMessage(message, midiDeviceName, hardwareId,
+                                       profileId, profileDisplayName,
+                                       autoDetected, confirmed);
+}
+
+void TTeulEditor::enqueueLearnedControlBinding(
+    const TDeviceBindingSignature &binding, const juce::String &profileId,
+    const juce::String &deviceId, const juce::String &profileDisplayName,
+    TControlSourceKind kind, TControlSourceMode mode,
+    const juce::String &sourceDisplayName, bool autoDetected, bool confirmed) {
+  if (impl == nullptr)
+    return;
+
+  impl->queueLearnedControlBinding(binding, profileId, deviceId,
+                                   profileDisplayName, kind, mode,
+                                   sourceDisplayName, autoDetected,
+                                   confirmed);
+}
+
+void TTeulEditor::enqueueControlDeviceProfilesSync(
+    const std::vector<TControlDeviceProfilePresence> &profiles,
+    bool autoMarkMissing) {
+  if (impl == nullptr)
+    return;
+
+  impl->queueControlDeviceProfileSync(profiles, autoMarkMissing);
+}
+
+void TTeulEditor::enqueueControlDeviceProfilePresent(
+    const juce::String &profileId, const juce::String &deviceId,
+    const juce::String &displayName, bool autoDetected) {
+  if (impl == nullptr)
+    return;
+
+  impl->queueControlDeviceProfilePresent(profileId, deviceId, displayName,
+                                         autoDetected);
+}
+
+void TTeulEditor::enqueueControlDeviceProfileMissing(
+    const juce::String &profileId) {
+  if (impl == nullptr)
+    return;
+
+  impl->queueControlDeviceProfileMissing(profileId);
+}
+
+bool TTeulEditor::reportControlDeviceProfilePresent(
+    const juce::String &profileId, const juce::String &deviceId,
+    const juce::String &displayName, bool autoDetected) {
+  if (impl == nullptr)
+    return false;
+
+  return impl->reportControlDeviceProfilePresent(profileId, deviceId,
+                                                 displayName, autoDetected);
+}
+
+bool TTeulEditor::reportControlDeviceProfileMissing(
+    const juce::String &profileId) {
+  if (impl == nullptr)
+    return false;
+
+  return impl->reportControlDeviceProfileMissing(profileId);
+}
+bool TTeulEditor::syncControlDeviceProfiles(
+    const std::vector<TControlDeviceProfilePresence> &profiles,
+    bool autoMarkMissing) {
+  if (impl == nullptr)
+    return false;
+  return impl->syncControlDeviceProfiles(profiles, autoMarkMissing);
+}
+TExportResult TTeulEditor::runExportDryRun(
+    const TExportOptions &options) const {
+  if (impl == nullptr || impl->registry() == nullptr)
+    return {};
+
+  return TExporter::run(impl->document(), *impl->registry(), options);
+}
+
+void TTeulEditor::paint(juce::Graphics &g) {
+  g.fillAll(TeulPalette::WindowBackground());
+}
+
+void TTeulEditor::resized() {
+  if (impl == nullptr)
+    return;
+
+  impl->layout(getLocalBounds());
+}
+
+std::unique_ptr<TTeulEditor> createTeulEditor(
+    juce::AudioDeviceManager *audioDeviceManager,
+    ParamBindingSummaryResolver bindingSummaryResolver,
+    ParamBindingRevisionProvider bindingRevisionProvider) {
+  return std::make_unique<TTeulEditor>(audioDeviceManager,
+                                        std::move(bindingSummaryResolver),
+                                        std::move(bindingRevisionProvider));
+}
+
+} // namespace Teul
+
+#include "Teul2/Editor/TTeulEditor.h"
+
+#include "Teul2/Editor/TIssueState.h"
+#include "Teul2/Editor/Canvas/TGraphCanvas.h"
+#include "Teul/Editor/Port/TPortShapeLayout.h"
+#include "Teul/Editor/Port/TPortVisuals.h"
+#include "Teul2/Editor/Theme/TeulPalette.h"
+#include "Teul2/Editor/Panels/DiagnosticsDrawer.h"
+#include "Teul2/Editor/Panels/NodeLibraryPanel.h"
+#include "Teul2/Editor/Panels/NodePropertiesPanel.h"
+#include "Teul2/Editor/Panels/PresetBrowserPanel.h"
+#include "Teul/Registry/TNodeRegistry.h"
+#include "Teul/History/TCommands.h"
+#include "Teul/Serialization/TFileIo.h"
+#include "Teul/Serialization/TStatePresetIO.h"
+
+#include <algorithm>
+
+namespace Teul {
+
+namespace {
+
+juce::String teulGraphDisplayName(const TTeulDocument &document) {
+  return document.meta.name.isNotEmpty() ? document.meta.name
+                                        : juce::String("Untitled");
+}
+
+juce::String formatRecoveryCountDiff(const juce::String &label, int currentCount,
+                                     int snapshotCount) {
+  const int delta = snapshotCount - currentCount;
+  juce::String text = label + " " + juce::String(currentCount) + " -> " +
+                      juce::String(snapshotCount);
+  if (delta > 0)
+    text << " (+" << juce::String(delta) << ")";
+  else if (delta < 0)
+    text << " (" << juce::String(delta) << ")";
+  else
+    text << " (=)";
+  return text;
+}
+
+struct TControlStateSnapshot {
+  int sourceCount = 0;
+  int profileCount = 0;
+  int assignmentCount = 0;
+  int bindingCount = 0;
+  int missingSourceCount = 0;
+  int degradedSourceCount = 0;
+  int missingProfileCount = 0;
+};
+
+TControlStateSnapshot captureControlStateSnapshot(const TControlSourceState &state) {
+  TControlStateSnapshot snapshot;
+  snapshot.sourceCount = (int)state.sources.size();
+  snapshot.profileCount = (int)state.deviceProfiles.size();
+  snapshot.assignmentCount = (int)state.assignments.size();
+  snapshot.missingProfileCount = (int)state.missingDeviceProfileIds.size();
+
+  for (const auto &source : state.sources) {
+    if (source.missing)
+      ++snapshot.missingSourceCount;
+    if (source.degraded)
+      ++snapshot.degradedSourceCount;
+  }
+
+  for (const auto &profile : state.deviceProfiles) {
+    for (const auto &deviceSource : profile.sources)
+      snapshot.bindingCount += (int)deviceSource.bindings.size();
+  }
+
+  return snapshot;
+}
+
+bool controlStateSnapshotDiffers(const TControlStateSnapshot &lhs,
+                                 const TControlStateSnapshot &rhs) {
+  return lhs.sourceCount != rhs.sourceCount ||
+         lhs.profileCount != rhs.profileCount ||
+         lhs.assignmentCount != rhs.assignmentCount ||
+         lhs.bindingCount != rhs.bindingCount ||
+         lhs.missingSourceCount != rhs.missingSourceCount ||
+         lhs.degradedSourceCount != rhs.degradedSourceCount ||
+         lhs.missingProfileCount != rhs.missingProfileCount;
+}
+
+int totalControlIssueCount(const TControlStateSnapshot &snapshot) {
+  return snapshot.missingSourceCount + snapshot.degradedSourceCount +
+         snapshot.missingProfileCount;
+}
+
+juce::String formatControlIssueSummary(const TControlStateSnapshot &snapshot) {
+  juce::StringArray parts;
+  if (snapshot.missingSourceCount > 0)
+    parts.add(juce::String(snapshot.missingSourceCount) + " missing sources");
+  if (snapshot.degradedSourceCount > 0)
+    parts.add(juce::String(snapshot.degradedSourceCount) + " degraded sources");
+  if (snapshot.missingProfileCount > 0)
+    parts.add(juce::String(snapshot.missingProfileCount) + " missing profiles");
+  if (parts.isEmpty())
+    return "none";
+  return parts.joinIntoString(", ");
+}
+
+juce::String formatCompactControlStateSummary(const TControlStateSnapshot &snapshot) {
+  juce::StringArray parts;
+  parts.add(juce::String(snapshot.sourceCount) + " src");
+  parts.add(juce::String(snapshot.profileCount) + " prof");
+  parts.add(juce::String(snapshot.assignmentCount) + " maps");
+  const auto issueCount = totalControlIssueCount(snapshot);
+  if (issueCount > 0)
+    parts.add(juce::String(issueCount) + " issue" +
+              (issueCount == 1 ? juce::String() : juce::String("s")));
+  return parts.joinIntoString(", ");
+}
+
+juce::String formatControlStateRuntimeMessage(const juce::String &prefix,
+                                             const TControlStateSnapshot &before,
+                                             const TControlStateSnapshot &after) {
+  juce::String text(prefix);
+  const auto beforeIssues = totalControlIssueCount(before);
+  const auto afterIssues = totalControlIssueCount(after);
+  if (after.sourceCount > 0 || after.profileCount > 0) {
+    text << " | " << formatCompactControlStateSummary(after);
+    if (afterIssues > 0) {
+      text << " | " << formatControlIssueSummary(after);
+    } else if (beforeIssues > 0) {
+      text << " | Control issues cleared";
+    }
+  } else if (before.sourceCount > 0 || before.profileCount > 0) {
+    text << " | No active control sources";
+  }
+  return text;
+}
+
+juce::Colour controlStateRuntimeAccent(const TControlStateSnapshot &before,
+                                       const TControlStateSnapshot &after,
+                                       juce::Colour fallback) {
+  const auto beforeIssues = totalControlIssueCount(before);
+  const auto afterIssues = totalControlIssueCount(after);
+  if (afterIssues > beforeIssues)
+    return TeulPalette::AccentAmber();
+  if (afterIssues == 0 && beforeIssues > 0)
+    return TeulPalette::AccentGreen();
+  return fallback;
+}
+float normalizedControlValueForMidiMessage(const juce::MidiMessage &message) {
+  if (message.isController())
+    return (float)message.getControllerValue() / 127.0f;
+  if (message.isNoteOn())
+    return juce::jlimit(0.0f, 1.0f, message.getFloatVelocity());
+  if (message.isNoteOff())
+    return 0.0f;
+  return 0.0f;
+}
+
+bool midiBindingMatchesMessage(const TDeviceBindingSignature &binding,
+                               const juce::MidiMessage &message,
+                               juce::StringRef midiDeviceName,
+                               juce::StringRef hardwareId) {
+  if (binding.midiChannel > 0 && binding.midiChannel != message.getChannel())
+    return false;
+
+  if (message.isController()) {
+    if (binding.controllerNumber < 0 ||
+        binding.controllerNumber != message.getControllerNumber()) {
+      return false;
+    }
+  } else if (message.isNoteOnOrOff()) {
+    if (binding.noteNumber < 0 || binding.noteNumber != message.getNoteNumber())
+      return false;
+  } else {
+    return false;
+  }
+
+  const auto normalizedHardwareId = juce::String(hardwareId).trim();
+  if (binding.hardwareId.trim().isNotEmpty())
+    return binding.hardwareId.trim() == normalizedHardwareId;
+
+  const auto normalizedDeviceName = juce::String(midiDeviceName).trim();
+  if (binding.midiDeviceName.trim().isNotEmpty())
+    return binding.midiDeviceName.trim() == normalizedDeviceName;
+
+  return true;
+}
+} // namespace
+
+struct TTeulEditor::Impl::ControlInputAdapter {
+  explicit ControlInputAdapter(TTeulEditor::Impl &ownerIn) : owner(ownerIn) {}
+  virtual ~ControlInputAdapter() = default;
+
+  virtual bool refresh(bool announceChanges) = 0;
+  virtual void shutdown() = 0;
+
+protected:
+  void queueLearnedBinding(const TDeviceBindingSignature &binding,
+                           const juce::String &profileId,
+                           const juce::String &deviceId,
+                           const juce::String &profileDisplayName,
+                           TControlSourceKind kind,
+                           TControlSourceMode mode,
+                           const juce::String &sourceDisplayName,
+                           bool autoDetected,
+                           bool confirmed) {
+    owner.queueLearnedControlBinding(binding, profileId, deviceId,
+                                     profileDisplayName, kind, mode,
+                                     sourceDisplayName, autoDetected,
+                                     confirmed);
+  }
+
+    bool syncProfiles(const std::vector<TControlDeviceProfilePresence> &profiles,
+                    bool autoMarkMissing) {
+    return owner.syncControlDeviceProfiles(profiles, autoMarkMissing);
+  }
+
+  void queueProfilePresent(const juce::String &profileId,
+                           const juce::String &deviceId,
+                           const juce::String &displayName,
+                           bool autoDetected) {
+    owner.queueControlDeviceProfilePresent(profileId, deviceId, displayName,
+                                           autoDetected);
+  }
+
+  void queueProfileMissing(const juce::String &profileId) {
+    owner.queueControlDeviceProfileMissing(profileId);
+  }
+
+  TTeulEditor::Impl &owner;
+};
+
+struct TTeulEditor::Impl::MidiControlInputAdapter final
+    : public TTeulEditor::Impl::ControlInputAdapter,
+      private juce::MidiInputCallback {
+  MidiControlInputAdapter(TTeulEditor::Impl &ownerIn,
+                          juce::AudioDeviceManager *audioDeviceManagerIn)
+      : ControlInputAdapter(ownerIn),
+        audioDeviceManager(audioDeviceManagerIn) {}
+
+  ~MidiControlInputAdapter() override { shutdown(); }
+
+  bool refresh(bool announceChanges) override {
+    juce::ignoreUnused(announceChanges);
+    if (audioDeviceManager == nullptr)
+      return false;
+
+    std::vector<TControlDeviceProfilePresence> profiles;
+    std::vector<juce::String> detectedDeviceIds;
+    const auto devices = juce::MidiInput::getAvailableDevices();
+    profiles.reserve((size_t)devices.size());
+    detectedDeviceIds.reserve((size_t)devices.size());
+
+    for (const auto &device : devices) {
+      const auto normalizedDeviceId =
+          device.identifier.trim().isNotEmpty() ? device.identifier.trim()
+                                                : device.name.trim();
+      if (normalizedDeviceId.isEmpty())
+        continue;
+
+      if (!audioDeviceManager->isMidiInputDeviceEnabled(normalizedDeviceId))
+        audioDeviceManager->setMidiInputDeviceEnabled(normalizedDeviceId, true);
+
+      TControlDeviceProfilePresence profile;
+      profile.deviceId = normalizedDeviceId;
+      profile.displayName = device.name.trim().isNotEmpty()
+                                ? device.name.trim()
+                                : normalizedDeviceId;
+      profile.autoDetected = true;
+      profile.profileId = "midi:";
+      profile.profileId << normalizedDeviceId;
+      profiles.push_back(profile);
+      detectedDeviceIds.push_back(normalizedDeviceId);
+    }
+
+    std::vector<juce::String> callbacksToAdd;
+    std::vector<juce::String> callbacksToRemove;
+    auto containsDeviceId = [](const std::vector<juce::String> &ids,
+                               const juce::String &deviceId) {
+      return std::find(ids.begin(), ids.end(), deviceId) != ids.end();
+    };
+
+    for (const auto &deviceId : detectedDeviceIds) {
+      if (!containsDeviceId(callbackDeviceIds, deviceId))
+        callbacksToAdd.push_back(deviceId);
+    }
+
+    for (const auto &deviceId : callbackDeviceIds) {
+      if (!containsDeviceId(detectedDeviceIds, deviceId))
+        callbacksToRemove.push_back(deviceId);
+    }
+
+    detectedProfiles = profiles;
+
+    for (const auto &deviceId : callbacksToRemove)
+      audioDeviceManager->removeMidiInputDeviceCallback(deviceId, this);
+    for (const auto &deviceId : callbacksToAdd)
+      audioDeviceManager->addMidiInputDeviceCallback(deviceId, this);
+
+    for (const auto &deviceId : callbacksToAdd)
+      callbackDeviceIds.push_back(deviceId);
+
+    callbackDeviceIds.erase(
+        std::remove_if(callbackDeviceIds.begin(), callbackDeviceIds.end(),
+                       [&](const juce::String &deviceId) {
+                         return std::find(callbacksToRemove.begin(),
+                                          callbacksToRemove.end(),
+                                          deviceId) != callbacksToRemove.end();
+                       }),
+        callbackDeviceIds.end());
+
+    return syncProfiles(profiles, true);
+  }
+
+  void shutdown() override {
+    if (audioDeviceManager != nullptr) {
+      for (const auto &deviceId : callbackDeviceIds)
+        audioDeviceManager->removeMidiInputDeviceCallback(deviceId, this);
+    }
+    callbackDeviceIds.clear();
+    detectedProfiles.clear();
+  }
+
+private:
+  void handleIncomingMidiMessage(juce::MidiInput *source,
+                                 const juce::MidiMessage &message) override {
+    if (!message.isController() && !message.isNoteOnOrOff())
+      return;
+
+    const auto sourceName =
+        source != nullptr ? source->getName() : juce::String();
+    juce::String midiDeviceName = sourceName;
+    juce::String hardwareId = sourceName;
+    juce::String profileId =
+        sourceName.isNotEmpty() ? (juce::String("midi:") + sourceName)
+                                : juce::String("midi-device");
+    juce::String profileDisplayName =
+        sourceName.isNotEmpty() ? sourceName : juce::String("MIDI Device");
+    bool autoDetected = true;
+    bool confirmed = true;
+
+    const auto profileIter = std::find_if(
+        detectedProfiles.begin(), detectedProfiles.end(),
+        [&](const TControlDeviceProfilePresence &profile) {
+          return profile.displayName == sourceName ||
+                 profile.deviceId == sourceName;
+        });
+    if (profileIter != detectedProfiles.end()) {
+      midiDeviceName = profileIter->displayName;
+      hardwareId = profileIter->deviceId;
+      profileId = profileIter->profileId;
+      profileDisplayName = profileIter->displayName;
+      autoDetected = profileIter->autoDetected;
+    }
+
+    owner.applyRuntimeControlMidiMessage(message, profileId, midiDeviceName,
+                                        hardwareId);
+
+    TDeviceBindingSignature binding;
+    binding.midiDeviceName = midiDeviceName.trim();
+    binding.hardwareId = hardwareId.trim();
+    binding.midiChannel = message.getChannel();
+
+    TControlSourceKind kind = TControlSourceKind::midiCc;
+    TControlSourceMode mode = TControlSourceMode::continuous;
+    juce::String sourceDisplayName;
+
+    if (message.isController()) {
+      binding.controllerNumber = message.getControllerNumber();
+      sourceDisplayName = "MIDI CC " + juce::String(binding.controllerNumber);
+    } else if (message.isNoteOn()) {
+      kind = TControlSourceKind::midiNote;
+      mode = TControlSourceMode::momentary;
+      binding.noteNumber = message.getNoteNumber();
+      sourceDisplayName = "MIDI Note " + juce::String(binding.noteNumber);
+    } else {
+      return;
+    }
+
+    if (!message.isController() && !message.isNoteOn())
+      return;
+
+    queueLearnedBinding(binding, profileId, hardwareId.trim(),
+                        profileDisplayName, kind, mode, sourceDisplayName,
+                        autoDetected, confirmed);
+  }
+
+  juce::AudioDeviceManager *audioDeviceManager = nullptr;
+  std::vector<TControlDeviceProfilePresence> detectedProfiles;
+  std::vector<juce::String> callbackDeviceIds;
+};
+
+namespace {
+
+juce::Result buildRecoveryDiffPreview(const TTeulDocument &currentDocument,
+                                      const juce::File &recoveryFile,
+                                      juce::String &summaryText,
+                                      juce::String &detailText,
+                                      bool &warning) {
+  TTeulDocument recoveryDocument;
+  TSchemaMigrationReport migrationReport;
+  if (!TFileIo::loadFromFile(recoveryDocument, recoveryFile, &migrationReport))
+    return juce::Result::fail(
+        "Recovery preview failed: autosave snapshot could not be loaded.");
+
+  const auto currentName = teulGraphDisplayName(currentDocument);
+  const auto recoveryName = teulGraphDisplayName(recoveryDocument);
+  const bool nameChanged = currentName != recoveryName;
+  const bool nodeCountChanged =
+      currentDocument.nodes.size() != recoveryDocument.nodes.size();
+  const bool connectionCountChanged =
+      currentDocument.connections.size() != recoveryDocument.connections.size();
+  const bool frameCountChanged =
+      currentDocument.frames.size() != recoveryDocument.frames.size();
+  const auto currentControlSnapshot =
+      captureControlStateSnapshot(currentDocument.controlState);
+  const auto recoveryControlSnapshot =
+      captureControlStateSnapshot(recoveryDocument.controlState);
+  const bool controlStateChanged =
+      controlStateSnapshotDiffers(currentControlSnapshot, recoveryControlSnapshot);
+
+  summaryText = "Recovery Diff Preview";
+
+  juce::StringArray parts;
+  parts.add(formatRecoveryCountDiff("Nodes", (int)currentDocument.nodes.size(),
+                                    (int)recoveryDocument.nodes.size()));
+  parts.add(formatRecoveryCountDiff(
+      "Wires", (int)currentDocument.connections.size(),
+      (int)recoveryDocument.connections.size()));
+  if (!currentDocument.frames.empty() || !recoveryDocument.frames.empty()) {
+    parts.add(formatRecoveryCountDiff("Frames",
+                                      (int)currentDocument.frames.size(),
+                                      (int)recoveryDocument.frames.size()));
+  }
+  if (controlStateChanged || currentControlSnapshot.sourceCount > 0 ||
+      recoveryControlSnapshot.sourceCount > 0 ||
+      currentControlSnapshot.profileCount > 0 ||
+      recoveryControlSnapshot.profileCount > 0) {
+    parts.add(formatRecoveryCountDiff("Control Sources",
+                                      currentControlSnapshot.sourceCount,
+                                      recoveryControlSnapshot.sourceCount));
+    parts.add(formatRecoveryCountDiff("Control Profiles",
+                                      currentControlSnapshot.profileCount,
+                                      recoveryControlSnapshot.profileCount));
+    parts.add(formatRecoveryCountDiff("Assignments",
+                                      currentControlSnapshot.assignmentCount,
+                                      recoveryControlSnapshot.assignmentCount));
+    parts.add(formatRecoveryCountDiff("Bindings",
+                                      currentControlSnapshot.bindingCount,
+                                      recoveryControlSnapshot.bindingCount));
+  }
+
+  detailText = parts.joinIntoString("  |  ");
+  if (nameChanged)
+    detailText << "\r\r\r\r\nGraph: " << currentName << " -> " << recoveryName;
+  else
+    detailText << "\r\r\r\r\nGraph: " << currentName;
+
+  juce::StringArray compatibilityParts;
+  if (migrationReport.migrated)
+    compatibilityParts.add("migrated");
+  if (migrationReport.usedLegacyAliases)
+    compatibilityParts.add("legacy aliases");
+  if (migrationReport.degraded)
+    compatibilityParts.add("degraded");
+  if (!compatibilityParts.isEmpty())
+    detailText << "\r\r\r\r\nCompatibility: "
+               << compatibilityParts.joinIntoString(" | ");
+
+  if (!migrationReport.warnings.isEmpty())
+    detailText << "\r\r\r\r\nWarnings: "
+               << migrationReport.warnings.joinIntoString(" | ");
+
+  if (!nameChanged && !nodeCountChanged && !connectionCountChanged &&
+      !frameCountChanged && !migrationReport.degraded &&
+      migrationReport.warnings.isEmpty()) {
+    detailText << "\r\r\r\r\nStructure matches the current document.";
+  }
+
+  warning = nameChanged || nodeCountChanged || connectionCountChanged ||
+            frameCountChanged || controlStateChanged ||
+            totalControlIssueCount(recoveryControlSnapshot) > 0 ||
+            migrationReport.migrated || migrationReport.degraded ||
+            !migrationReport.warnings.isEmpty();
+  return juce::Result::ok();
+}
+
+enum class RailOrientation { vertical, horizontal };
+
+struct RailCardPortView {
+  juce::String portId;
+  juce::String label;
+  juce::Colour accent;
+  TPortDataType dataType = TPortDataType::Audio;
+};
+
+struct RailCardView {
+  juce::String itemId;
+  juce::String title;
+  juce::String subtitle;
+  juce::String badge;
+  juce::Colour accent = TeulPalette::AccentSlate();
+  std::vector<RailCardPortView> ports;
+  TIssueState issueState = TIssueState::none;
+  bool groupedBus = false;
+};
+
+TRailKind fallbackRailKind(const juce::String &railId) {
+  if (railId == "input-rail")
+    return TRailKind::input;
+  if (railId == "output-rail")
+    return TRailKind::output;
+  return TRailKind::controlSource;
+}
+
+juce::String compactRailLabel(TRailKind kind) {
+  switch (kind) {
+  case TRailKind::input:
+    return "IN";
+  case TRailKind::output:
+    return "OUT";
+  case TRailKind::controlSource:
+    return "CTRL";
+  }
+
+  return "RAIL";
+}
+
+juce::Colour railAccent(TRailKind kind) {
+  switch (kind) {
+  case TRailKind::input:
+    return TeulPalette::PortAudio();
+  case TRailKind::output:
+    return TeulPalette::AccentSky();
+  case TRailKind::controlSource:
+    return TeulPalette::AccentAmber();
+  }
+
+  return TeulPalette::AccentSlate();
+}
+
+juce::Colour endpointAccent(const TSystemRailEndpoint &endpoint) {
+  switch (endpoint.kind) {
+  case TSystemRailEndpointKind::audioInput:
+  case TSystemRailEndpointKind::audioOutput:
+    return endpoint.stereo ? TeulPalette::PortAudio()
+                           : TeulPalette::AccentSky();
+  case TSystemRailEndpointKind::midiInput:
+  case TSystemRailEndpointKind::midiOutput:
+    return TeulPalette::AccentGreen();
+  }
+
+  return TeulPalette::AccentSlate();
+}
+
+juce::String endpointBadgeText(const TSystemRailEndpoint &endpoint) {
+  switch (endpoint.kind) {
+  case TSystemRailEndpointKind::midiInput:
+  case TSystemRailEndpointKind::midiOutput:
+    return "MIDI";
+  case TSystemRailEndpointKind::audioInput:
+  case TSystemRailEndpointKind::audioOutput:
+    return endpoint.stereo ? "L/R" : "AUDIO";
+  }
+
+  return "I/O";
+}
+
+juce::Colour controlSourceAccent(TControlSourceKind kind) {
+  switch (kind) {
+  case TControlSourceKind::expression:
+    return TeulPalette::AccentAmber();
+  case TControlSourceKind::footswitch:
+    return TeulPalette::AccentOrange();
+  case TControlSourceKind::trigger:
+    return TeulPalette::AccentRed();
+  case TControlSourceKind::midiCc:
+  case TControlSourceKind::midiNote:
+    return TeulPalette::AccentGreen();
+  case TControlSourceKind::macro:
+    return TeulPalette::AccentSky();
+  }
+
+  return TeulPalette::AccentSlate();
+}
+
+juce::Colour controlPortAccent(TControlPortKind kind) {
+  switch (kind) {
+  case TControlPortKind::value:
+    return TeulPalette::AccentAmber();
+  case TControlPortKind::gate:
+    return TeulPalette::AccentOrange();
+  case TControlPortKind::trigger:
+    return TeulPalette::AccentRed();
+  }
+
+  return TeulPalette::AccentSlate();
+}
+
+static bool hasIncompleteRailPort(const TSystemRailPort &port) {
+  return port.portId.isEmpty() || port.displayName.isEmpty();
+}
+
+static TIssueState issueStateForEndpoint(const TSystemRailEndpoint &endpoint) {
+  TIssueState state = TIssueState::none;
+  if (endpoint.degraded)
+    state = mergeIssueState(state, TIssueState::degraded);
+  if (endpoint.stereo && endpoint.ports.size() == 1)
+    state = mergeIssueState(state, TIssueState::degraded);
+  if (endpoint.ports.empty() ||
+      std::any_of(endpoint.ports.begin(), endpoint.ports.end(), hasIncompleteRailPort)) {
+    state = mergeIssueState(state, TIssueState::invalidConfig);
+  }
+  if (endpoint.missing)
+    state = mergeIssueState(state, TIssueState::missing);
+  return state;
+}
+
+static TIssueState issueStateForControlSource(const TControlSource &source) {
+  TIssueState state = TIssueState::none;
+  if (source.degraded)
+    state = mergeIssueState(state, TIssueState::degraded);
+  if (source.ports.empty() ||
+      std::any_of(source.ports.begin(), source.ports.end(), [](const TControlSourcePort &port) {
+        return port.portId.isEmpty() || port.displayName.isEmpty();
+      })) {
+    state = mergeIssueState(state, TIssueState::invalidConfig);
+  }
+  if (source.missing)
+    state = mergeIssueState(state, TIssueState::missing);
+  return state;
+}
+
+static juce::String appendIssueStateSuffix(juce::String text, TIssueState issueState) {
+  const auto label = issueStateLabel(issueState);
+  if (label.isNotEmpty())
+    text << " | " << label;
+  return text;
+}
+static juce::String controlAssignmentSettingsText(const TControlSourceAssignment &assignment) {
+  juce::StringArray parts;
+  parts.add("Range " + juce::String(assignment.rangeMin, 2) + ".." +
+            juce::String(assignment.rangeMax, 2));
+  if (!assignment.enabled)
+    parts.add("Off");
+  if (assignment.inverted)
+    parts.add("Inv");
+  return parts.joinIntoString(" | ");
+}
+
+
+juce::String controlSourceBadgeText(const TControlSource &source) {
+  switch (source.kind) {
+  case TControlSourceKind::expression:
+    return "EXP";
+  case TControlSourceKind::footswitch:
+    return "FS";
+  case TControlSourceKind::trigger:
+    return "TRIG";
+  case TControlSourceKind::midiCc:
+    return "CC";
+  case TControlSourceKind::midiNote:
+    return "NOTE";
+  case TControlSourceKind::macro:
+    return "MACRO";
+  }
+
+  return "SRC";
+}
+
+juce::String describeControlSource(const TControlSourceState &controlState,
+                                 const TControlSource &source) {
+  const auto issueState = issueStateForControlSource(source);
+  juce::String text;
+  switch (source.kind) {
+  case TControlSourceKind::expression:
+    text = "Continuous value";
+    break;
+  case TControlSourceKind::footswitch:
+    text = source.mode == TControlSourceMode::toggle ? "Toggle footswitch"
+                                                      : "Momentary footswitch";
+    break;
+  case TControlSourceKind::trigger:
+    text = "Trigger pulse";
+    break;
+  case TControlSourceKind::midiCc:
+    text = "MIDI CC source";
+    break;
+  case TControlSourceKind::midiNote:
+    text = "MIDI note source";
+    break;
+  case TControlSourceKind::macro:
+    text = "Macro lane";
+    break;
+  }
+
+  if (issueState == TIssueState::none) {
+    if (controlState.isLearnArmed(source.sourceId))
+      text << " | Learn armed";
+    else if (!source.confirmed)
+      text << " | Learn pending";
+    else if (source.autoDetected)
+      text << " | Auto";
+  } else {
+    text = appendIssueStateSuffix(std::move(text), issueState);
+  }
+
+  return text;
+}
+
+std::vector<const TSystemRailEndpoint *>
+collectRailEndpoints(const std::vector<TSystemRailEndpoint> &endpoints,
+                    const juce::String &railId) {
+  std::vector<const TSystemRailEndpoint *> result;
+  for (const auto &endpoint : endpoints) {
+    if (endpoint.railId == railId)
+      result.push_back(&endpoint);
+  }
+
+  std::sort(result.begin(), result.end(), [](const auto *lhs, const auto *rhs) {
+    if (lhs->order != rhs->order)
+      return lhs->order < rhs->order;
+    return lhs->displayName.compareNatural(rhs->displayName) < 0;
+  });
+  return result;
+}
+
+std::vector<RailCardView> buildRailCards(
+    const TTeulDocument &document, const juce::String &railId,
+    const std::function<juce::String(const TSystemRailEndpoint &)> &
+        endpointSubtitleProvider = {}) {
+  std::vector<RailCardView> cards;
+
+  if (railId == "input-rail" || railId == "output-rail") {
+    const auto endpoints = railId == "input-rail"
+                               ? collectRailEndpoints(document.controlState.inputEndpoints,
+                                                      railId)
+                               : collectRailEndpoints(document.controlState.outputEndpoints,
+                                                      railId);
+    for (const auto *endpoint : endpoints) {
+      RailCardView card;
+      card.itemId = endpoint->endpointId;
+      card.title = endpoint->displayName;
+      const auto subtitleOverride =
+          endpointSubtitleProvider != nullptr ? endpointSubtitleProvider(*endpoint)
+                                              : juce::String{};
+      card.subtitle = subtitleOverride.isNotEmpty()
+                          ? subtitleOverride
+                          : (endpoint->subtitle.isNotEmpty()
+                                 ? endpoint->subtitle
+                                 : juce::String("System endpoint"));
+      card.badge = endpointBadgeText(*endpoint);
+      card.accent = endpointAccent(*endpoint);
+      card.issueState = issueStateForEndpoint(*endpoint);
+      card.groupedBus = endpoint->ports.size() >= 2;
+      for (const auto &port : endpoint->ports) {
+        const auto portAccent = port.dataType == TPortDataType::MIDI
+                                    ? TeulPalette::AccentGreen()
+                                    : TeulPalette::PortAudio();
+        card.ports.push_back({port.portId, port.displayName, portAccent, port.dataType});
+      }
+      cards.push_back(std::move(card));
+    }
+  } else {
+    for (const auto &source : document.controlState.sources) {
+      if (source.railId != railId)
+        continue;
+
+      RailCardView card;
+      card.itemId = source.sourceId;
+      card.title = source.displayName;
+      card.subtitle = describeControlSource(document.controlState, source);
+      card.badge = controlSourceBadgeText(source);
+      card.accent = controlSourceAccent(source.kind);
+      card.issueState = issueStateForControlSource(source);
+      for (const auto &port : source.ports)
+        card.ports.push_back({port.portId, port.displayName, controlPortAccent(port.kind), TPortDataType::Control});
+      cards.push_back(std::move(card));
+    }
+  }
+
+  if (!cards.empty())
+    return cards;
+
+  RailCardView empty;
+  empty.accent = railAccent(fallbackRailKind(railId));
+  if (railId == "control-rail") {
+    empty.title = "No control sources";
+    empty.subtitle = "Learn mode and device profiles will appear here.";
+    empty.badge = "LEARN";
+  } else {
+    empty.title = "No endpoints";
+    empty.subtitle = "System I/O endpoints will appear in this rail.";
+    empty.badge = "PATCH";
+  }
+  cards.push_back(std::move(empty));
+  return cards;
+}
+
+constexpr auto kRailBundlePortPrefix = "bundle:";
+
+juce::String makeRailBundlePortToken(const std::vector<RailCardPortView> &ports) {
+  juce::StringArray ids;
+  for (const auto &port : ports) {
+    if (port.portId.isNotEmpty())
+      ids.add(port.portId);
+  }
+
+  if (ids.isEmpty())
+    return {};
+
+  return juce::String(kRailBundlePortPrefix) + ids.joinIntoString("|");
+}
+
+bool isRailBundlePortToken(juce::StringRef token) {
+  return juce::String(token).startsWith(kRailBundlePortPrefix);
+}
+
+juce::StringArray railPortIdsFromToken(juce::StringRef token) {
+  const juce::String text(token);
+  if (!isRailBundlePortToken(text))
+    return {text};
+
+  return juce::StringArray::fromTokens(
+      text.substring((int)juce::String(kRailBundlePortPrefix).length()), "|", {});
+}
+
+juce::String primaryRailPortIdFromToken(juce::StringRef token) {
+  auto ids = railPortIdsFromToken(token);
+  return ids.isEmpty() ? juce::String{} : ids[0];
+}
+
+juce::String makeRailPortZoneId(const juce::String &cardId,
+                                const juce::String &portId) {
+  return cardId + "::" + portId;
+}
+
+bool splitRailPortZoneId(const juce::String &zoneId, juce::String &cardId,
+                         juce::String &portId) {
+  const int separatorIndex = zoneId.indexOf("::");
+  if (separatorIndex <= 0)
+    return false;
+
+  cardId = zoneId.substring(0, separatorIndex);
+  portId = zoneId.substring(separatorIndex + 2);
+  return cardId.isNotEmpty() && portId.isNotEmpty();
+}
+
+bool beginInputRailPortDrag(TTeulDocument &document, TGraphCanvas &canvas,
+                            const juce::String &endpointId,
+                            const juce::String &endpointPortId,
+                            juce::Point<float> sourceAnchorView,
+                            juce::Point<float> mousePosView) {
+  const auto *endpoint = document.controlState.findEndpoint(endpointId);
+  if (endpoint == nullptr || endpoint->railId != "input-rail")
+    return false;
+
+  const auto primaryPortId = primaryRailPortIdFromToken(endpointPortId);
+  if (primaryPortId.isEmpty() ||
+      document.findSystemRailPort(endpointId, primaryPortId) == nullptr)
+    return false;
+
+  TGraphCanvas::ExternalDragSource externalSource;
+  externalSource.sourceId = endpointId;
+  externalSource.sourcePortId = endpointPortId;
+  if (const auto *port = document.findSystemRailPort(endpointId, primaryPortId))
+    externalSource.dataType = port->dataType;
+  externalSource.kind = TGraphCanvas::ExternalDragSourceKind::GraphConnection;
+  canvas.beginExternalConnectionDragFromPoint(externalSource, sourceAnchorView,
+                                              mousePosView);
+  return true;
+}
+
+bool beginControlRailPortDrag(TTeulDocument &document, TGraphCanvas &canvas,
+                              const juce::String &sourceId,
+                              const juce::String &portId,
+                              juce::Point<float> sourceAnchorView,
+                              juce::Point<float> mousePosView) {
+  const auto *source = document.controlState.findSource(sourceId);
+  if (source == nullptr || source->railId != "control-rail")
+    return false;
+
+  const auto portIt = std::find_if(
+      source->ports.begin(), source->ports.end(),
+      [&portId](const TControlSourcePort &port) { return port.portId == portId; });
+  if (portIt == source->ports.end())
+    return false;
+
+  TGraphCanvas::ExternalDragSource externalSource;
+  externalSource.sourceId = sourceId;
+  externalSource.sourcePortId = portId;
+  externalSource.dataType = TPortDataType::Control;
+  externalSource.kind = TGraphCanvas::ExternalDragSourceKind::Assignment;
+  canvas.beginExternalConnectionDragFromPoint(externalSource, sourceAnchorView,
+                                              mousePosView);
+  return true;
+}
+
+bool connectControlSourcePortToParam(
+    TTeulDocument &document, const TGraphCanvas::ExternalDragSource &source,
+    const juce::String &zoneId) {
+  const auto *controlSource = document.controlState.findSource(source.sourceId);
+  if (controlSource == nullptr)
+    return false;
+
+  const auto portIt = std::find_if(
+      controlSource->ports.begin(), controlSource->ports.end(),
+      [&source](const TControlSourcePort &port) {
+        return port.portId == source.sourcePortId;
+      });
+  if (portIt == controlSource->ports.end())
+    return false;
+
+  NodeId targetNodeId = kInvalidNodeId;
+  juce::String paramKey;
+  if (!parseTeulParamId(zoneId, targetNodeId, paramKey))
+    return false;
+
+  if (document.findNode(targetNodeId) == nullptr)
+    return false;
+
+  const bool duplicateExists = std::any_of(
+      document.controlState.assignments.begin(),
+      document.controlState.assignments.end(),
+      [&](const TControlSourceAssignment &assignment) {
+        return assignment.sourceId == source.sourceId &&
+               assignment.portId == source.sourcePortId &&
+               assignment.targetNodeId == targetNodeId &&
+               assignment.targetParamId == zoneId;
+      });
+  if (duplicateExists)
+    return false;
+
+  TControlSourceAssignment assignment;
+  assignment.sourceId = source.sourceId;
+  assignment.portId = source.sourcePortId;
+  assignment.targetNodeId = targetNodeId;
+  assignment.targetParamId = zoneId;
+  document.controlState.assignments.push_back(std::move(assignment));
+  document.touch(true);
+  return true;
+}
+} // namespace
+
+class RailPanel : public juce::Component, public juce::SettableTooltipClient {
+public:
+  using CollapseHandler = std::function<void()>;
+  using CardSelectionHandler = std::function<void(const juce::String &cardId)>;
+  using PortDragBeginHandler = std::function<bool(const juce::String &cardId,
+                                                  const juce::String &portId,
+                                                  juce::Point<float> sourceAnchorTarget,
+                                                  juce::Point<float> mousePosTarget)>;
+  using PortDragMotionHandler =
+      std::function<void(juce::Point<float> mousePosTarget)>;
+
+  RailPanel(TTeulDocument &documentIn, juce::String railIdIn,
+            RailOrientation orientationIn)
+      : document(documentIn), railId(std::move(railIdIn)),
+        orientation(orientationIn) {
+    addAndMakeVisible(collapseButton);
+    setWantsKeyboardFocus(true);
+    collapseButton.onClick = [this] { toggleCollapsed(); };
+    refreshFromDocument();
+  }
+
+  void setCollapseHandler(CollapseHandler handler) {
+    collapseHandler = std::move(handler);
+  }
+
+  void setCardSelectionHandler(CardSelectionHandler handler) {
+    cardSelectionHandler = std::move(handler);
+    if (cardSelectionHandler == nullptr) {
+      selectedCardId.clear();
+      hoveredCardId.clear();
+      hoveredPortCardId.clear();
+      hoveredPortId.clear();
+      cardHitZones.clear();
+      portHitZones.clear();
+    }
+    repaint();
+  }
+
+  void setEndpointSubtitleProvider(
+      std::function<juce::String(const TSystemRailEndpoint &)> provider) {
+    endpointSubtitleProvider = std::move(provider);
+    repaint();
+  }
+
+  void setPortDragTargetComponent(juce::Component *targetComponent) {
+    portDragTargetComponent = targetComponent;
+  }
+
+  void setPortDragHandlers(PortDragBeginHandler beginHandler,
+                           PortDragMotionHandler updateHandler,
+                           PortDragMotionHandler endHandler) {
+    portDragBeginHandler = std::move(beginHandler);
+    portDragUpdateHandler = std::move(updateHandler);
+    portDragEndHandler = std::move(endHandler);
+    if (portDragBeginHandler == nullptr) {
+      activePortDrag = {};
+      hoveredPortCardId.clear();
+      hoveredPortId.clear();
+      portHitZones.clear();
+      repaint();
+    }
+  }
+
+  std::vector<TGraphCanvas::ExternalDropZone>
+  portDropTargetsIn(juce::Component &target) const {
+    std::vector<TGraphCanvas::ExternalDropZone> zones;
+    zones.reserve(portHitZones.size());
+    for (const auto &zone : portHitZones) {
+      auto boundsInTarget = target.getLocalArea(this,
+                                                zone.bounds.getSmallestIntegerContainer())
+                                .toFloat();
+      zones.push_back({makeRailPortZoneId(zone.cardId, zone.portId),
+                       boundsInTarget, zone.dataType, zone.elliptical});
+    }
+    return zones;
+  }
+
+  void setSelectedCardId(const juce::String &cardId) {
+    if (selectedCardId == cardId)
+      return;
+
+    selectedCardId = cardId;
+    repaint();
+  }
+
+  void setDropTargetPort(const juce::String &cardId, const juce::String &portId,
+                         bool canConnect) {
+    if (dropTargetCardId == cardId && dropTargetPortId == portId &&
+        dropTargetCanConnect == canConnect)
+      return;
+
+    dropTargetCardId = cardId;
+    dropTargetPortId = portId;
+    dropTargetCanConnect = canConnect;
+    repaint();
+  }
+
+  void refreshFromDocument() {
+    const auto accent = railAccent(currentRailKind());
+    const auto collapsed = isRailCollapsed();
+    collapseButton.setButtonText(collapseGlyph(collapsed));
+    collapseButton.setColour(juce::TextButton::buttonColourId,
+                             accent.withAlpha(0.15f));
+    collapseButton.setColour(juce::TextButton::buttonOnColourId,
+                             accent.withAlpha(0.24f));
+    collapseButton.setColour(juce::TextButton::textColourOffId,
+                             TeulPalette::PanelTextStrong().withAlpha(0.92f));
+    collapseButton.setColour(juce::TextButton::textColourOnId,
+                             TeulPalette::PanelTextStrong().withAlpha(0.97f));
+    collapseButton.setTooltip(collapsed ? "Expand rail" : "Collapse rail");
+    repaint();
+  }
+
+  juce::String tooltipTextForPort(const juce::String &cardId,
+                                  const juce::String &portId) const {
+    if (cardId.isEmpty() || portId.isEmpty())
+      return {};
+
+    if (const auto *endpoint = document.controlState.findEndpoint(cardId)) {
+      juce::String text = endpoint->displayName;
+      if (isRailBundlePortToken(portId)) {
+        text << " / All channels";
+      } else if (const auto *port = document.findSystemRailPort(cardId, portId)) {
+        text << " / " << port->displayName;
+      }
+      const auto issueState = issueStateForEndpoint(*endpoint);
+      if (hasIssueState(issueState))
+        text << " / " << issueStateLabel(issueState);
+      return text;
+    }
+
+    if (const auto *source = document.controlState.findSource(cardId)) {
+      juce::String text = source->displayName;
+      if (isRailBundlePortToken(portId)) {
+        text << " / All channels";
+      } else {
+        for (const auto &port : source->ports) {
+          if (port.portId == portId) {
+            text << " / " << port.displayName;
+            break;
+          }
+        }
+      }
+      const auto issueState = issueStateForControlSource(*source);
+      if (hasIssueState(issueState))
+        text << " / " << issueStateLabel(issueState);
+      return text;
+    }
+
+    return {};
+  }
+
+  void updatePortTooltip() {
+    if (hoveredPortCardId.isNotEmpty() && hoveredPortId.isNotEmpty())
+      setTooltip(tooltipTextForPort(hoveredPortCardId, hoveredPortId));
+    else
+      setTooltip({});
+  }
+
+  bool isRailCollapsed() const noexcept {
+    if (const auto *rail = document.controlState.findRail(railId))
+      return rail->collapsed;
+    return false;
+  }
+
+  void mouseMove(const juce::MouseEvent &event) override {
+    const auto point = event.position;
+    const bool collapsed = isRailCollapsed();
+    juce::String hoveredPortCard;
+    juce::String hoveredPort;
+    for (auto it = portHitZones.rbegin(); it != portHitZones.rend(); ++it) {
+      if (!hitTestPortZone(*it, point))
+        continue;
+      hoveredPortCard = it->cardId;
+      hoveredPort = it->portId;
+      break;
+    }
+
+    juce::String hoveredId;
+    if (!collapsed) {
+      hoveredId = hoveredPortCard;
+      if (hoveredId.isEmpty()) {
+        const auto pointInt = point.roundToInt();
+        for (auto it = cardHitZones.rbegin(); it != cardHitZones.rend(); ++it) {
+          if (it->second.contains(pointInt)) {
+            hoveredId = it->first;
+            break;
+          }
+        }
+      }
+    }
+
+    if (hoveredCardId != hoveredId || hoveredPortCardId != hoveredPortCard ||
+        hoveredPortId != hoveredPort) {
+      hoveredCardId = hoveredId;
+      hoveredPortCardId = hoveredPortCard;
+      hoveredPortId = hoveredPort;
+      updatePortTooltip();
+      repaint();
+    }
+  }
+
+  void mouseExit(const juce::MouseEvent &) override {
+    if (hoveredCardId.isEmpty() && hoveredPortCardId.isEmpty() &&
+        hoveredPortId.isEmpty())
+      return;
+
+    hoveredCardId.clear();
+    hoveredPortCardId.clear();
+    hoveredPortId.clear();
+    updatePortTooltip();
+    repaint();
+  }
+
+  void focusGained(FocusChangeType) override { repaint(); }
+
+  void focusLost(FocusChangeType) override { repaint(); }
+
+  void mouseDown(const juce::MouseEvent &event) override {
+    grabKeyboardFocus();
+
+    const auto point = event.position;
+    for (auto it = portHitZones.rbegin(); it != portHitZones.rend(); ++it) {
+      if (!hitTestPortZone(*it, point))
+        continue;
+
+      if (cardSelectionHandler != nullptr) {
+        if (selectedCardId != it->cardId)
+          selectedCardId = it->cardId;
+        repaint();
+        cardSelectionHandler(it->cardId);
+      }
+
+      if (portDragBeginHandler != nullptr && portDragTargetComponent != nullptr) {
+        const auto anchorPosTarget = localPointToPortDragTarget(
+            it->bounds.getCentre().roundToInt().toFloat());
+        const bool started = portDragBeginHandler(
+            it->cardId, it->portId, anchorPosTarget,
+            localPointToPortDragTarget(event.position));
+        if (started) {
+          activePortDrag.active = true;
+          activePortDrag.cardId = it->cardId;
+          activePortDrag.portId = it->portId;
+          activePortDrag.anchorPosTarget = anchorPosTarget;
+          repaint();
+        }
+        return;
+      }
+
+      return;
+    }
+
+    if (!isRailCollapsed() && cardSelectionHandler != nullptr) {
+      const auto pointInt = point.roundToInt();
+      for (auto it = cardHitZones.rbegin(); it != cardHitZones.rend(); ++it) {
+        if (!it->second.contains(pointInt))
+          continue;
+
+        if (selectedCardId != it->first)
+          selectedCardId = it->first;
+        repaint();
+        cardSelectionHandler(it->first);
+        return;
+      }
+    }
+
+    if (cardSelectionHandler == nullptr)
+      return;
+
+    if (selectedCardId.isNotEmpty()) {
+      selectedCardId.clear();
+      repaint();
+    }
+    cardSelectionHandler({});
+  }
+
+  void mouseDrag(const juce::MouseEvent &event) override {
+    if (!activePortDrag.active || portDragUpdateHandler == nullptr ||
+        portDragTargetComponent == nullptr)
+      return;
+
+    portDragUpdateHandler(localPointToPortDragTarget(event.position));
+  }
+
+  void mouseUp(const juce::MouseEvent &event) override {
+    if (!activePortDrag.active)
+      return;
+
+    if (portDragEndHandler != nullptr && portDragTargetComponent != nullptr)
+      portDragEndHandler(localPointToPortDragTarget(event.position));
+
+    activePortDrag = {};
+    repaint();
+  }
+
+  void paint(juce::Graphics &g) override {
+    cardHitZones.clear();
+    portHitZones.clear();
+
+    const auto kind = currentRailKind();
+    const auto accent = railAccent(kind);
+    const auto collapsed = isRailCollapsed();
+    const auto bounds = getLocalBounds().toFloat().reduced(0.5f);
+    if (bounds.isEmpty())
+      return;
+
+    g.setGradientFill(juce::ColourGradient(TeulPalette::PanelBackgroundRaised().withAlpha(0.94f),
+                                           bounds.getCentreX(), bounds.getY(),
+                                           TeulPalette::PanelBackgroundDeep().withAlpha(0.94f),
+                                           bounds.getCentreX(),
+                                           bounds.getBottom(), false));
+    g.fillRoundedRectangle(bounds, collapsed ? 10.0f : 14.0f);
+    g.setColour(TeulPalette::PanelStrokeStrong().interpolatedWith(accent, 0.55f).withAlpha(collapsed ? 0.48f : 0.72f));
+    g.drawRoundedRectangle(bounds, collapsed ? 10.0f : 14.0f, 1.0f);
+
+    const auto cards = buildRailCards(document, railId, endpointSubtitleProvider);
+    auto content = getLocalBounds().reduced(collapsed ? 6 : 10,
+                                            collapsed ? 6 : 8);
+    auto header = content.removeFromTop(collapsed ? 20 : 20);
+
+    if (!collapsed) {
+      auto titleArea = header;
+      titleArea.removeFromRight(28);
+      g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.94f));
+      g.setFont(juce::FontOptions(11.8f, juce::Font::bold));
+      g.drawText(railTitle(), titleArea, juce::Justification::centredLeft, false);
+
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.48f));
+      g.setFont(8.8f);
+      g.drawText(metaLabel((int)cards.size()), content.removeFromTop(12),
+                 juce::Justification::centredLeft, false);
+      content.removeFromTop(4);
+    }
+
+    if (collapsed) {
+      drawCollapsedPorts(g, content, cards);
+      return;
+    }
+
+    if (orientation == RailOrientation::vertical)
+      drawVerticalCards(g, content, cards);
+    else
+      drawHorizontalCards(g, content, cards);
+  }
+
+  void resized() override {
+    auto buttonArea = getLocalBounds().reduced(8).removeFromTop(20);
+    collapseButton.setBounds(buttonArea.removeFromRight(22));
+  }
+
+private:
+  struct PortHitZone;
+
+  static void drawBadge(juce::Graphics &g, juce::Rectangle<int> area,
+                        const juce::String &text, juce::Colour accent) {
+    g.setColour(accent.withAlpha(0.16f));
+    g.fillRoundedRectangle(area.toFloat(), 7.0f);
+    g.setColour(accent.withAlpha(0.82f));
+    g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
+    g.setColour(accent.brighter(0.18f));
+    g.setFont(10.0f);
+    g.drawText(text, area, juce::Justification::centred, false);
+  }
+
+  static juce::Rectangle<float> monoSocketCircleBounds(
+      juce::Rectangle<float> area) {
+    return TPortShapeLayout::monoCircleBounds(area);
+  }
+
+  static std::vector<juce::Rectangle<float>> busSocketChannelBounds(
+      juce::Rectangle<float> area, int channelCount) {
+    return TPortShapeLayout::busChannelBounds(area, channelCount);
+  }
+
+  static juce::Rectangle<float> busSocketOuterBounds(juce::Rectangle<float> area,
+                                                     int channelCount) {
+    return TPortShapeLayout::busOuterBounds(area, channelCount);
+  }
+
+  static void drawMonoSocketShape(juce::Graphics &g,
+                                  juce::Rectangle<float> area,
+                                  juce::Colour accent,
+                                  bool capOnRight) {
+    const auto circle = monoSocketCircleBounds(area).reduced(0.5f);
+    g.setColour(TeulPalette::PortShellBackground());
+    g.fillEllipse(circle);
+    g.setColour(accent.withAlpha(0.92f));
+    g.drawEllipse(circle, 1.0f);
+
+    const float dotSize = juce::jmax(4.0f, circle.getWidth() * 0.28f);
+    g.fillEllipse(circle.getCentreX() - dotSize * 0.5f,
+                  circle.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
+
+    const float capWidth = juce::jmin(4.0f, circle.getWidth() * 0.22f);
+    const float capHeight = juce::jmax(6.0f, circle.getHeight() * 0.32f);
+    juce::Rectangle<float> cap;
+    if (capOnRight) {
+      cap = juce::Rectangle<float>(circle.getRight() - capWidth,
+                                   circle.getCentreY() - capHeight * 0.5f,
+                                   capWidth, capHeight);
+    } else {
+      cap = juce::Rectangle<float>(circle.getX(),
+                                   circle.getCentreY() - capHeight * 0.5f,
+                                   capWidth, capHeight);
+    }
+
+    g.setColour(accent.withAlpha(0.78f));
+    g.fillRoundedRectangle(cap, cap.getWidth() * 0.5f);
+  }
+
+  static void drawBusSocketShape(juce::Graphics &g,
+                                 juce::Rectangle<float> area,
+                                 juce::Colour accent,
+                                 bool capOnRight,
+                                 int channelCount) {
+    if (channelCount <= 1) {
+      drawMonoSocketShape(g, area, accent, capOnRight);
+      return;
+    }
+
+    const auto outer = busSocketOuterBounds(area, channelCount);
+    const auto channelBounds = busSocketChannelBounds(outer, channelCount);
+    const float radius = outer.getWidth() * 0.5f;
+    g.setColour(TeulPalette::PortShellBackground());
+    g.fillRoundedRectangle(outer, radius);
+    g.setColour(accent.withAlpha(0.92f));
+    g.drawRoundedRectangle(outer, radius, 1.0f);
+
+    for (const auto &channel : channelBounds) {
+      const auto lane = channel.reduced(channel.getWidth() * 0.12f,
+                                        channel.getHeight() * 0.12f);
+      g.setColour(accent.withAlpha(0.12f));
+      g.fillEllipse(lane);
+      g.setColour(accent.withAlpha(0.32f));
+      g.drawEllipse(lane, 1.0f);
+
+      const float dotSize = juce::jmax(4.0f, lane.getWidth() * 0.24f);
+      g.setColour(accent.withAlpha(0.95f));
+      g.fillEllipse(lane.getCentreX() - dotSize * 0.5f,
+                    lane.getCentreY() - dotSize * 0.5f, dotSize, dotSize);
+    }
+
+    const float capWidth = juce::jmin(4.0f, outer.getWidth() * 0.24f);
+    const float capHeight = juce::jmax(8.0f, outer.getHeight() * 0.22f);
+    juce::Rectangle<float> cap;
+    if (capOnRight) {
+      cap = juce::Rectangle<float>(outer.getRight() - capWidth,
+                                   outer.getCentreY() - capHeight * 0.5f,
+                                   capWidth, capHeight);
+    } else {
+      cap = juce::Rectangle<float>(outer.getX(),
+                                   outer.getCentreY() - capHeight * 0.5f,
+                                   capWidth, capHeight);
+    }
+
+    g.setColour(accent.withAlpha(0.78f));
+    g.fillRoundedRectangle(cap, cap.getWidth() * 0.5f);
+  }
+
+  bool isHoveredPort(const juce::String &cardId,
+                     const juce::String &portId) const {
+    return cardId.isNotEmpty() && portId.isNotEmpty() &&
+           hoveredPortCardId == cardId && hoveredPortId == portId;
+  }
+
+  bool isActivePort(const juce::String &cardId,
+                    const juce::String &portId) const {
+    return activePortDrag.active && activePortDrag.cardId == cardId &&
+           activePortDrag.portId == portId;
+  }
+
+  void drawPortStateOverlay(juce::Graphics &g, juce::Rectangle<float> bounds,
+                            juce::Colour accent, bool hovered,
+                            bool active, bool elliptical = false) const {
+    TPortVisuals::drawStateOverlay(g, bounds, accent, hovered, active,
+                                   elliptical);
+  }
+
+  bool isDropTargetPort(const juce::String &cardId,
+                        const juce::String &portId) const {
+    return cardId.isNotEmpty() && portId.isNotEmpty() &&
+           cardId == dropTargetCardId && portId == dropTargetPortId;
+  }
+
+  juce::Colour dropTargetColour(juce::Colour accent) const {
+    return dropTargetCanConnect ? accent.brighter(0.45f).interpolatedWith(
+                                      TeulPalette::AccentGreen(), 0.35f)
+                                : TeulPalette::AccentOrange();
+  }
+
+  void drawDropTargetOverlay(juce::Graphics &g, juce::Rectangle<float> bounds,
+                             juce::Colour accent,
+                             bool elliptical = false) const {
+    TPortVisuals::drawDropTargetOverlay(g, bounds, accent, dropTargetCanConnect,
+                                        elliptical);
+  }
+
+  void drawIssueRing(juce::Graphics &g, juce::Rectangle<float> bounds,
+                     TIssueState issueState, bool elliptical = false) const {
+    TPortVisuals::drawIssueRing(g, bounds, issueState, elliptical);
+  }
+
+  void drawMonoPortSlot(juce::Graphics &g, const juce::String &cardId,
+                        const RailCardPortView &port,
+                        juce::Rectangle<float> area, bool capOnRight,
+                        TIssueState issueState = TIssueState::none) {
+    const auto circle = monoSocketCircleBounds(area);
+    drawMonoSocketShape(g, area, port.accent, capOnRight);
+    if (hasIssueState(issueState))
+      drawIssueRing(g, circle, issueState, true);
+    drawPortStateOverlay(g, circle, port.accent,
+                         isHoveredPort(cardId, port.portId),
+                         isActivePort(cardId, port.portId), true);
+    if (isDropTargetPort(cardId, port.portId))
+      drawDropTargetOverlay(g, circle, port.accent, true);
+    addPortHitZone(cardId, port.portId, port.dataType, circle, true);
+  }
+
+  void drawBusPortSlot(juce::Graphics &g, const RailCardView &card,
+                       juce::Rectangle<float> area, bool capOnRight,
+                       TIssueState issueState = TIssueState::none) {
+    if (card.ports.empty())
+      return;
+
+    const auto bundleToken = makeRailBundlePortToken(card.ports);
+    const auto outer = busSocketOuterBounds(area, (int)card.ports.size());
+    drawBusSocketShape(g, area, card.accent, capOnRight, (int)card.ports.size());
+    if (hasIssueState(issueState))
+      drawIssueRing(g, outer, issueState);
+
+    if (bundleToken.isNotEmpty()) {
+      drawPortStateOverlay(g, outer, card.accent,
+                           isHoveredPort(card.itemId, bundleToken),
+                           isActivePort(card.itemId, bundleToken));
+      if (isDropTargetPort(card.itemId, bundleToken))
+        drawDropTargetOverlay(g, outer, card.accent);
+      addPortHitZone(card.itemId, bundleToken, card.ports.front().dataType, outer,
+                     false);
+    }
+
+    const auto channelBounds = busSocketChannelBounds(outer, (int)card.ports.size());
+    const int channelCount = juce::jmin((int)card.ports.size(),
+                                        (int)channelBounds.size());
+    for (int index = 0; index < channelCount; ++index) {
+      const auto &port = card.ports[(size_t)index];
+      const auto &channel = channelBounds[(size_t)index];
+      drawPortStateOverlay(g, channel, port.accent,
+                           isHoveredPort(card.itemId, port.portId),
+                           isActivePort(card.itemId, port.portId), true);
+      if (isDropTargetPort(card.itemId, port.portId))
+        drawDropTargetOverlay(g, channel, port.accent, true);
+      addPortHitZone(card.itemId, port.portId, port.dataType, channel, true);
+    }
+  }
+
+  bool isCollapsedCardEmphasised(const RailCardView &card) const {
+    return card.itemId.isNotEmpty() &&
+           (card.itemId == selectedCardId || card.itemId == hoveredPortCardId ||
+            card.itemId == activePortDrag.cardId);
+  }
+
+  void drawCollapsedSlotTrack(juce::Graphics &g, juce::Rectangle<float> bounds,
+                              juce::Colour accent, bool emphasised) const {
+    const auto track = bounds.expanded(3.0f, 2.0f);
+    const float radius = juce::jmax(6.0f,
+                                    juce::jmin(track.getWidth(), track.getHeight()) *
+                                        0.42f);
+    g.setColour(juce::Colours::white.withAlpha(emphasised ? 0.055f : 0.028f));
+    g.fillRoundedRectangle(track, radius);
+    g.setColour(accent.withAlpha(emphasised ? 0.28f : 0.14f));
+    g.drawRoundedRectangle(track, radius, emphasised ? 1.15f : 0.9f);
+  }
+
+  void drawCollapsedVerticalPorts(juce::Graphics &g, juce::Rectangle<int> area,
+                                  const std::vector<RailCardView> &cards) {
+    const bool portsOnRight = currentRailKind() != TRailKind::output;
+    const int gap = 8;
+    const int count = juce::jmax(1, (int)cards.size());
+    const int slotHeight = juce::jlimit(18, 44,
+                                        (area.getHeight() - gap * (count - 1)) /
+                                            count);
+
+    for (int index = 0; index < count && area.getHeight() >= 16; ++index) {
+      auto slot = area.removeFromTop(slotHeight).toFloat();
+      area.removeFromTop(gap);
+      const auto &card = cards[(size_t)index];
+      auto socketBounds = slot.reduced(3.0f, 1.0f);
+      socketBounds = socketBounds.withSizeKeepingCentre(
+          juce::jmin(20.0f, socketBounds.getWidth()), socketBounds.getHeight());
+
+      drawCollapsedSlotTrack(g, socketBounds, card.accent,
+                             isCollapsedCardEmphasised(card));
+      if (card.groupedBus)
+        drawBusPortSlot(g, card, socketBounds, portsOnRight, card.issueState);
+      else if (!card.ports.empty())
+        drawMonoPortSlot(g, card.itemId, card.ports.front(), socketBounds,
+                         portsOnRight, card.issueState);
+    }
+  }
+
+  void drawCollapsedHorizontalPorts(juce::Graphics &g, juce::Rectangle<int> area,
+                                    const std::vector<RailCardView> &cards) {
+    const int gap = 8;
+    int x = area.getX();
+    const int height = juce::jmax(12, area.getHeight() - 6);
+
+    for (const auto &card : cards) {
+      if (card.groupedBus) {
+        const int width = 20;
+        if (x + width > area.getRight())
+          return;
+        auto socketBounds = juce::Rectangle<float>((float)x,
+                                                   (float)(area.getCentreY() - height / 2),
+                                                   (float)width, (float)height);
+        drawCollapsedSlotTrack(g, socketBounds, card.accent,
+                               isCollapsedCardEmphasised(card));
+        drawBusPortSlot(g, card, socketBounds, true, card.issueState);
+        x += width + gap;
+        continue;
+      }
+
+      for (const auto &port : card.ports) {
+        const int width = 18;
+        if (x + width > area.getRight())
+          return;
+        auto socketBounds = juce::Rectangle<float>((float)x,
+                                                   (float)(area.getCentreY() - height / 2),
+                                                   (float)width, (float)height);
+        drawCollapsedSlotTrack(g, socketBounds, card.accent,
+                               isCollapsedCardEmphasised(card));
+        drawMonoPortSlot(g, card.itemId, port, socketBounds, true,
+                         card.issueState);
+        x += width + gap;
+      }
+    }
+  }
+
+  void drawCollapsedPorts(juce::Graphics &g, juce::Rectangle<int> area,
+                          const std::vector<RailCardView> &cards) {
+    if (orientation == RailOrientation::vertical)
+      drawCollapsedVerticalPorts(g, area, cards);
+    else
+      drawCollapsedHorizontalPorts(g, area, cards);
+  }
+
+  void drawVerticalCards(juce::Graphics &g, juce::Rectangle<int> area,
+                         const std::vector<RailCardView> &cards) {
+    const bool portsOnRight = currentRailKind() != TRailKind::output;
+    const int gap = 8;
+    const int count = juce::jmax(1, (int)cards.size());
+    const int cardHeight = juce::jlimit(52, 72,
+                                        (area.getHeight() - gap * (count - 1)) /
+                                            count);
+
+    for (int index = 0; index < count && area.getHeight() >= 46; ++index) {
+      const auto cardArea = area.removeFromTop(cardHeight).toFloat();
+      area.removeFromTop(gap);
+      drawVerticalCard(g, cardArea, cards[(size_t)index], portsOnRight);
+    }
+  }
+
+  void drawVerticalCard(juce::Graphics &g, juce::Rectangle<float> area,
+                        const RailCardView &card, bool portsOnRight) {
+    const auto accent = hasIssueState(card.issueState) ? issueStateAccent(card.issueState) : card.accent;
+    const bool selected = card.itemId.isNotEmpty() && card.itemId == selectedCardId;
+    const bool hovered = card.itemId.isNotEmpty() && card.itemId == hoveredCardId;
+    const bool focused = selected && hasKeyboardFocus(true);
+    g.setColour(TeulPalette::PanelBackgroundDeep().withAlpha(0.90f));
+    g.fillRoundedRectangle(area, 12.0f);
+    if (hovered && !selected) {
+      g.setColour(accent.withAlpha(0.08f));
+      g.fillRoundedRectangle(area.reduced(2.0f), 10.0f);
+    }
+    g.setColour(accent.withAlpha(selected ? 0.98f : hovered ? 0.86f : 0.72f));
+    g.drawRoundedRectangle(area, 12.0f, selected ? 2.0f : hovered ? 1.4f : 1.0f);
+    if (focused) {
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.62f));
+      g.drawRoundedRectangle(area.reduced(3.0f), 9.0f, 1.0f);
+    }
+
+    auto strip = area;
+    strip.setWidth(4.0f);
+    strip.setX(portsOnRight ? area.getRight() - 4.0f : area.getX());
+    g.setColour(accent.withAlpha(selected ? 0.92f : 0.68f));
+    g.fillRoundedRectangle(strip, 2.0f);
+
+    auto content = area.toNearestInt().reduced(8, 6);
+    const int portColumnWidth = card.groupedBus ? 32 : 20;
+    auto portColumn = portsOnRight ? content.removeFromRight(portColumnWidth)
+                                   : content.removeFromLeft(portColumnWidth);
+    if (portsOnRight)
+      content.removeFromRight(5);
+    else
+      content.removeFromLeft(5);
+
+    auto titleBlock = content.removeFromTop(card.subtitle.isNotEmpty() ? 30 : 20);
+    auto titleRow = titleBlock.removeFromTop(16);
+    if (card.badge.isNotEmpty()) {
+      const int badgeWidth = juce::jlimit(28, 42, 14 + card.badge.length() * 7);
+      auto badgeArea = titleRow.removeFromRight(badgeWidth);
+      drawBadge(g, badgeArea, card.badge, accent);
+      titleRow.removeFromRight(4);
+    }
+    const bool compactText = titleRow.getWidth() < 90;
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.94f));
+    g.setFont(juce::FontOptions(compactText ? 10.5f : 11.3f, juce::Font::bold));
+    g.drawFittedText(card.title, titleRow, juce::Justification::topLeft,
+                     compactText ? 2 : 1, 0.86f);
+
+    if (card.subtitle.isNotEmpty()) {
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.58f));
+      g.setFont(9.2f);
+      g.drawFittedText(card.subtitle, titleBlock.removeFromTop(12),
+                       juce::Justification::topLeft, 1, 0.88f);
+    }
+
+    auto portTrack = portColumn.toFloat().reduced(0.0f, 1.0f);
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.024f));
+    g.fillRoundedRectangle(portTrack, 9.0f);
+    g.setColour(accent.withAlpha(0.12f));
+    g.drawRoundedRectangle(portTrack, 9.0f, 1.0f);
+
+    auto portArea = portColumn.toFloat().reduced(1.0f, 1.5f);
+    if (card.groupedBus) {
+      drawBusPortSlot(g, card, portArea, portsOnRight, card.issueState);
+    } else if (!card.ports.empty()) {
+      drawMonoPortSlot(g, card.itemId, card.ports.front(), portArea,
+                       portsOnRight, card.issueState);
+    }
+
+    if (card.itemId.isNotEmpty())
+      cardHitZones.push_back({card.itemId, area.toNearestInt()});
+  }
+
+  void drawHorizontalCards(juce::Graphics &g, juce::Rectangle<int> area,
+                           const std::vector<RailCardView> &cards) {
+    const int gap = 10;
+    const int count = juce::jmax(1, (int)cards.size());
+    const int cardWidth = juce::jlimit(150, 240,
+                                       (area.getWidth() - gap * (count - 1)) /
+                                           count);
+
+    for (int index = 0; index < count && area.getWidth() >= 120; ++index) {
+      const auto cardArea = area.removeFromLeft(cardWidth).toFloat();
+      area.removeFromLeft(gap);
+      drawHorizontalCard(g, cardArea, cards[(size_t)index]);
+    }
+  }
+
+  void drawHorizontalCard(juce::Graphics &g, juce::Rectangle<float> area,
+                          const RailCardView &card) {
+    const auto accent = hasIssueState(card.issueState) ? issueStateAccent(card.issueState) : card.accent;
+    const bool selected = card.itemId.isNotEmpty() && card.itemId == selectedCardId;
+    const bool hovered = card.itemId.isNotEmpty() && card.itemId == hoveredCardId;
+    const bool focused = selected && hasKeyboardFocus(true);
+    g.setColour(TeulPalette::PanelBackgroundDeep().withAlpha(0.90f));
+    g.fillRoundedRectangle(area, 13.0f);
+    if (hovered && !selected) {
+      g.setColour(accent.withAlpha(0.08f));
+      g.fillRoundedRectangle(area.reduced(2.0f), 11.0f);
+    }
+    g.setColour(accent.withAlpha(selected ? 0.98f : hovered ? 0.86f : 0.72f));
+    g.drawRoundedRectangle(area, 13.0f, selected ? 2.0f : hovered ? 1.4f : 1.0f);
+    if (focused) {
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.62f));
+      g.drawRoundedRectangle(area.reduced(3.0f), 10.0f, 1.0f);
+    }
+
+    auto content = area.toNearestInt().reduced(10, 8);
+    auto portTray = content.removeFromBottom(22);
+    auto titleBlock = content;
+    auto titleRow = titleBlock.removeFromTop(16);
+    if (card.badge.isNotEmpty()) {
+      const int badgeWidth = juce::jlimit(28, 42, 14 + card.badge.length() * 7);
+      auto badgeArea = titleRow.removeFromRight(badgeWidth);
+      drawBadge(g, badgeArea, card.badge, accent);
+      titleRow.removeFromRight(4);
+    }
+    const bool compactText = titleRow.getWidth() < 118;
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.94f));
+    g.setFont(juce::FontOptions(compactText ? 10.6f : 11.6f, juce::Font::bold));
+    g.drawFittedText(card.title, titleRow, juce::Justification::topLeft,
+                     compactText ? 2 : 1, 0.86f);
+
+    if (card.subtitle.isNotEmpty()) {
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.58f));
+      g.setFont(9.4f);
+      g.drawFittedText(card.subtitle, titleBlock.removeFromTop(14),
+                       juce::Justification::topLeft, 1, 0.88f);
+    }
+
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.024f));
+    g.fillRoundedRectangle(portTray.toFloat(), 9.0f);
+    g.setColour(accent.withAlpha(0.12f));
+    g.drawRoundedRectangle(portTray.toFloat(), 9.0f, 1.0f);
+
+    auto portArea = portTray.reduced(5, 3);
+    int portX = portArea.getX();
+    for (const auto &port : card.ports) {
+      const int portWidth = juce::jlimit(38, 66, 16 + port.label.length() * 7);
+      if (portX + portWidth > portArea.getRight())
+        break;
+
+      juce::Rectangle<int> pill(portX, portArea.getY(), portWidth,
+                                portArea.getHeight());
+      portX += portWidth + 5;
+      g.setColour(port.accent.withAlpha(0.16f));
+      g.fillRoundedRectangle(pill.toFloat(), 7.0f);
+      g.setColour(port.accent.withAlpha(0.84f));
+      g.drawRoundedRectangle(pill.toFloat(), 7.0f, 1.0f);
+      drawPortStateOverlay(g, pill.toFloat(), port.accent,
+                           isHoveredPort(card.itemId, port.portId),
+                           isActivePort(card.itemId, port.portId));
+      g.setColour(port.accent.brighter(0.18f));
+      g.setFont(9.4f);
+      g.drawText(port.label, pill, juce::Justification::centred, false);
+      if (isDropTargetPort(card.itemId, port.portId))
+        drawDropTargetOverlay(g, pill.toFloat(), port.accent);
+      addPortHitZone(card.itemId, port.portId, port.dataType, pill.toFloat());
+    }
+
+    if (card.itemId.isNotEmpty())
+      cardHitZones.push_back({card.itemId, area.toNearestInt()});
+  }
+
+  static bool hitTestPortZone(const PortHitZone &zone,
+                              juce::Point<float> point) {
+    if (!zone.elliptical)
+      return zone.bounds.contains(point);
+    return TPortShapeLayout::containsEllipse(zone.bounds, point);
+  }
+
+  void addPortHitZone(const juce::String &cardId, const juce::String &portId,
+                      TPortDataType dataType, juce::Rectangle<float> bounds,
+                      bool elliptical = false) {
+    if (cardId.isEmpty() || portId.isEmpty())
+      return;
+
+    portHitZones.push_back({cardId, portId, dataType, bounds, elliptical});
+  }
+
+  juce::Point<float> localPointToPortDragTarget(juce::Point<float> localPoint) const {
+    if (portDragTargetComponent == nullptr)
+      return localPoint;
+
+    return portDragTargetComponent
+        ->getLocalPoint(this, localPoint.roundToInt())
+        .toFloat();
+  }
+
+  juce::String railTitle() const {
+    if (const auto *rail = document.controlState.findRail(railId))
+      return rail->title;
+
+    switch (currentRailKind()) {
+    case TRailKind::input:
+      return "Inputs";
+    case TRailKind::output:
+      return "Outputs";
+    case TRailKind::controlSource:
+      return "Controls";
+    }
+
+    return "Rail";
+  }
+
+  juce::String metaLabel(int cardCount) const {
+    const auto label = currentRailKind() == TRailKind::controlSource
+                           ? "sources"
+                           : "endpoints";
+    return juce::String(cardCount) + " " + label;
+  }
+
+  juce::String collapseGlyph(bool collapsed) const {
+    switch (currentRailKind()) {
+    case TRailKind::input:
+      return collapsed ? ">" : "<";
+    case TRailKind::output:
+      return collapsed ? "<" : ">";
+    case TRailKind::controlSource:
+      return collapsed ? "^" : "v";
+    }
+
+    return collapsed ? ">" : "<";
+  }
+
+  TRailKind currentRailKind() const {
+    if (const auto *rail = document.controlState.findRail(railId))
+      return rail->kind;
+    return fallbackRailKind(railId);
+  }
+
+  void toggleCollapsed() {
+    document.controlState.ensureDefaultRails();
+    if (auto *rail = document.controlState.findRail(railId)) {
+      rail->collapsed = !rail->collapsed;
+      document.touch(false);
+    }
+
+    refreshFromDocument();
+    if (collapseHandler != nullptr)
+      collapseHandler();
+  }
+
+  struct PortHitZone {
+    juce::String cardId;
+    juce::String portId;
+    TPortDataType dataType = TPortDataType::Audio;
+    juce::Rectangle<float> bounds;
+    bool elliptical = false;
+  };
+
+  struct ActivePortDragState {
+    bool active = false;
+    juce::String cardId;
+    juce::String portId;
+    juce::Point<float> anchorPosTarget;
+  };
+
+  TTeulDocument &document;
+  juce::String railId;
+  RailOrientation orientation;
+  juce::TextButton collapseButton;
+  CollapseHandler collapseHandler;
+  CardSelectionHandler cardSelectionHandler;
+  std::function<juce::String(const TSystemRailEndpoint &)> endpointSubtitleProvider;
+  PortDragBeginHandler portDragBeginHandler;
+  PortDragMotionHandler portDragUpdateHandler;
+  PortDragMotionHandler portDragEndHandler;
+  juce::Component *portDragTargetComponent = nullptr;
+  juce::String selectedCardId;
+  juce::String hoveredCardId;
+  juce::String hoveredPortCardId;
+  juce::String hoveredPortId;
+  ActivePortDragState activePortDrag;
+  juce::String dropTargetCardId;
+  juce::String dropTargetPortId;
+  bool dropTargetCanConnect = false;
+  std::vector<std::pair<juce::String, juce::Rectangle<int>>> cardHitZones;
+  std::vector<PortHitZone> portHitZones;
+};
+
+class CanvasOverlayLayer final : public juce::Component,
+                                private juce::Timer {
+public:
+  explicit CanvasOverlayLayer(TGraphCanvas &canvasIn) : canvas(canvasIn) {
+    setInterceptsMouseClicks(false, false);
+    startTimerHz(30);
+  }
+
+  ~CanvasOverlayLayer() override { stopTimer(); }
+
+  void paint(juce::Graphics &g) override {
+    if (!canvas.isShowing())
+      return;
+
+    const auto canvasBounds = canvas.getBounds();
+    g.saveState();
+    g.addTransform(juce::AffineTransform::translation(
+        (float)(canvasBounds.getX() - getX()),
+        (float)(canvasBounds.getY() - getY())));
+    canvas.paintConnectionLayer(g);
+    canvas.paintHudLayer(g);
+    g.restoreState();
+  }
+
+private:
+  void timerCallback() override { repaint(); }
+
+  TGraphCanvas &canvas;
+};
+
+class PlaceholderInspectorPanel : public juce::Component {
+public:
+  explicit PlaceholderInspectorPanel(const TTeulDocument &documentIn)
+      : document(documentIn) {
+    addAndMakeVisible(headerLabel);
+    addAndMakeVisible(messageLabel);
+    addAndMakeVisible(summaryLabel);
+    addAndMakeVisible(helperLabel);
+    headerLabel.setText("Inspector", juce::dontSendNotification);
+    headerLabel.setJustificationType(juce::Justification::centredLeft);
+    headerLabel.setColour(juce::Label::textColourId,
+                          TeulPalette::PanelTextStrong().withAlpha(0.95f));
+    headerLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    messageLabel.setText("Nothing selected", juce::dontSendNotification);
+    messageLabel.setJustificationType(juce::Justification::centredLeft);
+    messageLabel.setColour(juce::Label::textColourId,
+                           TeulPalette::PanelText().withAlpha(0.82f));
+    messageLabel.setFont(juce::FontOptions(12.0f, juce::Font::bold));
+    summaryLabel.setJustificationType(juce::Justification::topLeft);
+    summaryLabel.setColour(juce::Label::textColourId,
+                           TeulPalette::PanelText().withAlpha(0.72f));
+    summaryLabel.setFont(juce::FontOptions(10.6f, juce::Font::plain));
+    helperLabel.setText(
+        "Select a node, wire, input/output endpoint, or control source.",
+        juce::dontSendNotification);
+    helperLabel.setJustificationType(juce::Justification::topLeft);
+    helperLabel.setColour(juce::Label::textColourId,
+                          TeulPalette::PanelTextMuted().withAlpha(0.58f));
+    helperLabel.setFont(juce::FontOptions(10.2f, juce::Font::plain));
+    refreshFromDocument();
+  }
+  void refreshFromDocument() {
+    const auto controlSnapshot = captureControlStateSnapshot(document.controlState);
+    juce::StringArray lines;
+    lines.add("Nodes: " + juce::String((int)document.nodes.size()));
+    lines.add("Connections: " + juce::String((int)document.connections.size()));
+    lines.add("Control Sources: " + juce::String(controlSnapshot.sourceCount));
+    lines.add("Issues: " + juce::String(totalControlIssueCount(controlSnapshot)));
+    summaryLabel.setText(lines.joinIntoString("\n"), juce::dontSendNotification);
+    repaint();
+  }
+  void paint(juce::Graphics &g) override {
+    const auto bounds = getLocalBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+    g.setGradientFill(juce::ColourGradient(
+        TeulPalette::PanelBackgroundRaised().withAlpha(0.94f),
+        bounds.getCentreX(), bounds.getY(),
+        TeulPalette::PanelBackgroundDeep().withAlpha(0.94f),
+        bounds.getCentreX(), bounds.getBottom(), false));
+    g.fillRoundedRectangle(bounds, 12.0f);
+    g.setColour(TeulPalette::PanelStrokeStrong().withAlpha(0.42f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
+  }
+  void resized() override {
+    auto area = getLocalBounds().reduced(10, 8);
+    headerLabel.setBounds(area.removeFromTop(22));
+    area.removeFromTop(4);
+    messageLabel.setBounds(area.removeFromTop(18));
+    area.removeFromTop(6);
+    summaryLabel.setBounds(area.removeFromTop(64));
+    area.removeFromTop(4);
+    helperLabel.setBounds(area.removeFromTop(36));
+  }
+private:
+  const TTeulDocument &document;
+  juce::Label headerLabel;
+  juce::Label messageLabel;
+  juce::Label summaryLabel;
+  juce::Label helperLabel;
+};
+
+class ControlSourceInspectorPanel : public juce::Component {
+public:
+  ControlSourceInspectorPanel(TTeulDocument &documentIn,
+                              const TNodeRegistry &registryIn)
+      : document(documentIn), registry(registryIn) {
+    addAndMakeVisible(headerLabel);
+    addAndMakeVisible(kindLabel);
+    addAndMakeVisible(statusLabel);
+    addAndMakeVisible(kindFieldLabel);
+    addAndMakeVisible(kindCombo);
+    addAndMakeVisible(modeFieldLabel);
+    addAndMakeVisible(modeCombo);
+    addAndMakeVisible(sourceNameLabel);
+    addAndMakeVisible(sourceNameEditor);
+    addAndMakeVisible(profileNameLabel);
+    addAndMakeVisible(profileNameEditor);
+    addAndMakeVisible(confirmedToggle);
+    addAndMakeVisible(autoDetectedToggle);
+    addAndMakeVisible(learnToggle);
+    addAndMakeVisible(portsLabel);
+    addAndMakeVisible(bindingsLabel);
+    addAndMakeVisible(assignmentsLabel);
+    addAndMakeVisible(portsBox);
+    addAndMakeVisible(bindingsBox);
+    addAndMakeVisible(assignmentsBox);
+    addAndMakeVisible(closeButton);
+
+    headerLabel.setJustificationType(juce::Justification::centredLeft);
+    headerLabel.setColour(juce::Label::textColourId,
+                          TeulPalette::PanelTextStrong().withAlpha(0.95f));
+    headerLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+
+    kindLabel.setJustificationType(juce::Justification::centredLeft);
+    kindLabel.setColour(juce::Label::textColourId,
+                        TeulPalette::PanelTextMuted().withAlpha(0.64f));
+    kindLabel.setFont(juce::FontOptions(10.8f, juce::Font::plain));
+    statusLabel.setJustificationType(juce::Justification::centredLeft);
+    statusLabel.setColour(juce::Label::textColourId,
+                          TeulPalette::PanelTextMuted().withAlpha(0.54f));
+    statusLabel.setFont(juce::FontOptions(10.2f, juce::Font::plain));
+
+    configureFieldLabel(kindFieldLabel, "Kind");
+    configureFieldLabel(modeFieldLabel, "Mode");
+    configureFieldLabel(sourceNameLabel, "Source Name");
+    configureFieldLabel(profileNameLabel, "Profile Name");
+    configureFieldLabel(portsLabel, "Ports");
+    configureFieldLabel(bindingsLabel, "Bindings");
+    configureFieldLabel(assignmentsLabel, "Assignments");
+
+    configureComboBox(kindCombo);
+    kindCombo.addItem("Expression", 1);
+    kindCombo.addItem("Footswitch", 2);
+    kindCombo.addItem("Trigger", 3);
+    kindCombo.addItem("MIDI CC", 4);
+    kindCombo.addItem("MIDI Note", 5);
+    kindCombo.addItem("Macro", 6);
+    kindCombo.onChange = [this] {
+      if (!suppressEditorCallbacks)
+        applySourceKindOrModeChange();
+    };
+
+    configureComboBox(modeCombo);
+    modeCombo.addItem("Continuous", 1);
+    modeCombo.addItem("Momentary", 2);
+    modeCombo.addItem("Toggle", 3);
+    modeCombo.onChange = [this] {
+      if (!suppressEditorCallbacks)
+        applySourceKindOrModeChange();
+    };
+
+    configureEditableField(sourceNameEditor);
+    sourceNameEditor.onFocusLost = [this] { commitSourceDisplayName(); };
+    sourceNameEditor.onReturnKey = [this] { commitSourceDisplayName(); };
+    sourceNameEditor.onEscapeKey = [this] { refreshFromDocument(); };
+
+    configureEditableField(profileNameEditor);
+    profileNameEditor.onFocusLost = [this] { commitProfileDisplayName(); };
+    profileNameEditor.onReturnKey = [this] { commitProfileDisplayName(); };
+    profileNameEditor.onEscapeKey = [this] { refreshFromDocument(); };
+
+    configureToggle(confirmedToggle, "Confirmed");
+    confirmedToggle.onClick = [this] {
+      if (!suppressEditorCallbacks)
+        setSourceConfirmed(confirmedToggle.getToggleState());
+    };
+
+    configureToggle(autoDetectedToggle, "Auto");
+    autoDetectedToggle.onClick = [this] {
+      if (!suppressEditorCallbacks)
+        setSourceAutoDetected(autoDetectedToggle.getToggleState());
+    };
+
+    configureToggle(learnToggle, "Learn");
+    learnToggle.onClick = [this] {
+      if (!suppressEditorCallbacks)
+        setSourceLearnArmed(learnToggle.getToggleState());
+    };
+
+    configureReadOnlyBox(portsBox);
+    configureReadOnlyBox(bindingsBox);
+    configureReadOnlyBox(assignmentsBox);
+
+    closeButton.setButtonText("Hide");
+    closeButton.onClick = [this] { hidePanel(); };
+    setVisible(false);
+  }
+
+  void setLayoutChangedCallback(std::function<void()> callback) {
+    onLayoutChanged = std::move(callback);
+  }
+
+  void setDocumentChangedCallback(std::function<void()> callback) {
+    onDocumentChanged = std::move(callback);
+  }
+
+  bool isPanelOpen() const noexcept {
+    return isVisible() && currentSourceId.isNotEmpty();
+  }
+
+  const juce::String &selectedSourceId() const noexcept { return currentSourceId; }
+
+  void inspectSource(const juce::String &sourceId) {
+    const auto normalized = sourceId.trim();
+    if (normalized.isEmpty()) {
+      hidePanel();
+      return;
+    }
+
+    const bool wasOpen = isPanelOpen();
+    const bool changed = currentSourceId != normalized;
+    currentSourceId = normalized;
+    setVisible(true);
+    refreshFromDocument();
+
+    if ((!wasOpen || changed) && onLayoutChanged != nullptr)
+      onLayoutChanged();
+  }
+
+  void refreshFromDocument() {
+    if (currentSourceId.isEmpty())
+      return;
+
+    const auto *source = document.controlState.findSource(currentSourceId);
+    if (source == nullptr) {
+      hidePanel();
+      return;
+    }
+
+    const auto *profile = source->deviceProfileId.isNotEmpty()
+                              ? document.controlState.findDeviceProfile(source->deviceProfileId)
+                              : nullptr;
+
+    headerLabel.setText(source->displayName, juce::dontSendNotification);
+    kindLabel.setText(sourceKindLabel(source->kind) + " / " +
+                          sourceModeLabel(source->mode),
+                      juce::dontSendNotification);
+    statusLabel.setText(buildStatusLine(*source), juce::dontSendNotification);
+    portsBox.setText(buildPortSummary(*source), false);
+    bindingsBox.setText(buildBindingSummary(*source), false);
+    assignmentsBox.setText(buildAssignmentSummary(*source), false);
+
+    suppressEditorCallbacks = true;
+    kindCombo.setSelectedId(comboIdForSourceKind(source->kind),
+                            juce::dontSendNotification);
+    modeCombo.setSelectedId(comboIdForSourceMode(source->mode),
+                            juce::dontSendNotification);
+    modeCombo.setEnabled(TControlSourceState::sourceKindSupportsDiscreteMode(source->kind));
+    sourceNameEditor.setText(source->displayName.isNotEmpty() ? source->displayName
+                                                              : source->sourceId,
+                             juce::dontSendNotification);
+    const juce::String profileText =
+        profile != nullptr
+            ? (profile->displayName.isNotEmpty() ? profile->displayName
+                                                 : profile->profileId)
+            : juce::String("(Missing profile)");
+    profileNameEditor.setText(profileText, juce::dontSendNotification);
+    profileNameEditor.setEnabled(profile != nullptr);
+    confirmedToggle.setToggleState(source->confirmed, juce::dontSendNotification);
+    autoDetectedToggle.setToggleState(source->autoDetected,
+                                      juce::dontSendNotification);
+    learnToggle.setToggleState(
+        document.controlState.isLearnArmed(source->sourceId),
+        juce::dontSendNotification);
+    suppressEditorCallbacks = false;
+
+    repaint();
+  }
+
+  void hidePanel() {
+    if (!isPanelOpen() && currentSourceId.isEmpty())
+      return;
+
+    currentSourceId.clear();
+    setVisible(false);
+    if (onLayoutChanged != nullptr)
+      onLayoutChanged();
+  }
+
+  void paint(juce::Graphics &g) override {
+    const auto bounds = getLocalBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+
+    g.setGradientFill(juce::ColourGradient(TeulPalette::PanelBackgroundRaised().withAlpha(0.94f),
+                                           bounds.getCentreX(), bounds.getY(),
+                                           TeulPalette::PanelBackgroundDeep().withAlpha(0.94f),
+                                           bounds.getCentreX(),
+                                           bounds.getBottom(), false));
+    g.fillRoundedRectangle(bounds, 12.0f);
+    g.setColour(TeulPalette::AccentAmber().withAlpha(0.40f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
+  }
+
+  void resized() override {
+    auto area = getLocalBounds().reduced(10, 8);
+    auto header = area.removeFromTop(22);
+    closeButton.setBounds(header.removeFromRight(52));
+    headerLabel.setBounds(header);
+    kindLabel.setBounds(area.removeFromTop(16));
+    statusLabel.setBounds(area.removeFromTop(16));
+    area.removeFromTop(4);
+    auto shapeRow = area.removeFromTop(38);
+    auto leftShape = shapeRow.removeFromLeft(shapeRow.getWidth() / 2 - 3);
+    auto rightShape = shapeRow;
+    kindFieldLabel.setBounds(leftShape.removeFromTop(14));
+    kindCombo.setBounds(leftShape.removeFromTop(22));
+    modeFieldLabel.setBounds(rightShape.removeFromTop(14));
+    modeCombo.setBounds(rightShape.removeFromTop(22));
+    area.removeFromTop(4);
+    sourceNameLabel.setBounds(area.removeFromTop(16));
+    sourceNameEditor.setBounds(area.removeFromTop(22));
+    area.removeFromTop(5);
+    profileNameLabel.setBounds(area.removeFromTop(16));
+    profileNameEditor.setBounds(area.removeFromTop(22));
+    area.removeFromTop(6);
+    auto toggleRow = area.removeFromTop(22);
+    confirmedToggle.setBounds(toggleRow.removeFromLeft(84));
+    toggleRow.removeFromLeft(6);
+    autoDetectedToggle.setBounds(toggleRow.removeFromLeft(58));
+    toggleRow.removeFromLeft(6);
+    learnToggle.setBounds(toggleRow.removeFromLeft(64));
+    area.removeFromTop(6);
+    portsLabel.setBounds(area.removeFromTop(16));
+    portsBox.setBounds(area.removeFromTop(66));
+    area.removeFromTop(6);
+    bindingsLabel.setBounds(area.removeFromTop(16));
+    bindingsBox.setBounds(area.removeFromTop(62));
+    area.removeFromTop(6);
+    assignmentsLabel.setBounds(area.removeFromTop(16));
+    assignmentsBox.setBounds(area);
+  }
+
+private:
+  static void configureFieldLabel(juce::Label &label, const juce::String &text) {
+    label.setText(text, juce::dontSendNotification);
+    label.setJustificationType(juce::Justification::centredLeft);
+    label.setColour(juce::Label::textColourId,
+                    TeulPalette::PanelText().withAlpha(0.74f));
+    label.setFont(juce::FontOptions(10.6f, juce::Font::plain));
+  }
+
+  static void configureReadOnlyBox(juce::TextEditor &box) {
+    box.setMultiLine(true);
+    box.setReadOnly(true);
+    box.setScrollbarsShown(true);
+    box.setColour(juce::TextEditor::backgroundColourId,
+                  TeulPalette::InputBackground());
+    box.setColour(juce::TextEditor::outlineColourId,
+                  TeulPalette::InputOutline());
+    box.setColour(juce::TextEditor::textColourId,
+                  TeulPalette::PanelText().withAlpha(0.76f));
+  }
+
+  static void configureEditableField(juce::TextEditor &editor) {
+    editor.setMultiLine(false);
+    editor.setReturnKeyStartsNewLine(false);
+    editor.setScrollbarsShown(false);
+    editor.setColour(juce::TextEditor::backgroundColourId,
+                     TeulPalette::InputBackground());
+    editor.setColour(juce::TextEditor::outlineColourId,
+                     TeulPalette::InputOutline());
+    editor.setColour(juce::TextEditor::textColourId,
+                     TeulPalette::PanelTextStrong().withAlpha(0.88f));
+    editor.setColour(juce::TextEditor::highlightColourId,
+                     TeulPalette::AccentBlue().withAlpha(0.40f));
+    editor.setColour(juce::CaretComponent::caretColourId,
+                     TeulPalette::PanelTextStrong().withAlpha(0.92f));
+  }
+
+  static void configureToggle(juce::ToggleButton &button,
+                              const juce::String &text) {
+    button.setButtonText(text);
+    button.setColour(juce::ToggleButton::textColourId,
+                     TeulPalette::PanelTextStrong().withAlpha(0.86f));
+  }
+
+  static void configureComboBox(juce::ComboBox &combo) {
+    combo.setColour(juce::ComboBox::backgroundColourId,
+                    TeulPalette::InputBackground());
+    combo.setColour(juce::ComboBox::outlineColourId,
+                    TeulPalette::InputOutline());
+    combo.setColour(juce::ComboBox::textColourId,
+                    TeulPalette::PanelTextStrong().withAlpha(0.88f));
+    combo.setColour(juce::ComboBox::buttonColourId,
+                    juce::Colour(0x00000000));
+    combo.setColour(juce::ComboBox::arrowColourId,
+                    TeulPalette::PanelTextMuted().withAlpha(0.68f));
+  }
+
+  static int comboIdForSourceKind(TControlSourceKind kind) noexcept {
+    switch (kind) {
+    case TControlSourceKind::expression:
+      return 1;
+    case TControlSourceKind::footswitch:
+      return 2;
+    case TControlSourceKind::trigger:
+      return 3;
+    case TControlSourceKind::midiCc:
+      return 4;
+    case TControlSourceKind::midiNote:
+      return 5;
+    case TControlSourceKind::macro:
+      return 6;
+    }
+
+    return 1;
+  }
+
+  static TControlSourceKind sourceKindFromComboId(int comboId) noexcept {
+    switch (comboId) {
+    case 2:
+      return TControlSourceKind::footswitch;
+    case 3:
+      return TControlSourceKind::trigger;
+    case 4:
+      return TControlSourceKind::midiCc;
+    case 5:
+      return TControlSourceKind::midiNote;
+    case 6:
+      return TControlSourceKind::macro;
+    case 1:
+    default:
+      return TControlSourceKind::expression;
+    }
+  }
+
+  static int comboIdForSourceMode(TControlSourceMode mode) noexcept {
+    switch (mode) {
+    case TControlSourceMode::continuous:
+      return 1;
+    case TControlSourceMode::momentary:
+      return 2;
+    case TControlSourceMode::toggle:
+      return 3;
+    }
+
+    return 1;
+  }
+
+  static TControlSourceMode sourceModeFromComboId(int comboId) noexcept {
+    switch (comboId) {
+    case 2:
+      return TControlSourceMode::momentary;
+    case 3:
+      return TControlSourceMode::toggle;
+    case 1:
+    default:
+      return TControlSourceMode::continuous;
+    }
+  }
+
+  static juce::String sourceKindLabel(TControlSourceKind kind) {
+    switch (kind) {
+    case TControlSourceKind::expression:
+      return "Expression";
+    case TControlSourceKind::footswitch:
+      return "Footswitch";
+    case TControlSourceKind::trigger:
+      return "Trigger";
+    case TControlSourceKind::midiCc:
+      return "MIDI CC";
+    case TControlSourceKind::midiNote:
+      return "MIDI Note";
+    case TControlSourceKind::macro:
+      return "Macro";
+    }
+
+    return "Source";
+  }
+
+  static juce::String sourceModeLabel(TControlSourceMode mode) {
+    switch (mode) {
+    case TControlSourceMode::continuous:
+      return "Continuous";
+    case TControlSourceMode::momentary:
+      return "Momentary";
+    case TControlSourceMode::toggle:
+      return "Toggle";
+    }
+
+    return "Continuous";
+  }
+
+  static juce::String portKindLabel(TControlPortKind kind) {
+    switch (kind) {
+    case TControlPortKind::value:
+      return "Value";
+    case TControlPortKind::gate:
+      return "Gate";
+    case TControlPortKind::trigger:
+      return "Trigger";
+    }
+
+    return "Port";
+  }
+
+  void notifyDocumentChanged() {
+    if (onDocumentChanged != nullptr)
+      onDocumentChanged();
+  }
+
+  TControlSource *findEditableSource() noexcept {
+    return currentSourceId.isNotEmpty()
+               ? document.controlState.findSource(currentSourceId)
+               : nullptr;
+  }
+
+  TDeviceProfile *findEditableProfile() noexcept {
+    const auto *source = document.controlState.findSource(currentSourceId);
+    if (source == nullptr || source->deviceProfileId.isEmpty())
+      return nullptr;
+    return document.controlState.findDeviceProfile(source->deviceProfileId);
+  }
+
+  void commitSourceDisplayName() {
+    auto *source = findEditableSource();
+    if (source == nullptr)
+      return;
+
+    auto newName = sourceNameEditor.getText().trim();
+    if (newName.isEmpty())
+      newName = source->sourceId;
+
+    if (source->displayName == newName)
+      return;
+
+    source->displayName = newName;
+    document.controlState.syncSourceIntoDeviceProfile(*source);
+    document.controlState.reconcileDeviceProfilesAndSources();
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  void commitProfileDisplayName() {
+    auto *profile = findEditableProfile();
+    if (profile == nullptr)
+      return;
+
+    auto newName = profileNameEditor.getText().trim();
+    if (newName.isEmpty())
+      newName = profile->profileId;
+
+    if (profile->displayName == newName)
+      return;
+
+    profile->displayName = newName;
+    document.controlState.reconcileDeviceProfilesAndSources();
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  void applySourceKindOrModeChange() {
+    auto *source = findEditableSource();
+    if (source == nullptr)
+      return;
+
+    const auto nextKind = sourceKindFromComboId(kindCombo.getSelectedId());
+    auto nextMode = sourceModeFromComboId(modeCombo.getSelectedId());
+    nextMode = document.controlState.normalizedModeForKind(nextKind, nextMode);
+
+    if (!document.controlState.reconfigureSourceShape(source->sourceId, nextKind,
+                                                      nextMode)) {
+      refreshFromDocument();
+      return;
+    }
+
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  void setSourceConfirmed(bool confirmed) {
+    auto *source = findEditableSource();
+    if (source == nullptr || source->confirmed == confirmed)
+      return;
+
+    source->confirmed = confirmed;
+    if (confirmed)
+      document.controlState.setLearnArmed(source->sourceId, false);
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  void setSourceLearnArmed(bool learnArmed) {
+    auto *source = findEditableSource();
+    if (source == nullptr)
+      return;
+
+    if (!document.controlState.setLearnArmed(source->sourceId, learnArmed))
+      return;
+
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  void setSourceAutoDetected(bool autoDetected) {
+    auto *source = findEditableSource();
+    if (source == nullptr || source->autoDetected == autoDetected)
+      return;
+
+    source->autoDetected = autoDetected;
+    document.controlState.syncSourceIntoDeviceProfile(*source);
+    document.controlState.reconcileDeviceProfilesAndSources();
+    notifyDocumentChanged();
+    refreshFromDocument();
+  }
+
+  juce::String buildStatusLine(const TControlSource &source) const {
+    juce::String text;
+    const auto issueState = issueStateForControlSource(source);
+    if (issueState == TIssueState::missing)
+      text = "Status: Missing";
+    else if (issueState == TIssueState::degraded)
+      text = "Status: Degraded";
+    else if (issueState == TIssueState::invalidConfig)
+      text = "Status: Invalid";
+    else if (document.controlState.isLearnArmed(source.sourceId))
+      text = "Status: Learn armed";
+    else if (!source.confirmed)
+      text = "Status: Learn pending";
+    else if (source.autoDetected)
+      text = "Status: Auto detected";
+    else
+      text = "Status: Manual";
+
+    if (source.deviceProfileId.isNotEmpty())
+      text << " | Profile: " << source.deviceProfileId;
+    return text;
+  }
+
+  juce::String buildPortSummary(const TControlSource &source) const {
+    juce::StringArray lines;
+    for (const auto &port : source.ports)
+      lines.add(port.displayName + "  |  " + portKindLabel(port.kind) +
+                "  |  id " + port.portId);
+
+    if (lines.isEmpty())
+      lines.add("No ports available.");
+    return lines.joinIntoString("\r\r\r\n");
+  }
+
+  juce::String portNameForId(const TControlSource &source,
+                             const juce::String &portId) const {
+    for (const auto &port : source.ports) {
+      if (port.portId == portId)
+        return port.displayName;
+    }
+
+    return portId;
+  }
+
+  juce::String targetNameForAssignment(
+      const TControlSourceAssignment &assignment) const {
+    const auto *node = document.findNode(assignment.targetNodeId);
+    if (node == nullptr)
+      return "Missing node / " + assignment.targetParamId;
+
+    juce::String nodeName = node->label;
+    if (nodeName.isEmpty()) {
+      if (const auto *desc = registry.descriptorFor(node->typeKey))
+        nodeName = desc->displayName;
+      if (nodeName.isEmpty())
+        nodeName = node->typeKey;
+    }
+
+    return nodeName + " / " + assignment.targetParamId;
+  }
+
+  juce::String buildBindingSummary(const TControlSource &source) const {
+    const auto *profileSource =
+        document.controlState.findDeviceSourceProfile(source.deviceProfileId,
+                                                      source.sourceId);
+    if (profileSource == nullptr || profileSource->bindings.empty())
+      return "No learned bindings yet.";
+
+    juce::StringArray lines;
+    for (const auto &binding : profileSource->bindings) {
+      juce::String line = binding.midiDeviceName.isNotEmpty()
+                              ? binding.midiDeviceName
+                              : (binding.hardwareId.isNotEmpty()
+                                     ? binding.hardwareId
+                                     : juce::String("Unknown device"));
+      juce::StringArray parts;
+      if (binding.midiChannel > 0)
+        parts.add("Ch " + juce::String(binding.midiChannel));
+      if (binding.controllerNumber >= 0)
+        parts.add("CC " + juce::String(binding.controllerNumber));
+      if (binding.noteNumber >= 0)
+        parts.add("Note " + juce::String(binding.noteNumber));
+      if (binding.hardwareId.isNotEmpty() && binding.hardwareId != line)
+        parts.add("HW " + binding.hardwareId);
+      if (!parts.isEmpty())
+        line << " | " << parts.joinIntoString(" | " );
+      lines.add(line);
+    }
+
+    return lines.joinIntoString("\r\r\r\n");
+  }
+
+  juce::String buildAssignmentSummary(const TControlSource &source) const {
+    juce::StringArray lines;
+    for (const auto &assignment : document.controlState.assignments) {
+      if (assignment.sourceId != source.sourceId)
+        continue;
+
+      lines.add(portNameForId(source, assignment.portId) + " -> " +
+                targetNameForAssignment(assignment) + " | " +
+                controlAssignmentSettingsText(assignment));
+    }
+
+    if (lines.isEmpty())
+      lines.add("No assignments yet.");
+    return lines.joinIntoString("\r\r\r\n");
+  }
+
+  TTeulDocument &document;
+  const TNodeRegistry &registry;
+  juce::String currentSourceId;
+  juce::Label headerLabel;
+  juce::Label kindLabel;
+  juce::Label statusLabel;
+  juce::Label kindFieldLabel;
+  juce::Label modeFieldLabel;
+  juce::Label sourceNameLabel;
+  juce::Label profileNameLabel;
+  juce::Label portsLabel;
+  juce::Label bindingsLabel;
+  juce::Label assignmentsLabel;
+  juce::ComboBox kindCombo;
+  juce::ComboBox modeCombo;
+  juce::TextEditor sourceNameEditor;
+  juce::TextEditor profileNameEditor;
+  juce::TextEditor portsBox;
+  juce::TextEditor bindingsBox;
+  juce::TextEditor assignmentsBox;
+  juce::ToggleButton confirmedToggle;
+  juce::ToggleButton autoDetectedToggle;
+  juce::ToggleButton learnToggle;
+  juce::TextButton closeButton;
+  std::function<void()> onLayoutChanged;
+  std::function<void()> onDocumentChanged;
+  bool suppressEditorCallbacks = false;
+};
+
+class SystemEndpointInspectorPanel : public juce::Component {
+public:
+  explicit SystemEndpointInspectorPanel(TTeulDocument &documentIn)
+      : document(documentIn) {
+    addAndMakeVisible(headerLabel);
+    addAndMakeVisible(kindLabel);
+    addAndMakeVisible(statusLabel);
+    addAndMakeVisible(portsLabel);
+    addAndMakeVisible(detailsLabel);
+    addAndMakeVisible(portsBox);
+    addAndMakeVisible(detailsBox);
+    addAndMakeVisible(closeButton);
+
+    headerLabel.setJustificationType(juce::Justification::centredLeft);
+    headerLabel.setColour(juce::Label::textColourId,
+                          TeulPalette::PanelTextStrong().withAlpha(0.95f));
+    headerLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+
+    kindLabel.setJustificationType(juce::Justification::centredLeft);
+    kindLabel.setColour(juce::Label::textColourId,
+                        TeulPalette::PanelTextMuted().withAlpha(0.64f));
+    kindLabel.setFont(juce::FontOptions(10.8f, juce::Font::plain));
+    statusLabel.setJustificationType(juce::Justification::centredLeft);
+    statusLabel.setColour(juce::Label::textColourId,
+                          TeulPalette::PanelTextMuted().withAlpha(0.54f));
+    statusLabel.setFont(juce::FontOptions(10.2f, juce::Font::plain));
+
+    portsLabel.setText("Ports", juce::dontSendNotification);
+    portsLabel.setJustificationType(juce::Justification::centredLeft);
+    portsLabel.setColour(juce::Label::textColourId,
+                         TeulPalette::PanelText().withAlpha(0.74f));
+    portsLabel.setFont(juce::FontOptions(10.6f, juce::Font::plain));
+
+    detailsLabel.setText("Endpoint", juce::dontSendNotification);
+    detailsLabel.setJustificationType(juce::Justification::centredLeft);
+    detailsLabel.setColour(juce::Label::textColourId,
+                           TeulPalette::PanelText().withAlpha(0.74f));
+    detailsLabel.setFont(juce::FontOptions(10.6f, juce::Font::plain));
+
+    configureReadOnlyBox(portsBox);
+    configureReadOnlyBox(detailsBox);
+
+    closeButton.setButtonText("Hide");
+    closeButton.onClick = [this] { hidePanel(); };
+    setVisible(false);
+  }
+
+  void setLayoutChangedCallback(std::function<void()> callback) {
+    onLayoutChanged = std::move(callback);
+  }
+
+  void setExtraStatusLineProvider(
+      std::function<juce::String(const TSystemRailEndpoint &)> provider) {
+    extraStatusLineProvider = std::move(provider);
+  }
+
+  void setExtraDetailSummaryProvider(
+      std::function<juce::String(const TSystemRailEndpoint &)> provider) {
+    extraDetailSummaryProvider = std::move(provider);
+  }
+
+  bool isPanelOpen() const noexcept {
+    return isVisible() && currentEndpointId.isNotEmpty();
+  }
+
+  const juce::String &selectedEndpointId() const noexcept {
+    return currentEndpointId;
+  }
+
+  void inspectEndpoint(const juce::String &endpointId) {
+    const auto normalized = endpointId.trim();
+    if (normalized.isEmpty()) {
+      hidePanel();
+      return;
+    }
+
+    const bool wasOpen = isPanelOpen();
+    const bool changed = currentEndpointId != normalized;
+    currentEndpointId = normalized;
+    setVisible(true);
+    refreshFromDocument();
+
+    if ((!wasOpen || changed) && onLayoutChanged != nullptr)
+      onLayoutChanged();
+  }
+
+  void refreshFromDocument() {
+    if (currentEndpointId.isEmpty())
+      return;
+
+    const auto *endpoint = document.controlState.findEndpoint(currentEndpointId);
+    if (endpoint == nullptr) {
+      hidePanel();
+      return;
+    }
+
+    headerLabel.setText(endpoint->displayName, juce::dontSendNotification);
+    kindLabel.setText(buildKindLine(*endpoint), juce::dontSendNotification);
+    statusLabel.setText(buildStatusLine(*endpoint), juce::dontSendNotification);
+    portsBox.setText(buildPortSummary(*endpoint), false);
+    detailsBox.setText(buildDetailSummary(*endpoint), false);
+    repaint();
+  }
+
+  void hidePanel() {
+    if (!isPanelOpen() && currentEndpointId.isEmpty())
+      return;
+
+    currentEndpointId.clear();
+    setVisible(false);
+    if (onLayoutChanged != nullptr)
+      onLayoutChanged();
+  }
+
+  void paint(juce::Graphics &g) override {
+    const auto bounds = getLocalBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+
+    const auto accent = currentAccent();
+    g.setGradientFill(juce::ColourGradient(TeulPalette::PanelBackgroundRaised().withAlpha(0.94f),
+                                           bounds.getCentreX(), bounds.getY(),
+                                           TeulPalette::PanelBackgroundDeep().withAlpha(0.94f),
+                                           bounds.getCentreX(),
+                                           bounds.getBottom(), false));
+    g.fillRoundedRectangle(bounds, 12.0f);
+    g.setColour(TeulPalette::PanelStrokeStrong().interpolatedWith(accent, 0.60f).withAlpha(0.42f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
+  }
+
+  void resized() override {
+    auto area = getLocalBounds().reduced(10, 8);
+    auto header = area.removeFromTop(22);
+    closeButton.setBounds(header.removeFromRight(52));
+    headerLabel.setBounds(header);
+    kindLabel.setBounds(area.removeFromTop(16));
+    statusLabel.setBounds(area.removeFromTop(16));
+    area.removeFromTop(6);
+    portsLabel.setBounds(area.removeFromTop(16));
+    portsBox.setBounds(area.removeFromTop(102));
+    area.removeFromTop(6);
+    detailsLabel.setBounds(area.removeFromTop(16));
+    detailsBox.setBounds(area);
+  }
+
+private:
+  static void configureReadOnlyBox(juce::TextEditor &box) {
+    box.setMultiLine(true);
+    box.setReadOnly(true);
+    box.setScrollbarsShown(true);
+    box.setColour(juce::TextEditor::backgroundColourId,
+                  TeulPalette::InputBackground());
+    box.setColour(juce::TextEditor::outlineColourId,
+                  TeulPalette::InputOutline());
+    box.setColour(juce::TextEditor::textColourId,
+                  TeulPalette::PanelText().withAlpha(0.76f));
+  }
+
+  static juce::String endpointKindLabel(TSystemRailEndpointKind kind) {
+    switch (kind) {
+    case TSystemRailEndpointKind::audioInput:
+      return "Audio Input";
+    case TSystemRailEndpointKind::audioOutput:
+      return "Audio Output";
+    case TSystemRailEndpointKind::midiInput:
+      return "MIDI Input";
+    case TSystemRailEndpointKind::midiOutput:
+      return "MIDI Output";
+    }
+
+    return "Endpoint";
+  }
+
+  static juce::String dataTypeLabel(TPortDataType type) {
+    switch (type) {
+    case TPortDataType::Audio:
+      return "Audio";
+    case TPortDataType::CV:
+      return "CV";
+    case TPortDataType::MIDI:
+      return "MIDI";
+    case TPortDataType::Control:
+      return "Control";
+    }
+
+    return "Signal";
+  }
+
+  juce::Colour currentAccent() const {
+    if (const auto *endpoint = document.controlState.findEndpoint(currentEndpointId)) {
+      const auto issueState = issueStateForEndpoint(*endpoint);
+      return hasIssueState(issueState) ? issueStateAccent(issueState)
+                                       : endpointAccent(*endpoint);
+    }
+    return TeulPalette::AccentSky();
+  }
+
+  juce::String buildKindLine(const TSystemRailEndpoint &endpoint) const {
+    juce::String line = endpointKindLabel(endpoint.kind);
+    if (endpoint.stereo)
+      line << " / Stereo";
+    else if (endpoint.ports.size() > 1)
+      line << " / " << juce::String((int)endpoint.ports.size()) << " ports";
+    else
+      line << " / Single";
+
+    switch (endpoint.kind) {
+    case TSystemRailEndpointKind::audioInput:
+    case TSystemRailEndpointKind::midiInput:
+      line << " / Source";
+      break;
+    case TSystemRailEndpointKind::audioOutput:
+    case TSystemRailEndpointKind::midiOutput:
+      line << " / Sink";
+      break;
+    }
+
+    return line;
+  }
+
+  juce::String buildStatusLine(const TSystemRailEndpoint &endpoint) const {
+    const auto issueState = issueStateForEndpoint(endpoint);
+    juce::String line = hasIssueState(issueState)
+                            ? "Status: " + issueStateLabel(issueState)
+                            : juce::String("Status: Ready");
+
+    switch (endpoint.kind) {
+    case TSystemRailEndpointKind::audioInput:
+    case TSystemRailEndpointKind::midiInput:
+      line << " | Role: Incoming source";
+      break;
+    case TSystemRailEndpointKind::audioOutput:
+    case TSystemRailEndpointKind::midiOutput:
+      line << " | Role: Outgoing sink";
+      break;
+    }
+
+    if (const auto *rail = document.controlState.findRail(endpoint.railId))
+      line << " | Rail: " << rail->title;
+    const auto extraLine = extraStatusLineProvider != nullptr
+                               ? extraStatusLineProvider(endpoint)
+                               : juce::String{};
+    if (extraLine.isNotEmpty())
+      line << " | " << extraLine;
+    return line;
+  }
+
+  juce::String buildPortSummary(const TSystemRailEndpoint &endpoint) const {
+    juce::StringArray lines;
+    for (const auto &port : endpoint.ports) {
+      lines.add(port.displayName + "  |  " + dataTypeLabel(port.dataType) +
+                "  |  id " + port.portId);
+    }
+
+    if (lines.isEmpty())
+      lines.add("No ports available.");
+    return lines.joinIntoString("\r\r\r\n");
+  }
+
+  juce::String buildDetailSummary(const TSystemRailEndpoint &endpoint) const {
+    juce::StringArray lines;
+    lines.add("Endpoint id: " + endpoint.endpointId);
+    lines.add("Rail id: " + endpoint.railId);
+    lines.add("Kind: " + endpointKindLabel(endpoint.kind));
+
+    switch (endpoint.kind) {
+    case TSystemRailEndpointKind::audioInput:
+    case TSystemRailEndpointKind::midiInput:
+      lines.add("Direction: Into graph");
+      lines.add("Role: Source endpoint");
+      break;
+    case TSystemRailEndpointKind::audioOutput:
+    case TSystemRailEndpointKind::midiOutput:
+      lines.add("Direction: Out of graph");
+      lines.add("Role: Sink endpoint");
+      break;
+    }
+
+    lines.add("Stereo: " + juce::String(endpoint.stereo ? "Yes" : "No"));
+    lines.add("Port count: " + juce::String((int)endpoint.ports.size()));
+    if (endpoint.subtitle.isNotEmpty())
+      lines.add("Detail: " + endpoint.subtitle);
+    const auto extraSummary = extraDetailSummaryProvider != nullptr
+                                  ? extraDetailSummaryProvider(endpoint)
+                                  : juce::String{};
+    if (extraSummary.isNotEmpty()) {
+      for (const auto &extraLine : juce::StringArray::fromLines(extraSummary)) {
+        if (extraLine.trim().isNotEmpty())
+          lines.add(extraLine);
+      }
+    }
+    return lines.joinIntoString("\r\r\r\n");
+  }
+
+  TTeulDocument &document;
+  juce::String currentEndpointId;
+  juce::Label headerLabel;
+  juce::Label kindLabel;
+  juce::Label statusLabel;
+  juce::Label portsLabel;
+  juce::Label detailsLabel;
+  juce::TextEditor portsBox;
+  juce::TextEditor detailsBox;
+  juce::TextButton closeButton;
+  std::function<void()> onLayoutChanged;
+  std::function<juce::String(const TSystemRailEndpoint &)> extraStatusLineProvider;
+  std::function<juce::String(const TSystemRailEndpoint &)> extraDetailSummaryProvider;
+};
+class RuntimeStatusStrip : public juce::Component {
+public:
+  void setStats(const TGraphRuntime::RuntimeStats &newStats) {
+    stats = newStats;
+    repaint();
+  }
+
+  void setSessionStatus(const TEditorSessionStatus &newStatus,
+                        bool dirtyState) {
+    sessionStatus = newStatus;
+    dirty = dirtyState;
+    repaint();
+  }
+
+  void setControlStatus(const juce::String &summaryText, int issueCount,
+                        int sourceCount, int profileCount) {
+    controlSummary = summaryText;
+    controlIssueCount = issueCount;
+    controlSourceCount = sourceCount;
+    controlProfileCount = profileCount;
+    repaint();
+  }
+
+  void setTransientMessage(const juce::String &text, juce::Colour accent) {
+    transientMessage = text;
+    transientAccent = accent;
+    repaint();
+  }
+
+  void paint(juce::Graphics &g) override {
+    const auto bounds = getLocalBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+
+    const juce::Colour frameAccent =
+        (transientMessage.isNotEmpty() ? transientAccent : statusAccent())
+            .withAlpha(0.30f);
+    g.setGradientFill(juce::ColourGradient(TeulPalette::PanelBackgroundDeep().withAlpha(0.94f),
+                                           bounds.getCentreX(), bounds.getY(),
+                                           TeulPalette::PanelBackgroundRaised(),
+                                           bounds.getCentreX(),
+                                           bounds.getBottom(), false));
+    g.fillRoundedRectangle(bounds, 11.0f);
+    g.setColour(TeulPalette::HudStroke().interpolatedWith(frameAccent, 0.60f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 11.0f, 1.0f);
+
+    auto content = getLocalBounds().reduced(7, 4);
+    auto primaryRow = content.removeFromTop(15);
+    auto secondaryRow = content.removeFromTop(11);
+    content.removeFromTop(2);
+    auto badgeRow = content.removeFromTop(13);
+
+    auto cpuChip = primaryRow.removeFromRight(72);
+    const juce::String primaryText = juce::String::formatted(
+        "%.1f kHz  |  %d blk  |  %d in / %d out",
+        stats.sampleRate * 0.001,
+        stats.preparedBlockSize,
+        stats.lastInputChannels,
+        stats.lastOutputChannels);
+    const juce::String summaryText = juce::String::formatted(
+        "Gen %llu  |  Nodes %d  |  Buffers %d  |  Process %.2f ms",
+        static_cast<unsigned long long>(stats.activeGeneration),
+        stats.activeNodeCount,
+        stats.allocatedPortChannels,
+        stats.lastProcessMilliseconds);
+
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.95f));
+    g.setFont(juce::FontOptions(10.6f, juce::Font::bold));
+    g.drawText(primaryText, primaryRow, juce::Justification::centredLeft,
+               false);
+
+    drawCpuChip(g, cpuChip);
+
+    auto summaryArea = secondaryRow;
+    if (transientMessage.isNotEmpty() && secondaryRow.getWidth() > 180) {
+      const int messageWidth = juce::jlimit(
+          136, juce::jmax(180, secondaryRow.getWidth() / 2),
+          28 + transientMessage.length() * 6);
+      auto messageArea = summaryArea.removeFromRight(
+          juce::jmin(messageWidth, summaryArea.getWidth()));
+      summaryArea.removeFromRight(8);
+      drawMessageChip(g, messageArea, transientMessage, transientAccent);
+    }
+
+    if (summaryArea.getWidth() > 40) {
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.52f));
+      g.setFont(9.2f);
+      g.drawText(summaryText, summaryArea, juce::Justification::centredLeft,
+                 false);
+    }
+
+    int badgeX = badgeRow.getX();
+    auto drawBadge = [&](const juce::String &text, juce::Colour colour) {
+      if (text.isEmpty())
+        return;
+
+      const int badgeWidth = juce::jlimit(54, 144, 16 + text.length() * 6);
+      if (badgeX + badgeWidth > badgeRow.getRight())
+        return;
+
+      juce::Rectangle<int> badge(badgeX, badgeRow.getY(), badgeWidth,
+                                 badgeRow.getHeight());
+      badgeX += badgeWidth + 4;
+
+      g.setColour(colour.withAlpha(0.14f));
+      g.fillRoundedRectangle(badge.toFloat(), 6.0f);
+      g.setColour(colour.withAlpha(0.70f));
+      g.drawRoundedRectangle(badge.toFloat(), 6.0f, 1.0f);
+      g.setColour(colour.brighter(0.12f));
+      g.setFont(8.6f);
+      g.drawText(text, badge, juce::Justification::centred, false);
+    };
+
+    bool drewBadge = false;
+    if (stats.rebuildPending) {
+      drawBadge("Deferred Apply", TeulPalette::AccentAmber());
+      drewBadge = true;
+    }
+    if (stats.smoothingActiveCount > 0) {
+      drawBadge("Smooth " + juce::String(stats.smoothingActiveCount),
+                TeulPalette::AccentSky());
+      drewBadge = true;
+    }
+    if (stats.xrunDetected) {
+      drawBadge("XRUN", TeulPalette::AccentRed());
+      drewBadge = true;
+    }
+    if (stats.clipDetected) {
+      drawBadge("Clip", TeulPalette::AccentOrange());
+      drewBadge = true;
+    }
+    if (stats.denormalDetected) {
+      drawBadge("Denormal", TeulPalette::AccentGold());
+      drewBadge = true;
+    }
+    if (stats.mutedFallbackActive) {
+      drawBadge("Muted Fallback", TeulPalette::AccentSlate());
+      drewBadge = true;
+    }
+    if (!drewBadge)
+      drawBadge("Stable", TeulPalette::AccentGreen());
+
+    drawBadge(dirty ? "Dirty" : "Saved",
+              dirty ? TeulPalette::AccentAmber() : TeulPalette::AccentSlate());
+    if (sessionStatus.hasAutosaveSnapshot) {
+      const auto timeLabel = sessionStatus.lastAutosaveTime.toMilliseconds() > 0
+                                 ? sessionStatus.lastAutosaveTime.formatted("%H:%M")
+                                 : juce::String("--:--");
+      drawBadge("Autosave " + timeLabel, TeulPalette::AccentBlue());
+    }
+    if (controlSourceCount > 0 || controlProfileCount > 0) {
+      drawBadge("Ctrl " + juce::String(controlSourceCount),
+                TeulPalette::AccentAmber());
+      if (controlIssueCount > 0) {
+        drawBadge("Issues " + juce::String(controlIssueCount),
+                  TeulPalette::AccentRed().brighter(0.18f));
+      }
+    }
+  }
+
+private:
+  juce::Colour statusAccent() const {
+    if (stats.xrunDetected)
+      return TeulPalette::AccentRed();
+    if (stats.clipDetected)
+      return TeulPalette::AccentOrange();
+    if (stats.denormalDetected)
+      return TeulPalette::AccentGold();
+    if (stats.rebuildPending)
+      return TeulPalette::AccentAmber();
+    if (stats.mutedFallbackActive)
+      return TeulPalette::AccentSlate();
+    return TeulPalette::AccentGreen();
+  }
+
+  juce::Colour cpuAccent() const {
+    if (stats.xrunDetected || stats.clipDetected)
+      return TeulPalette::AccentRed();
+    if (stats.cpuLoadPercent >= 65.0f)
+      return TeulPalette::AccentOrange();
+    if (stats.cpuLoadPercent >= 35.0f)
+      return TeulPalette::AccentAmber();
+    return TeulPalette::AccentSky();
+  }
+
+  void drawCpuChip(juce::Graphics &g, juce::Rectangle<int> area) const {
+    const juce::Colour accent = cpuAccent();
+    g.setColour(accent.withAlpha(0.16f));
+    g.fillRoundedRectangle(area.toFloat(), 7.0f);
+    g.setColour(accent.withAlpha(0.86f));
+    g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.96f));
+    g.setFont(juce::FontOptions(9.8f, juce::Font::bold));
+    g.drawText(juce::String::formatted("CPU %.1f%%", stats.cpuLoadPercent),
+               area, juce::Justification::centred, false);
+  }
+
+  void drawMessageChip(juce::Graphics &g, juce::Rectangle<int> area,
+                       const juce::String &text, juce::Colour accent) const {
+    g.setColour(accent.withAlpha(0.12f));
+    g.fillRoundedRectangle(area.toFloat(), 5.0f);
+    g.setColour(accent.withAlpha(0.78f));
+    g.drawRoundedRectangle(area.toFloat(), 5.0f, 1.0f);
+    g.setColour(accent.brighter(0.12f));
+    g.setFont(juce::FontOptions(8.8f, juce::Font::bold));
+    g.drawText(text, area.reduced(7, 0), juce::Justification::centredLeft,
+               false);
+  }
+
+  TGraphRuntime::RuntimeStats stats;
+  TEditorSessionStatus sessionStatus;
+  bool dirty = false;
+  juce::String transientMessage;
+  juce::Colour transientAccent = TeulPalette::AccentSky();
+  juce::String controlSummary;
+  int controlIssueCount = 0;
+  int controlSourceCount = 0;
+  int controlProfileCount = 0;
+};
+
+class DocumentNoticeBanner : public juce::Component {
+public:
+  DocumentNoticeBanner() {
+    addAndMakeVisible(dismissButton);
+    dismissButton.setButtonText("Dismiss");
+    dismissButton.onClick = [this] {
+      if (dismissHandler != nullptr)
+        dismissHandler();
+    };
+    setVisible(false);
+  }
+
+  void setDismissHandler(std::function<void()> handler) {
+    dismissHandler = std::move(handler);
+  }
+
+  void setNotice(const TDocumentNotice &newNotice) {
+    notice = newNotice;
+    setVisible(notice.active);
+    repaint();
+  }
+
+  void paint(juce::Graphics &g) override {
+    if (!notice.active)
+      return;
+
+    const auto bounds = getLocalBounds().toFloat();
+    if (bounds.isEmpty())
+      return;
+
+    const auto accent = accentForLevel(notice.level);
+    g.setColour(TeulPalette::PanelBackgroundRaised().withAlpha(0.96f));
+    g.fillRoundedRectangle(bounds, 11.0f);
+    g.setColour(TeulPalette::PanelStrokeStrong().interpolatedWith(accent, 0.65f).withAlpha(0.85f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 11.0f, 1.0f);
+
+    auto textArea = getLocalBounds().reduced(10, 6);
+    textArea.removeFromRight(72);
+
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.95f));
+    g.setFont(juce::FontOptions(11.2f, juce::Font::bold));
+    g.drawText(notice.title, textArea.removeFromTop(16),
+               juce::Justification::centredLeft, false);
+
+    if (notice.detail.isNotEmpty()) {
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.64f));
+      g.setFont(9.8f);
+      g.drawFittedText(notice.detail, textArea.removeFromTop(12),
+                       juce::Justification::centredLeft, 1, 0.9f);
+    }
+  }
+
+  void resized() override {
+    dismissButton.setBounds(getLocalBounds().removeFromRight(68).reduced(8, 7));
+  }
+
+private:
+  static juce::Colour accentForLevel(TDocumentNoticeLevel level) {
+    switch (level) {
+    case TDocumentNoticeLevel::degraded:
+      return TeulPalette::AccentRed();
+    case TDocumentNoticeLevel::warning:
+      return TeulPalette::AccentAmber();
+    case TDocumentNoticeLevel::info:
+      return TeulPalette::AccentBlue();
+    }
+
+    return TeulPalette::AccentBlue();
+  }
+
+  TDocumentNotice notice;
+  juce::TextButton dismissButton;
+  std::function<void()> dismissHandler;
+};
+
+TTeulEditor::Impl::Impl(
+    TTeulEditor &ownerIn, juce::AudioDeviceManager *audioDeviceManagerIn,
+    ParamBindingSummaryResolver bindingSummaryResolverIn,
+    ParamBindingRevisionProvider bindingRevisionProviderIn)
+    : owner(ownerIn), registryStore(makeDefaultNodeRegistry()),
+      runtime(registryStore.get()), audioDeviceManager(audioDeviceManagerIn),
+      bindingRevisionProvider(std::move(bindingRevisionProviderIn)) {
+  runtime.setMidiOutputSink([this](const juce::MidiBuffer &midiMessages) {
+    sendRuntimeMidiOutput(midiMessages);
+  });
+  canvas = std::make_unique<TGraphCanvas>(doc, *registryStore);
+  canvas->setConnectionLevelProvider([this](const TConnection &connection) {
+    return connection.from.isNodePort() ? runtime.getPortLevel(connection.from.portId)
+                                        : 0.0f;
+  });
+  canvas->setPortLevelProvider(
+      [this](PortId portId) { return runtime.getPortLevel(portId); });
+  canvas->setBindingSummaryResolver(bindingSummaryResolverIn);
+  canvas->setNodePropertiesRequestHandler(
+      [this](NodeId nodeId) { openProperties(nodeId); });
+  owner.addAndMakeVisible(*canvas);
+
+  libraryPanel = NodeLibraryPanel::create(
+      *registryStore, [this](const juce::String &typeKey) {
+        if (canvas != nullptr)
+          canvas->addNodeByTypeAtView(typeKey, canvas->getViewCenter(), true);
+      });
+  owner.addAndMakeVisible(*libraryPanel);
+
+  placeholderInspector = std::make_unique<PlaceholderInspectorPanel>(doc);
+  owner.addAndMakeVisible(*placeholderInspector);
+
+  propertiesPanel = NodePropertiesPanel::create(
+      doc, *canvas, *registryStore, &runtime,
+      std::move(bindingSummaryResolverIn));
+  propertiesPanel->setLayoutChangedCallback([this] { owner.resized(); });
+  owner.addAndMakeVisible(*propertiesPanel);
+
+  diagnosticsDrawer = DiagnosticsDrawer::create();
+  diagnosticsDrawer->setLayoutChangedCallback([this] { owner.resized(); });
+  diagnosticsDrawer->setFocusRequestHandler(
+      [this](const juce::String &graphId, const juce::String &query) {
+        return focusDiagnosticTarget(graphId, query);
+      });
+  owner.addAndMakeVisible(*diagnosticsDrawer);
+  diagnosticsDrawer->setVisible(false);
+
+  presetBrowserPanel = PresetBrowserPanel::create();
+  presetBrowserPanel->setLayoutChangedCallback([this] { owner.resized(); });
+  presetBrowserPanel->setPrimaryActionHandler(
+      [this](const TPresetEntry &entry) -> juce::Result {
+        if (canvas == nullptr)
+          return juce::Result::fail("Preset action failed: canvas unavailable.");
+
+        if (entry.presetKind == "teul.patch") {
+          const auto result =
+              canvas->insertPatchPresetFromFile(entry.file, canvas->getViewCenter());
+          if (result.wasOk())
+            pushRuntimeMessage("Patch preset inserted", TeulPalette::AccentGreen(),
+                               44);
+          return result;
+        }
+
+        if (entry.presetKind == "teul.state") {
+          TStatePresetApplyReport report;
+          const auto result = canvas->applyStatePresetFromFile(entry.file, &report);
+          if (result.wasOk()) {
+            juce::String message = "State preset applied | Controls unchanged";
+            pushRuntimeMessage(message,
+                               report.degraded ? TeulPalette::AccentAmber()
+                                               : TeulPalette::AccentBlue(),
+                               48);
+          }
+          return result;
+        }
+
+        if (entry.presetKind == "teul.recovery") {
+          TSchemaMigrationReport migrationReport;
+          if (!TFileIo::loadFromFile(doc, entry.file, &migrationReport)) {
+            return juce::Result::fail(
+                "Recovery restore failed: autosave snapshot could not be loaded.");
+          }
+
+          rebuildAll(true);
+          const auto controlSnapshot = captureControlStateSnapshot(doc.controlState);
+          juce::String message = "Autosave snapshot restored";
+          if (controlSnapshot.sourceCount > 0 || controlSnapshot.profileCount > 0)
+            message << " | Controls: "
+                    << formatCompactControlStateSummary(controlSnapshot);
+          pushRuntimeMessage(message,
+                             (migrationReport.degraded ||
+                              totalControlIssueCount(controlSnapshot) > 0)
+                                 ? TeulPalette::AccentAmber()
+                                 : TeulPalette::AccentGreen(),
+                             60);
+          return juce::Result::ok();
+        }
+
+        return juce::Result::fail(
+            "Preset action failed: unsupported preset kind.");
+      });
+  presetBrowserPanel->setSecondaryActionHandler(
+      [this](const TPresetEntry &entry) -> juce::Result {
+        if (entry.presetKind != "teul.recovery")
+          return juce::Result::fail(
+              "Preset action failed: no secondary action available.");
+
+        if (!entry.file.existsAsFile())
+          return juce::Result::fail(
+              "Recovery discard failed: autosave snapshot file was not found.");
+
+        const auto stateFile =
+            entry.file.getParentDirectory().getChildFile("autosave-session-state.json");
+        if (!entry.file.deleteFile())
+          return juce::Result::fail(
+              "Recovery discard failed: autosave snapshot file could not be removed.");
+        if (stateFile.existsAsFile() && !stateFile.deleteFile())
+          return juce::Result::fail(
+              "Recovery discard failed: session marker file could not be removed.");
+
+        sessionStatus.hasAutosaveSnapshot = false;
+        sessionStatus.lastAutosaveTime = {};
+        refreshSessionStatusUi(true);
+        pushRuntimeMessage("Autosave snapshot discarded",
+                           TeulPalette::AccentSlate(), 44);
+        return juce::Result::ok();
+      });
+  presetBrowserPanel->setEntryPreviewHandler(
+      [this](const TPresetEntry &entry, juce::String &summaryText,
+             juce::String &detailText, bool &warning) {
+        if (entry.presetKind == "teul.recovery") {
+          const auto result = buildRecoveryDiffPreview(doc, entry.file, summaryText,
+                                                       detailText, warning);
+          if (result.failed()) {
+            summaryText = "Recovery Diff Preview Unavailable";
+            detailText = result.getErrorMessage();
+            warning = true;
+          }
+          return;
+        }
+
+        if (entry.presetKind != "teul.state")
+          return;
+
+        TStatePresetDiffPreview preview;
+        const auto result =
+            TStatePresetIO::previewAgainstDocument(doc, entry.file, &preview);
+        if (result.failed()) {
+          summaryText = "State Diff Preview Unavailable";
+          detailText = result.getErrorMessage();
+          warning = true;
+          return;
+        }
+
+        summaryText = "State Diff Preview";
+        juce::StringArray parts;
+        parts.add(juce::String(preview.changedNodeCount) + " changed nodes");
+        parts.add(juce::String(preview.changedParamValueCount) + " param deltas");
+        if (preview.changedBypassCount > 0)
+          parts.add(juce::String(preview.changedBypassCount) + " bypass deltas");
+        if (preview.missingNodeCount > 0)
+          parts.add(juce::String(preview.missingNodeCount) + " missing nodes");
+
+        detailText = parts.joinIntoString("  |  ");
+        if (!preview.changedNodeLabels.isEmpty()) {
+          auto names = preview.changedNodeLabels;
+          if (names.size() > 4)
+            names.removeRange(4, names.size() - 4);
+          detailText << "\r\r\r\r\nTargets: " << names.joinIntoString(", ");
+          if (preview.changedNodeLabels.size() > names.size())
+            detailText << " +" << juce::String(preview.changedNodeLabels.size() - names.size())
+                       << " more";
+        }
+        if (!preview.warnings.isEmpty())
+          detailText << "\r\r\r\r\nWarnings: " << preview.warnings.joinIntoString(" | ");
+        warning = preview.degraded || preview.missingNodeCount > 0;
+      });
+  owner.addAndMakeVisible(*presetBrowserPanel);
+  presetBrowserPanel->setVisible(false);
+  presetBrowserPanel->setSessionPreview("Session: Saved",
+                                        "Waiting for the first autosave snapshot.",
+                                        false);
+
+  runtimeStatusStrip = std::make_unique<RuntimeStatusStrip>();
+  owner.addAndMakeVisible(*runtimeStatusStrip);
+
+  documentNoticeBanner = std::make_unique<DocumentNoticeBanner>();
+  documentNoticeBanner->setDismissHandler([this] {
+    doc.clearTransientNotice();
+    refreshDocumentNoticeUi(true);
+  });
+  owner.addAndMakeVisible(*documentNoticeBanner);
+  documentNoticeBanner->setVisible(false);
+
+  controlSourceInspector =
+      std::make_unique<ControlSourceInspectorPanel>(doc, *registryStore);
+  controlSourceInspector->setLayoutChangedCallback(
+      [this] {
+        owner.resized();
+        refreshRailUi();
+      });
+  controlSourceInspector->setDocumentChangedCallback(
+      [this] {
+        doc.touch(true);
+        if (controlSourceInspector != nullptr)
+          controlSourceInspector->refreshFromDocument();
+        refreshRailUi();
+      });
+  owner.addAndMakeVisible(*controlSourceInspector);
+  controlSourceInspector->setVisible(false);
+
+  systemEndpointInspector =
+      std::make_unique<SystemEndpointInspectorPanel>(doc);
+  systemEndpointInspector->setLayoutChangedCallback(
+      [this] {
+        owner.resized();
+        refreshRailUi();
+      });
+  systemEndpointInspector->setExtraStatusLineProvider(
+      [this](const TSystemRailEndpoint &endpoint) {
+        return systemEndpointExtraStatusLine(endpoint);
+      });
+  systemEndpointInspector->setExtraDetailSummaryProvider(
+      [this](const TSystemRailEndpoint &endpoint) {
+        return systemEndpointExtraDetailSummary(endpoint);
+      });
+  owner.addAndMakeVisible(*systemEndpointInspector);
+  systemEndpointInspector->setVisible(false);
+
+  inputRail = std::make_unique<RailPanel>(doc, "input-rail",
+                                          RailOrientation::vertical);
+  inputRail->setEndpointSubtitleProvider(
+      [this](const TSystemRailEndpoint &endpoint) {
+        return railEndpointSubtitleOverride(endpoint);
+      });
+  inputRail->setCollapseHandler([this] { refreshRailUi(true); });
+  inputRail->setCardSelectionHandler(
+      [this](const juce::String &endpointId) { inspectSystemEndpoint(endpointId); });
+  inputRail->setPortDragTargetComponent(canvas.get());
+  inputRail->setPortDragHandlers(
+      [this](const juce::String &endpointId, const juce::String &portId,
+             juce::Point<float> sourceAnchorView,
+             juce::Point<float> mousePosView) {
+        return beginInputRailPortDrag(doc, *canvas, endpointId, portId,
+                                      sourceAnchorView, mousePosView);
+      },
+      [this](juce::Point<float> mousePosView) {
+        if (canvas != nullptr)
+          canvas->updateConnectionDrag(mousePosView);
+      },
+      [this](juce::Point<float> mousePosView) {
+        if (canvas != nullptr)
+          canvas->endConnectionDrag(mousePosView);
+      });
+  owner.addAndMakeVisible(*inputRail);
+
+  outputRail = std::make_unique<RailPanel>(doc, "output-rail",
+                                           RailOrientation::vertical);
+  outputRail->setEndpointSubtitleProvider(
+      [this](const TSystemRailEndpoint &endpoint) {
+        return railEndpointSubtitleOverride(endpoint);
+      });
+  outputRail->setCollapseHandler([this] { refreshRailUi(true); });
+  outputRail->setCardSelectionHandler(
+      [this](const juce::String &endpointId) { inspectSystemEndpoint(endpointId); });
+  owner.addAndMakeVisible(*outputRail);
+
+  controlRail = std::make_unique<RailPanel>(doc, "control-rail",
+                                            RailOrientation::horizontal);
+  controlRail->setCollapseHandler([this] { refreshRailUi(true); });
+  controlRail->setCardSelectionHandler(
+      [this](const juce::String &sourceId) { inspectControlSource(sourceId); });
+  controlRail->setPortDragTargetComponent(canvas.get());
+  controlRail->setPortDragHandlers(
+      [this](const juce::String &sourceId, const juce::String &portId,
+             juce::Point<float> sourceAnchorView,
+             juce::Point<float> mousePosView) {
+        return beginControlRailPortDrag(doc, *canvas, sourceId, portId,
+                                        sourceAnchorView, mousePosView);
+      },
+      [this](juce::Point<float> mousePosView) {
+        if (canvas != nullptr)
+          canvas->updateConnectionDrag(mousePosView);
+      },
+      [this](juce::Point<float> mousePosView) {
+        if (canvas != nullptr)
+          canvas->endConnectionDrag(mousePosView);
+      });
+  owner.addAndMakeVisible(*controlRail);
+
+  canvasOverlayLayer = std::make_unique<CanvasOverlayLayer>(*canvas);
+  owner.addAndMakeVisible(*canvasOverlayLayer);
+
+  canvas->setExternalDropZoneProvider([this] {
+    if (canvas == nullptr)
+      return std::vector<TGraphCanvas::ExternalDropZone>{};
+
+    std::vector<TGraphCanvas::ExternalDropZone> zones;
+    if (outputRail != nullptr) {
+      auto railZones = outputRail->portDropTargetsIn(*canvas);
+      zones.insert(zones.end(), railZones.begin(), railZones.end());
+    }
+    if (propertiesPanel != nullptr) {
+      for (const auto &zone : propertiesPanel->assignmentDropTargetsIn(*canvas))
+        zones.push_back({zone.zoneId, zone.boundsTarget, TPortDataType::Control});
+    }
+    return zones;
+  });
+  canvas->setExternalEndpointAnchorProvider([this] {
+    if (canvas == nullptr)
+      return std::vector<TGraphCanvas::ExternalDropZone>{};
+
+    std::vector<TGraphCanvas::ExternalDropZone> zones;
+    if (inputRail != nullptr) {
+      auto railZones = inputRail->portDropTargetsIn(*canvas);
+      zones.insert(zones.end(), railZones.begin(), railZones.end());
+    }
+    if (outputRail != nullptr) {
+      auto railZones = outputRail->portDropTargetsIn(*canvas);
+      zones.insert(zones.end(), railZones.begin(), railZones.end());
+    }
+    return zones;
+  });
+  canvas->setExternalConnectionCommitHandler(
+      [this](const TPort *sourcePort,
+             const TGraphCanvas::ExternalDragSource *externalSource,
+             const juce::String &zoneId) {
+        juce::ignoreUnused(sourcePort);
+        if (externalSource != nullptr) {
+          const bool connected =
+              connectControlSourcePortToParam(doc, *externalSource, zoneId);
+          if (connected) {
+            if (propertiesPanel != nullptr)
+              propertiesPanel->refreshBindingSummaries();
+            if (controlSourceInspector != nullptr)
+              controlSourceInspector->refreshFromDocument();
+          }
+          return connected;
+        }
+        return false;
+      });
+  canvas->setExternalDragTargetChangedHandler(
+      [this](const juce::String &zoneId, bool canConnect) {
+        if (outputRail != nullptr)
+          outputRail->setDropTargetPort({}, {}, false);
+        if (propertiesPanel != nullptr)
+          propertiesPanel->setAssignmentDropTarget({}, false);
+        if (zoneId.isEmpty())
+          return;
+
+        juce::String cardId;
+        juce::String portId;
+        if (splitRailPortZoneId(zoneId, cardId, portId)) {
+          if (outputRail != nullptr)
+            outputRail->setDropTargetPort(cardId, portId, canConnect);
+          return;
+        }
+
+        if (propertiesPanel != nullptr)
+          propertiesPanel->setAssignmentDropTarget(zoneId, canConnect);
+      });
+
+  canvas->setNodeSelectionChangedHandler(
+      [this](const std::vector<NodeId> &selectedNodeIds) {
+        handleSelectionChanged(selectedNodeIds);
+      });
+  canvas->setFrameSelectionChangedHandler(
+      [this](int frameId) { handleFrameSelectionChanged(frameId); });
+  canvas->setCanvasPrimaryInteractionHandler(
+      [this]() { clearRailInspectors(); });
+
+  owner.addAndMakeVisible(toggleLibraryButton);
+  owner.addAndMakeVisible(quickAddButton);
+  owner.addAndMakeVisible(findNodeButton);
+  owner.addAndMakeVisible(commandPaletteButton);
+  owner.addAndMakeVisible(toggleHeatmapButton);
+  owner.addAndMakeVisible(toggleProbeButton);
+  owner.addAndMakeVisible(toggleOverlayButton);
+  owner.addAndMakeVisible(toggleDiagnosticsButton);
+  owner.addAndMakeVisible(togglePresetsButton);
+
+  toggleLibraryButton.setButtonText("Library");
+  quickAddButton.setButtonText("Quick");
+  findNodeButton.setButtonText("Find");
+  commandPaletteButton.setButtonText("Cmd");
+  toggleHeatmapButton.setButtonText("Heat");
+  toggleProbeButton.setButtonText("Probe");
+  toggleOverlayButton.setButtonText("Overlay");
+  toggleDiagnosticsButton.setButtonText("Diag");
+  togglePresetsButton.setButtonText("Preset");
+
+  toggleHeatmapButton.setClickingTogglesState(true);
+  toggleProbeButton.setClickingTogglesState(true);
+  toggleOverlayButton.setClickingTogglesState(true);
+  toggleDiagnosticsButton.setClickingTogglesState(true);
+  togglePresetsButton.setClickingTogglesState(true);
+  toggleHeatmapButton.setTooltip("Toggle node cost tint and heat rails");
+  toggleProbeButton.setTooltip("Toggle node probe rails and selected readouts");
+  toggleOverlayButton.setTooltip("Toggle runtime overlay card");
+  toggleDiagnosticsButton.setTooltip("Show latest verification and benchmark results");
+  togglePresetsButton.setTooltip(
+      "Browse reusable presets and insert or apply them");
+
+  toggleLibraryButton.onClick = [this] {
+    libraryVisible = !libraryVisible;
+    if (libraryPanel != nullptr)
+      libraryPanel->setVisible(libraryVisible);
+    owner.resized();
+  };
+
+  quickAddButton.onClick = [this] {
+    if (canvas != nullptr)
+      canvas->openQuickAddAt(canvas->getViewCenter());
+  };
+
+  findNodeButton.onClick = [this] {
+    if (canvas != nullptr)
+      canvas->openNodeSearchPrompt();
+  };
+
+  commandPaletteButton.onClick = [this] {
+    if (canvas != nullptr)
+      canvas->openCommandPalette();
+  };
+
+  toggleHeatmapButton.onClick = [this] {
+    if (canvas != nullptr)
+      canvas->setRuntimeHeatmapEnabled(toggleHeatmapButton.getToggleState());
+    syncRuntimeViewButtons();
+  };
+
+  toggleProbeButton.onClick = [this] {
+    if (canvas != nullptr)
+      canvas->setLiveProbeEnabled(toggleProbeButton.getToggleState());
+    syncRuntimeViewButtons();
+  };
+
+  toggleOverlayButton.onClick = [this] {
+    if (canvas != nullptr)
+      canvas->setDebugOverlayEnabled(toggleOverlayButton.getToggleState());
+    syncRuntimeViewButtons();
+  };
+
+  toggleDiagnosticsButton.onClick = [this] {
+    if (toggleDiagnosticsButton.getToggleState() && presetBrowserPanel != nullptr)
+      presetBrowserPanel->setBrowserOpen(false);
+    if (diagnosticsDrawer != nullptr) {
+      diagnosticsDrawer->setDrawerOpen(toggleDiagnosticsButton.getToggleState());
+      if (toggleDiagnosticsButton.getToggleState())
+        diagnosticsDrawer->refreshArtifacts(true);
+    }
+    syncRuntimeViewButtons();
+  };
+
+  togglePresetsButton.onClick = [this] {
+    if (togglePresetsButton.getToggleState() && diagnosticsDrawer != nullptr)
+      diagnosticsDrawer->setDrawerOpen(false);
+    if (presetBrowserPanel != nullptr) {
+      if (togglePresetsButton.getToggleState())
+        presetBrowserPanel->refreshEntries(true);
+      presetBrowserPanel->setBrowserOpen(togglePresetsButton.getToggleState());
+    }
+    syncRuntimeViewButtons();
+  };
+
+  syncRuntimeViewButtons();
+
+  if (canvasOverlayLayer != nullptr)
+    canvasOverlayLayer->toFront(false);
+  if (propertiesPanel != nullptr)
+    propertiesPanel->toFront(false);
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->toFront(false);
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->toFront(false);
+  if (diagnosticsDrawer != nullptr)
+    diagnosticsDrawer->toFront(false);
+  if (presetBrowserPanel != nullptr)
+    presetBrowserPanel->toFront(false);
+  if (documentNoticeBanner != nullptr)
+    documentNoticeBanner->toFront(false);
+
+  rebuildAll(true);
+
+  if (audioDeviceManager != nullptr)
+    audioDeviceManager->addAudioCallback(&runtime);
+
+  if (audioDeviceManager != nullptr)
+    controlInputAdapters.push_back(
+        std::make_unique<MidiControlInputAdapter>(*this, audioDeviceManager));
+  refreshControlInputAdapters(false);
+  refreshMidiOutputDevice(false);
+  startTimerHz(20);
+}
+
+TTeulEditor::Impl::~Impl() {
+  stopTimer();
+
+  if (canvas != nullptr) {
+    canvas->setNodeSelectionChangedHandler({});
+    canvas->setFrameSelectionChangedHandler({});
+    canvas->setNodePropertiesRequestHandler({});
+    canvas->setConnectionLevelProvider({});
+    canvas->setPortLevelProvider({});
+    canvas->setBindingSummaryResolver({});
+  }
+
+  if (propertiesPanel != nullptr) {
+    propertiesPanel->setLayoutChangedCallback({});
+    propertiesPanel->setParamProvider(nullptr);
+  }
+
+  if (diagnosticsDrawer != nullptr) {
+    diagnosticsDrawer->setFocusRequestHandler({});
+    diagnosticsDrawer->setLayoutChangedCallback({});
+  }
+
+  if (presetBrowserPanel != nullptr) {
+    presetBrowserPanel->setPrimaryActionHandler({});
+    presetBrowserPanel->setSecondaryActionHandler({});
+    presetBrowserPanel->setEntryPreviewHandler({});
+    presetBrowserPanel->setLayoutChangedCallback({});
+  }
+
+  if (documentNoticeBanner != nullptr)
+    documentNoticeBanner->setDismissHandler({});
+
+  if (controlSourceInspector != nullptr) {
+    controlSourceInspector->setLayoutChangedCallback({});
+    controlSourceInspector->setDocumentChangedCallback({});
+  }
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->setLayoutChangedCallback({});
+
+  if (inputRail != nullptr) {
+    inputRail->setCollapseHandler({});
+    inputRail->setCardSelectionHandler({});
+  }
+  if (outputRail != nullptr) {
+    outputRail->setCollapseHandler({});
+    outputRail->setCardSelectionHandler({});
+  }
+  if (controlRail != nullptr) {
+    controlRail->setCollapseHandler({});
+    controlRail->setCardSelectionHandler({});
+  }
+
+  {
+    const juce::ScopedLock lock(controlLearnStateLock);
+    pendingProfileSyncEvents.clear();
+    pendingLearnBindingEvents.clear();
+  }
+  for (auto &adapter : controlInputAdapters)
+    adapter->shutdown();
+  controlInputAdapters.clear();
+
+  runtime.setMidiOutputSink({});
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    midiOutputDevice.reset();
+    midiOutputDeviceId.clear();
+    midiOutputDeviceName.clear();
+  }
+
+  if (audioDeviceManager != nullptr)
+    audioDeviceManager->removeAudioCallback(&runtime);
+}
+
+TTeulDocument &TTeulEditor::Impl::document() noexcept { return doc; }
+
+const TTeulDocument &TTeulEditor::Impl::document() const noexcept {
+  return doc;
+}
+
+const TNodeRegistry *TTeulEditor::Impl::registry() const noexcept {
+  return registryStore.get();
+}
+
+void TTeulEditor::Impl::refreshFromDocument() { rebuildAll(true); }
+
+void TTeulEditor::Impl::setSessionStatus(const TEditorSessionStatus &status) {
+  sessionStatus = status;
+  refreshSessionStatusUi(true);
+}
+
+void TTeulEditor::Impl::queueLearnedControlBinding(
+    const TDeviceBindingSignature &binding, const juce::String &profileId,
+    const juce::String &deviceId, const juce::String &profileDisplayName,
+    TControlSourceKind kind, TControlSourceMode mode,
+    const juce::String &sourceDisplayName, bool autoDetected,
+    bool confirmed) {
+  PendingLearnBindingEvent event;
+  event.binding = binding;
+  event.profileId = profileId;
+  event.deviceId = deviceId;
+  event.profileDisplayName = profileDisplayName;
+  event.sourceDisplayName = sourceDisplayName;
+  event.kind = kind;
+  event.mode = mode;
+  event.autoDetected = autoDetected;
+  event.confirmed = confirmed;
+
+  const juce::ScopedLock lock(controlLearnStateLock);
+  pendingLearnBindingEvents.push_back(std::move(event));
+}
+
+void TTeulEditor::Impl::queueControlDeviceProfileSync(
+    const std::vector<TControlDeviceProfilePresence> &profiles,
+    bool autoMarkMissing) {
+  PendingProfileSyncEvent event;
+  event.profiles = profiles;
+  event.autoMarkMissing = autoMarkMissing;
+
+  const juce::ScopedLock lock(controlLearnStateLock);
+  pendingProfileSyncEvents.push_back(std::move(event));
+}
+
+void TTeulEditor::Impl::queueControlDeviceProfilePresent(
+    const juce::String &profileId, const juce::String &deviceId,
+    const juce::String &displayName, bool autoDetected) {
+  PendingProfileDeltaEvent event;
+  event.kind = PendingProfileDeltaEvent::Kind::present;
+  event.profileId = profileId;
+  event.deviceId = deviceId;
+  event.displayName = displayName;
+  event.autoDetected = autoDetected;
+
+  const juce::ScopedLock lock(controlLearnStateLock);
+  pendingProfileDeltaEvents.push_back(std::move(event));
+}
+
+void TTeulEditor::Impl::queueControlDeviceProfileMissing(
+    const juce::String &profileId) {
+  PendingProfileDeltaEvent event;
+  event.kind = PendingProfileDeltaEvent::Kind::missing;
+  event.profileId = profileId;
+
+  const juce::ScopedLock lock(controlLearnStateLock);
+  pendingProfileDeltaEvents.push_back(std::move(event));
+}
+
+void TTeulEditor::Impl::drainPendingProfileSyncEvents() {
+  PendingProfileSyncEvent latestEvent;
+  bool hasEvent = false;
+  {
+    const juce::ScopedLock lock(controlLearnStateLock);
+    if (pendingProfileSyncEvents.empty())
+      return;
+    latestEvent = std::move(pendingProfileSyncEvents.back());
+    pendingProfileSyncEvents.clear();
+    hasEvent = true;
+  }
+
+  if (hasEvent)
+    syncControlDeviceProfiles(latestEvent.profiles, latestEvent.autoMarkMissing);
+}
+
+void TTeulEditor::Impl::drainPendingProfileDeltaEvents() {
+  std::vector<PendingProfileDeltaEvent> events;
+  {
+    const juce::ScopedLock lock(controlLearnStateLock);
+    if (pendingProfileDeltaEvents.empty())
+      return;
+    events.swap(pendingProfileDeltaEvents);
+  }
+
+  for (const auto &event : events) {
+    if (event.kind == PendingProfileDeltaEvent::Kind::present) {
+      reportControlDeviceProfilePresent(event.profileId, event.deviceId,
+                                        event.displayName,
+                                        event.autoDetected);
+    } else {
+      reportControlDeviceProfileMissing(event.profileId);
+    }
+  }
+}
+
+void TTeulEditor::Impl::drainPendingLearnBindings() {
+  if (doc.controlState.armedLearnSourceId.isEmpty()) {
+    const juce::ScopedLock lock(controlLearnStateLock);
+    pendingLearnBindingEvents.clear();
+    return;
+  }
+
+  std::vector<PendingLearnBindingEvent> events;
+  {
+    const juce::ScopedLock lock(controlLearnStateLock);
+    if (pendingLearnBindingEvents.empty())
+      return;
+    events.swap(pendingLearnBindingEvents);
+  }
+
+  for (const auto &event : events) {
+    if (doc.controlState.armedLearnSourceId.isEmpty())
+      break;
+
+    applyLearnedControlBinding(event.binding, event.profileId, event.deviceId,
+                               event.profileDisplayName, event.kind,
+                               event.mode, event.sourceDisplayName,
+                               event.autoDetected, event.confirmed);
+  }
+}
+
+bool TTeulEditor::Impl::applyLearnedControlBinding(
+    const TDeviceBindingSignature &binding, const juce::String &profileId,
+    const juce::String &deviceId, const juce::String &profileDisplayName,
+    TControlSourceKind kind, TControlSourceMode mode,
+    const juce::String &sourceDisplayName, bool autoDetected, bool confirmed) {
+  const auto beforeSnapshot = captureControlStateSnapshot(doc.controlState);
+  const bool applied = doc.controlState.applyLearnedBindingToArmedSource(
+      binding, profileId, deviceId, profileDisplayName, kind, mode,
+      sourceDisplayName, autoDetected, confirmed);
+  if (!applied) {
+    pushRuntimeMessage("No armed control source to learn",
+                       TeulPalette::AccentAmber(), 60);
+    return false;
+  }
+  doc.touch(true);
+  const auto afterSnapshot = captureControlStateSnapshot(doc.controlState);
+
+  if (propertiesPanel != nullptr) {
+    propertiesPanel->refreshBindingSummaries();
+    propertiesPanel->refreshFromDocument();
+  }
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->refreshFromDocument();
+  refreshRailUi();
+  refreshDocumentNoticeUi(true);
+  refreshSessionStatusUi(true);
+  pushRuntimeMessage(
+      formatControlStateRuntimeMessage("Learned binding applied", beforeSnapshot,
+                                       afterSnapshot),
+      controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
+                                TeulPalette::AccentGreen()),
+      60);
+  return true;
+}
+
+bool TTeulEditor::Impl::applyLearnedMidiMessage(
+    const juce::MidiMessage &message, const juce::String &midiDeviceName,
+    const juce::String &hardwareId, const juce::String &profileId,
+    const juce::String &profileDisplayName, bool autoDetected, bool confirmed) {
+  TDeviceBindingSignature binding;
+  binding.midiDeviceName = midiDeviceName.trim();
+  binding.hardwareId = hardwareId.trim();
+  binding.midiChannel = message.getChannel();
+
+  TControlSourceKind kind = TControlSourceKind::midiCc;
+  TControlSourceMode mode = TControlSourceMode::continuous;
+  juce::String sourceDisplayName;
+
+  if (message.isController()) {
+    binding.controllerNumber = message.getControllerNumber();
+    sourceDisplayName = "MIDI CC " + juce::String(binding.controllerNumber);
+  } else if (message.isNoteOnOrOff()) {
+    kind = TControlSourceKind::midiNote;
+    mode = TControlSourceMode::momentary;
+    binding.noteNumber = message.getNoteNumber();
+    sourceDisplayName = "MIDI Note " + juce::String(binding.noteNumber);
+  } else {
+    pushRuntimeMessage("Learn expects MIDI CC or MIDI Note input",
+                       TeulPalette::AccentAmber(), 60);
+    return false;
+  }
+
+  auto normalizedProfileId = profileId.trim();
+  if (normalizedProfileId.isEmpty())
+    normalizedProfileId = hardwareId.trim().isNotEmpty()
+                              ? hardwareId.trim()
+                              : (midiDeviceName.trim().isNotEmpty()
+                                     ? midiDeviceName.trim()
+                                     : juce::String("midi-device"));
+
+  auto normalizedProfileDisplayName = profileDisplayName.trim();
+  if (normalizedProfileDisplayName.isEmpty())
+    normalizedProfileDisplayName = midiDeviceName.trim().isNotEmpty()
+                                       ? midiDeviceName.trim()
+                                       : (hardwareId.trim().isNotEmpty()
+                                              ? hardwareId.trim()
+                                              : normalizedProfileId);
+
+  return applyLearnedControlBinding(binding, normalizedProfileId,
+                                    hardwareId.trim(),
+                                    normalizedProfileDisplayName, kind, mode,
+                                    sourceDisplayName, autoDetected,
+                                    confirmed);
+}
+
+bool TTeulEditor::Impl::reportControlDeviceProfilePresent(
+    const juce::String &profileId, const juce::String &deviceId,
+    const juce::String &displayName, bool autoDetected) {
+  const auto beforeSnapshot = captureControlStateSnapshot(doc.controlState);
+  const bool changed = doc.controlState.markDeviceProfilePresent(
+      profileId, deviceId, displayName, autoDetected);
+  if (!changed)
+    return false;
+  const auto afterSnapshot = captureControlStateSnapshot(doc.controlState);
+
+  if (propertiesPanel != nullptr)
+    propertiesPanel->refreshFromDocument();
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->refreshFromDocument();
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->refreshFromDocument();
+  refreshRailUi();
+  refreshDocumentNoticeUi(true);
+  refreshSessionStatusUi(true);
+  pushRuntimeMessage(
+      formatControlStateRuntimeMessage("Control device connected", beforeSnapshot,
+                                       afterSnapshot),
+      controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
+                                TeulPalette::AccentGreen()),
+      50);
+  return true;
+}
+
+bool TTeulEditor::Impl::reportControlDeviceProfileMissing(
+    const juce::String &profileId) {
+  const auto beforeSnapshot = captureControlStateSnapshot(doc.controlState);
+  const bool changed = doc.controlState.markDeviceProfileMissing(profileId);
+  if (!changed)
+    return false;
+  const auto afterSnapshot = captureControlStateSnapshot(doc.controlState);
+
+  if (propertiesPanel != nullptr)
+    propertiesPanel->refreshFromDocument();
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->refreshFromDocument();
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->refreshFromDocument();
+  refreshRailUi();
+  refreshDocumentNoticeUi(true);
+  refreshSessionStatusUi(true);
+  pushRuntimeMessage(
+      formatControlStateRuntimeMessage("Control device disconnected",
+                                       beforeSnapshot, afterSnapshot),
+      controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
+                                TeulPalette::AccentAmber()),
+      50);
+  return true;
+}
+bool TTeulEditor::Impl::syncControlDeviceProfiles(
+    const std::vector<TControlDeviceProfilePresence> &profiles,
+    bool autoMarkMissing) {
+  const auto beforeSnapshot = captureControlStateSnapshot(doc.controlState);
+  std::vector<juce::String> reportedProfileIds;
+  bool changed = false;
+  for (const auto &profile : profiles) {
+    const auto normalizedProfileId = profile.profileId.trim();
+    if (normalizedProfileId.isEmpty())
+      continue;
+    bool alreadyReported = false;
+    for (const auto &reportedId : reportedProfileIds) {
+      if (reportedId == normalizedProfileId) {
+        alreadyReported = true;
+        break;
+      }
+    }
+    if (!alreadyReported)
+      reportedProfileIds.push_back(normalizedProfileId);
+    if (doc.controlState.markDeviceProfilePresent(
+            normalizedProfileId, profile.deviceId.trim(),
+            profile.displayName.trim(), profile.autoDetected)) {
+      changed = true;
+    }
+  }
+  if (autoMarkMissing) {
+    std::vector<juce::String> profilesToMarkMissing;
+    for (const auto &profile : doc.controlState.deviceProfiles) {
+      const auto normalizedProfileId = profile.profileId.trim();
+      if (normalizedProfileId.isEmpty() || normalizedProfileId == "preview-device")
+        continue;
+      if (!profile.autoDetected)
+        continue;
+      bool isReported = false;
+      for (const auto &reportedId : reportedProfileIds) {
+        if (reportedId == normalizedProfileId) {
+          isReported = true;
+          break;
+        }
+      }
+      if (!isReported)
+        profilesToMarkMissing.push_back(normalizedProfileId);
+    }
+    for (const auto &profileId : profilesToMarkMissing) {
+      if (doc.controlState.markDeviceProfileMissing(profileId))
+        changed = true;
+    }
+  }
+  if (!changed)
+    return false;
+  const auto afterSnapshot = captureControlStateSnapshot(doc.controlState);
+  if (propertiesPanel != nullptr)
+    propertiesPanel->refreshFromDocument();
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->refreshFromDocument();
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->refreshFromDocument();
+  refreshRailUi();
+  refreshDocumentNoticeUi(true);
+  refreshSessionStatusUi(true);
+  pushRuntimeMessage(
+      formatControlStateRuntimeMessage("Control devices synced", beforeSnapshot,
+                                       afterSnapshot),
+      controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
+                                TeulPalette::AccentBlue()),
+      50);
+  return true;
+}
+void TTeulEditor::Impl::layout(juce::Rectangle<int> area) {
+  auto top = area.removeFromTop(33).reduced(6, 3);
+
+  toggleLibraryButton.setBounds(top.removeFromLeft(62));
+  top.removeFromLeft(2);
+  quickAddButton.setBounds(top.removeFromLeft(74));
+  top.removeFromLeft(2);
+  findNodeButton.setBounds(top.removeFromLeft(72));
+  top.removeFromLeft(2);
+  commandPaletteButton.setBounds(top.removeFromLeft(46));
+  top.removeFromLeft(3);
+  toggleHeatmapButton.setBounds(top.removeFromLeft(60));
+  top.removeFromLeft(2);
+  toggleProbeButton.setBounds(top.removeFromLeft(64));
+  top.removeFromLeft(2);
+  toggleOverlayButton.setBounds(top.removeFromLeft(76));
+  top.removeFromLeft(2);
+  toggleDiagnosticsButton.setBounds(top.removeFromLeft(84));
+  top.removeFromLeft(2);
+  togglePresetsButton.setBounds(top.removeFromLeft(74));
+
+  if (runtimeStatusStrip != nullptr) {
+    auto statusArea = area.removeFromTop(44).reduced(6, 2);
+    runtimeStatusStrip->setBounds(statusArea);
+  }
+
+  if (documentNoticeBanner != nullptr) {
+    if (documentNoticeBanner->isVisible()) {
+      auto bannerArea = area.removeFromTop(32).reduced(6, 2);
+      documentNoticeBanner->setBounds(bannerArea);
+    } else {
+      documentNoticeBanner->setBounds({});
+    }
+  }
+
+  if (libraryPanel != nullptr) {
+    libraryPanel->setVisible(libraryVisible);
+    if (libraryVisible) {
+      auto left = area.removeFromLeft(204);
+      libraryPanel->setBounds(left.reduced(0, 2));
+    }
+  }
+
+  const bool endpointInspectorOpen = systemEndpointInspector != nullptr &&
+                                     systemEndpointInspector->isPanelOpen();
+  const bool controlInspectorOpen = controlSourceInspector != nullptr &&
+                                    controlSourceInspector->isPanelOpen();
+  const bool propertiesOpen = propertiesPanel != nullptr &&
+                              propertiesPanel->isPanelOpen();
+  const bool anyInspectorOpen = endpointInspectorOpen || controlInspectorOpen ||
+                                propertiesOpen;
+  auto right = area.removeFromRight(284);
+  const auto inspectorBounds = right.reduced(0, 2);
+  if (placeholderInspector != nullptr) {
+    placeholderInspector->setVisible(!anyInspectorOpen);
+    placeholderInspector->setBounds(!anyInspectorOpen ? inspectorBounds
+                                                      : juce::Rectangle<int>());
+  }
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->setBounds(endpointInspectorOpen
+                                           ? inspectorBounds
+                                           : juce::Rectangle<int>());
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->setBounds(controlInspectorOpen
+                                          ? inspectorBounds
+                                          : juce::Rectangle<int>());
+  if (propertiesPanel != nullptr)
+    propertiesPanel->setBounds((!endpointInspectorOpen &&
+                                !controlInspectorOpen && propertiesOpen)
+                                   ? inspectorBounds
+                                   : juce::Rectangle<int>());
+
+  if (presetBrowserPanel != nullptr && presetBrowserPanel->isBrowserOpen()) {
+    auto drawerArea = area.removeFromBottom(496).reduced(0, 2);
+    presetBrowserPanel->setBounds(drawerArea);
+  } else if (diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen()) {
+    auto drawerArea = area.removeFromBottom(584).reduced(0, 2);
+    diagnosticsDrawer->setBounds(drawerArea);
+  }
+
+  if (presetBrowserPanel != nullptr && !presetBrowserPanel->isBrowserOpen())
+    presetBrowserPanel->setBounds({});
+  if (diagnosticsDrawer != nullptr && !diagnosticsDrawer->isDrawerOpen())
+    diagnosticsDrawer->setBounds({});
+
+  if (controlRail != nullptr) {
+    const bool collapsed = controlRail->isRailCollapsed();
+    const int targetHeight =
+        collapsed ? 48
+                  : juce::jlimit(100, 176,
+                                 juce::roundToInt((float)area.getHeight() * 0.155f));
+    const int railHeight = juce::jmin(targetHeight,
+                                      juce::jmax(collapsed ? 48 : 92,
+                                                 area.getHeight() / 3));
+    controlRail->setBounds(area.removeFromBottom(railHeight).reduced(0, 2));
+  }
+
+  if (inputRail != nullptr) {
+    const bool collapsed = inputRail->isRailCollapsed();
+    const int targetWidth =
+        collapsed ? 48
+                  : juce::jlimit(100, 160,
+                                 juce::roundToInt((float)area.getWidth() * 0.125f));
+    const int railWidth = juce::jmin(targetWidth,
+                                     juce::jmax(collapsed ? 48 : 88,
+                                                area.getWidth() / 4));
+    inputRail->setBounds(area.removeFromLeft(railWidth).reduced(0, 2));
+  }
+
+  if (outputRail != nullptr) {
+    const bool collapsed = outputRail->isRailCollapsed();
+    const int targetWidth =
+        collapsed ? 48
+                  : juce::jlimit(100, 160,
+                                 juce::roundToInt((float)area.getWidth() * 0.125f));
+    const int railWidth = juce::jmin(targetWidth,
+                                     juce::jmax(collapsed ? 48 : 88,
+                                                area.getWidth() / 4));
+    outputRail->setBounds(area.removeFromRight(railWidth).reduced(0, 2));
+  }
+
+  if (canvas != nullptr)
+    canvas->setBounds(area.reduced(0, 2));
+
+  if (canvasOverlayLayer != nullptr) {
+    juce::Rectangle<int> overlayBounds;
+    if (canvas != nullptr)
+      overlayBounds = canvas->getBounds();
+    if (inputRail != nullptr)
+      overlayBounds = overlayBounds.getUnion(inputRail->getBounds());
+    if (outputRail != nullptr)
+      overlayBounds = overlayBounds.getUnion(outputRail->getBounds());
+    if (controlRail != nullptr)
+      overlayBounds = overlayBounds.getUnion(controlRail->getBounds());
+    canvasOverlayLayer->setBounds(overlayBounds);
+  }
+}
+
+juce::String TTeulEditor::Impl::railEndpointSubtitleOverride(
+    const TSystemRailEndpoint &endpoint) const {
+  if (endpoint.kind != TSystemRailEndpointKind::midiOutput)
+    return {};
+
+  juce::String deviceName;
+  bool connected = false;
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    deviceName = midiOutputDeviceName;
+    connected = midiOutputDevice != nullptr;
+  }
+
+  if (connected && deviceName.isNotEmpty())
+    return "To " + deviceName;
+  return "No MIDI output device";
+}
+
+juce::String TTeulEditor::Impl::systemEndpointExtraStatusLine(
+    const TSystemRailEndpoint &endpoint) const {
+  if (endpoint.kind != TSystemRailEndpointKind::midiOutput)
+    return {};
+
+  juce::String deviceName;
+  bool connected = false;
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    deviceName = midiOutputDeviceName;
+    connected = midiOutputDevice != nullptr;
+  }
+
+  if (connected && deviceName.isNotEmpty())
+    return "Device: " + deviceName;
+  return "Device: Not connected";
+}
+
+juce::String TTeulEditor::Impl::systemEndpointExtraDetailSummary(
+    const TSystemRailEndpoint &endpoint) const {
+  if (endpoint.kind != TSystemRailEndpointKind::midiOutput)
+    return {};
+
+  juce::String deviceId;
+  juce::String deviceName;
+  bool connected = false;
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    deviceId = midiOutputDeviceId;
+    deviceName = midiOutputDeviceName;
+    connected = midiOutputDevice != nullptr;
+  }
+
+  juce::StringArray lines;
+  lines.add("Output device: " + ((connected && deviceName.isNotEmpty()) ? deviceName : juce::String("Not connected")));
+  if (deviceId.isNotEmpty())
+    lines.add("Output device id: " + deviceId);
+  return lines.joinIntoString("\n");
+}
+
+void TTeulEditor::Impl::refreshControlInputAdapters(bool announceChanges) {
+  for (auto &adapter : controlInputAdapters)
+    adapter->refresh(announceChanges);
+}
+
+void TTeulEditor::Impl::refreshMidiOutputDevice(bool announceChanges) {
+  const auto devices = juce::MidiOutput::getAvailableDevices();
+
+  auto findDeviceById = [&](const juce::String &deviceId)
+      -> const juce::MidiDeviceInfo * {
+    for (const auto &device : devices) {
+      if (device.identifier == deviceId)
+        return &device;
+    }
+    return nullptr;
+  };
+
+  juce::String currentId;
+  juce::String currentName;
+  bool hadDevice = false;
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    currentId = midiOutputDeviceId;
+    currentName = midiOutputDeviceName;
+    hadDevice = midiOutputDevice != nullptr;
+  }
+
+  juce::ignoreUnused(currentName);
+
+  const juce::MidiDeviceInfo *targetDevice = nullptr;
+  if (const auto *existing = findDeviceById(currentId))
+    targetDevice = existing;
+  else if (!devices.isEmpty())
+    targetDevice = &devices.getReference(0);
+
+  if (targetDevice == nullptr) {
+    bool changed = false;
+    {
+      const juce::ScopedLock lock(midiOutputDeviceLock);
+      changed = midiOutputDevice != nullptr || midiOutputDeviceId.isNotEmpty() ||
+                midiOutputDeviceName.isNotEmpty();
+      midiOutputDevice.reset();
+      midiOutputDeviceId.clear();
+      midiOutputDeviceName.clear();
+    }
+    if (announceChanges && changed)
+      pushRuntimeMessage("MIDI output disconnected",
+                         TeulPalette::AccentAmber(), 60);
+    if (changed) {
+      if (systemEndpointInspector != nullptr)
+        systemEndpointInspector->refreshFromDocument();
+      refreshRailUi();
+      refreshSessionStatusUi(true);
+    }
+    return;
+  }
+
+  const auto targetId = targetDevice->identifier;
+  const auto targetName = targetDevice->name.trim().isNotEmpty()
+                              ? targetDevice->name.trim()
+                              : targetId;
+
+  if (hadDevice && currentId == targetId) {
+    const bool nameChanged = currentName != targetName;
+    {
+      const juce::ScopedLock lock(midiOutputDeviceLock);
+      midiOutputDeviceName = targetName;
+    }
+    if (nameChanged) {
+      if (systemEndpointInspector != nullptr)
+        systemEndpointInspector->refreshFromDocument();
+      refreshRailUi();
+      refreshSessionStatusUi(true);
+    }
+    return;
+  }
+
+  auto openedUnique = juce::MidiOutput::openDevice(targetId);
+  if (openedUnique == nullptr) {
+    if (announceChanges)
+      pushRuntimeMessage("Failed to open MIDI output: " + targetName,
+                         TeulPalette::AccentAmber(), 60);
+    return;
+  }
+
+  std::shared_ptr<juce::MidiOutput> opened(openedUnique.release());
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    midiOutputDevice = std::move(opened);
+    midiOutputDeviceId = targetId;
+    midiOutputDeviceName = targetName;
+  }
+
+  if (announceChanges || !hadDevice || currentId != targetId) {
+    pushRuntimeMessage("MIDI output connected: " + targetName,
+                       TeulPalette::AccentGreen(), 60);
+  }
+
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->refreshFromDocument();
+  refreshRailUi();
+  refreshSessionStatusUi(true);
+}
+
+void TTeulEditor::Impl::sendRuntimeMidiOutput(
+    const juce::MidiBuffer &midiMessages) {
+  if (midiMessages.isEmpty())
+    return;
+
+  std::shared_ptr<juce::MidiOutput> device;
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    device = midiOutputDevice;
+  }
+
+  if (device != nullptr)
+    device->sendBlockOfMessagesNow(midiMessages);
+}
+
+bool TTeulEditor::Impl::applyRuntimeControlMidiMessage(
+    const juce::MidiMessage &message, const juce::String &profileId,
+    const juce::String &midiDeviceName, const juce::String &hardwareId) {
+  if (!message.isController() && !message.isNoteOnOrOff())
+    return false;
+
+  const auto normalizedProfileId = profileId.trim();
+  const auto normalizedDeviceName = midiDeviceName.trim();
+  const auto normalizedHardwareId = hardwareId.trim();
+  const float normalizedValue = normalizedControlValueForMidiMessage(message);
+  bool applied = false;
+
+  for (const auto &source : doc.controlState.sources) {
+    const auto sourceId = source.sourceId.trim();
+    if (sourceId.isEmpty() || source.missing || source.degraded)
+      continue;
+    if (normalizedProfileId.isNotEmpty() &&
+        source.deviceProfileId.trim() != normalizedProfileId) {
+      continue;
+    }
+
+    const auto *profileSource = doc.controlState.findDeviceSourceProfile(
+        source.deviceProfileId, source.sourceId);
+    if (profileSource == nullptr || profileSource->bindings.empty())
+      continue;
+
+    const bool matchesBinding = std::any_of(
+        profileSource->bindings.begin(), profileSource->bindings.end(),
+        [&](const TDeviceBindingSignature &binding) {
+          return midiBindingMatchesMessage(binding, message,
+                                           normalizedDeviceName,
+                                           normalizedHardwareId);
+        });
+    if (!matchesBinding)
+      continue;
+
+    for (const auto &port : source.ports) {
+      if (runtime.applyControlSourceValue(sourceId, port.portId,
+                                          normalizedValue)) {
+        applied = true;
+      }
+    }
+  }
+
+  return applied;
+}
+void TTeulEditor::Impl::timerCallback() {
+  const auto currentRuntimeRevision = doc.getRuntimeRevision();
+  if (currentRuntimeRevision != lastRuntimeRevision) {
+    runtime.buildGraph(doc);
+    lastRuntimeRevision = currentRuntimeRevision;
+  }
+
+  const auto currentDocumentRevision = doc.getDocumentRevision();
+  if (currentDocumentRevision != lastDocumentRevision) {
+    if (propertiesPanel != nullptr)
+      propertiesPanel->refreshFromDocument();
+    if (controlSourceInspector != nullptr)
+      controlSourceInspector->refreshFromDocument();
+    if (systemEndpointInspector != nullptr)
+      systemEndpointInspector->refreshFromDocument();
+    if (placeholderInspector != nullptr)
+      placeholderInspector->refreshFromDocument();
+    refreshRailUi();
+    lastDocumentRevision = currentDocumentRevision;
+  }
+
+  const auto currentBindingRevision =
+      bindingRevisionProvider != nullptr ? bindingRevisionProvider() : 0;
+  if (currentBindingRevision != lastBindingRevision) {
+    if (propertiesPanel != nullptr)
+      propertiesPanel->refreshBindingSummaries();
+    lastBindingRevision = currentBindingRevision;
+  }
+
+    drainPendingProfileSyncEvents();
+  drainPendingProfileDeltaEvents();
+  drainPendingLearnBindings();
+
+  if (++controlInputRefreshCounter >= 20) {
+    controlInputRefreshCounter = 0;
+    refreshControlInputAdapters(true);
+    refreshMidiOutputDevice(true);
+  }
+
+  refreshRuntimeUi();
+  refreshDocumentNoticeUi();
+  refreshSessionStatusUi();
+  if (diagnosticsDrawer != nullptr)
+    diagnosticsDrawer->refreshArtifacts();
+}
+
+void TTeulEditor::Impl::rebuildAll(bool rebuildRuntime) {
+  if (canvas != nullptr)
+    canvas->rebuildNodeComponents();
+  if (rebuildRuntime)
+    runtime.buildGraph(doc);
+  if (propertiesPanel != nullptr) {
+    propertiesPanel->setParamProvider(&runtime);
+    propertiesPanel->refreshFromDocument();
+  }
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->refreshFromDocument();
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->refreshFromDocument();
+  if (placeholderInspector != nullptr)
+    placeholderInspector->refreshFromDocument();
+
+  if (!controlInputAdapters.empty())
+    refreshControlInputAdapters(false);
+  refreshMidiOutputDevice(false);
+
+  lastDocumentRevision = doc.getDocumentRevision();
+  lastRuntimeRevision = doc.getRuntimeRevision();
+  refreshRailUi();
+  refreshRuntimeUi(true);
+  refreshDocumentNoticeUi(true);
+  refreshSessionStatusUi(true);
+  owner.resized();
+}
+
+void TTeulEditor::Impl::handleSelectionChanged(
+    const std::vector<NodeId> &selectedNodeIds) {
+  if (propertiesPanel == nullptr)
+    return;
+
+  clearRailInspectors();
+
+  if (selectedNodeIds.size() == 1)
+    inspectNodeWithReveal(selectedNodeIds.front());
+  else
+    propertiesPanel->hidePanel();
+}
+
+void TTeulEditor::Impl::handleFrameSelectionChanged(int frameId) {
+  if (propertiesPanel == nullptr)
+    return;
+
+  clearRailInspectors();
+
+  if (frameId > 0) {
+    propertiesPanel->inspectFrame(frameId);
+    return;
+  }
+
+  if (canvas == nullptr || canvas->getSelectedNodeIds().empty())
+    propertiesPanel->hidePanel();
+}
+
+void TTeulEditor::Impl::openProperties(NodeId nodeId) {
+  if (propertiesPanel != nullptr)
+    inspectNodeWithReveal(nodeId);
+}
+
+void TTeulEditor::Impl::inspectNodeWithReveal(NodeId nodeId) {
+  if (propertiesPanel == nullptr)
+    return;
+
+  clearRailInspectors();
+
+  const bool wasOpen = propertiesPanel->isPanelOpen();
+  propertiesPanel->inspectNode(nodeId);
+
+  if (!wasOpen && canvas != nullptr)
+    canvas->ensureNodeVisible(nodeId, 28.0f);
+}
+
+void TTeulEditor::Impl::inspectControlSource(const juce::String &sourceId) {
+  if (controlSourceInspector == nullptr)
+    return;
+
+  const auto normalized = sourceId.trim();
+  if (normalized.isEmpty()) {
+    if (canvas != nullptr)
+      canvas->clearAllSelection();
+    clearControlSourceInspector();
+    return;
+  }
+
+  if (canvas != nullptr)
+    canvas->clearAllSelection();
+
+  if (propertiesPanel != nullptr)
+    propertiesPanel->hidePanel();
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->hidePanel();
+
+  controlSourceInspector->inspectSource(normalized);
+  refreshRailUi();
+}
+
+void TTeulEditor::Impl::inspectSystemEndpoint(const juce::String &endpointId) {
+  if (systemEndpointInspector == nullptr)
+    return;
+
+  const auto normalized = endpointId.trim();
+  if (normalized.isEmpty()) {
+    if (canvas != nullptr)
+      canvas->clearAllSelection();
+    clearSystemEndpointInspector();
+    return;
+  }
+
+  if (canvas != nullptr)
+    canvas->clearAllSelection();
+
+  if (propertiesPanel != nullptr)
+    propertiesPanel->hidePanel();
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->hidePanel();
+
+  systemEndpointInspector->inspectEndpoint(normalized);
+  refreshRailUi();
+}
+
+void TTeulEditor::Impl::clearControlSourceInspector() {
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->hidePanel();
+  refreshRailUi();
+}
+
+void TTeulEditor::Impl::clearSystemEndpointInspector() {
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->hidePanel();
+  refreshRailUi();
+}
+
+void TTeulEditor::Impl::clearRailInspectors() {
+  if (controlSourceInspector != nullptr)
+    controlSourceInspector->hidePanel();
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->hidePanel();
+  refreshRailUi();
+}
+
+bool TTeulEditor::Impl::focusDiagnosticTarget(const juce::String &graphId,
+                                               const juce::String &query) {
+  juce::ignoreUnused(graphId);
+  if (canvas == nullptr)
+    return false;
+
+  return canvas->focusNodeByQuery(query);
+}
+
+void TTeulEditor::Impl::refreshDocumentNoticeUi(bool force) {
+  if (documentNoticeBanner == nullptr)
+    return;
+
+  const auto noticeRevision = doc.getTransientNoticeRevision();
+  if (!force && noticeRevision == lastDocumentNoticeRevision)
+    return;
+
+  const bool wasVisible = documentNoticeBanner->isVisible();
+  documentNoticeBanner->setNotice(doc.getTransientNotice());
+  lastDocumentNoticeRevision = noticeRevision;
+
+  if (wasVisible != documentNoticeBanner->isVisible())
+    owner.resized();
+}
+
+void TTeulEditor::Impl::refreshSessionStatusUi(bool force) {
+  const bool dirty =
+      doc.getDocumentRevision() != sessionStatus.lastPersistedDocumentRevision;
+  const auto autosaveMillis = sessionStatus.lastAutosaveTime.toMilliseconds();
+  const auto controlSnapshot = captureControlStateSnapshot(doc.controlState);
+  const auto controlIssueCount = totalControlIssueCount(controlSnapshot);
+  juce::String controlSummary;
+  if (controlSnapshot.sourceCount > 0 || controlSnapshot.profileCount > 0) {
+    controlSummary = "Controls: " + formatCompactControlStateSummary(controlSnapshot);
+    if (controlIssueCount > 0)
+      controlSummary << " (" << formatControlIssueSummary(controlSnapshot) << ")";
+  }
+  if (!force && dirty == lastSessionDirty &&
+      sessionStatus.hasAutosaveSnapshot == lastSessionHasAutosaveSnapshot &&
+      autosaveMillis == lastSessionAutosaveMillis &&
+      controlSummary == lastSessionControlSummary) {
+    return;
+  }
+
+  if (runtimeStatusStrip != nullptr) {
+    runtimeStatusStrip->setSessionStatus(sessionStatus, dirty);
+    runtimeStatusStrip->setControlStatus(
+        controlSummary, controlIssueCount, controlSnapshot.sourceCount,
+        controlSnapshot.profileCount);
+  }
+
+  if (presetBrowserPanel != nullptr) {
+    juce::String summary;
+    juce::String detail;
+    if (dirty) {
+      summary = "Session: Dirty";
+      detail = sessionStatus.hasAutosaveSnapshot
+                   ? "Latest autosave " +
+                         (autosaveMillis > 0
+                              ? sessionStatus.lastAutosaveTime.formatted(
+                                    "%Y-%m-%d %H:%M")
+                              : juce::String("time unavailable"))
+                   : juce::String("No autosave snapshot has been written yet.");
+    } else {
+      summary = "Session: Saved";
+      detail = sessionStatus.hasAutosaveSnapshot
+                   ? "Autosave is up to date as of " +
+                         (autosaveMillis > 0
+                              ? sessionStatus.lastAutosaveTime.formatted(
+                                    "%Y-%m-%d %H:%M")
+                              : juce::String("time unavailable"))
+                   : juce::String("Waiting for the first autosave snapshot.");
+    }
+
+    if (sessionStatus.hasAutosaveSnapshot)
+      detail << " | Use Recovery to inspect or discard the snapshot.";
+    if (controlSummary.isNotEmpty())
+      detail << " | " << controlSummary;
+
+    presetBrowserPanel->setSessionPreview(summary, detail, dirty);
+  }
+
+  lastSessionDirty = dirty;
+  lastSessionHasAutosaveSnapshot = sessionStatus.hasAutosaveSnapshot;
+  lastSessionAutosaveMillis = autosaveMillis;
+  lastSessionControlSummary = controlSummary;
+}
+
+void TTeulEditor::Impl::refreshRailUi(bool relayout) {
+  juce::String selectedEndpointId;
+  juce::String selectedEndpointRailId;
+  if (systemEndpointInspector != nullptr)
+    selectedEndpointId = systemEndpointInspector->selectedEndpointId();
+  if (const auto *endpoint = doc.controlState.findEndpoint(selectedEndpointId))
+    selectedEndpointRailId = endpoint->railId;
+
+  if (inputRail != nullptr) {
+    inputRail->setSelectedCardId(selectedEndpointRailId == "input-rail"
+                                     ? selectedEndpointId
+                                     : juce::String());
+    inputRail->refreshFromDocument();
+  }
+
+  if (outputRail != nullptr) {
+    outputRail->setSelectedCardId(selectedEndpointRailId == "output-rail"
+                                      ? selectedEndpointId
+                                      : juce::String());
+    outputRail->refreshFromDocument();
+  }
+
+  if (controlRail != nullptr) {
+    const auto selectedSourceId = controlSourceInspector != nullptr
+                                      ? controlSourceInspector->selectedSourceId()
+                                      : juce::String();
+    controlRail->setSelectedCardId(selectedSourceId);
+    controlRail->refreshFromDocument();
+  }
+
+  if (relayout)
+    owner.resized();
+}
+
+void TTeulEditor::Impl::refreshRuntimeUi(bool forceMessage) {
+  const auto stats = runtime.getRuntimeStats();
+
+  if ((stats.xrunDetected && !lastRuntimeStats.xrunDetected)) {
+    pushRuntimeMessage("Audio block exceeded budget", TeulPalette::AccentRed(),
+                       72);
+  } else if (stats.clipDetected && !lastRuntimeStats.clipDetected) {
+    pushRuntimeMessage("Output clip detected", TeulPalette::AccentOrange(), 72);
+  } else if (stats.denormalDetected && !lastRuntimeStats.denormalDetected) {
+    pushRuntimeMessage("Denormal activity detected", TeulPalette::AccentGold(),
+                       66);
+  } else if (stats.mutedFallbackActive && !lastRuntimeStats.mutedFallbackActive) {
+    pushRuntimeMessage("Muted fallback is active", TeulPalette::AccentSlate(),
+                       60);
+  } else if (stats.rebuildPending && !lastRuntimeStats.rebuildPending) {
+    pushRuntimeMessage("Deferred apply queued for safe commit",
+                       TeulPalette::AccentAmber(), 66);
+  } else if (!stats.rebuildPending && lastRuntimeStats.rebuildPending) {
+    pushRuntimeMessage("Deferred apply committed", TeulPalette::AccentGreen(),
+                       48);
+  } else if (forceMessage ||
+             stats.sampleRate != lastRuntimeStats.sampleRate ||
+             stats.preparedBlockSize != lastRuntimeStats.preparedBlockSize ||
+             stats.lastInputChannels != lastRuntimeStats.lastInputChannels ||
+             stats.lastOutputChannels != lastRuntimeStats.lastOutputChannels) {
+    pushRuntimeMessage(
+        juce::String::formatted(
+            "Runtime prepared: %.1f kHz / %d blk / %d in / %d out",
+            stats.sampleRate * 0.001, stats.preparedBlockSize,
+            stats.lastInputChannels, stats.lastOutputChannels),
+        TeulPalette::AccentSky(), 42);
+  }
+
+  if (runtimeMessageTicksRemaining > 0) {
+    --runtimeMessageTicksRemaining;
+  } else if (runtimeMessageText.isNotEmpty()) {
+    runtimeMessageText.clear();
+  }
+
+  if (runtimeStatusStrip != nullptr) {
+    runtimeStatusStrip->setStats(stats);
+    runtimeStatusStrip->setTransientMessage(runtimeMessageText,
+                                            runtimeMessageAccent);
+  }
+
+  syncRuntimeViewButtons();
+  if (canvas != nullptr) {
+    TGraphCanvas::RuntimeOverlayState overlay;
+    overlay.sampleRate = stats.sampleRate;
+    overlay.blockSize = stats.preparedBlockSize;
+    overlay.inputChannels = stats.lastInputChannels;
+    overlay.outputChannels = stats.lastOutputChannels;
+    overlay.activeNodeCount = stats.activeNodeCount;
+    overlay.allocatedPortChannels = stats.allocatedPortChannels;
+    overlay.smoothingActiveCount = stats.smoothingActiveCount;
+    overlay.activeGeneration = stats.activeGeneration;
+    overlay.pendingGeneration = stats.pendingGeneration;
+    overlay.rebuildPending = stats.rebuildPending;
+    overlay.clipDetected = stats.clipDetected;
+    overlay.denormalDetected = stats.denormalDetected;
+    overlay.xrunDetected = stats.xrunDetected;
+    overlay.mutedFallbackActive = stats.mutedFallbackActive;
+    overlay.cpuLoadPercent = stats.cpuLoadPercent;
+    canvas->setRuntimeOverlayState(overlay);
+  }
+
+  lastRuntimeStats = stats;
+}
+void TTeulEditor::Impl::syncRuntimeViewButtons() {
+  auto syncButton = [](juce::TextButton &button, bool enabled,
+                       juce::Colour accent, const juce::String &onText,
+                       const juce::String &offText) {
+    button.setToggleState(enabled, juce::dontSendNotification);
+    button.setButtonText(enabled ? onText : offText);
+    button.setColour(juce::TextButton::buttonOnColourId,
+                     accent.withAlpha(0.92f));
+    button.setColour(juce::TextButton::buttonColourId,
+                     enabled ? accent.withAlpha(0.58f)
+                             : TeulPalette::PanelBackgroundAlt());
+    button.setColour(juce::TextButton::textColourOnId,
+                     TeulPalette::PanelTextStrong().withAlpha(0.99f));
+    button.setColour(juce::TextButton::textColourOffId,
+                     enabled ? TeulPalette::PanelTextStrong().withAlpha(0.97f)
+                             : TeulPalette::PanelText().withAlpha(0.78f));
+  };
+
+  if (canvas != nullptr) {
+    syncButton(toggleHeatmapButton, canvas->isRuntimeHeatmapEnabled(),
+               TeulPalette::AccentOrange(), "Heat", "Heat");
+    syncButton(toggleProbeButton, canvas->isLiveProbeEnabled(),
+               TeulPalette::AccentSky(), "Probe", "Probe");
+    syncButton(toggleOverlayButton, canvas->isDebugOverlayEnabled(),
+               TeulPalette::AccentGreen(), "Overlay", "Overlay");
+  }
+
+  syncButton(toggleDiagnosticsButton,
+             diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen(),
+             TeulPalette::AccentBlue(), "Diag", "Diag");
+  syncButton(togglePresetsButton,
+             presetBrowserPanel != nullptr && presetBrowserPanel->isBrowserOpen(),
+             TeulPalette::AccentPurple(), "Preset", "Preset");
+}
+void TTeulEditor::Impl::pushRuntimeMessage(const juce::String &text,
+                                            juce::Colour accent,
+                                            int ticks) {
+  runtimeMessageText = text;
+  runtimeMessageAccent = accent;
+  runtimeMessageTicksRemaining = juce::jmax(1, ticks);
+}
+
+} // namespace Teul
