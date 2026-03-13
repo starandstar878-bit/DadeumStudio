@@ -34,8 +34,11 @@ Source/Teul/
 
 ### 3. Runtime
 - 문서를 실행 가능한 graph로 바꾼다.
+- 실행 중인 오디오 그래프를 직접 소유하고 관리한다.
 - audio, MIDI, control을 처리한다.
-- 런타임 통계와 runtime-safe parameter apply를 담당한다.
+- 런타임 이벤트와 장치 변화를 관리한다.
+- 성능 최적화와 이상 상태 감지를 담당한다.
+- 새 DSP node 도입 전 기본 검증과 호환성 확인을 담당한다.
 
 ### 4. Bridge
 - Ieum 등 다른 프로젝트와의 연결을 담당한다.
@@ -51,6 +54,7 @@ Source/Teul/
 - 기존 `EditorHandleImpl` 구조를 제거하고 `TTeulEditor` 중심으로 단순화
 - 현재 `Model`, `Serialization`, `History`에 흩어진 문서 책임을 `Document` 중심으로 재정리
 - 현재 `EditorHandleImpl`에 몰린 editor UI와 interaction 책임을 `Editor` 폴더 구조로 재정리
+- 현재 `TGraphRuntime` 주변에 몰린 실행, 이벤트, 장치, 검증 책임을 `Runtime` 폴더 구조로 재정리
 - 나머지 세분화는 2차 작업으로 미룸
 
 ---
@@ -333,6 +337,127 @@ Editor는 단순히 데이터를 그리는 것이 아니라, 사용자가 빨리
 
 ---
 
+## Runtime 계층 역할
+
+`Runtime`은 문서를 실행 가능한 오디오 그래프로 바꾸고, 실행 중인 그래프와 장치 상태를 안전하게 유지하는 계층이다.
+
+핵심 책임은 아래와 같다.
+
+- `Document`를 읽어 실행 가능한 graph로 컴파일
+- 실행 중인 graph를 직접 소유하고 관리
+- audio, MIDI, control 처리
+- 런타임 중 발생하는 I/O 및 control device 이벤트 관리
+- 장치 연결/제거, 채널 변화, sample rate/block size 변화 반영
+- runtime graph rebuild 필요 상태 반영
+- deferred parameter apply 처리
+- clip, overload, invalid route, device loss 같은 문제 감지
+- 새 DSP node가 런타임에 들어오기 전 기본 검증과 호환성 확인
+
+즉, `Runtime`은 단순 DSP 처리기 하나가 아니라, 문서를 실행 상태로 바꾸고 그 실행 상태를 계속 안전하게 유지하는 계층이다.
+
+---
+
+## Runtime 폴더 최소 파일 구조
+
+```text
+Source/Teul/Runtime/
+  TTeulRuntime.h
+  TTeulRuntime.cpp
+  TGraphCompiler.h
+  TGraphCompiler.cpp
+  TGraphProcessor.h
+  TGraphProcessor.cpp
+  TRuntimeEvent.h
+  TRuntimeEventQueue.h
+  TRuntimeEventQueue.cpp
+  TRuntimeDeviceManager.h
+  TRuntimeDeviceManager.cpp
+  TRuntimeDiagnostics.h
+  TRuntimeDiagnostics.cpp
+  TRuntimeValidator.h
+  TRuntimeValidator.cpp
+```
+
+---
+
+## Runtime 최소 파일 설명
+
+### TTeulRuntime.h / TTeulRuntime.cpp
+- runtime 전체 진입점
+- 현재 실행 graph 소유
+- document revision/runtime revision 기준으로 rebuild 판단
+- event 반영, diagnostics 갱신, processor와 compiler orchestration 담당
+
+### TGraphCompiler.h / TGraphCompiler.cpp
+- `Document -> 실행 가능한 graph` 변환
+- node, connection, control route를 runtime용 구조로 해석
+- compile 결과물을 `TTeulRuntime`에 전달
+
+### TGraphProcessor.h / TGraphProcessor.cpp
+- 실제 audio / MIDI / control 처리
+- block 단위 DSP 실행
+- runtime-safe parameter apply
+- compile된 graph를 따라 process 수행
+
+### TRuntimeEvent.h
+- 런타임 이벤트 타입 정의
+- 예: device added/removed, channel layout changed, sample rate changed, rebuild requested, control device changed
+
+### TRuntimeEventQueue.h / TRuntimeEventQueue.cpp
+- 런타임 이벤트 push / drain 통로
+- processing 중 직접 구조를 흔들지 않고 안전하게 상태를 반영하도록 돕는다
+
+### TRuntimeDeviceManager.h / TRuntimeDeviceManager.cpp
+- audio/MIDI/control 장치 상태 관리
+- 장치 연결/제거, 활성 I/O, 채널 수, 기본 device 정보 추적
+- 장치 변화 결과를 runtime event 또는 runtime state로 반영
+
+### TRuntimeDiagnostics.h / TRuntimeDiagnostics.cpp
+- clip, overload, invalid route, fallback, device loss 같은 문제 감지
+- runtime stats와 경고 상태 정리
+- editor나 bridge가 읽을 수 있는 runtime 상태 요약 제공
+
+### TRuntimeValidator.h / TRuntimeValidator.cpp
+- 새 DSP node나 graph가 runtime에 들어오기 전 기본 검증
+- 필수 포트, 지원 타입, 기본 처리 가능 여부, 최소 안전성 검사
+- verification 기준의 runtime 측 진입점 역할
+
+---
+
+## Document / Editor / Runtime sync 기준
+
+세 계층 sync는 한 파일에 몰지 않고, 각 계층의 대표 진입점끼리 맞물리는 구조로 둔다.
+
+```text
+Document/TTeulDocument
+  <-> Editor/TTeulEditor
+  <-> Runtime/TTeulRuntime
+         -> Runtime/TGraphCompiler
+```
+
+### 문서 기준점
+- `Document/TTeulDocument`
+- 현재 문서 상태의 source of truth
+
+### 문서-에디터 sync
+- `Editor/TTeulEditor`
+- 문서 revision 변화를 보고 canvas/panel refresh
+- 사용자 편집 결과를 문서 mutation으로 반영
+
+### 문서-런타임 sync
+- `Runtime/TTeulRuntime`
+- 문서 revision/runtime revision 변화를 보고 rebuild 요청
+- 실제 graph 변환은 `Runtime/TGraphCompiler`가 담당
+
+### 런타임-에디터 연동
+- `Runtime`이 UI를 직접 건드리면 안 된다
+- `Runtime`은 diagnostics/stats/state를 노출한다
+- `Editor`는 그 상태를 읽어 표시한다
+
+즉, `Document`가 중심 상태이고 `Editor`와 `Runtime`은 각각 `Document`를 기준으로 sync 한다. `Editor`와 `Runtime`은 직접 강하게 물지 않고, 문서나 런타임 상태를 통해 연결한다.
+
+---
+
 ## 현재 코드 기준 이동 방향
 
 현재 흩어진 책임은 장기적으로 아래처럼 정리한다.
@@ -343,8 +468,9 @@ Editor는 단순히 데이터를 그리는 것이 아니라, 사용자가 빨리
 - migration 관련 책임은 `DocumentMigration`으로 통합
 - `EditorHandleImpl`에 몰린 canvas/panel/interaction/renderer 책임은 `Editor/` 하위 구조로 분리
 - `EditorHandle` / `EditorHandleImpl`은 제거하고 `TTeulEditor` 단일 진입점으로 정리
+- 기존 `TGraphRuntime`에 몰린 compile/process/device/diagnostics/validation 책임은 `Runtime/` 하위 구조로 분리
 
-즉, 문서 관련 코드는 최종적으로 `Document` 폴더 하나에서 읽히고, editor 관련 코드는 `Editor` 폴더 하나에서 읽히게 만드는 것이 목표다.
+즉, 문서 관련 코드는 최종적으로 `Document` 폴더 하나에서 읽히고, editor 관련 코드는 `Editor` 폴더 하나에서 읽히고, runtime 관련 코드는 `Runtime` 폴더 하나에서 읽히게 만드는 것이 목표다.
 
 ---
 
@@ -354,7 +480,7 @@ Editor는 단순히 데이터를 그리는 것이 아니라, 사용자가 빨리
 
 1. `Document` 폴더 구조 확정
 2. `Editor` 최소 구조 확정
-3. `Runtime` 최소 구조 정의
+3. `Runtime` 최소 구조 확정
 4. `Bridge` 최소 구조 정의
 5. 마지막에 각 계층 사이 공개 인터페이스 정리
 
@@ -365,6 +491,9 @@ Editor는 단순히 데이터를 그리는 것이 아니라, 사용자가 빨리
 - 최상위 계층이 `Document`, `Editor`, `Runtime`, `Bridge` 4개로 설명 가능해야 한다.
 - 문서 lifecycle 책임이 `Document` 계층 하나로 읽혀야 한다.
 - editor 표현과 interaction 책임이 `Editor` 계층 하나로 읽혀야 한다.
+- runtime 실행과 이벤트 책임이 `Runtime` 계층 하나로 읽혀야 한다.
 - undo/redo, migration, serialization, autosave가 문서 계층 책임으로 정리되어야 한다.
 - canvas, panel, interaction, render rule이 editor 계층 책임으로 정리되어야 한다.
+- compile, process, runtime event, device state, diagnostics, validator가 runtime 계층 책임으로 정리되어야 한다.
 - `TTeulEditor`는 editor orchestration만 담당해야 한다.
+- `TTeulRuntime`는 runtime orchestration만 담당해야 한다.
