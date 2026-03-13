@@ -302,75 +302,6 @@ void hydrateSummaryFromJson(TPatchPresetSummary &summary,
   }
 }
 
-bool usesLegacyPatchAliases(const juce::DynamicObject *root) {
-  return root != nullptr &&
-         (root->hasProperty("schemaVersion") ||
-          root->hasProperty("presetName") ||
-          root->hasProperty("sourceFrameUuid") ||
-          root->hasProperty("presetSummary") ||
-          root->hasProperty("graphPayload") ||
-          root->hasProperty("graph_json"));
-}
-
-juce::var normalizePatchPresetJson(const juce::var &rootVar) {
-  if (!rootVar.isObject())
-    return {};
-
-  const auto *root = rootVar.getDynamicObject();
-  auto *object = new juce::DynamicObject();
-  object->setProperty("format",
-                      propertyOrAlias(root, {"format"}, "teul.patch_preset"));
-  object->setProperty(
-      "schema_version",
-      propertyOrAlias(root, {"schema_version", "schemaVersion"},
-                      kPatchPresetSchemaVersion));
-  object->setProperty("preset_name",
-                      propertyOrAlias(root, {"preset_name", "presetName"}));
-  object->setProperty("source_frame_uuid",
-                      propertyOrAlias(root, {"source_frame_uuid", "sourceFrameUuid"}));
-  object->setProperty("saved_at",
-                      propertyOrAlias(root, {"saved_at", "savedAt"}));
-  object->setProperty("summary",
-                      propertyOrAlias(root, {"summary", "presetSummary"}));
-  object->setProperty(
-      "graph",
-      propertyOrAlias(root, {"graph", "graphPayload", "graph_json"}));
-  return juce::var(object);
-}
-
-juce::var migratePatchPresetV1ToV2(const juce::var &rootVar) {
-  if (!rootVar.isObject())
-    return {};
-
-  const auto *root = rootVar.getDynamicObject();
-  auto *object = new juce::DynamicObject();
-  object->setProperty("format", "teul.patch_preset");
-  object->setProperty("schema_version", kPatchPresetSchemaVersion);
-  object->setProperty("preset_name",
-                      propertyOrAlias(root, {"preset_name", "presetName"}));
-  object->setProperty("source_frame_uuid",
-                      propertyOrAlias(root, {"source_frame_uuid", "sourceFrameUuid"}));
-  object->setProperty("saved_at",
-                      propertyOrAlias(root, {"saved_at", "savedAt"}));
-  object->setProperty("summary",
-                      propertyOrAlias(root, {"summary", "presetSummary"}));
-  object->setProperty(
-      "graph",
-      propertyOrAlias(root, {"graph", "graphPayload", "graph_json"}));
-  return juce::var(object);
-}
-
-juce::var migratePatchPresetJson(const juce::var &rootVar,
-                                 int sourceSchemaVersion,
-                                 TPatchPresetLoadReport *report) {
-  if (sourceSchemaVersion <= 1) {
-    TDocumentMigration::appendMigrationStep(report, "patch:v1->v2");
-    return migratePatchPresetV1ToV2(rootVar);
-  }
-
-  return normalizePatchPresetJson(rootVar);
-}
-
 } // namespace
 
 juce::String TPatchPresetIO::fileExtension() { return ".teulpatch"; }
@@ -498,7 +429,7 @@ juce::Result TPatchPresetIO::loadFromFile(
   loadReport.sourceSchemaVersion =
       (int)propertyOrAlias(sourceRoot, {"schema_version", "schemaVersion"}, 1);
   loadReport.targetSchemaVersion = kPatchPresetSchemaVersion;
-  loadReport.usedLegacyAliases = usesLegacyPatchAliases(sourceRoot);
+  loadReport.usedLegacyAliases = TDocumentMigration::usesLegacyPatchAliases(rootVar);
 
   if (loadReport.usedLegacyAliases) {
     TDocumentMigration::appendWarning(loadReport.warnings,
@@ -517,8 +448,9 @@ juce::Result TPatchPresetIO::loadFromFile(
         "Patch preset schema is newer than this build supports; using best-effort load.");
   }
 
-  const auto migratedRootVar =
-      migratePatchPresetJson(rootVar, loadReport.sourceSchemaVersion, &loadReport);
+  const auto migratedRootVar = TDocumentMigration::migratePatchPresetJson(
+      rootVar, loadReport.sourceSchemaVersion,
+      loadReport.targetSchemaVersion, &loadReport);
   auto *root = migratedRootVar.getDynamicObject();
   if (root == nullptr) {
     return juce::Result::fail(
@@ -793,68 +725,6 @@ void hydrateSummaryFromJson(TStatePresetSummary &summary,
   }
 }
 
-bool usesLegacyStateAliases(const juce::DynamicObject *root) {
-  return root != nullptr &&
-         (root->hasProperty("schemaVersion") ||
-          root->hasProperty("presetName") ||
-          root->hasProperty("targetGraphName") ||
-          root->hasProperty("presetSummary") ||
-          root->hasProperty("nodeStates"));
-}
-
-juce::var normalizeStatePresetJson(const juce::var &rootVar) {
-  if (!rootVar.isObject())
-    return {};
-
-  const auto *root = rootVar.getDynamicObject();
-  auto *object = new juce::DynamicObject();
-  object->setProperty("format",
-                      propertyOrAlias(root, {"format"}, "teul.state_preset"));
-  object->setProperty(
-      "schema_version",
-      propertyOrAlias(root, {"schema_version", "schemaVersion"},
-                      kStatePresetSchemaVersion));
-  object->setProperty("preset_name",
-                      propertyOrAlias(root, {"preset_name", "presetName"}));
-  object->setProperty("target_graph_name",
-                      propertyOrAlias(root, {"target_graph_name", "targetGraphName"}));
-  object->setProperty("summary",
-                      propertyOrAlias(root, {"summary", "presetSummary"}));
-  object->setProperty("node_states",
-                      propertyOrAlias(root, {"node_states", "nodeStates"}));
-  return juce::var(object);
-}
-
-juce::var migrateStatePresetV1ToV2(const juce::var &rootVar) {
-  if (!rootVar.isObject())
-    return {};
-
-  const auto *root = rootVar.getDynamicObject();
-  auto *object = new juce::DynamicObject();
-  object->setProperty("format", "teul.state_preset");
-  object->setProperty("schema_version", kStatePresetSchemaVersion);
-  object->setProperty("preset_name",
-                      propertyOrAlias(root, {"preset_name", "presetName"}));
-  object->setProperty("target_graph_name",
-                      propertyOrAlias(root, {"target_graph_name", "targetGraphName"}));
-  object->setProperty("summary",
-                      propertyOrAlias(root, {"summary", "presetSummary"}));
-  object->setProperty("node_states",
-                      propertyOrAlias(root, {"node_states", "nodeStates"}));
-  return juce::var(object);
-}
-
-juce::var migrateStatePresetJson(const juce::var &rootVar,
-                                 int sourceSchemaVersion,
-                                 TStatePresetLoadReport *report) {
-  if (sourceSchemaVersion <= 1) {
-    TDocumentMigration::appendMigrationStep(report, "state:v1->v2");
-    return migrateStatePresetV1ToV2(rootVar);
-  }
-
-  return normalizeStatePresetJson(rootVar);
-}
-
 const TNode *findFallbackNode(const TTeulDocument &document,
                               const TStatePresetNodeState &nodeState) {
   const TNode *match = nullptr;
@@ -1002,7 +872,7 @@ juce::Result TStatePresetIO::loadFromFile(
   loadReport.sourceSchemaVersion =
       (int)propertyOrAlias(sourceRoot, {"schema_version", "schemaVersion"}, 1);
   loadReport.targetSchemaVersion = kStatePresetSchemaVersion;
-  loadReport.usedLegacyAliases = usesLegacyStateAliases(sourceRoot);
+  loadReport.usedLegacyAliases = TDocumentMigration::usesLegacyStateAliases(rootVar);
 
   if (loadReport.usedLegacyAliases) {
     TDocumentMigration::appendWarning(loadReport.warnings,
@@ -1021,8 +891,9 @@ juce::Result TStatePresetIO::loadFromFile(
         "State preset schema is newer than this build supports; using best-effort load.");
   }
 
-  const auto migratedRootVar =
-      migrateStatePresetJson(rootVar, loadReport.sourceSchemaVersion, &loadReport);
+  const auto migratedRootVar = TDocumentMigration::migrateStatePresetJson(
+      rootVar, loadReport.sourceSchemaVersion,
+      loadReport.targetSchemaVersion, &loadReport);
   auto *root = migratedRootVar.getDynamicObject();
   if (root == nullptr)
     return juce::Result::fail("State preset load failed: migrated preset root is invalid.");

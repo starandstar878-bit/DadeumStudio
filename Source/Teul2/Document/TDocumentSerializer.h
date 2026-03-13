@@ -21,7 +21,6 @@ private:
   static juce::var normalizeDocumentJson(const juce::var &json);
   static juce::var migrateDocumentV1ToV2(const juce::var &json);
   static juce::var migrateDocumentV2ToV3(const juce::var &json);
-  static bool usesLegacyDocumentAliases(const juce::var &json);
   static juce::var migrateMetaJson(const juce::var &json);
   static juce::var migrateNodeJson(const juce::var &json);
   static juce::var migratePortJson(const juce::var &json);

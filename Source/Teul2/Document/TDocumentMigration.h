@@ -4,6 +4,8 @@
 
 namespace Teul {
 
+class TTeulDocument;
+
 struct TSchemaMigrationReport {
   int sourceSchemaVersion = 0;
   int targetSchemaVersion = 0;
@@ -49,6 +51,20 @@ public:
   static juce::Result parseJsonFile(const juce::File &file,
                                     juce::var &jsonOut,
                                     const juce::String &label);
+
+  static bool usesLegacyDocumentAliases(const juce::var &json);
+  static void normalizeLegacyRailBridgeNodes(TTeulDocument &document,
+                                             TSchemaMigrationReport &migrationReport);
+  static bool usesLegacyPatchAliases(const juce::var &json);
+  static juce::var migratePatchPresetJson(const juce::var &json,
+                                          int sourceSchemaVersion,
+                                          int targetSchemaVersion,
+                                          TPatchPresetLoadReport *report = nullptr);
+  static bool usesLegacyStateAliases(const juce::var &json);
+  static juce::var migrateStatePresetJson(const juce::var &json,
+                                          int sourceSchemaVersion,
+                                          int targetSchemaVersion,
+                                          TStatePresetLoadReport *report = nullptr);
 };
 
 } // namespace Teul
