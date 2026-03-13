@@ -24,6 +24,7 @@ Source/Teul/
 - 버전을 검사하고 필요하면 upgrade/migration 한다.
 - ValueTree 양식과 외부 직렬화 형식을 관리한다.
 - 저장, 불러오기, autosave, recovery를 담당한다.
+- 다른 유저가 만든 `.teul` 파일을 해석해 현재 시스템 문서로 받아들이는 책임도 여기에 둔다.
 
 ### 2. Editor
 - 문서를 사람이 보고 수정하는 표현 계층이다.
@@ -41,8 +42,10 @@ Source/Teul/
 - 새 DSP node 도입 전 기본 검증과 호환성 확인을 담당한다.
 
 ### 4. Bridge
-- Ieum 등 다른 프로젝트와의 연결을 담당한다.
-- export, parameter surface, 외부 소비용 인터페이스를 담당한다.
+- Teul 내부 구조를 외부 시스템이 이해하는 형식으로 바꾼다.
+- 외부 시스템의 요청과 응답을 Teul 내부 구조로 번역한다.
+- code generation, 외부용 JSON 생성/해석, Ieum/Gyeol/Naru 같은 외부 프로젝트와의 소통을 담당한다.
+- 단, `.teul` 파일 자체의 해석은 `Bridge`가 아니라 `Document` 책임으로 둔다.
 
 ---
 
@@ -55,6 +58,7 @@ Source/Teul/
 - 현재 `Model`, `Serialization`, `History`에 흩어진 문서 책임을 `Document` 중심으로 재정리
 - 현재 `EditorHandleImpl`에 몰린 editor UI와 interaction 책임을 `Editor` 폴더 구조로 재정리
 - 현재 `TGraphRuntime` 주변에 몰린 실행 graph, 런타임 이벤트, 장치, 검증 책임을 `Runtime/AudioGraph`, `Runtime/IOControl` 구조로 재정리
+- 외부 연동, codegen, 외부용 JSON 책임을 `Bridge` 폴더 구조로 재정리
 - 나머지 세분화는 2차 작업으로 미룸
 
 ---
@@ -75,6 +79,7 @@ Source/Teul/
 - 외부 직렬화/역직렬화
 - 파일 저장/불러오기
 - autosave/recovery 관리
+- 다른 유저가 만든 `.teul` 파일 import 및 해석
 
 즉, 문서가 들어오면 시스템이 이해할 수 있는 현재 포맷으로 바꾸고, 실행 중에는 그 문서를 관리하고, 필요할 때 다시 저장 가능한 형태로 내보내는 계층이다.
 
@@ -120,6 +125,7 @@ Source/Teul/Document/
 - `TTeulDocument <-> ValueTree`
 - `TTeulDocument <-> JSON`
 - 외부 저장 포맷과 내부 문서 포맷 간 변환
+- `.teul` 파일의 실질적인 해석 규칙 담당
 
 ### TDocumentMigration.h / TDocumentMigration.cpp
 - 문서 버전 검사
@@ -454,9 +460,107 @@ TTeulRuntime
 
 ---
 
-## Document / Editor / Runtime sync 기준
+## Bridge 계층 역할
 
-세 계층 sync는 한 파일에 몰지 않고, 각 계층의 대표 진입점끼리 맞물리는 구조로 둔다.
+`Bridge`는 Teul 내부 구조와 외부 시스템 사이를 번역하는 계층이다.
+
+핵심 책임은 아래와 같다.
+
+- Teul 내부 구조를 외부용 데이터로 변환
+- 외부 요청과 응답을 Teul 내부 구조로 변환
+- code generation
+- 외부용 JSON 생성과 해석
+- Ieum, Gyeol, Naru 같은 외부 프로젝트별 adapter 제공
+- 외부에서 읽기 쉬운 facade 제공
+
+중요한 경계는 아래와 같다.
+
+- `.teul` 파일 해석은 `Document`
+- Ieum/Gyeol/Naru용 JSON 또는 외부 protocol 해석은 `Bridge`
+
+즉, `Bridge`는 문서 저장 포맷이 아니라 외부 연동 포맷을 담당한다.
+
+---
+
+## Bridge 폴더 최소 파일 구조
+
+```text
+Source/Teul/Bridge/
+  TTeulBridge.h
+  TTeulBridge.cpp
+  TBridgeJsonCodec.h
+  TBridgeJsonCodec.cpp
+  TBridgeCodegen.h
+  TBridgeCodegen.cpp
+  TIeumBridge.h
+  TIeumBridge.cpp
+  TGyeolBridge.h
+  TGyeolBridge.cpp
+  TNaruBridge.h
+  TNaruBridge.cpp
+```
+
+---
+
+## Bridge 최소 파일 설명
+
+### TTeulBridge.h / TTeulBridge.cpp
+- bridge 전체 진입점
+- 외부 시스템별 bridge와 json/codegen 기능을 묶는 facade
+- 외부에서 Teul을 호출할 때 가장 먼저 들어오는 통합 진입점
+
+### TBridgeJsonCodec.h / TBridgeJsonCodec.cpp
+- 외부 연동용 JSON 생성과 해석
+- 내부 구조와 외부 payload 간 변환
+- `.teul` 문서 포맷이 아니라 bridge payload 포맷 담당
+
+### TBridgeCodegen.h / TBridgeCodegen.cpp
+- code generation 담당
+- document/runtime metadata를 외부 코드나 설정 조각으로 변환
+- 외부 프로젝트에서 재사용할 산출물 생성
+
+### TIeumBridge.h / TIeumBridge.cpp
+- Ieum 전용 adapter
+- Ieum이 필요로 하는 payload, param surface, 요청/응답 형식 제공
+
+### TGyeolBridge.h / TGyeolBridge.cpp
+- Gyeol 전용 adapter
+- Gyeol과 Teul 사이의 번역 규칙 담당
+
+### TNaruBridge.h / TNaruBridge.cpp
+- Naru 전용 adapter
+- Naru와 Teul 사이의 번역 규칙 담당
+
+---
+
+## Bridge 내부 포함 관계
+
+bridge 내부 관계는 우선 아래처럼 단순하게 잡는다.
+
+```text
+TTeulBridge
+  -> TBridgeJsonCodec
+  -> TBridgeCodegen
+  -> TIeumBridge
+  -> TGyeolBridge
+  -> TNaruBridge
+```
+
+원칙은 아래와 같다.
+
+- `TTeulBridge`는 외부 연동 계층 전체를 조립한다.
+- 각 외부 프로젝트는 전용 bridge로 분리한다.
+- 공통 JSON 해석과 생성은 `TBridgeJsonCodec`이 맡는다.
+- 공통 code generation은 `TBridgeCodegen`이 맡는다.
+- 외부 프로젝트별 규칙을 `TTeulBridge` 안에 섞지 않는다.
+
+즉, bridge 공통 기능과 외부 프로젝트별 adapter를 나눠 유지한다.
+
+---
+
+## Document / Editor / Runtime / Bridge sync 기준
+
+네 계층 sync는 한 파일에 몰지 않고, 각 계층의 대표 진입점끼리 맞물리는 구조로 둔다.
 
 ```text
 Document/TTeulDocument
@@ -464,6 +568,7 @@ Document/TTeulDocument
   <-> Runtime/TTeulRuntime
          -> Runtime/AudioGraph/TGraphCompiler
          -> Runtime/IOControl/TRuntimeEventQueue
+  <-> Bridge/TTeulBridge
 ```
 
 ### 문서 기준점
@@ -485,12 +590,21 @@ Document/TTeulDocument
 - 장치 변화나 control device 변화 같은 런타임 이벤트를 queue로 전달
 - `Runtime/TTeulRuntime`가 drain 후 graph rebuild 또는 상태 갱신 반영
 
+### 문서-브리지 sync
+- `Bridge/TTeulBridge`
+- document를 외부 payload, codegen 결과, 외부 프로젝트용 구조로 변환
+- 외부 응답이나 요청을 내부에서 처리 가능한 구조로 변환
+
 ### 런타임-에디터 연동
 - `Runtime`이 UI를 직접 건드리면 안 된다
 - `Runtime`은 diagnostics/stats/state를 노출한다
 - `Editor`는 그 상태를 읽어 표시한다
 
-즉, `Document`가 중심 상태이고 `Editor`와 `Runtime`은 각각 `Document`를 기준으로 sync 한다. `Runtime` 내부에서는 `AudioGraph`와 `IOControl`이 역할을 나눠 sync 한다.
+### 브리지-문서 경계
+- `.teul` import/export는 `Document`
+- 외부 프로젝트용 import/export는 `Bridge`
+
+즉, `Document`가 중심 상태이고 `Editor`, `Runtime`, `Bridge`는 각각 `Document`를 기준으로 sync 한다. `Runtime` 내부에서는 `AudioGraph`와 `IOControl`이 역할을 나눠 sync 한다.
 
 ---
 
@@ -506,8 +620,10 @@ Document/TTeulDocument
 - `EditorHandle` / `EditorHandleImpl`은 제거하고 `TTeulEditor` 단일 진입점으로 정리
 - 기존 `TGraphRuntime`에 몰린 compile/process/diagnostics/validator 책임은 `Runtime/AudioGraph/`로 분리
 - 기존 장치 감지, 런타임 이벤트, control device state 책임은 `Runtime/IOControl/`로 분리
+- Ieum/외부 codegen/외부 JSON 관련 책임은 `Bridge/`로 이동
+- `.teul` 파일 해석과 migration은 `Document/`에 남긴다
 
-즉, 문서 관련 코드는 최종적으로 `Document` 폴더 하나에서 읽히고, editor 관련 코드는 `Editor` 폴더 하나에서 읽히고, runtime 관련 코드는 `Runtime/AudioGraph`, `Runtime/IOControl` 경계로 읽히게 만드는 것이 목표다.
+즉, 문서 관련 코드는 최종적으로 `Document` 폴더 하나에서 읽히고, editor 관련 코드는 `Editor` 폴더 하나에서 읽히고, runtime 관련 코드는 `Runtime/AudioGraph`, `Runtime/IOControl` 경계로 읽히고, 외부 연동 관련 코드는 `Bridge` 폴더 하나에서 읽히게 만드는 것이 목표다.
 
 ---
 
@@ -518,7 +634,7 @@ Document/TTeulDocument
 1. `Document` 폴더 구조 확정
 2. `Editor` 최소 구조 확정
 3. `Runtime` 최소 구조 확정
-4. `Bridge` 최소 구조 정의
+4. `Bridge` 최소 구조 확정
 5. 마지막에 각 계층 사이 공개 인터페이스 정리
 
 ---
@@ -530,9 +646,12 @@ Document/TTeulDocument
 - editor 표현과 interaction 책임이 `Editor` 계층 하나로 읽혀야 한다.
 - runtime 실행 graph 책임이 `Runtime/AudioGraph`로 읽혀야 한다.
 - 런타임 이벤트와 장치 상태 책임이 `Runtime/IOControl`로 읽혀야 한다.
+- 외부 연동과 codegen 책임이 `Bridge` 계층 하나로 읽혀야 한다.
 - undo/redo, migration, serialization, autosave가 문서 계층 책임으로 정리되어야 한다.
 - canvas, panel, interaction, render rule이 editor 계층 책임으로 정리되어야 한다.
 - compile, process, diagnostics, validator가 `Runtime/AudioGraph` 책임으로 정리되어야 한다.
 - runtime event, device state, control device change가 `Runtime/IOControl` 책임으로 정리되어야 한다.
+- 외부 JSON, codegen, Ieum/Gyeol/Naru adapter가 `Bridge` 책임으로 정리되어야 한다.
 - `TTeulEditor`는 editor orchestration만 담당해야 한다.
 - `TTeulRuntime`는 runtime orchestration만 담당해야 한다.
+- `TTeulBridge`는 bridge orchestration만 담당해야 한다.
