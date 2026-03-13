@@ -1,49 +1,48 @@
 #include "TDocumentHistory.h"
 
+#include "TTeulDocument.h"
+
+#include <algorithm>
+
 namespace Teul {
+namespace {
 
-// =============================================================================
-//  노드 추가 (AddNodeCommand)
-// =============================================================================
-class AddNodeCommand : public TCommand {
+constexpr int kMaxHistoryCommands = 100;
+
+class AddNodeCommand final : public TCommand {
 public:
-  explicit AddNodeCommand(const TNode &n) : nodeData(n) {}
+  explicit AddNodeCommand(const TNode &nodeIn) : node(nodeIn) {}
 
-  void execute(TTeulDocument &doc) override {
-    addedNodeId = nodeData.nodeId;
-    doc.nodes.push_back(nodeData);
+  void execute(TTeulDocument &document) override {
+    addedNodeId = node.nodeId;
+    document.nodes.push_back(node);
   }
 
-  void undo(TTeulDocument &doc) override {
-    auto it = std::find_if(
-        doc.nodes.begin(), doc.nodes.end(),
-        [this](const TNode &n) { return n.nodeId == addedNodeId; });
-    if (it != doc.nodes.end()) {
-      doc.nodes.erase(it);
-    }
+  void undo(TTeulDocument &document) override {
+    const auto nodeIt = std::find_if(
+        document.nodes.begin(), document.nodes.end(),
+        [&](const TNode &candidate) { return candidate.nodeId == addedNodeId; });
+    if (nodeIt != document.nodes.end())
+      document.nodes.erase(nodeIt);
   }
 
 private:
-  TNode nodeData;
+  TNode node;
   NodeId addedNodeId = kInvalidNodeId;
 };
 
-// =============================================================================
-//  노드 삭제 (DeleteNodeCommand)
-// =============================================================================
-class DeleteNodeCommand : public TCommand {
+class DeleteNodeCommand final : public TCommand {
 public:
-  explicit DeleteNodeCommand(NodeId id) : targetId(id) {}
+  explicit DeleteNodeCommand(NodeId targetIdIn) : targetId(targetIdIn) {}
 
-  void execute(TTeulDocument &doc) override {
-    connBackup.clear();
+  void execute(TTeulDocument &document) override {
+    connectionBackup.clear();
     frameMembershipBackup.clear();
 
-    auto *n = doc.findNode(targetId);
-    if (n)
-      nodeBackup = *n;
+    if (const auto *node = document.findNode(targetId))
+      nodeBackup = *node;
 
-    for (auto &frame : doc.frames) {
+    for (auto &frame : document.frames) {
       if (!frame.containsNode(targetId))
         continue;
 
@@ -52,158 +51,243 @@ public:
       frame.removeMember(targetId);
     }
 
-    for (auto it = doc.connections.begin(); it != doc.connections.end();) {
-      if (it->from.referencesNode(targetId) || it->to.referencesNode(targetId)) {
-        connBackup.push_back(*it);
-        it = doc.connections.erase(it);
-      } else {
-        ++it;
+    for (auto connectionIt = document.connections.begin();
+         connectionIt != document.connections.end();) {
+      if (connectionIt->from.referencesNode(targetId) ||
+          connectionIt->to.referencesNode(targetId)) {
+        connectionBackup.push_back(*connectionIt);
+        connectionIt = document.connections.erase(connectionIt);
+        continue;
       }
+
+      ++connectionIt;
     }
 
-    auto nit =
-        std::find_if(doc.nodes.begin(), doc.nodes.end(),
-                     [this](const TNode &n) { return n.nodeId == targetId; });
-    if (nit != doc.nodes.end())
-      doc.nodes.erase(nit);
+    const auto nodeIt = std::find_if(
+        document.nodes.begin(), document.nodes.end(),
+        [&](const TNode &candidate) { return candidate.nodeId == targetId; });
+    if (nodeIt != document.nodes.end())
+      document.nodes.erase(nodeIt);
   }
 
-  void undo(TTeulDocument &doc) override {
+  void undo(TTeulDocument &document) override {
     if (nodeBackup.nodeId != kInvalidNodeId)
-      doc.nodes.push_back(nodeBackup);
+      document.nodes.push_back(nodeBackup);
 
     for (const auto &membership : frameMembershipBackup) {
-      if (auto *frame = doc.findFrame(membership.first)) {
+      if (auto *frame = document.findFrame(membership.first)) {
         frame->membershipExplicit = true;
         frame->memberNodeIds = membership.second;
       }
     }
 
-    for (const auto &c : connBackup)
-      doc.connections.push_back(c);
+    for (const auto &connection : connectionBackup)
+      document.connections.push_back(connection);
   }
 
 private:
-  NodeId targetId;
+  NodeId targetId = kInvalidNodeId;
   TNode nodeBackup;
-  std::vector<TConnection> connBackup;
+  std::vector<TConnection> connectionBackup;
   std::vector<std::pair<int, std::vector<NodeId>>> frameMembershipBackup;
 };
 
-// =============================================================================
-//  AddConnectionCommand
-// =============================================================================
-class AddConnectionCommand : public TCommand {
+class AddConnectionCommand final : public TCommand {
 public:
-  explicit AddConnectionCommand(const TConnection &c) : connData(c) {}
+  explicit AddConnectionCommand(const TConnection &connectionIn)
+      : connection(connectionIn) {}
 
-  void execute(TTeulDocument &doc) override {
-    addedConnId = connData.connectionId;
-    doc.connections.push_back(connData);
+  void execute(TTeulDocument &document) override {
+    addedConnectionId = connection.connectionId;
+    document.connections.push_back(connection);
   }
 
-  void undo(TTeulDocument &doc) override {
-    auto it = std::find_if(
-        doc.connections.begin(), doc.connections.end(),
-        [this](const TConnection &c) { return c.connectionId == addedConnId; });
-    if (it != doc.connections.end()) {
-      doc.connections.erase(it);
-    }
+  void undo(TTeulDocument &document) override {
+    const auto connectionIt = std::find_if(
+        document.connections.begin(), document.connections.end(),
+        [&](const TConnection &candidate) {
+          return candidate.connectionId == addedConnectionId;
+        });
+    if (connectionIt != document.connections.end())
+      document.connections.erase(connectionIt);
   }
 
 private:
-  TConnection connData;
-  ConnectionId addedConnId = kInvalidConnectionId;
+  TConnection connection;
+  ConnectionId addedConnectionId = kInvalidConnectionId;
 };
 
-// =============================================================================
-//  연결 삭제 (DeleteConnectionCommand)
-// =============================================================================
-class DeleteConnectionCommand : public TCommand {
+class DeleteConnectionCommand final : public TCommand {
 public:
-  explicit DeleteConnectionCommand(ConnectionId id) : targetId(id) {}
+  explicit DeleteConnectionCommand(ConnectionId targetIdIn)
+      : targetId(targetIdIn) {}
 
-  void execute(TTeulDocument &doc) override {
-    auto *c = doc.findConnection(targetId);
-    if (c) {
-      connBackup = *c;
-      auto it = std::find_if(doc.connections.begin(), doc.connections.end(),
-                             [this](const TConnection &cc) {
-                               return cc.connectionId == targetId;
-                             });
-      if (it != doc.connections.end())
-        doc.connections.erase(it);
-    }
+  void execute(TTeulDocument &document) override {
+    if (const auto *connection = document.findConnection(targetId))
+      connectionBackup = *connection;
+
+    const auto connectionIt = std::find_if(
+        document.connections.begin(), document.connections.end(),
+        [&](const TConnection &candidate) {
+          return candidate.connectionId == targetId;
+        });
+    if (connectionIt != document.connections.end())
+      document.connections.erase(connectionIt);
   }
 
-  void undo(TTeulDocument &doc) override {
-    if (connBackup.connectionId != kInvalidConnectionId) {
-      doc.connections.push_back(connBackup);
-    }
+  void undo(TTeulDocument &document) override {
+    if (connectionBackup.connectionId != kInvalidConnectionId)
+      document.connections.push_back(connectionBackup);
   }
 
 private:
-  ConnectionId targetId;
-  TConnection connBackup;
+  ConnectionId targetId = kInvalidConnectionId;
+  TConnection connectionBackup;
 };
 
-// =============================================================================
-//  노드 이동 (MoveNodeCommand)
-// =============================================================================
-class MoveNodeCommand : public TCommand {
+class MoveNodeCommand final : public TCommand {
 public:
-  MoveNodeCommand(NodeId id, float oldX, float oldY, float newX, float newY)
-      : targetId(id), prevX(oldX), prevY(oldY), nextX(newX), nextY(newY) {}
+  MoveNodeCommand(NodeId targetIdIn,
+                  float oldXIn,
+                  float oldYIn,
+                  float newXIn,
+                  float newYIn)
+      : targetId(targetIdIn),
+        oldX(oldXIn),
+        oldY(oldYIn),
+        newX(newXIn),
+        newY(newYIn) {}
 
-  void execute(TTeulDocument &doc) override {
-    auto *n = doc.findNode(targetId);
-    if (n) {
-      n->x = nextX;
-      n->y = nextY;
+  void execute(TTeulDocument &document) override {
+    if (auto *node = document.findNode(targetId)) {
+      node->x = newX;
+      node->y = newY;
     }
   }
 
-  void undo(TTeulDocument &doc) override {
-    auto *n = doc.findNode(targetId);
-    if (n) {
-      n->x = prevX;
-      n->y = prevY;
+  void undo(TTeulDocument &document) override {
+    if (auto *node = document.findNode(targetId)) {
+      node->x = oldX;
+      node->y = oldY;
     }
   }
 
 private:
-  NodeId targetId;
-  float prevX, prevY, nextX, nextY;
+  NodeId targetId = kInvalidNodeId;
+  float oldX = 0.0f;
+  float oldY = 0.0f;
+  float newX = 0.0f;
+  float newY = 0.0f;
 };
 
-// =============================================================================
-//  파라미터 변경 (SetParamCommand)
-// =============================================================================
-class SetParamCommand : public TCommand {
+class SetParamCommand final : public TCommand {
 public:
-  SetParamCommand(NodeId id, const juce::String &key, const juce::var &oldVal,
-                  const juce::var &newVal)
-      : targetId(id), paramKey(key), prevVal(oldVal), nextVal(newVal) {}
+  SetParamCommand(NodeId targetIdIn,
+                  const juce::String &paramKeyIn,
+                  const juce::var &oldValueIn,
+                  const juce::var &newValueIn)
+      : targetId(targetIdIn),
+        paramKey(paramKeyIn),
+        oldValue(oldValueIn),
+        newValue(newValueIn) {}
 
-  void execute(TTeulDocument &doc) override {
-    auto *n = doc.findNode(targetId);
-    if (n) {
-      n->params[paramKey] = nextVal;
-    }
+  void execute(TTeulDocument &document) override {
+    if (auto *node = document.findNode(targetId))
+      node->params[paramKey] = newValue;
   }
 
-  void undo(TTeulDocument &doc) override {
-    auto *n = doc.findNode(targetId);
-    if (n) {
-      n->params[paramKey] = prevVal;
-    }
+  void undo(TTeulDocument &document) override {
+    if (auto *node = document.findNode(targetId))
+      node->params[paramKey] = oldValue;
   }
 
 private:
-  NodeId targetId;
+  NodeId targetId = kInvalidNodeId;
   juce::String paramKey;
-  juce::var prevVal;
-  juce::var nextVal;
+  juce::var oldValue;
+  juce::var newValue;
 };
+
+} // namespace
+
+THistoryStack::THistoryStack() = default;
+
+THistoryStack::~THistoryStack() = default;
+
+void THistoryStack::pushNext(std::unique_ptr<TCommand> command,
+                             TTeulDocument &document) {
+  if (command == nullptr)
+    return;
+
+  if (currentIndex < static_cast<int>(commands.size()) - 1) {
+    commands.erase(commands.begin() + currentIndex + 1, commands.end());
+  }
+
+  command->execute(document);
+  commands.push_back(std::move(command));
+  currentIndex = static_cast<int>(commands.size()) - 1;
+
+  if (static_cast<int>(commands.size()) > kMaxHistoryCommands) {
+    commands.erase(commands.begin());
+    --currentIndex;
+  }
+}
+
+bool THistoryStack::undo(TTeulDocument &document) {
+  if (currentIndex < 0 || currentIndex >= static_cast<int>(commands.size()))
+    return false;
+
+  commands[static_cast<size_t>(currentIndex)]->undo(document);
+  --currentIndex;
+  return true;
+}
+
+bool THistoryStack::redo(TTeulDocument &document) {
+  if (currentIndex + 1 >= static_cast<int>(commands.size()))
+    return false;
+
+  ++currentIndex;
+  commands[static_cast<size_t>(currentIndex)]->execute(document);
+  return true;
+}
+
+void THistoryStack::clear() {
+  commands.clear();
+  currentIndex = -1;
+}
+
+std::unique_ptr<TCommand> createAddNodeCommand(const TNode &node) {
+  return std::make_unique<AddNodeCommand>(node);
+}
+
+std::unique_ptr<TCommand> createDeleteNodeCommand(NodeId nodeId) {
+  return std::make_unique<DeleteNodeCommand>(nodeId);
+}
+
+std::unique_ptr<TCommand>
+createAddConnectionCommand(const TConnection &connection) {
+  return std::make_unique<AddConnectionCommand>(connection);
+}
+
+std::unique_ptr<TCommand> createDeleteConnectionCommand(
+    ConnectionId connectionId) {
+  return std::make_unique<DeleteConnectionCommand>(connectionId);
+}
+
+std::unique_ptr<TCommand> createMoveNodeCommand(NodeId nodeId,
+                                                float oldX,
+                                                float oldY,
+                                                float newX,
+                                                float newY) {
+  return std::make_unique<MoveNodeCommand>(nodeId, oldX, oldY, newX, newY);
+}
+
+std::unique_ptr<TCommand> createSetParamCommand(NodeId nodeId,
+                                                const juce::String &paramKey,
+                                                const juce::var &oldValue,
+                                                const juce::var &newValue) {
+  return std::make_unique<SetParamCommand>(nodeId, paramKey, oldValue,
+                                           newValue);
+}
 
 } // namespace Teul

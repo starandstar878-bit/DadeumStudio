@@ -1,5 +1,6 @@
 #include "TTeulDocument.h"
-#include "../../Teul/History/TCommand.h"
+
+#include "TDocumentHistory.h"
 
 #include <queue>
 #include <unordered_set>
@@ -99,7 +100,7 @@ void TTeulDocument::touch(bool runtimeRelevant) noexcept {
 }
 
 bool TTeulDocument::wouldCreateCycle(NodeId fromNodeId,
-                                      NodeId toNodeId) const noexcept {
+                                     NodeId toNodeId) const noexcept {
   if (fromNodeId == toNodeId)
     return true;
 
