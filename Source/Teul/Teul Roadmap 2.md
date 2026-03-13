@@ -1,13 +1,13 @@
 # Teul Roadmap 2
 
-> 목적: `Teul` 리라이트 전에 최상위 구조를 단순하게 다시 고정한다.
-> 이 문서는 세부 클래스 분해안보다, 시스템을 어떤 계층으로 나누고 각 계층이 무엇을 책임지는지에 집중한다.
+> 紐⑹쟻: `Teul` 由щ씪?댄듃 ?꾩뿉 理쒖긽??援ъ“瑜??⑥닚?섍쾶 ?ㅼ떆 怨좎젙?쒕떎.
+> ??臾몄꽌???몃? ?대옒??遺꾪빐?덈낫?? ?쒖뒪?쒖쓣 ?대뼡 怨꾩링?쇰줈 ?섎늻怨?媛?怨꾩링??臾댁뾿??梨낆엫吏?붿???吏묒쨷?쒕떎.
 
 ---
 
-## 최상위 구조
+## 理쒖긽??援ъ“
 
-`Teul`은 우선 아래 4개 계층으로 나눈다.
+`Teul`? ?곗꽑 ?꾨옒 4媛?怨꾩링?쇰줈 ?섎늿??
 
 ```text
 Source/Teul/
@@ -18,74 +18,74 @@ Source/Teul/
 ```
 
 ### 1. Document
-- 문서를 시스템에 맞는 형태로 받아들인다.
-- 문서를 런타임 동안 관리한다.
-- history snapshot을 관리하고 undo/redo를 수행한다.
-- 버전을 검사하고 필요하면 upgrade/migration 한다.
-- ValueTree 양식과 외부 직렬화 형식을 관리한다.
-- 저장, 불러오기, autosave, recovery를 담당한다.
-- 다른 유저가 만든 `.teul` 파일을 해석해 현재 시스템 문서로 받아들이는 책임도 여기에 둔다.
+- 臾몄꽌瑜??쒖뒪?쒖뿉 留욌뒗 ?뺥깭濡?諛쏆븘?ㅼ씤??
+- 臾몄꽌瑜??고????숈븞 愿由ы븳??
+- history snapshot??愿由ы븯怨?undo/redo瑜??섑뻾?쒕떎.
+- 踰꾩쟾??寃?ы븯怨??꾩슂?섎㈃ upgrade/migration ?쒕떎.
+- ValueTree ?묒떇怨??몃? 吏곷젹???뺤떇??愿由ы븳??
+- ??? 遺덈윭?ㅺ린, autosave, recovery瑜??대떦?쒕떎.
+- ?ㅻⅨ ?좎?媛 留뚮뱺 `.teul` ?뚯씪???댁꽍???꾩옱 ?쒖뒪??臾몄꽌濡?諛쏆븘?ㅼ씠??梨낆엫???ш린???붾떎.
 
 ### 2. Editor
-- 문서를 사람이 보고 수정하는 표현 계층이다.
-- canvas, panel, inspector, rail, selection, drag, menu를 담당한다.
-- 사용자가 노드를 쉽게 추가하고 배치하고 연결하도록 편의 기능을 제공한다.
-- 노드, 포트, 연결선, rail 같은 시각 요소의 표현 규칙을 관리한다.
-- 문서를 직접 소유하기보다 `Document` 계층의 현재 문서를 표시하고 편집한다.
+- 臾몄꽌瑜??щ엺??蹂닿퀬 ?섏젙?섎뒗 ?쒗쁽 怨꾩링?대떎.
+- canvas, panel, inspector, rail, selection, drag, menu瑜??대떦?쒕떎.
+- ?ъ슜?먭? ?몃뱶瑜??쎄쾶 異붽??섍퀬 諛곗튂?섍퀬 ?곌껐?섎룄濡??몄쓽 湲곕뒫???쒓났?쒕떎.
+- ?몃뱶, ?ы듃, ?곌껐?? rail 媛숈? ?쒓컖 ?붿냼???쒗쁽 洹쒖튃??愿由ы븳??
+- 臾몄꽌瑜?吏곸젒 ?뚯쑀?섍린蹂대떎 `Document` 怨꾩링???꾩옱 臾몄꽌瑜??쒖떆?섍퀬 ?몄쭛?쒕떎.
 
 ### 3. Runtime
-- 문서를 실행 가능한 graph로 바꾼다.
-- 실행 중인 오디오 그래프를 직접 소유하고 관리한다.
-- audio, MIDI, control을 처리한다.
-- 런타임 이벤트와 장치 변화를 관리한다.
-- 성능 최적화와 이상 상태 감지를 담당한다.
-- 새 DSP node 도입 전 기본 검증과 호환성 확인을 담당한다.
+- 臾몄꽌瑜??ㅽ뻾 媛?ν븳 graph濡?諛붽씔??
+- ?ㅽ뻾 以묒씤 ?ㅻ뵒??洹몃옒?꾨? 吏곸젒 ?뚯쑀?섍퀬 愿由ы븳??
+- audio, MIDI, control??泥섎━?쒕떎.
+- ?고????대깽?몄? ?μ튂 蹂?붾? 愿由ы븳??
+- ?깅뒫 理쒖쟻?붿? ?댁긽 ?곹깭 媛먯?瑜??대떦?쒕떎.
+- ??DSP node ?꾩엯 ??湲곕낯 寃利앷낵 ?명솚???뺤씤???대떦?쒕떎.
 
 ### 4. Bridge
-- Teul 내부 구조를 외부 시스템이 이해하는 형식으로 바꾼다.
-- 외부 시스템의 요청과 응답을 Teul 내부 구조로 번역한다.
-- code generation, 외부용 JSON 생성/해석, Ieum/Gyeol/Naru 같은 외부 프로젝트와의 소통을 담당한다.
-- 단, `.teul` 파일 자체의 해석은 `Bridge`가 아니라 `Document` 책임으로 둔다.
+- Teul ?대? 援ъ“瑜??몃? ?쒖뒪?쒖씠 ?댄빐?섎뒗 ?뺤떇?쇰줈 諛붽씔??
+- ?몃? ?쒖뒪?쒖쓽 ?붿껌怨??묐떟??Teul ?대? 援ъ“濡?踰덉뿭?쒕떎.
+- code generation, ?몃???JSON ?앹꽦/?댁꽍, Ieum/Gyeol/Naru 媛숈? ?몃? ?꾨줈?앺듃????뚰넻???대떦?쒕떎.
+- ?? `.teul` ?뚯씪 ?먯껜???댁꽍? `Bridge`媛 ?꾨땲??`Document` 梨낆엫?쇰줈 ?붾떎.
 
 ---
 
-## 1차 목표
+## 1李?紐⑺몴
 
-리라이트 1차 목표는 세부 폴더를 많이 만드는 것이 아니라, 아래를 먼저 달성하는 것이다.
+由щ씪?댄듃 1李?紐⑺몴???몃? ?대뜑瑜?留롮씠 留뚮뱶??寃껋씠 ?꾨땲?? ?꾨옒瑜?癒쇱? ?ъ꽦?섎뒗 寃껋씠??
 
-- `Document`, `Editor`, `Runtime`, `Bridge` 4계층 경계 고정
-- 기존 `EditorHandleImpl` 구조를 제거하고 `TTeulEditor` 중심으로 단순화
-- 현재 `Model`, `Serialization`, `History`에 흩어진 문서 책임을 `Document` 중심으로 재정리
-- 현재 `EditorHandleImpl`에 몰린 editor UI와 interaction 책임을 `Editor` 폴더 구조로 재정리
-- 현재 `TGraphRuntime` 주변에 몰린 실행 graph, 런타임 이벤트, 장치, 검증 책임을 `Runtime/AudioGraph`, `Runtime/IOControl` 구조로 재정리
-- 외부 연동, codegen, 외부용 JSON 책임을 `Bridge` 폴더 구조로 재정리
-- 나머지 세분화는 2차 작업으로 미룸
-
----
-
-## Document 계층 역할
-
-`Document`는 단순 데이터 보관소가 아니라 문서 lifecycle 전체를 책임지는 계층으로 본다.
-
-핵심 책임은 아래와 같다.
-
-- 현재 문서의 in-memory 상태 보유
-- node/port/connection/control source/system endpoint 구조 정의
-- history snapshot 저장
-- undo/redo 수행
-- revision/version 관리
-- 구버전 문서 migration
-- ValueTree 양식 관리
-- 외부 직렬화/역직렬화
-- 파일 저장/불러오기
-- autosave/recovery 관리
-- 다른 유저가 만든 `.teul` 파일 import 및 해석
-
-즉, 문서가 들어오면 시스템이 이해할 수 있는 현재 포맷으로 바꾸고, 실행 중에는 그 문서를 관리하고, 필요할 때 다시 저장 가능한 형태로 내보내는 계층이다.
+- `Document`, `Editor`, `Runtime`, `Bridge` 4怨꾩링 寃쎄퀎 怨좎젙
+- 湲곗〈 `EditorHandleImpl` 援ъ“瑜??쒓굅?섍퀬 `TTeulEditor` 以묒떖?쇰줈 ?⑥닚??
+- ?꾩옱 `Model`, `Serialization`, `History`???⑹뼱吏?臾몄꽌 梨낆엫??`Document` 以묒떖?쇰줈 ?ъ젙由?
+- ?꾩옱 `EditorHandleImpl`??紐곕┛ editor UI? interaction 梨낆엫??`Editor` ?대뜑 援ъ“濡??ъ젙由?
+- ?꾩옱 `TGraphRuntime` 二쇰???紐곕┛ ?ㅽ뻾 graph, ?고????대깽?? ?μ튂, 寃利?梨낆엫??`Runtime/AudioGraph`, `Runtime/IOControl` 援ъ“濡??ъ젙由?
+- ?몃? ?곕룞, codegen, ?몃???JSON 梨낆엫??`Bridge` ?대뜑 援ъ“濡??ъ젙由?
+- ?섎㉧吏 ?몃텇?붾뒗 2李??묒뾽?쇰줈 誘몃８
 
 ---
 
-## Document 폴더 최소 파일 구조
+## Document 怨꾩링 ??븷
+
+`Document`???⑥닚 ?곗씠??蹂닿??뚭? ?꾨땲??臾몄꽌 lifecycle ?꾩껜瑜?梨낆엫吏??怨꾩링?쇰줈 蹂몃떎.
+
+?듭떖 梨낆엫? ?꾨옒? 媛숇떎.
+
+- ?꾩옱 臾몄꽌??in-memory ?곹깭 蹂댁쑀
+- node/port/connection/control source/system endpoint 援ъ“ ?뺤쓽
+- history snapshot ???
+- undo/redo ?섑뻾
+- revision/version 愿由?
+- 援щ쾭??臾몄꽌 migration
+- ValueTree ?묒떇 愿由?
+- ?몃? 吏곷젹????쭅?ы솕
+- ?뚯씪 ???遺덈윭?ㅺ린
+- autosave/recovery 愿由?
+- ?ㅻⅨ ?좎?媛 留뚮뱺 `.teul` ?뚯씪 import 諛??댁꽍
+
+利? 臾몄꽌媛 ?ㅼ뼱?ㅻ㈃ ?쒖뒪?쒖씠 ?댄빐?????덈뒗 ?꾩옱 ?щ㎎?쇰줈 諛붽씀怨? ?ㅽ뻾 以묒뿉??洹?臾몄꽌瑜?愿由ы븯怨? ?꾩슂?????ㅼ떆 ???媛?ν븳 ?뺥깭濡??대낫?대뒗 怨꾩링?대떎.
+
+---
+
+## Document ?대뜑 理쒖냼 ?뚯씪 援ъ“
 
 ```text
 Source/Teul/Document/
@@ -103,65 +103,65 @@ Source/Teul/Document/
 ```
 
 ### TDocumentTypes.h
-- 문서 공통 타입 정의
+- 臾몄꽌 怨듯넻 ????뺤쓽
 - `Node`, `Port`, `Connection`, `ControlSource`, `SystemEndpoint`
 - `DocumentVersion`, `DocumentId`, `RevisionId`
-- ValueTree property key 상수
+- ValueTree property key ?곸닔
 
 ### TTeulDocument.h / TTeulDocument.cpp
-- 정규화된 in-memory 문서 모델
-- 현재 시스템이 실제로 사용하는 문서 객체
-- revision 관리
-- 문서 무결성 유지
-- 기본 mutation API 제공
+- ?뺢퇋?붾맂 in-memory 臾몄꽌 紐⑤뜽
+- ?꾩옱 ?쒖뒪?쒖씠 ?ㅼ젣濡??ъ슜?섎뒗 臾몄꽌 媛앹껜
+- revision 愿由?
+- 臾몄꽌 臾닿껐???좎?
+- 湲곕낯 mutation API ?쒓났
 
 ### TDocumentHistory.h / TDocumentHistory.cpp
-- 문서 snapshot stack 관리
+- 臾몄꽌 snapshot stack 愿由?
 - undo / redo
-- history depth 제한
-- snapshot push/pop 정책 관리
+- history depth ?쒗븳
+- snapshot push/pop ?뺤콉 愿由?
 
 ### TDocumentSerializer.h / TDocumentSerializer.cpp
 - `TTeulDocument <-> ValueTree`
 - `TTeulDocument <-> JSON`
-- 외부 저장 포맷과 내부 문서 포맷 간 변환
-- `.teul` 파일의 실질적인 해석 규칙 담당
+- ?몃? ????щ㎎怨??대? 臾몄꽌 ?щ㎎ 媛?蹂??
+- `.teul` ?뚯씪???ㅼ쭏?곸씤 ?댁꽍 洹쒖튃 ?대떦
 
 ### TDocumentMigration.h / TDocumentMigration.cpp
-- 문서 버전 검사
-- 구버전 문서 upgrade
-- migration step 적용
-- load 시 현재 버전으로 정규화
+- 臾몄꽌 踰꾩쟾 寃??
+- 援щ쾭??臾몄꽌 upgrade
+- migration step ?곸슜
+- load ???꾩옱 踰꾩쟾?쇰줈 ?뺢퇋??
 
 ### TDocumentStore.h / TDocumentStore.cpp
-- 파일 입출력 facade
-- 저장 / 불러오기 / autosave / recovery
-- serializer, migration, history를 묶는 상위 진입점
+- ?뚯씪 ?낆텧??facade
+- ???/ 遺덈윭?ㅺ린 / autosave / recovery
+- serializer, migration, history瑜?臾띕뒗 ?곸쐞 吏꾩엯??
 
 ---
 
-## Editor 계층 역할
+## Editor 怨꾩링 ??븷
 
-`Editor`는 문서를 시각적으로 보여주고 편집하는 계층이다. 단순히 그리는 것만이 아니라, 사용자가 오디오 그래프를 빠르고 실수 적게 조작할 수 있도록 편의 기능을 제공해야 한다.
+`Editor`??臾몄꽌瑜??쒓컖?곸쑝濡?蹂댁뿬二쇨퀬 ?몄쭛?섎뒗 怨꾩링?대떎. ?⑥닚??洹몃━??寃껊쭔???꾨땲?? ?ъ슜?먭? ?ㅻ뵒??洹몃옒?꾨? 鍮좊Ⅴ怨??ㅼ닔 ?곴쾶 議곗옉?????덈룄濡??몄쓽 湲곕뒫???쒓났?댁빞 ?쒕떎.
 
-핵심 책임은 아래와 같다.
+?듭떖 梨낆엫? ?꾨옒? 媛숇떎.
 
-- 현재 문서를 canvas 위에 시각적으로 표현
-- node 추가, 이동, 선택, 삭제
-- port 간 연결 생성/삭제
+- ?꾩옱 臾몄꽌瑜?canvas ?꾩뿉 ?쒓컖?곸쑝濡??쒗쁽
+- node 異붽?, ?대룞, ?좏깮, ??젣
+- port 媛??곌껐 ?앹꽦/??젣
 - control assignment drag/drop
-- rail, panel, inspector 표시
-- quick add, search, context menu 같은 편의 기능
-- node, port, connection의 시각 규칙 관리
-- hover, selection, drag feedback 제공
-- 문서 변경을 editor interaction으로 연결
-- viewport, zoom, pan, redraw를 안정적으로 처리
+- rail, panel, inspector ?쒖떆
+- quick add, search, context menu 媛숈? ?몄쓽 湲곕뒫
+- node, port, connection???쒓컖 洹쒖튃 愿由?
+- hover, selection, drag feedback ?쒓났
+- 臾몄꽌 蹂寃쎌쓣 editor interaction?쇰줈 ?곌껐
+- viewport, zoom, pan, redraw瑜??덉젙?곸쑝濡?泥섎━
 
-즉, `Editor`는 문서를 사람이 다루기 쉬운 그래프 편집기로 바꾸는 계층이다.
+利? `Editor`??臾몄꽌瑜??щ엺???ㅻ（湲??ъ슫 洹몃옒???몄쭛湲곕줈 諛붽씀??怨꾩링?대떎.
 
 ---
 
-## Editor 폴더 최소 파일 구조
+## Editor ?대뜑 理쒖냼 ?뚯씪 援ъ“
 
 ```text
 Source/Teul/Editor/
@@ -198,79 +198,79 @@ Source/Teul/Editor/
 
 ---
 
-## Editor 최소 파일 설명
+## Editor 理쒖냼 ?뚯씪 ?ㅻ챸
 
 ### TTeulEditor.h / TTeulEditor.cpp
-- editor 전체 orchestration 진입점
-- `Document`의 현재 문서를 editor에 연결
-- canvas, panel, search, diagnostics 같은 UI 객체 생성 및 배치
-- refresh, layout, selection routing, rebuild scheduling 담당
-- 기존 `EditorHandle` / `EditorHandleImpl` 이중 구조를 없애고 단일 editor entry로 유지한다
+- editor ?꾩껜 orchestration 吏꾩엯??
+- `Document`???꾩옱 臾몄꽌瑜?editor???곌껐
+- canvas, panel, search, diagnostics 媛숈? UI 媛앹껜 ?앹꽦 諛?諛곗튂
+- refresh, layout, selection routing, rebuild scheduling ?대떦
+- 湲곗〈 `EditorHandle` / `EditorHandleImpl` ?댁쨷 援ъ“瑜??놁븷怨??⑥씪 editor entry濡??좎??쒕떎
 
 ### Canvas/TGraphCanvas.h / TGraphCanvas.cpp
-- 그래프 편집의 중심 canvas
-- node view와 connection view를 관리
-- zoom, pan, selection box, drag 상태, viewport redraw를 조정
-- 즉, canvas는 개별 요소를 직접 다 그리는 곳이라기보다 화면 전체 그래프 표현을 orchestration 하는 곳으로 둔다
+- 洹몃옒???몄쭛??以묒떖 canvas
+- node view? connection view瑜?愿由?
+- zoom, pan, selection box, drag ?곹깭, viewport redraw瑜?議곗젙
+- 利? canvas??媛쒕퀎 ?붿냼瑜?吏곸젒 ??洹몃━??怨녹씠?쇨린蹂대떎 ?붾㈃ ?꾩껜 洹몃옒???쒗쁽??orchestration ?섎뒗 怨녹쑝濡??붾떎
 
 ### Renderers/TNodeRenderer.h / .cpp
-- node body 렌더링 담당
-- node 제목, 본문, 상태 강조, 선택 상태 표시
-- 내부에서 `TPortRenderer`를 사용해 포트 외형을 함께 그린다
+- node body ?뚮뜑留??대떦
+- node ?쒕ぉ, 蹂몃Ц, ?곹깭 媛뺤“, ?좏깮 ?곹깭 ?쒖떆
+- ?대??먯꽌 `TPortRenderer`瑜??ъ슜???ы듃 ?명삎???④퍡 洹몃┛??
 
 ### Renderers/TPortRenderer.h / .cpp
-- port 외형 렌더링 담당
-- port 타입별 색상, 크기, 상태, hover/active 표시 규칙 관리
-- hit area와 포트 표시 규칙을 일관되게 유지
-- 포트 위치 계산과 포트 외형 계산은 우선 이 파일 내부 책임으로 둔다
-- bus channel bounds, mono/bundle hit test 같은 geometry helper도 별도 파일로 빼지 않고 여기 포함한다
+- port ?명삎 ?뚮뜑留??대떦
+- port ??낅퀎 ?됱긽, ?ш린, ?곹깭, hover/active ?쒖떆 洹쒖튃 愿由?
+- hit area? ?ы듃 ?쒖떆 洹쒖튃???쇨??섍쾶 ?좎?
+- ?ы듃 ?꾩튂 怨꾩궛怨??ы듃 ?명삎 怨꾩궛? ?곗꽑 ???뚯씪 ?대? 梨낆엫?쇰줈 ?붾떎
+- bus channel bounds, mono/bundle hit test 媛숈? geometry helper??蹂꾨룄 ?뚯씪濡?鍮쇱? ?딄퀬 ?ш린 ?ы븿?쒕떎
 
 ### Renderers/TConnectionRenderer.h / .cpp
-- connection line 렌더링 담당
-- 방향성, hover, selected, invalid, active 상태 표현
-- spline 또는 curve 규칙을 한 곳에서 관리
+- connection line ?뚮뜑留??대떦
+- 諛⑺뼢?? hover, selected, invalid, active ?곹깭 ?쒗쁽
+- spline ?먮뒗 curve 洹쒖튃????怨녹뿉??愿由?
 
 ### Interaction/SelectionController.cpp
-- 단일 선택, 다중 선택, marquee 선택, 선택 변경 정책
-- keyboard modifier를 포함한 selection 동작 규칙 담당
+- ?⑥씪 ?좏깮, ?ㅼ쨷 ?좏깮, marquee ?좏깮, ?좏깮 蹂寃??뺤콉
+- keyboard modifier瑜??ы븿??selection ?숈옉 洹쒖튃 ?대떦
 
 ### Interaction/ConnectionInteraction.cpp
-- 포트 간 연결 시작, 미리보기, 연결 확정, 연결 취소
-- control assignment drag/drop 같은 연결 계열 interaction 담당
+- ?ы듃 媛??곌껐 ?쒖옉, 誘몃━蹂닿린, ?곌껐 ?뺤젙, ?곌껐 痍⑥냼
+- control assignment drag/drop 媛숈? ?곌껐 怨꾩뿴 interaction ?대떦
 
 ### Interaction/ContextMenuController.cpp
-- 우클릭 메뉴, quick action, node 생성/삭제/변환 메뉴
-- 선택 상태에 따라 적절한 편집 명령 제공
+- ?고겢由?硫붾돱, quick action, node ?앹꽦/??젣/蹂??硫붾돱
+- ?좏깮 ?곹깭???곕씪 ?곸젅???몄쭛 紐낅졊 ?쒓났
 
 ### Panels/NodeLibraryPanel.h / .cpp
-- node 목록 탐색 및 추가 UI
-- 카테고리별 node 삽입
+- node 紐⑸줉 ?먯깋 諛?異붽? UI
+- 移댄뀒怨좊━蹂?node ?쎌엯
 
 ### Panels/NodePropertiesPanel.h / .cpp
-- 선택된 node의 파라미터 편집
-- binding summary, assignment drop target, param editor 표시
+- ?좏깮??node???뚮씪誘명꽣 ?몄쭛
+- binding summary, assignment drop target, param editor ?쒖떆
 
 ### Panels/DiagnosticsDrawer.h / .cpp
-- runtime/verification 관련 보조 정보 표시
-- editor 본문을 가리지 않는 보조 도구 역할
+- runtime/verification 愿??蹂댁“ ?뺣낫 ?쒖떆
+- editor 蹂몃Ц??媛由ъ? ?딅뒗 蹂댁“ ?꾧뎄 ??븷
 
 ### Search/SearchController.h / .cpp
-- quick add, node search, command palette 같은 탐색 기반 기능의 공통 조정자
-- 검색 입력, 결과 선택, editor action 연결을 담당
+- quick add, node search, command palette 媛숈? ?먯깋 湲곕컲 湲곕뒫??怨듯넻 議곗젙??
+- 寃???낅젰, 寃곌낵 ?좏깮, editor action ?곌껐???대떦
 
 ### Theme/TeulPalette.h
-- editor 전반의 색상 시스템 정의
-- 선택, hover, warning, accent 색상 일관성 유지
+- editor ?꾨컲???됱긽 ?쒖뒪???뺤쓽
+- ?좏깮, hover, warning, accent ?됱긽 ?쇨????좎?
 
 ### TIssueState.h
-- invalid, degraded, missing 같은 상태를 editor가 공통으로 다루도록 하는 표시용 상태 타입
-- node, port, connection, rail, endpoint가 같은 문제 상태 규칙을 공유하게 한다
+- invalid, degraded, missing 媛숈? ?곹깭瑜?editor媛 怨듯넻?쇰줈 ?ㅻ（?꾨줉 ?섎뒗 ?쒖떆???곹깭 ???
+- node, port, connection, rail, endpoint媛 媛숈? 臾몄젣 ?곹깭 洹쒖튃??怨듭쑀?섍쾶 ?쒕떎
 
 ---
 
-## Editor 내부 포함 관계
+## Editor ?대? ?ы븿 愿怨?
 
-editor 내부 관계는 우선 아래처럼 단순하게 잡는다.
+editor ?대? 愿怨꾨뒗 ?곗꽑 ?꾨옒泥섎읆 ?⑥닚?섍쾶 ?〓뒗??
 
 ```text
 TTeulEditor
@@ -280,21 +280,21 @@ TTeulEditor
        -> TConnectionRenderer
 ```
 
-원칙은 아래와 같다.
+?먯튃? ?꾨옒? 媛숇떎.
 
-- `TTeulEditor`는 editor 전체를 조립한다.
-- `TGraphCanvas`는 node와 connection을 화면에 배치하고 그리도록 조정한다.
-- `TNodeRenderer`는 node를 그리고 내부 포트 표현에 `TPortRenderer`를 사용한다.
-- `TConnectionRenderer`는 canvas 좌표계 기준으로 연결선을 그린다.
-- 포트 위치/형상 geometry는 우선 `TPortRenderer` 내부 helper로 처리한다.
+- `TTeulEditor`??editor ?꾩껜瑜?議곕┰?쒕떎.
+- `TGraphCanvas`??node? connection???붾㈃??諛곗튂?섍퀬 洹몃━?꾨줉 議곗젙?쒕떎.
+- `TNodeRenderer`??node瑜?洹몃━怨??대? ?ы듃 ?쒗쁽??`TPortRenderer`瑜??ъ슜?쒕떎.
+- `TConnectionRenderer`??canvas 醫뚰몴怨?湲곗??쇰줈 ?곌껐?좎쓣 洹몃┛??
+- ?ы듃 ?꾩튂/?뺤긽 geometry???곗꽑 `TPortRenderer` ?대? helper濡?泥섎━?쒕떎.
 
-즉, `Canvas -> Node, Connection`, 그리고 `Node -> PortRenderer` 구조를 기본으로 한다.
+利? `Canvas -> Node, Connection`, 洹몃━怨?`Node -> PortRenderer` 援ъ“瑜?湲곕낯?쇰줈 ?쒕떎.
 
 ---
 
-## Editor가 제공해야 하는 편의 기능
+## Editor媛 ?쒓났?댁빞 ?섎뒗 ?몄쓽 湲곕뒫
 
-최소 editor라도 아래 기능은 있어야 한다.
+理쒖냼 editor?쇰룄 ?꾨옒 湲곕뒫? ?덉뼱???쒕떎.
 
 - quick add
 - node search
@@ -304,65 +304,65 @@ TTeulEditor
 - multi-select
 - context menu
 - zoom / pan
-- snap 또는 정렬 보조
-- 선택 대상 properties 표시
+- snap ?먮뒗 ?뺣젹 蹂댁“
+- ?좏깮 ???properties ?쒖떆
 - hover/selection/drag feedback
-- 잘못된 연결이나 누락 상태에 대한 시각적 경고
+- ?섎せ???곌껐?대굹 ?꾨씫 ?곹깭??????쒓컖??寃쎄퀬
 
-이 기능들은 전부 고급 기능이 아니라, 그래프 편집기를 usable하게 만드는 기본 기능으로 본다.
-
----
-
-## Editor의 시각 규칙
-
-Editor는 단순히 데이터를 그리는 것이 아니라, 사용자가 빨리 읽고 빨리 연결할 수 있도록 시각 규칙을 강하게 가져야 한다.
-
-최소 원칙은 아래와 같다.
-
-- node는 타입과 상태가 한눈에 구분되어야 한다.
-- port는 데이터 타입별 색과 위치 규칙이 일관되어야 한다.
-- connection은 방향과 활성 상태가 읽혀야 한다.
-- selection, hover, drag preview는 즉시 눈에 띄어야 한다.
-- invalid, degraded, missing 상태는 일반 상태와 확실히 구분되어야 한다.
-- rail, canvas, panel의 위계가 화면에서 자연스럽게 읽혀야 한다.
+??湲곕뒫?ㅼ? ?꾨? 怨좉툒 湲곕뒫???꾨땲?? 洹몃옒???몄쭛湲곕? usable?섍쾶 留뚮뱶??湲곕낯 湲곕뒫?쇰줈 蹂몃떎.
 
 ---
 
-## Editor 최적화 기준
+## Editor???쒓컖 洹쒖튃
 
-최소 구조라도 editor는 어느 정도 최적화가 되어 있어야 한다.
+Editor???⑥닚???곗씠?곕? 洹몃━??寃껋씠 ?꾨땲?? ?ъ슜?먭? 鍮⑤━ ?쎄퀬 鍮⑤━ ?곌껐?????덈룄濡??쒓컖 洹쒖튃??媛뺥븯寃?媛?몄빞 ?쒕떎.
 
-- 전체 rebuild를 남발하지 않는다.
-- node 이동 시 connection redraw 범위를 제한한다.
-- hover나 meter 같은 실시간 요소는 필요한 부분만 repaint 한다.
-- selection 변경과 document 변경을 분리해서 refresh한다.
-- layout 계산과 paint 계산을 가능한 한 분리한다.
-- 포트/연결선 geometry는 재사용 가능한 형태로 캐시할 수 있게 설계한다.
+理쒖냼 ?먯튃? ?꾨옒? 媛숇떎.
 
-즉, 1차 editor는 화려함보다 반응성과 안정성을 우선한다.
+- node????낃낵 ?곹깭媛 ?쒕늿??援щ텇?섏뼱???쒕떎.
+- port???곗씠????낅퀎 ?됯낵 ?꾩튂 洹쒖튃???쇨??섏뼱???쒕떎.
+- connection? 諛⑺뼢怨??쒖꽦 ?곹깭媛 ?쏀????쒕떎.
+- selection, hover, drag preview??利됱떆 ?덉뿉 ?꾩뼱???쒕떎.
+- invalid, degraded, missing ?곹깭???쇰컲 ?곹깭? ?뺤떎??援щ텇?섏뼱???쒕떎.
+- rail, canvas, panel???꾧퀎媛 ?붾㈃?먯꽌 ?먯뿰?ㅻ읇寃??쏀????쒕떎.
 
 ---
 
-## Runtime 계층 역할
+## Editor 理쒖쟻??湲곗?
 
-`Runtime`은 문서를 실행 가능한 오디오 그래프로 바꾸고, 실행 중인 그래프와 장치 상태를 안전하게 유지하는 계층이다.
+理쒖냼 援ъ“?쇰룄 editor???대뒓 ?뺣룄 理쒖쟻?붽? ?섏뼱 ?덉뼱???쒕떎.
 
-핵심 책임은 크게 두 덩어리로 나눈다.
+- ?꾩껜 rebuild瑜??⑤컻?섏? ?딅뒗??
+- node ?대룞 ??connection redraw 踰붿쐞瑜??쒗븳?쒕떎.
+- hover??meter 媛숈? ?ㅼ떆媛??붿냼???꾩슂??遺遺꾨쭔 repaint ?쒕떎.
+- selection 蹂寃쎄낵 document 蹂寃쎌쓣 遺꾨━?댁꽌 refresh?쒕떎.
+- layout 怨꾩궛怨?paint 怨꾩궛??媛?ν븳 ??遺꾨━?쒕떎.
+- ?ы듃/?곌껐??geometry???ъ궗??媛?ν븳 ?뺥깭濡?罹먯떆?????덇쾶 ?ㅺ퀎?쒕떎.
+
+利? 1李?editor???붾젮?⑤낫??諛섏쓳?깃낵 ?덉젙?깆쓣 ?곗꽑?쒕떎.
+
+---
+
+## Runtime 怨꾩링 ??븷
+
+`Runtime`? 臾몄꽌瑜??ㅽ뻾 媛?ν븳 ?ㅻ뵒??洹몃옒?꾨줈 諛붽씀怨? ?ㅽ뻾 以묒씤 洹몃옒?꾩? ?μ튂 ?곹깭瑜??덉쟾?섍쾶 ?좎??섎뒗 怨꾩링?대떎.
+
+?듭떖 梨낆엫? ?ш쾶 ???⑹뼱由щ줈 ?섎늿??
 
 - `AudioGraph`
-  - 문서를 읽어 실행 가능한 graph로 컴파일
-  - 실행 중인 graph를 직접 소유하고 처리
-  - 성능 최적화, diagnostics, validator 관리
+  - 臾몄꽌瑜??쎌뼱 ?ㅽ뻾 媛?ν븳 graph濡?而댄뙆??
+  - ?ㅽ뻾 以묒씤 graph瑜?吏곸젒 ?뚯쑀?섍퀬 泥섎━
+  - ?깅뒫 理쒖쟻?? diagnostics, validator 愿由?
 - `IOControl`
-  - 런타임 중 발생하는 I/O 및 control device 이벤트 관리
-  - 장치 연결/제거, 채널 변화, sample rate/block size 변화 반영
-  - runtime graph rebuild가 필요한 외부 상태 변화를 runtime에 전달
+  - ?고???以?諛쒖깮?섎뒗 I/O 諛?control device ?대깽??愿由?
+  - ?μ튂 ?곌껐/?쒓굅, 梨꾨꼸 蹂?? sample rate/block size 蹂??諛섏쁺
+  - runtime graph rebuild媛 ?꾩슂???몃? ?곹깭 蹂?붾? runtime???꾨떖
 
-즉, `Runtime`은 단순 DSP 처리기 하나가 아니라, 문서를 실행 상태로 바꾸는 `AudioGraph`와 실행 중 외부 변화를 관리하는 `IOControl`을 함께 가진 계층이다.
+利? `Runtime`? ?⑥닚 DSP 泥섎━湲??섎굹媛 ?꾨땲?? 臾몄꽌瑜??ㅽ뻾 ?곹깭濡?諛붽씀??`AudioGraph`? ?ㅽ뻾 以??몃? 蹂?붾? 愿由ы븯??`IOControl`???④퍡 媛吏?怨꾩링?대떎.
 
 ---
 
-## Runtime 폴더 최소 파일 구조
+## Runtime ?대뜑 理쒖냼 ?뚯씪 援ъ“
 
 ```text
 Source/Teul/Runtime/
@@ -387,54 +387,54 @@ Source/Teul/Runtime/
 
 ---
 
-## Runtime 최소 파일 설명
+## Runtime 理쒖냼 ?뚯씪 ?ㅻ챸
 
 ### TTeulRuntime.h / TTeulRuntime.cpp
-- runtime 전체 진입점
-- 현재 실행 graph와 runtime 상태 소유
-- `AudioGraph`와 `IOControl`을 묶는 orchestration 담당
-- document revision/runtime revision 기준으로 rebuild 판단
-- event 반영, diagnostics 갱신, processor와 compiler orchestration 담당
+- runtime ?꾩껜 吏꾩엯??
+- ?꾩옱 ?ㅽ뻾 graph? runtime ?곹깭 ?뚯쑀
+- `AudioGraph`? `IOControl`??臾띕뒗 orchestration ?대떦
+- document revision/runtime revision 湲곗??쇰줈 rebuild ?먮떒
+- event 諛섏쁺, diagnostics 媛깆떊, processor? compiler orchestration ?대떦
 
 ### AudioGraph/TGraphCompiler.h / TGraphCompiler.cpp
-- `Document -> 실행 가능한 graph` 변환
-- node, connection, control route를 runtime용 구조로 해석
-- compile 결과물을 `TTeulRuntime`에 전달
+- `Document -> ?ㅽ뻾 媛?ν븳 graph` 蹂??
+- node, connection, control route瑜?runtime??援ъ“濡??댁꽍
+- compile 寃곌낵臾쇱쓣 `TTeulRuntime`???꾨떖
 
 ### AudioGraph/TGraphProcessor.h / TGraphProcessor.cpp
-- 실제 audio / MIDI / control 처리
-- block 단위 DSP 실행
+- ?ㅼ젣 audio / MIDI / control 泥섎━
+- block ?⑥쐞 DSP ?ㅽ뻾
 - runtime-safe parameter apply
-- compile된 graph를 따라 process 수행
+- compile??graph瑜??곕씪 process ?섑뻾
 
 ### AudioGraph/TRuntimeDiagnostics.h / TRuntimeDiagnostics.cpp
-- clip, overload, invalid route, fallback 같은 문제 감지
-- runtime stats와 경고 상태 정리
-- editor나 bridge가 읽을 수 있는 runtime 상태 요약 제공
+- clip, overload, invalid route, fallback 媛숈? 臾몄젣 媛먯?
+- runtime stats? 寃쎄퀬 ?곹깭 ?뺣━
+- editor??bridge媛 ?쎌쓣 ???덈뒗 runtime ?곹깭 ?붿빟 ?쒓났
 
 ### AudioGraph/TRuntimeValidator.h / TRuntimeValidator.cpp
-- 새 DSP node나 graph가 runtime에 들어오기 전 기본 검증
-- 필수 포트, 지원 타입, 기본 처리 가능 여부, 최소 안전성 검사
-- verification 기준의 runtime 측 진입점 역할
+- ??DSP node??graph媛 runtime???ㅼ뼱?ㅺ린 ??湲곕낯 寃利?
+- ?꾩닔 ?ы듃, 吏????? 湲곕낯 泥섎━ 媛???щ?, 理쒖냼 ?덉쟾??寃??
+- verification 湲곗???runtime 痢?吏꾩엯????븷
 
 ### IOControl/TRuntimeEvent.h
-- 런타임 이벤트 타입 정의
-- 예: device added/removed, channel layout changed, sample rate changed, rebuild requested, control device changed
+- ?고????대깽??????뺤쓽
+- ?? device added/removed, channel layout changed, sample rate changed, rebuild requested, control device changed
 
 ### IOControl/TRuntimeEventQueue.h / TRuntimeEventQueue.cpp
-- 런타임 이벤트 push / drain 통로
-- processing 중 직접 구조를 흔들지 않고 안전하게 상태를 반영하도록 돕는다
+- ?고????대깽??push / drain ?듬줈
+- processing 以?吏곸젒 援ъ“瑜??붾뱾吏 ?딄퀬 ?덉쟾?섍쾶 ?곹깭瑜?諛섏쁺?섎룄濡??뺣뒗??
 
 ### IOControl/TRuntimeDeviceManager.h / TRuntimeDeviceManager.cpp
-- audio/MIDI/control 장치 상태 관리
-- 장치 연결/제거, 활성 I/O, 채널 수, 기본 device 정보 추적
-- 장치 변화 결과를 runtime event 또는 runtime state로 반영
+- audio/MIDI/control ?μ튂 ?곹깭 愿由?
+- ?μ튂 ?곌껐/?쒓굅, ?쒖꽦 I/O, 梨꾨꼸 ?? 湲곕낯 device ?뺣낫 異붿쟻
+- ?μ튂 蹂??寃곌낵瑜?runtime event ?먮뒗 runtime state濡?諛섏쁺
 
 ---
 
-## Runtime 내부 포함 관계
+## Runtime ?대? ?ы븿 愿怨?
 
-runtime 내부 관계는 우선 아래처럼 단순하게 잡는다.
+runtime ?대? 愿怨꾨뒗 ?곗꽑 ?꾨옒泥섎읆 ?⑥닚?섍쾶 ?〓뒗??
 
 ```text
 TTeulRuntime
@@ -448,41 +448,41 @@ TTeulRuntime
        -> TRuntimeDeviceManager
 ```
 
-원칙은 아래와 같다.
+?먯튃? ?꾨옒? 媛숇떎.
 
-- `TTeulRuntime`는 runtime 전체를 조립한다.
-- `AudioGraph`는 document를 실행 graph로 만들고 실제 DSP 실행을 담당한다.
-- `IOControl`은 장치와 런타임 이벤트를 관리하고, 필요한 변화만 runtime에 전달한다.
-- `IOControl`이 직접 DSP graph를 소유하지는 않는다.
-- `AudioGraph`가 장치 감지 로직을 직접 품지 않는다.
+- `TTeulRuntime`??runtime ?꾩껜瑜?議곕┰?쒕떎.
+- `AudioGraph`??document瑜??ㅽ뻾 graph濡?留뚮뱾怨??ㅼ젣 DSP ?ㅽ뻾???대떦?쒕떎.
+- `IOControl`? ?μ튂? ?고????대깽?몃? 愿由ы븯怨? ?꾩슂??蹂?붾쭔 runtime???꾨떖?쒕떎.
+- `IOControl`??吏곸젒 DSP graph瑜??뚯쑀?섏????딅뒗??
+- `AudioGraph`媛 ?μ튂 媛먯? 濡쒖쭅??吏곸젒 ?덉? ?딅뒗??
 
-즉, graph 실행은 `AudioGraph`, 실행 중 외부 상태 관리는 `IOControl`로 나눈다.
+利? graph ?ㅽ뻾? `AudioGraph`, ?ㅽ뻾 以??몃? ?곹깭 愿由щ뒗 `IOControl`濡??섎늿??
 
 ---
 
-## Bridge 계층 역할
+## Bridge 怨꾩링 ??븷
 
-`Bridge`는 Teul 내부 구조와 외부 시스템 사이를 번역하는 계층이다.
+`Bridge`??Teul ?대? 援ъ“? ?몃? ?쒖뒪???ъ씠瑜?踰덉뿭?섎뒗 怨꾩링?대떎.
 
-핵심 책임은 아래와 같다.
+?듭떖 梨낆엫? ?꾨옒? 媛숇떎.
 
-- Teul 내부 구조를 외부용 데이터로 변환
-- 외부 요청과 응답을 Teul 내부 구조로 변환
+- Teul ?대? 援ъ“瑜??몃????곗씠?곕줈 蹂??
+- ?몃? ?붿껌怨??묐떟??Teul ?대? 援ъ“濡?蹂??
 - code generation
-- 외부용 JSON 생성과 해석
-- Ieum, Gyeol, Naru 같은 외부 프로젝트별 adapter 제공
-- 외부에서 읽기 쉬운 facade 제공
+- ?몃???JSON ?앹꽦怨??댁꽍
+- Ieum, Gyeol, Naru 媛숈? ?몃? ?꾨줈?앺듃蹂?adapter ?쒓났
+- ?몃??먯꽌 ?쎄린 ?ъ슫 facade ?쒓났
 
-중요한 경계는 아래와 같다.
+以묒슂??寃쎄퀎???꾨옒? 媛숇떎.
 
-- `.teul` 파일 해석은 `Document`
-- Ieum/Gyeol/Naru용 JSON 또는 외부 protocol 해석은 `Bridge`
+- `.teul` ?뚯씪 ?댁꽍? `Document`
+- Ieum/Gyeol/Naru??JSON ?먮뒗 ?몃? protocol ?댁꽍? `Bridge`
 
-즉, `Bridge`는 문서 저장 포맷이 아니라 외부 연동 포맷을 담당한다.
+利? `Bridge`??臾몄꽌 ????щ㎎???꾨땲???몃? ?곕룞 ?щ㎎???대떦?쒕떎.
 
 ---
 
-## Bridge 폴더 최소 파일 구조
+## Bridge ?대뜑 理쒖냼 ?뚯씪 援ъ“
 
 ```text
 Source/Teul/Bridge/
@@ -502,40 +502,40 @@ Source/Teul/Bridge/
 
 ---
 
-## Bridge 최소 파일 설명
+## Bridge 理쒖냼 ?뚯씪 ?ㅻ챸
 
 ### TTeulBridge.h / TTeulBridge.cpp
-- bridge 전체 진입점
-- 외부 시스템별 bridge와 json/codegen 기능을 묶는 facade
-- 외부에서 Teul을 호출할 때 가장 먼저 들어오는 통합 진입점
+- bridge ?꾩껜 吏꾩엯??
+- ?몃? ?쒖뒪?쒕퀎 bridge? json/codegen 湲곕뒫??臾띕뒗 facade
+- ?몃??먯꽌 Teul???몄텧????媛??癒쇱? ?ㅼ뼱?ㅻ뒗 ?듯빀 吏꾩엯??
 
 ### TBridgeJsonCodec.h / TBridgeJsonCodec.cpp
-- 외부 연동용 JSON 생성과 해석
-- 내부 구조와 외부 payload 간 변환
-- `.teul` 문서 포맷이 아니라 bridge payload 포맷 담당
+- ?몃? ?곕룞??JSON ?앹꽦怨??댁꽍
+- ?대? 援ъ“? ?몃? payload 媛?蹂??
+- `.teul` 臾몄꽌 ?щ㎎???꾨땲??bridge payload ?щ㎎ ?대떦
 
 ### TBridgeCodegen.h / TBridgeCodegen.cpp
-- code generation 담당
-- document/runtime metadata를 외부 코드나 설정 조각으로 변환
-- 외부 프로젝트에서 재사용할 산출물 생성
+- code generation ?대떦
+- document/runtime metadata瑜??몃? 肄붾뱶???ㅼ젙 議곌컖?쇰줈 蹂??
+- ?몃? ?꾨줈?앺듃?먯꽌 ?ъ궗?⑺븷 ?곗텧臾??앹꽦
 
 ### TIeumBridge.h / TIeumBridge.cpp
-- Ieum 전용 adapter
-- Ieum이 필요로 하는 payload, param surface, 요청/응답 형식 제공
+- Ieum ?꾩슜 adapter
+- Ieum???꾩슂濡??섎뒗 payload, param surface, ?붿껌/?묐떟 ?뺤떇 ?쒓났
 
 ### TGyeolBridge.h / TGyeolBridge.cpp
-- Gyeol 전용 adapter
-- Gyeol과 Teul 사이의 번역 규칙 담당
+- Gyeol ?꾩슜 adapter
+- Gyeol怨?Teul ?ъ씠??踰덉뿭 洹쒖튃 ?대떦
 
 ### TNaruBridge.h / TNaruBridge.cpp
-- Naru 전용 adapter
-- Naru와 Teul 사이의 번역 규칙 담당
+- Naru ?꾩슜 adapter
+- Naru? Teul ?ъ씠??踰덉뿭 洹쒖튃 ?대떦
 
 ---
 
-## Bridge 내부 포함 관계
+## Bridge ?대? ?ы븿 愿怨?
 
-bridge 내부 관계는 우선 아래처럼 단순하게 잡는다.
+bridge ?대? 愿怨꾨뒗 ?곗꽑 ?꾨옒泥섎읆 ?⑥닚?섍쾶 ?〓뒗??
 
 ```text
 TTeulBridge
@@ -546,21 +546,21 @@ TTeulBridge
   -> TNaruBridge
 ```
 
-원칙은 아래와 같다.
+?먯튃? ?꾨옒? 媛숇떎.
 
-- `TTeulBridge`는 외부 연동 계층 전체를 조립한다.
-- 각 외부 프로젝트는 전용 bridge로 분리한다.
-- 공통 JSON 해석과 생성은 `TBridgeJsonCodec`이 맡는다.
-- 공통 code generation은 `TBridgeCodegen`이 맡는다.
-- 외부 프로젝트별 규칙을 `TTeulBridge` 안에 섞지 않는다.
+- `TTeulBridge`???몃? ?곕룞 怨꾩링 ?꾩껜瑜?議곕┰?쒕떎.
+- 媛??몃? ?꾨줈?앺듃???꾩슜 bridge濡?遺꾨━?쒕떎.
+- 怨듯넻 JSON ?댁꽍怨??앹꽦? `TBridgeJsonCodec`??留〓뒗??
+- 怨듯넻 code generation? `TBridgeCodegen`??留〓뒗??
+- ?몃? ?꾨줈?앺듃蹂?洹쒖튃??`TTeulBridge` ?덉뿉 ?욎? ?딅뒗??
 
-즉, bridge 공통 기능과 외부 프로젝트별 adapter를 나눠 유지한다.
+利? bridge 怨듯넻 湲곕뒫怨??몃? ?꾨줈?앺듃蹂?adapter瑜??섎닠 ?좎??쒕떎.
 
 ---
 
-## Document / Editor / Runtime / Bridge sync 기준
+## Document / Editor / Runtime / Bridge sync 湲곗?
 
-네 계층 sync는 한 파일에 몰지 않고, 각 계층의 대표 진입점끼리 맞물리는 구조로 둔다.
+??怨꾩링 sync?????뚯씪??紐곗? ?딄퀬, 媛?怨꾩링?????吏꾩엯?먮겮由?留욌Ъ由щ뒗 援ъ“濡??붾떎.
 
 ```text
 Document/TTeulDocument
@@ -571,87 +571,87 @@ Document/TTeulDocument
   <-> Bridge/TTeulBridge
 ```
 
-### 문서 기준점
+### 臾몄꽌 湲곗???
 - `Document/TTeulDocument`
-- 현재 문서 상태의 source of truth
+- ?꾩옱 臾몄꽌 ?곹깭??source of truth
 
-### 문서-에디터 sync
+### 臾몄꽌-?먮뵒??sync
 - `Editor/TTeulEditor`
-- 문서 revision 변화를 보고 canvas/panel refresh
-- 사용자 편집 결과를 문서 mutation으로 반영
+- 臾몄꽌 revision 蹂?붾? 蹂닿퀬 canvas/panel refresh
+- ?ъ슜???몄쭛 寃곌낵瑜?臾몄꽌 mutation?쇰줈 諛섏쁺
 
-### 문서-런타임 sync
+### 臾몄꽌-?고???sync
 - `Runtime/TTeulRuntime`
-- 문서 revision/runtime revision 변화를 보고 rebuild 요청
-- 실제 graph 변환은 `Runtime/AudioGraph/TGraphCompiler`가 담당
+- 臾몄꽌 revision/runtime revision 蹂?붾? 蹂닿퀬 rebuild ?붿껌
+- ?ㅼ젣 graph 蹂?섏? `Runtime/AudioGraph/TGraphCompiler`媛 ?대떦
 
-### 런타임 이벤트-그래프 sync
+### ?고????대깽??洹몃옒??sync
 - `Runtime/IOControl/TRuntimeEventQueue`
-- 장치 변화나 control device 변화 같은 런타임 이벤트를 queue로 전달
-- `Runtime/TTeulRuntime`가 drain 후 graph rebuild 또는 상태 갱신 반영
+- ?μ튂 蹂?붾굹 control device 蹂??媛숈? ?고????대깽?몃? queue濡??꾨떖
+- `Runtime/TTeulRuntime`媛 drain ??graph rebuild ?먮뒗 ?곹깭 媛깆떊 諛섏쁺
 
-### 문서-브리지 sync
+### 臾몄꽌-釉뚮━吏 sync
 - `Bridge/TTeulBridge`
-- document를 외부 payload, codegen 결과, 외부 프로젝트용 구조로 변환
-- 외부 응답이나 요청을 내부에서 처리 가능한 구조로 변환
+- document瑜??몃? payload, codegen 寃곌낵, ?몃? ?꾨줈?앺듃??援ъ“濡?蹂??
+- ?몃? ?묐떟?대굹 ?붿껌???대??먯꽌 泥섎━ 媛?ν븳 援ъ“濡?蹂??
 
-### 런타임-에디터 연동
-- `Runtime`이 UI를 직접 건드리면 안 된다
-- `Runtime`은 diagnostics/stats/state를 노출한다
-- `Editor`는 그 상태를 읽어 표시한다
+### ?고????먮뵒???곕룞
+- `Runtime`??UI瑜?吏곸젒 嫄대뱶由щ㈃ ???쒕떎
+- `Runtime`? diagnostics/stats/state瑜??몄텧?쒕떎
+- `Editor`??洹??곹깭瑜??쎌뼱 ?쒖떆?쒕떎
 
-### 브리지-문서 경계
-- `.teul` import/export는 `Document`
-- 외부 프로젝트용 import/export는 `Bridge`
+### 釉뚮━吏-臾몄꽌 寃쎄퀎
+- `.teul` import/export??`Document`
+- ?몃? ?꾨줈?앺듃??import/export??`Bridge`
 
-즉, `Document`가 중심 상태이고 `Editor`, `Runtime`, `Bridge`는 각각 `Document`를 기준으로 sync 한다. `Runtime` 내부에서는 `AudioGraph`와 `IOControl`이 역할을 나눠 sync 한다.
-
----
-
-## 현재 코드 기준 이동 방향
-
-현재 흩어진 책임은 장기적으로 아래처럼 정리한다.
-
-- `Model/`의 순수 문서 구조는 `Document/`로 이동
-- `History/`의 undo/redo는 `DocumentHistory`로 흡수
-- `Serialization/`의 문서 저장/불러오기는 `DocumentSerializer`, `DocumentStore` 중심으로 재구성
-- migration 관련 책임은 `DocumentMigration`으로 통합
-- `EditorHandleImpl`에 몰린 canvas/panel/interaction/renderer 책임은 `Editor/` 하위 구조로 분리
-- `EditorHandle` / `EditorHandleImpl`은 제거하고 `TTeulEditor` 단일 진입점으로 정리
-- 기존 `TGraphRuntime`에 몰린 compile/process/diagnostics/validator 책임은 `Runtime/AudioGraph/`로 분리
-- 기존 장치 감지, 런타임 이벤트, control device state 책임은 `Runtime/IOControl/`로 분리
-- Ieum/외부 codegen/외부 JSON 관련 책임은 `Bridge/`로 이동
-- `.teul` 파일 해석과 migration은 `Document/`에 남긴다
-
-즉, 문서 관련 코드는 최종적으로 `Document` 폴더 하나에서 읽히고, editor 관련 코드는 `Editor` 폴더 하나에서 읽히고, runtime 관련 코드는 `Runtime/AudioGraph`, `Runtime/IOControl` 경계로 읽히고, 외부 연동 관련 코드는 `Bridge` 폴더 하나에서 읽히게 만드는 것이 목표다.
+利? `Document`媛 以묒떖 ?곹깭?닿퀬 `Editor`, `Runtime`, `Bridge`??媛곴컖 `Document`瑜?湲곗??쇰줈 sync ?쒕떎. `Runtime` ?대??먯꽌??`AudioGraph`? `IOControl`????븷???섎닠 sync ?쒕떎.
 
 ---
 
-## 이후 단계
+## ?꾩옱 肄붾뱶 湲곗? ?대룞 諛⑺뼢
 
-이 문서 기준에서 다음 설계는 순서대로 진행한다.
+?꾩옱 ?⑹뼱吏?梨낆엫? ?κ린?곸쑝濡??꾨옒泥섎읆 ?뺣━?쒕떎.
 
-1. `Document` 폴더 구조 확정
-2. `Editor` 최소 구조 확정
-3. `Runtime` 최소 구조 확정
-4. `Bridge` 최소 구조 확정
-5. 마지막에 각 계층 사이 공개 인터페이스 정리
+- `Model/`???쒖닔 臾몄꽌 援ъ“??`Document/`濡??대룞
+- `History/`??undo/redo??`DocumentHistory`濡??≪닔
+- `Serialization/`??臾몄꽌 ???遺덈윭?ㅺ린??`DocumentSerializer`, `DocumentStore` 以묒떖?쇰줈 ?ш뎄??
+- migration 愿??梨낆엫? `DocumentMigration`?쇰줈 ?듯빀
+- `EditorHandleImpl`??紐곕┛ canvas/panel/interaction/renderer 梨낆엫? `Editor/` ?섏쐞 援ъ“濡?遺꾨━
+- `EditorHandle` / `EditorHandleImpl`? ?쒓굅?섍퀬 `TTeulEditor` ?⑥씪 吏꾩엯?먯쑝濡??뺣━
+- 湲곗〈 `TGraphRuntime`??紐곕┛ compile/process/diagnostics/validator 梨낆엫? `Runtime/AudioGraph/`濡?遺꾨━
+- 湲곗〈 ?μ튂 媛먯?, ?고????대깽?? control device state 梨낆엫? `Runtime/IOControl/`濡?遺꾨━
+- Ieum/?몃? codegen/?몃? JSON 愿??梨낆엫? `Bridge/`濡??대룞
+- `.teul` ?뚯씪 ?댁꽍怨?migration? `Document/`???④릿??
+
+利? 臾몄꽌 愿??肄붾뱶??理쒖쥌?곸쑝濡?`Document` ?대뜑 ?섎굹?먯꽌 ?쏀엳怨? editor 愿??肄붾뱶??`Editor` ?대뜑 ?섎굹?먯꽌 ?쏀엳怨? runtime 愿??肄붾뱶??`Runtime/AudioGraph`, `Runtime/IOControl` 寃쎄퀎濡??쏀엳怨? ?몃? ?곕룞 愿??肄붾뱶??`Bridge` ?대뜑 ?섎굹?먯꽌 ?쏀엳寃?留뚮뱶??寃껋씠 紐⑺몴??
 
 ---
 
-## 완료 판정 기준
+## ?댄썑 ?④퀎
 
-- 최상위 계층이 `Document`, `Editor`, `Runtime`, `Bridge` 4개로 설명 가능해야 한다.
-- 문서 lifecycle 책임이 `Document` 계층 하나로 읽혀야 한다.
-- editor 표현과 interaction 책임이 `Editor` 계층 하나로 읽혀야 한다.
-- runtime 실행 graph 책임이 `Runtime/AudioGraph`로 읽혀야 한다.
-- 런타임 이벤트와 장치 상태 책임이 `Runtime/IOControl`로 읽혀야 한다.
-- 외부 연동과 codegen 책임이 `Bridge` 계층 하나로 읽혀야 한다.
-- undo/redo, migration, serialization, autosave가 문서 계층 책임으로 정리되어야 한다.
-- canvas, panel, interaction, render rule이 editor 계층 책임으로 정리되어야 한다.
-- compile, process, diagnostics, validator가 `Runtime/AudioGraph` 책임으로 정리되어야 한다.
-- runtime event, device state, control device change가 `Runtime/IOControl` 책임으로 정리되어야 한다.
-- 외부 JSON, codegen, Ieum/Gyeol/Naru adapter가 `Bridge` 책임으로 정리되어야 한다.
-- `TTeulEditor`는 editor orchestration만 담당해야 한다.
-- `TTeulRuntime`는 runtime orchestration만 담당해야 한다.
-- `TTeulBridge`는 bridge orchestration만 담당해야 한다.
+??臾몄꽌 湲곗??먯꽌 ?ㅼ쓬 ?ㅺ퀎???쒖꽌?濡?吏꾪뻾?쒕떎.
+
+1. `Document` ?대뜑 援ъ“ ?뺤젙
+2. `Editor` 理쒖냼 援ъ“ ?뺤젙
+3. `Runtime` 理쒖냼 援ъ“ ?뺤젙
+4. `Bridge` 理쒖냼 援ъ“ ?뺤젙
+5. 留덉?留됱뿉 媛?怨꾩링 ?ъ씠 怨듦컻 ?명꽣?섏씠???뺣━
+
+---
+
+## ?꾨즺 ?먯젙 湲곗?
+
+- 理쒖긽??怨꾩링??`Document`, `Editor`, `Runtime`, `Bridge` 4媛쒕줈 ?ㅻ챸 媛?ν빐???쒕떎.
+- 臾몄꽌 lifecycle 梨낆엫??`Document` 怨꾩링 ?섎굹濡??쏀????쒕떎.
+- editor ?쒗쁽怨?interaction 梨낆엫??`Editor` 怨꾩링 ?섎굹濡??쏀????쒕떎.
+- runtime ?ㅽ뻾 graph 梨낆엫??`Runtime/AudioGraph`濡??쏀????쒕떎.
+- ?고????대깽?몄? ?μ튂 ?곹깭 梨낆엫??`Runtime/IOControl`濡??쏀????쒕떎.
+- ?몃? ?곕룞怨?codegen 梨낆엫??`Bridge` 怨꾩링 ?섎굹濡??쏀????쒕떎.
+- undo/redo, migration, serialization, autosave媛 臾몄꽌 怨꾩링 梨낆엫?쇰줈 ?뺣━?섏뼱???쒕떎.
+- canvas, panel, interaction, render rule??editor 怨꾩링 梨낆엫?쇰줈 ?뺣━?섏뼱???쒕떎.
+- compile, process, diagnostics, validator媛 `Runtime/AudioGraph` 梨낆엫?쇰줈 ?뺣━?섏뼱???쒕떎.
+- runtime event, device state, control device change媛 `Runtime/IOControl` 梨낆엫?쇰줈 ?뺣━?섏뼱???쒕떎.
+- ?몃? JSON, codegen, Ieum/Gyeol/Naru adapter媛 `Bridge` 梨낆엫?쇰줈 ?뺣━?섏뼱???쒕떎.
+- `TTeulEditor`??editor orchestration留??대떦?댁빞 ?쒕떎.
+- `TTeulRuntime`??runtime orchestration留??대떦?댁빞 ?쒕떎.
+- `TTeulBridge`??bridge orchestration留??대떦?댁빞 ?쒕떎.
