@@ -695,30 +695,43 @@ void validateNodePorts(const TNode &node,
   if (descriptor == nullptr)
     return;
 
-  if (node.ports.size() != descriptor->portSpecs.size()) {
+  int expectedPortCount = 0;
+  for (const auto &spec : descriptor->portSpecs) {
+    expectedPortCount += spec.channelCount;
+  }
+
+  if (node.ports.size() != expectedPortCount) {
     report.addIssue(TExportIssueSeverity::Error,
                     TExportIssueCode::NodePortLayoutMismatch,
                     "Node port count differs from descriptor layout (document=" +
                         juce::String(static_cast<int>(node.ports.size())) +
                         ", descriptor=" +
-                        juce::String(static_cast<int>(descriptor->portSpecs.size())) +
+                        juce::String(expectedPortCount) +
                         ").",
                     makeNodeLocation(node, descriptor));
     return;
   }
 
-  for (size_t i = 0; i < node.ports.size(); ++i) {
-    const auto &actual = node.ports[i];
-    const auto &expected = descriptor->portSpecs[i];
-    if (actual.direction != expected.direction ||
-        actual.dataType != expected.dataType || actual.name != expected.name) {
-      auto location = makeNodeLocation(node, descriptor);
-      location.portId = actual.portId;
-      report.addIssue(TExportIssueSeverity::Error,
-                      TExportIssueCode::NodePortLayoutMismatch,
-                      "Node port layout differs from descriptor at index " +
-                          juce::String(static_cast<int>(i)) + ".",
-                      location);
+  int portIndex = 0;
+  for (const auto &spec : descriptor->portSpecs) {
+    for (int ch = 0; ch < spec.channelCount; ++ch) {
+      if (portIndex >= node.ports.size()) break;
+      const auto &actual = node.ports[portIndex++];
+      juce::String expectedName = spec.name;
+      if (spec.channelCount > 1 && ch < (int)spec.channelNames.size()) {
+        expectedName = spec.channelNames[ch];
+      }
+
+      if (actual.direction != spec.direction ||
+          actual.dataType != spec.dataType || actual.name != expectedName) {
+        auto location = makeNodeLocation(node, descriptor);
+        location.portId = actual.portId;
+        report.addIssue(TExportIssueSeverity::Error,
+                        TExportIssueCode::NodePortLayoutMismatch,
+                        "Node port layout differs from descriptor at index " +
+                            juce::String(static_cast<int>(portIndex - 1)) + ".",
+                        location);
+      }
     }
   }
 }

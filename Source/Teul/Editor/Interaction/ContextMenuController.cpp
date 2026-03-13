@@ -573,15 +573,22 @@ bool TGraphCanvas::replaceNode(NodeId nodeId,
     next.params[param.key] = param.defaultValue;
 
   for (const auto &spec : desc->portSpecs) {
-    TPort port;
-    port.portId = document.allocPortId();
-    port.ownerNodeId = next.nodeId;
-    port.direction = spec.direction;
-    port.dataType = spec.dataType;
-    port.name = spec.name;
-    port.maxIncomingConnections = spec.maxIncomingConnections;
-    port.maxOutgoingConnections = spec.maxOutgoingConnections;
-    next.ports.push_back(port);
+    for (int ch = 0; ch < spec.channelCount; ++ch) {
+      TPort port;
+      port.portId = document.allocPortId();
+      port.ownerNodeId = next.nodeId;
+      port.direction = spec.direction;
+      port.dataType = spec.dataType;
+      if (spec.channelCount > 1 && ch < (int)spec.channelNames.size()) {
+        port.name = spec.channelNames[ch];
+      } else {
+        port.name = spec.name;
+      }
+      port.channelIndex = ch;
+      port.maxIncomingConnections = spec.maxIncomingConnections;
+      port.maxOutgoingConnections = spec.maxOutgoingConnections;
+      next.ports.push_back(port);
+    }
   }
 
   std::unordered_map<PortId, PortId> mapped;

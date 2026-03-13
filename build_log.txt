@@ -1,150 +1,185 @@
 
   Main.cpp
-  TNodeRegistry.cpp
-  TGraphRuntime.cpp
-  TVerificationBenchmark.cpp
-  TVerificationCompiledParity.cpp
-  TVerificationGoldenAudio.cpp
-  TVerificationParity.cpp
-  TVerificationStimulus.cpp
-  TVerificationStress.cpp
+  MainComponent.cpp
+  CanvasRenderers.cpp
+  TGraphCanvas.cpp
+  ConnectionInteraction.cpp
+  ContextMenuController.cpp
+  NodeFrameInteraction.cpp
+  SelectionController.cpp
+  NodePreviewRenderer.cpp
+  TNodeComponent.cpp
+  NodeLibraryPanel.cpp
+  NodePropertiesPanel.cpp
+  BindingSummaryPresenter.cpp
+  ParamEditorFactory.cpp
+  ParamValueFormatter.cpp
+  TPortComponent.cpp
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Canvas/CanvasRenderers.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\AppServices.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Node/NodePreviewRenderer.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Node/NodePreviewRenderer.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Node/NodePreviewRenderer.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/BindingSummaryPresenter.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/ParamValueFormatter.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Canvas/TGraphCanvas.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/NodeFrameInteraction.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/SelectionController.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Editor\Node\TNodeComponent.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Node/TNodeComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/ParamEditorFactory.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Node/TNodeComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Node/TNodeComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/ParamEditorFactory.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/NodePropertiesPanel.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\AppServices.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ConnectionInteraction.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Canvas/TGraphCanvas.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Canvas/TGraphCanvas.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/ParamEditorFactory.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/ParamEditorFactory.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/BindingSummaryPresenter.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/BindingSummaryPresenter.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Canvas/CanvasRenderers.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Canvas/CanvasRenderers.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\CoreNodes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\FXNodes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Node/TNodeComponent.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ConnectionInteraction.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ConnectionInteraction.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/NodeFrameInteraction.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/NodeFrameInteraction.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Node/NodePreviewRenderer.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/SelectionController.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/SelectionController.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/NodePropertiesPanel.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/NodePropertiesPanel.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/ParamValueFormatter.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/ParamValueFormatter.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/ParamValueFormatter.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Port/TPortComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Port/TPortComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Canvas/TGraphCanvas.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Port/TPortComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/Property/BindingSummaryPresenter.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Canvas/CanvasRenderers.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/NodeLibraryPanel.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/NodeLibraryPanel.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/NodeLibraryPanel.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/NodeLibraryPanel.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ConnectionInteraction.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(113,50): warning C4100: 'ctx': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\MidiNodes.h(138,50): warning C4100: 'ctx': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
@@ -152,87 +187,74 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAnd
 C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/NodeFrameInteraction.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/SelectionController.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
       C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
       'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Canvas/TGraphCanvas.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Canvas/TGraphCanvas.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/NodePropertiesPanel.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/SelectionController.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/SelectionController.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ConnectionInteraction.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/ConnectionInteraction.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Port/TPortComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/NodeFrameInteraction.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Interaction/NodeFrameInteraction.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/NodePropertiesPanel.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Panels/NodePropertiesPanel.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Serialization\TFileIo.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Verification\TVerificationGoldenAudio.cpp(108,17): warning C4996: 'juce::AudioFormat::createWriterFor': Use the function taking an AudioFormatWriterOptions instead. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
   
@@ -240,6 +262,9 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C481
   (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
@@ -263,7 +288,287 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Serialization\TFileIo.h(1,1): wa
 C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Main.cpp(3248,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Main.cpp(3237,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  QuickAddOverlay.cpp
+  TExport.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Editor\Search\QuickAddOverlay.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Search/QuickAddOverlay.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Export/TExport.cpp'을(를) 컴파일하는 중)
+  
+  TNodeRegistry.cpp
+  TGraphRuntime.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  
+  TVerificationBenchmark.cpp
+  TVerificationCompiledParity.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  
+  TVerificationFixtures.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationFixtures.cpp'을(를) 컴파일하는 중)
+  
+  TVerificationGoldenAudio.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  
+  TVerificationParity.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  
+  TVerificationStimulus.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  
+  TVerificationStress.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Search/QuickAddOverlay.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Search/QuickAddOverlay.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Export/TExport.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Export/TExport.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Search/QuickAddOverlay.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Export/TExport.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\CoreNodes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\Nodes\Core\FXNodes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationFixtures.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationFixtures.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Runtime/TGraphRuntime.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Search/QuickAddOverlay.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/Search/QuickAddOverlay.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Registry/TNodeRegistry.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationBenchmark.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationFixtures.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationGoldenAudio.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationCompiledParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStimulus.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationParity.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Verification\TVerificationGoldenAudio.cpp(108,17): warning C4996: 'juce::AudioFormat::createWriterFor': Use the function taking an AudioFormatWriterOptions instead. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Verification/TVerificationStress.cpp'을(를) 컴파일하는 중)
+  
   EditorHandle.cpp
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Editor/EditorHandle.cpp'을(를) 컴파일하는 중)
@@ -272,6 +577,9 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C481
   (소스 파일 '../../Source/Teul/Editor/EditorHandle.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandle.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Editor/EditorHandle.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
@@ -299,6 +607,9 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C481
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
   
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
   
@@ -323,5 +634,5 @@ C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Serialization\TFileIo.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
   (소스 파일 '../../Source/Teul/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
   
-  DadeumStudio_App.vcxproj -> C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\x64\Debug\App\DadeumStudio.exe
-EXIT_CODE=0 
+LINK : fatal error LNK1168: C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\x64\Debug\App\\DadeumStudio.exe을(를) 쓰기용으로 열 수 없습니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+EXIT_CODE=1 
