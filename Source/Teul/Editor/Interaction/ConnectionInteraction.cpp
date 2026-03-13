@@ -51,31 +51,6 @@ bool externalZoneContains(const TGraphCanvas::ExternalDropZone &zone,
   return dx * dx + dy * dy <= 1.0f;
 }
 
-bool splitStereoLabel(juce::StringRef name, bool &isLeft, juce::String &suffix) {
-  const juce::String trimmed = juce::String(name).trim();
-  if (trimmed.equalsIgnoreCase("L")) {
-    isLeft = true;
-    suffix.clear();
-    return true;
-  }
-  if (trimmed.equalsIgnoreCase("R")) {
-    isLeft = false;
-    suffix.clear();
-    return true;
-  }
-  if (trimmed.startsWithIgnoreCase("L ")) {
-    isLeft = true;
-    suffix = trimmed.substring(2).trim();
-    return true;
-  }
-  if (trimmed.startsWithIgnoreCase("R ")) {
-    isLeft = false;
-    suffix = trimmed.substring(2).trim();
-    return true;
-  }
-  return false;
-}
-
 bool buildNodeBundleEndpoints(const TGraphDocument &document, NodeId nodeId,
                               PortId anchorPortId, int channelCount,
                               std::vector<TEndpoint> &endpointsOut) {
@@ -84,52 +59,42 @@ bool buildNodeBundleEndpoints(const TGraphDocument &document, NodeId nodeId,
     return false;
 
   const auto *node = document.findNode(nodeId);
-  const auto *anchorPort = node != nullptr ? node->findPort(anchorPortId) : nullptr;
-  if (anchorPort == nullptr)
+  if (node == nullptr)
     return false;
+
+  int anchorIndex = -1;
+  for (int i = 0; i < (int)node->ports.size(); ++i) {
+    if (node->ports[i].portId == anchorPortId) {
+      anchorIndex = i;
+      break;
+    }
+  }
+  if (anchorIndex < 0)
+    return false;
+
+  const auto &anchorPort = node->ports[anchorIndex];
 
   if (channelCount == 1) {
     endpointsOut.push_back(TEndpoint::makeNodePort(nodeId, anchorPortId));
     return true;
   }
 
-  if (channelCount != 2 || anchorPort->dataType != TPortDataType::Audio)
-    return false;
-
-  bool anchorIsLeft = false;
-  juce::String suffix;
-  if (!splitStereoLabel(anchorPort->name, anchorIsLeft, suffix))
-    return false;
-
-  const TPort *siblingPort = nullptr;
-  for (const auto &candidate : node->ports) {
-    if (candidate.portId == anchorPort->portId ||
-        candidate.direction != anchorPort->direction ||
-        candidate.dataType != anchorPort->dataType) {
-      continue;
-    }
-
-    bool candidateIsLeft = false;
-    juce::String candidateSuffix;
-    if (!splitStereoLabel(candidate.name, candidateIsLeft, candidateSuffix) ||
-        candidateIsLeft == anchorIsLeft || candidateSuffix != suffix) {
-      continue;
-    }
-
-    siblingPort = &candidate;
-    break;
+  int startIndex = anchorIndex;
+  while (startIndex > 0 &&
+         node->ports[startIndex - 1].channelIndex == node->ports[startIndex].channelIndex - 1 &&
+         node->ports[startIndex - 1].direction == anchorPort.direction &&
+         node->ports[startIndex - 1].dataType == anchorPort.dataType) {
+    --startIndex;
   }
 
-  if (siblingPort == nullptr)
+  if (startIndex + channelCount > (int)node->ports.size())
     return false;
 
-  endpointsOut.resize(2);
-  if (anchorIsLeft) {
-    endpointsOut[0] = TEndpoint::makeNodePort(nodeId, anchorPort->portId);
-    endpointsOut[1] = TEndpoint::makeNodePort(nodeId, siblingPort->portId);
-  } else {
-    endpointsOut[0] = TEndpoint::makeNodePort(nodeId, siblingPort->portId);
-    endpointsOut[1] = TEndpoint::makeNodePort(nodeId, anchorPort->portId);
+  for (int i = 0; i < channelCount; ++i) {
+    const auto &p = node->ports[startIndex + i];
+    if (p.channelIndex != i || p.direction != anchorPort.direction || p.dataType != anchorPort.dataType)
+      return false;
+    endpointsOut.push_back(TEndpoint::makeNodePort(nodeId, p.portId));
   }
   return true;
 }

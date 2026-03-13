@@ -36,45 +36,11 @@ juce::String sanitizeStatePresetName(const juce::String &rawName) {
   return text;
 }
 
-bool splitStereoLabel(juce::StringRef name, bool &isLeft, juce::String &suffix) {
-  const juce::String trimmed = juce::String(name).trim();
-  if (trimmed.equalsIgnoreCase("L")) {
-    isLeft = true;
-    suffix.clear();
-    return true;
-  }
-  if (trimmed.equalsIgnoreCase("R")) {
-    isLeft = false;
-    suffix.clear();
-    return true;
-  }
-  if (trimmed.startsWithIgnoreCase("L ")) {
-    isLeft = true;
-    suffix = trimmed.substring(2).trim();
-    return true;
-  }
-  if (trimmed.startsWithIgnoreCase("R ")) {
-    isLeft = false;
-    suffix = trimmed.substring(2).trim();
-    return true;
-  }
-  return false;
-}
-
 bool portsMatchStereoSlot(const TPort &lhs, const TPort &rhs) {
   if (lhs.direction != rhs.direction || lhs.dataType != rhs.dataType)
     return false;
 
-  bool lhsIsLeft = false;
-  bool rhsIsLeft = false;
-  juce::String lhsSuffix;
-  juce::String rhsSuffix;
-  if (!splitStereoLabel(lhs.name, lhsIsLeft, lhsSuffix) ||
-      !splitStereoLabel(rhs.name, rhsIsLeft, rhsSuffix)) {
-    return false;
-  }
-
-  return lhsIsLeft == rhsIsLeft && lhsSuffix == rhsSuffix;
+  return lhs.channelIndex == rhs.channelIndex;
 }
 
 PortId findReplacementPortId(const TPort &oldPort,

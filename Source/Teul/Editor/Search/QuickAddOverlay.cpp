@@ -15,145 +15,53 @@ bool endpointsEqual(const TEndpoint &lhs, const TEndpoint &rhs) {
          lhs.railPortId == rhs.railPortId;
 }
 
-bool splitStereoLabel(juce::StringRef name, bool &isLeft, juce::String &suffix) {
-  const juce::String trimmed = juce::String(name).trim();
-  if (trimmed.equalsIgnoreCase("L")) {
-    isLeft = true;
-    suffix.clear();
-    return true;
-  }
-  if (trimmed.equalsIgnoreCase("R")) {
-    isLeft = false;
-    suffix.clear();
-    return true;
-  }
-  if (trimmed.startsWithIgnoreCase("L ")) {
-    isLeft = true;
-    suffix = trimmed.substring(2).trim();
-    return true;
-  }
-  if (trimmed.startsWithIgnoreCase("R ")) {
-    isLeft = false;
-    suffix = trimmed.substring(2).trim();
-    return true;
-  }
-  return false;
-}
-
-bool endpointStereoInfo(const TGraphDocument &document, const TEndpoint &endpoint,
-                        bool &isLeft, juce::String &suffix,
-                        TPortDataType &dataTypeOut,
-                        TPortDirection &directionOut) {
+bool getBundleEndpointsFor(const TGraphDocument &document, const TEndpoint &endpoint,
+                           std::vector<TEndpoint> &endpointsOut) {
+  endpointsOut.clear();
   if (endpoint.isNodePort()) {
     const auto *node = document.findNode(endpoint.nodeId);
-    const auto *port = node != nullptr ? node->findPort(endpoint.portId) : nullptr;
-    if (port == nullptr)
-      return false;
-    dataTypeOut = port->dataType;
-    directionOut = port->direction;
-    if (port->dataType != TPortDataType::Audio)
-      return false;
-    return splitStereoLabel(port->name, isLeft, suffix);
-  }
+    if (node == nullptr) return false;
 
-  const auto *railEndpoint = document.controlState.findEndpoint(endpoint.railEndpointId);
-  const auto *railPort = document.findSystemRailPort(endpoint.railEndpointId,
-                                                     endpoint.railPortId);
-  if (railEndpoint == nullptr || railPort == nullptr) {
-    return false;
-  }
-
-  dataTypeOut = railPort->dataType;
-  directionOut = railEndpoint->railId == "output-rail" ? TPortDirection::Input
-                                                        : TPortDirection::Output;
-  if (!railEndpoint->stereo || railPort->dataType != TPortDataType::Audio)
-    return false;
-
-  if (railEndpoint->ports.size() < 2)
-    return false;
-
-  if (railEndpoint->ports[0].portId == endpoint.railPortId) {
-    isLeft = true;
-    suffix.clear();
-    return true;
-  }
-  if (railEndpoint->ports[1].portId == endpoint.railPortId) {
-    isLeft = false;
-    suffix.clear();
-    return true;
-  }
-  return false;
-}
-
-bool findStereoSiblingEndpoint(const TGraphDocument &document,
-                               const TEndpoint &endpoint,
-                               TEndpoint &siblingOut) {
-  bool isLeft = false;
-  juce::String suffix;
-  TPortDataType dataType = TPortDataType::Audio;
-  TPortDirection direction = TPortDirection::Input;
-  if (!endpointStereoInfo(document, endpoint, isLeft, suffix, dataType, direction))
-    return false;
-
-  if (endpoint.isNodePort()) {
-    const auto *node = document.findNode(endpoint.nodeId);
-    if (node == nullptr)
-      return false;
-
-    for (const auto &candidate : node->ports) {
-      if (candidate.portId == endpoint.portId || candidate.dataType != dataType ||
-          candidate.direction != direction) {
-        continue;
+    int anchorIndex = -1;
+    for (int i = 0; i < (int)node->ports.size(); ++i) {
+      if (node->ports[i].portId == endpoint.portId) {
+        anchorIndex = i;
+        break;
       }
-
-      bool candidateIsLeft = false;
-      juce::String candidateSuffix;
-      if (!splitStereoLabel(candidate.name, candidateIsLeft, candidateSuffix) ||
-          candidateIsLeft == isLeft || candidateSuffix != suffix) {
-        continue;
-      }
-
-      siblingOut = TEndpoint::makeNodePort(endpoint.nodeId, candidate.portId);
-      return true;
     }
-    return false;
+    if (anchorIndex < 0) return false;
+
+    const auto &anchorPort = node->ports[anchorIndex];
+    int startIndex = anchorIndex;
+    while (startIndex > 0 && 
+           node->ports[startIndex - 1].channelIndex == node->ports[startIndex].channelIndex - 1 &&
+           node->ports[startIndex - 1].direction == anchorPort.direction &&
+           node->ports[startIndex - 1].dataType == anchorPort.dataType) {
+      --startIndex;
+    }
+
+    int count = 1;
+    while (startIndex + count < (int)node->ports.size() &&
+           node->ports[startIndex + count].channelIndex == node->ports[startIndex + count - 1].channelIndex + 1 &&
+           node->ports[startIndex + count].direction == anchorPort.direction &&
+           node->ports[startIndex + count].dataType == anchorPort.dataType) {
+      ++count;
+    }
+
+    for (int i = 0; i < count; ++i)
+      endpointsOut.push_back(TEndpoint::makeNodePort(endpoint.nodeId, node->ports[startIndex + i].portId));
+
+    return true;
   }
 
   const auto *railEndpoint = document.controlState.findEndpoint(endpoint.railEndpointId);
-  if (railEndpoint == nullptr || railEndpoint->ports.size() < 2)
+  const auto *railPort = document.findSystemRailPort(endpoint.railEndpointId, endpoint.railPortId);
+  if (railEndpoint == nullptr || railPort == nullptr)
     return false;
 
-  siblingOut = TEndpoint::makeRailPort(
-      endpoint.railEndpointId,
-      isLeft ? railEndpoint->ports[1].portId : railEndpoint->ports[0].portId);
+  for (const auto &p : railEndpoint->ports)
+    endpointsOut.push_back(TEndpoint::makeRailPort(endpoint.railEndpointId, p.portId));
   return true;
-}
-
-bool findConnectionByEndpoints(const TGraphDocument &document,
-                               const TEndpoint &from, const TEndpoint &to,
-                               TConnection &connectionOut) {
-  for (const auto &connection : document.connections) {
-    if (endpointsEqual(connection.from, from) && endpointsEqual(connection.to, to)) {
-      connectionOut = connection;
-      return true;
-    }
-  }
-  return false;
-}
-
-std::vector<TEndpoint> orderedStereoEndpoints(const TGraphDocument &document,
-                                              const TEndpoint &first,
-                                              const TEndpoint &second) {
-  bool isLeft = false;
-  juce::String suffix;
-  TPortDataType dataType = TPortDataType::Audio;
-  TPortDirection direction = TPortDirection::Input;
-  if (endpointStereoInfo(document, first, isLeft, suffix, dataType, direction) &&
-      !isLeft) {
-    return {second, first};
-  }
-
-  return {first, second};
 }
 
 bool findFirstMatchingPort(const TNode &node, TPortDirection direction,
@@ -167,46 +75,33 @@ bool findFirstMatchingPort(const TNode &node, TPortDirection direction,
   return false;
 }
 
-bool findFirstMatchingStereoBundle(const TNode &node, TPortDirection direction,
-                                   TPortDataType type,
-                                   std::vector<PortId> &portIdsOut) {
-  if (type != TPortDataType::Audio)
-    return false;
-
-  for (const auto &port : node.ports) {
-    if (port.direction != direction || port.dataType != type)
+bool findFirstMatchingBundle(const TNode &node, TPortDirection direction,
+                             TPortDataType type, size_t requiredCount,
+                             std::vector<PortId> &portIdsOut) {
+  portIdsOut.clear();
+  for (size_t i = 0; i < node.ports.size(); ) {
+    const auto &p = node.ports[i];
+    if (p.direction != direction || p.dataType != type) {
+      ++i;
       continue;
+    }
 
-    bool isLeft = false;
-    juce::String suffix;
-    if (!splitStereoLabel(port.name, isLeft, suffix))
-      continue;
+    size_t j = i + 1;
+    while (j < node.ports.size() &&
+           node.ports[j].channelIndex == node.ports[j - 1].channelIndex + 1 &&
+           node.ports[j].direction == direction &&
+           node.ports[j].dataType == type) {
+      ++j;
+    }
 
-    for (const auto &candidate : node.ports) {
-      if (candidate.portId == port.portId || candidate.direction != direction ||
-          candidate.dataType != type) {
-        continue;
-      }
-
-      bool candidateIsLeft = false;
-      juce::String candidateSuffix;
-      if (!splitStereoLabel(candidate.name, candidateIsLeft, candidateSuffix) ||
-          candidateIsLeft == isLeft || candidateSuffix != suffix) {
-        continue;
-      }
-
-      portIdsOut.clear();
-      if (isLeft) {
-        portIdsOut.push_back(port.portId);
-        portIdsOut.push_back(candidate.portId);
-      } else {
-        portIdsOut.push_back(candidate.portId);
-        portIdsOut.push_back(port.portId);
-      }
+    if (j - i >= requiredCount) {
+      for (size_t k = i; k < j; ++k)
+        portIdsOut.push_back(node.ports[k].portId);
       return true;
     }
+    
+    i = j;
   }
-
   return false;
 }
 
@@ -223,31 +118,51 @@ bool TGraphCanvas::insertNodeOnConnection(ConnectionId connectionId,
   const auto sourceType = dataTypeForEndpoint(original.from);
   const auto targetType = dataTypeForEndpoint(original.to);
 
-  std::vector<TEndpoint> sourceEndpoints{original.from};
-  std::vector<TEndpoint> targetEndpoints{original.to};
-  std::vector<ConnectionId> connectionsToReplace{original.connectionId};
+  std::vector<TEndpoint> sourceEndpoints;
+  std::vector<TEndpoint> targetEndpoints;
+  std::vector<ConnectionId> connectionsToReplace;
 
-  TEndpoint fromSibling;
-  TEndpoint toSibling;
-  TConnection companionConnection;
   if (sourceType == TPortDataType::Audio && targetType == TPortDataType::Audio &&
-      findStereoSiblingEndpoint(document, original.from, fromSibling) &&
-      findStereoSiblingEndpoint(document, original.to, toSibling) &&
-      findConnectionByEndpoints(document, fromSibling, toSibling,
-                               companionConnection)) {
-    sourceEndpoints = orderedStereoEndpoints(document, original.from, fromSibling);
-    targetEndpoints = orderedStereoEndpoints(document, original.to, toSibling);
-    connectionsToReplace.push_back(companionConnection.connectionId);
+      getBundleEndpointsFor(document, original.from, sourceEndpoints) &&
+      getBundleEndpointsFor(document, original.to, targetEndpoints) &&
+      sourceEndpoints.size() == targetEndpoints.size() &&
+      sourceEndpoints.size() > 1) {
+    
+    bool fullBundleConnected = true;
+    for (size_t i = 0; i < sourceEndpoints.size(); ++i) {
+      bool found = false;
+      for (const auto &c : document.connections) {
+        if (endpointsEqual(c.from, sourceEndpoints[i]) && endpointsEqual(c.to, targetEndpoints[i])) {
+          connectionsToReplace.push_back(c.connectionId);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        fullBundleConnected = false;
+        break;
+      }
+    }
+
+    if (!fullBundleConnected) {
+      sourceEndpoints = {original.from};
+      targetEndpoints = {original.to};
+      connectionsToReplace = {original.connectionId};
+    }
+  } else {
+    sourceEndpoints = {original.from};
+    targetEndpoints = {original.to};
+    connectionsToReplace = {original.connectionId};
   }
 
   std::vector<PortId> inputPortIds;
   std::vector<PortId> outputPortIds;
 
   if (sourceEndpoints.size() > 1) {
-    if (!findFirstMatchingStereoBundle(*inserted, TPortDirection::Input,
-                                       sourceType, inputPortIds) ||
-        !findFirstMatchingStereoBundle(*inserted, TPortDirection::Output,
-                                       targetType, outputPortIds)) {
+    if (!findFirstMatchingBundle(*inserted, TPortDirection::Input,
+                                 sourceType, sourceEndpoints.size(), inputPortIds) ||
+        !findFirstMatchingBundle(*inserted, TPortDirection::Output,
+                                 targetType, targetEndpoints.size(), outputPortIds)) {
       return false;
     }
   } else {

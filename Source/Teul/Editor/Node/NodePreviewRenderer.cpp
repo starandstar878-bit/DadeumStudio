@@ -129,14 +129,14 @@ static juce::Colour meterColourForPortType(TPortDataType dataType) {
 
 static juce::String meterLabelForPort(const juce::String &name) {
   const juce::String upper = name.trim().toUpperCase();
-  if (upper.startsWith("L ") || upper == "L" || upper.contains("LEFT"))
+  if (upper.length() <= 3)
+    return upper;
+  if (upper.contains("L IN") || upper.contains("LEFT") || upper == "L")
     return "L";
-  if (upper.startsWith("R ") || upper == "R" || upper.contains("RIGHT"))
+  if (upper.contains("R IN") || upper.contains("RIGHT") || upper == "R")
     return "R";
   if (upper.contains("OUT"))
     return "OUT";
-  if (upper.length() <= 3)
-    return upper;
   return upper.substring(0, 3);
 }
 

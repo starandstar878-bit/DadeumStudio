@@ -402,6 +402,28 @@ juce::Result addTeulConnection(Teul::TGraphDocument &document,
   return juce::Result::ok();
 }
 
+juce::Result addTeulNodeToRailConnection(Teul::TGraphDocument &document,
+                                         Teul::NodeId fromNodeId,
+                                         juce::StringRef fromPortName,
+                                         juce::StringRef railEndpointId,
+                                         juce::StringRef railPortId) {
+  const auto *fromNode = document.findNode(fromNodeId);
+  if (fromNode == nullptr)
+    return juce::Result::fail("Teul smoke graph references a missing node.");
+
+  const auto *fromPort = findTeulPortByName(*fromNode, fromPortName);
+  if (fromPort == nullptr)
+    return juce::Result::fail("Teul smoke graph references a missing port.");
+
+  Teul::TConnection connection;
+  connection.connectionId = document.allocConnectionId();
+  connection.from = Teul::TEndpoint::makeNodePort(fromNodeId, fromPort->portId);
+  connection.to = Teul::TEndpoint::makeRailPort(juce::String(railEndpointId),
+                                                juce::String(railPortId));
+  document.connections.push_back(connection);
+  return juce::Result::ok();
+}
+
 Teul::TNode *findTeulNodeByLabel(Teul::TGraphDocument &document,
                                  const juce::String &label) {
   for (auto &node : document.nodes) {
@@ -2495,6 +2517,168 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
   return juce::Result::ok();
 }
 
+juce::Result runTeulPhase8MidiRuntimeSmoke(const juce::StringArray &args) {
+  const auto outputArg = argValue(args, "--output-dir=");
+  juce::File outputDirectory;
+  if (outputArg.isNotEmpty()) {
+    outputDirectory = juce::File(outputArg);
+  } else {
+    outputDirectory =
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulMidiRuntimeSmoke_" +
+                          juce::String(juce::Time::currentTimeMillis()));
+  }
+
+  if (!outputDirectory.createDirectory() && !outputDirectory.isDirectory()) {
+    return juce::Result::fail(
+        "Teul MIDI runtime smoke output directory could not be created.");
+  }
+
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  const auto *midiInDesc = registry->descriptorFor("Teul.Source.MidiInput");
+  if (midiInDesc == nullptr) {
+    return juce::Result::fail("Teul MIDI runtime smoke could not find MIDI Input descriptor.");
+  }
+
+  Teul::TGraphDocument document;
+  document.meta.name = "Teul MIDI Runtime Smoke";
+  document.meta.sampleRate = 48000.0;
+  document.meta.blockSize = 128;
+  document.controlState.ensureDefaultRails();
+
+  auto midiInNode = makeTeulNodeFromDescriptor(*midiInDesc, document, 120.0f,
+                                               120.0f, "Runtime MIDI In");
+  const auto midiInNodeId = midiInNode.nodeId;
+  document.nodes.push_back(std::move(midiInNode));
+
+  const auto railConnectResult = addTeulNodeToRailConnection(
+      document, midiInNodeId, "MIDI Out", "midi-out-main", "midi-out-port");
+  if (railConnectResult.failed())
+    return railConnectResult;
+
+  Teul::TGraphRuntime runtime(registry.get());
+  if (!runtime.buildGraph(document)) {
+    return juce::Result::fail(
+        "Teul MIDI runtime smoke failed to build runtime graph.");
+  }
+
+  runtime.prepareToPlay(document.meta.sampleRate, document.meta.blockSize);
+  runtime.setCurrentChannelLayout(0, 2);
+
+  juce::AudioBuffer<float> deviceBuffer(2, (int)document.meta.blockSize);
+  deviceBuffer.clear();
+
+  juce::MidiBuffer midiMessages;
+  midiMessages.addEvent(juce::MidiMessage::noteOn(1, 60, (juce::uint8)100), 0);
+  midiMessages.addEvent(juce::MidiMessage::controllerEvent(1, 74, 96), 16);
+  midiMessages.addEvent(juce::MidiMessage::noteOff(1, 60), 64);
+
+  runtime.processBlock(deviceBuffer, midiMessages);
+
+  struct ObservedMidiEvent {
+    juce::String type;
+    int samplePosition = -1;
+    int channel = -1;
+    int data1 = -1;
+    int data2 = -1;
+  };
+
+  std::vector<ObservedMidiEvent> observedEvents;
+  observedEvents.reserve(8);
+  for (const auto metadata : midiMessages) {
+    const auto message = metadata.getMessage();
+    ObservedMidiEvent event;
+    event.samplePosition = metadata.samplePosition;
+    event.channel = message.getChannel();
+    if (message.isNoteOn()) {
+      event.type = "noteOn";
+      event.data1 = message.getNoteNumber();
+      event.data2 = message.getVelocity();
+    } else if (message.isNoteOff()) {
+      event.type = "noteOff";
+      event.data1 = message.getNoteNumber();
+      event.data2 = 0;
+    } else if (message.isController()) {
+      event.type = "cc";
+      event.data1 = message.getControllerNumber();
+      event.data2 = message.getControllerValue();
+    } else {
+      event.type = "other";
+      event.data1 = message.getRawDataSize();
+      event.data2 = 0;
+    }
+    observedEvents.push_back(std::move(event));
+  }
+
+  const bool passed = observedEvents.size() == 3 &&
+                      observedEvents[0].type == "noteOn" &&
+                      observedEvents[0].samplePosition == 0 &&
+                      observedEvents[0].channel == 1 &&
+                      observedEvents[0].data1 == 60 &&
+                      observedEvents[1].type == "cc" &&
+                      observedEvents[1].samplePosition == 16 &&
+                      observedEvents[1].channel == 1 &&
+                      observedEvents[1].data1 == 74 &&
+                      observedEvents[1].data2 == 96 &&
+                      observedEvents[2].type == "noteOff" &&
+                      observedEvents[2].samplePosition == 64 &&
+                      observedEvents[2].channel == 1 &&
+                      observedEvents[2].data1 == 60;
+
+  juce::StringArray eventLines;
+  for (const auto &event : observedEvents) {
+    eventLines.add(event.type + "@" + juce::String(event.samplePosition) +
+                   " ch=" + juce::String(event.channel) +
+                   " d1=" + juce::String(event.data1) +
+                   " d2=" + juce::String(event.data2));
+  }
+
+  const auto summaryFile = outputDirectory.getChildFile("midi-runtime-summary.txt");
+  const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
+  const juce::String summaryText =
+      juce::StringArray{
+          "nodeCount=" + juce::String((int)document.nodes.size()),
+          "connectionCount=" + juce::String((int)document.connections.size()),
+          "eventCount=" + juce::String((int)observedEvents.size()),
+          "passed=" + juce::String(passed ? "true" : "false"),
+          "events=" + eventLines.joinIntoString(" | ")}
+          .joinIntoString("\r\n") +
+      "\r\n";
+  if (!summaryFile.replaceWithText(summaryText, false, false, "\r\n")) {
+    return juce::Result::fail(
+        "Teul MIDI runtime smoke could not write its summary file.");
+  }
+
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("summary", outputDirectory, summaryFile));
+  auto *bundleRoot = new juce::DynamicObject();
+  bundleRoot->setProperty("kind", "teul-verification-artifact-bundle");
+  bundleRoot->setProperty("scope", "midi-runtime-smoke");
+  bundleRoot->setProperty("passed", passed);
+  bundleRoot->setProperty("artifactDirectory", outputDirectory.getFullPathName());
+  bundleRoot->setProperty("nodeCount", (int)document.nodes.size());
+  bundleRoot->setProperty("connectionCount", (int)document.connections.size());
+  bundleRoot->setProperty("eventCount", (int)observedEvents.size());
+  bundleRoot->setProperty("eventLines", stringArrayToJsonArray(eventLines));
+  bundleRoot->setProperty("files", juce::var(files));
+  if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
+    return juce::Result::fail(
+        "Teul MIDI runtime smoke could not write its artifact bundle.");
+  }
+
+  if (!passed)
+    return juce::Result::fail("Teul MIDI runtime smoke checks failed.");
+
+  std::cout << "Teul Phase8 MIDI runtime smoke directory: "
+            << outputDirectory.getFullPathName() << std::endl;
+  std::cout << summaryText << std::endl;
+  std::cout << "Teul Phase8 MIDI runtime smoke checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
 juce::Result runTeulPhase8CompatibilityMatrix(const juce::StringArray &args) {
   const auto outputArg = argValue(args, "--output-dir=");
   juce::File outputDirectory;
@@ -3304,9 +3488,9 @@ public:
   //==============================================================================
   DadeumStudioApplication() {}
 
-  // AppServices ??????壤굿??Β??????????源놁７???沃섃뫖荑???????????????ル뒌??????轅붽틓?????
-  // AudioDeviceManager ????????????黎앸럽??筌뚭퍏???紐꾨퓠?熬곣뫀猷???????硫멸킐?????椰????
-  // MainComponent(??Teul) ???耀붾굝???????????癰궽블뀮???????獄쏅챶留?????轅붽틓?????
+  // AppServices ??????鶯ㅺ동???????????????繹먮냱竊???亦껋꼦維뽬뜎????????????????ル뭽??????饔낅떽??????
+  // AudioDeviceManager ????????????癲됱빖???嶺뚮슡????筌뤾쑬???ш끽維????????筌롫㈇??????濾????
+  // MainComponent(??Teul) ????遺얘턁????????????곌떽釉붾????????꾩룆梨띰쭕?????饔낅떽??????
   AppServices appServices;
 
   const juce::String getApplicationName() override {
@@ -3491,6 +3675,20 @@ public:
       const auto smokeResult = runTeulPhase8ControlModelSmoke(args);
       if (smokeResult.failed()) {
         std::cerr << "Teul Phase8 control model smoke failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
+
+    if (hasArg(args, "--teul-phase8-midi-runtime-smoke")) {
+      const auto smokeResult = runTeulPhase8MidiRuntimeSmoke(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase8 MIDI runtime smoke failed: "
                   << smokeResult.getErrorMessage() << std::endl;
         setApplicationReturnValue(1);
       } else {

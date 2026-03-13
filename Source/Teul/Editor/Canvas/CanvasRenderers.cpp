@@ -23,150 +23,98 @@ bool endpointsEqual(const TEndpoint &a, const TEndpoint &b) {
          a.railPortId == b.railPortId;
 }
 
-bool splitStereoLabel(juce::StringRef name, bool &isLeft, juce::String &suffix) {
-  const juce::String trimmed = juce::String(name).trim();
-  if (trimmed.equalsIgnoreCase("L")) {
-    isLeft = true;
-    suffix.clear();
-    return true;
-  }
-  if (trimmed.equalsIgnoreCase("R")) {
-    isLeft = false;
-    suffix.clear();
-    return true;
-  }
-  if (trimmed.startsWithIgnoreCase("L ")) {
-    isLeft = true;
-    suffix = trimmed.substring(2).trim();
-    return true;
-  }
-  if (trimmed.startsWithIgnoreCase("R ")) {
-    isLeft = false;
-    suffix = trimmed.substring(2).trim();
-    return true;
-  }
-  return false;
-}
+bool getBundleEndpointsFor(const TGraphDocument &document, const TEndpoint &endpoint,
+                           std::vector<TEndpoint> &endpointsOut) {
+  endpointsOut.clear();
+  if (endpoint.isNodePort()) {
+    const auto *node = document.findNode(endpoint.nodeId);
+    if (node == nullptr) return false;
 
-bool findNodeStereoSibling(const TGraphDocument &document,
-                           const TEndpoint &endpoint,
-                           TEndpoint &siblingOut) {
-  if (!endpoint.isNodePort())
-    return false;
+    int anchorIndex = -1;
+    for (int i = 0; i < (int)node->ports.size(); ++i) {
+      if (node->ports[i].portId == endpoint.portId) {
+        anchorIndex = i;
+        break;
+      }
+    }
+    if (anchorIndex < 0) return false;
 
-  const auto *node = document.findNode(endpoint.nodeId);
-  const auto *port = node != nullptr ? node->findPort(endpoint.portId) : nullptr;
-  if (port == nullptr || port->dataType != TPortDataType::Audio)
-    return false;
-
-  bool isLeft = false;
-  juce::String suffix;
-  if (!splitStereoLabel(port->name, isLeft, suffix))
-    return false;
-
-  for (const auto &candidate : node->ports) {
-    if (candidate.portId == port->portId ||
-        candidate.direction != port->direction ||
-        candidate.dataType != port->dataType) {
-      continue;
+    const auto &anchorPort = node->ports[anchorIndex];
+    int startIndex = anchorIndex;
+    while (startIndex > 0 && 
+           node->ports[startIndex - 1].channelIndex == node->ports[startIndex].channelIndex - 1 &&
+           node->ports[startIndex - 1].direction == anchorPort.direction &&
+           node->ports[startIndex - 1].dataType == anchorPort.dataType) {
+      --startIndex;
     }
 
-    bool candidateIsLeft = false;
-    juce::String candidateSuffix;
-    if (!splitStereoLabel(candidate.name, candidateIsLeft, candidateSuffix) ||
-        candidateIsLeft == isLeft || candidateSuffix != suffix) {
-      continue;
+    int count = 1;
+    while (startIndex + count < (int)node->ports.size() &&
+           node->ports[startIndex + count].channelIndex == node->ports[startIndex + count - 1].channelIndex + 1 &&
+           node->ports[startIndex + count].direction == anchorPort.direction &&
+           node->ports[startIndex + count].dataType == anchorPort.dataType) {
+      ++count;
     }
 
-    siblingOut = TEndpoint::makeNodePort(endpoint.nodeId, candidate.portId);
+    for (int i = 0; i < count; ++i)
+      endpointsOut.push_back(TEndpoint::makeNodePort(endpoint.nodeId, node->ports[startIndex + i].portId));
+
     return true;
   }
-
-  return false;
-}
-
-bool findRailStereoSibling(const TGraphDocument &document,
-                           const TEndpoint &endpoint,
-                           TEndpoint &siblingOut) {
-  if (!endpoint.isRailPort())
-    return false;
 
   const auto *railEndpoint = document.controlState.findEndpoint(endpoint.railEndpointId);
-  if (railEndpoint == nullptr || !railEndpoint->stereo ||
-      railEndpoint->ports.size() < 2) {
+  const auto *railPort = document.findSystemRailPort(endpoint.railEndpointId, endpoint.railPortId);
+  if (railEndpoint == nullptr || railPort == nullptr)
     return false;
-  }
 
-  if (railEndpoint->ports[0].portId == endpoint.railPortId) {
-    siblingOut = TEndpoint::makeRailPort(endpoint.railEndpointId,
-                                         railEndpoint->ports[1].portId);
-    return true;
-  }
-
-  if (railEndpoint->ports[1].portId == endpoint.railPortId) {
-    siblingOut = TEndpoint::makeRailPort(endpoint.railEndpointId,
-                                         railEndpoint->ports[0].portId);
-    return true;
-  }
-
-  return false;
+  for (const auto &p : railEndpoint->ports)
+    endpointsOut.push_back(TEndpoint::makeRailPort(endpoint.railEndpointId, p.portId));
+  return true;
 }
 
-bool findStereoSiblingEndpoint(const TGraphDocument &document,
-                               const TEndpoint &endpoint,
-                               TEndpoint &siblingOut) {
-  if (endpoint.isRailPort())
-    return findRailStereoSibling(document, endpoint, siblingOut);
-  return findNodeStereoSibling(document, endpoint, siblingOut);
-}
-
-bool tryFindBundleCompanionIndex(const TGraphDocument &document,
-                                 const TConnection &connection,
-                                 int currentIndex,
-                                 int &companionIndexOut) {
-  TEndpoint fromSibling;
-  TEndpoint toSibling;
-  if (!findStereoSiblingEndpoint(document, connection.from, fromSibling) ||
-      !findStereoSiblingEndpoint(document, connection.to, toSibling)) {
+bool tryFindBundleConnections(const TGraphDocument &document,
+                              const TConnection &connection,
+                              std::vector<int> &bundleIndicesOut) {
+  bundleIndicesOut.clear();
+  std::vector<TEndpoint> fromBundle;
+  std::vector<TEndpoint> toBundle;
+  if (!getBundleEndpointsFor(document, connection.from, fromBundle) ||
+      !getBundleEndpointsFor(document, connection.to, toBundle)) {
     return false;
   }
+  
+  if (fromBundle.size() < 2 || fromBundle.size() != toBundle.size()) return false;
+  
+  bool isInBundle = false;
+  for (size_t i = 0; i < fromBundle.size(); ++i) {
+      if (endpointsEqual(connection.from, fromBundle[i]) && endpointsEqual(connection.to, toBundle[i])) {
+          isInBundle = true; break;
+      }
+  }
+  if (!isInBundle) return false;
 
+  bundleIndicesOut.resize(fromBundle.size(), -1);
   for (int index = 0; index < (int)document.connections.size(); ++index) {
-    if (index == currentIndex)
-      continue;
-
-    const auto &candidate = document.connections[(size_t)index];
-    if (endpointsEqual(candidate.from, fromSibling) &&
-        endpointsEqual(candidate.to, toSibling)) {
-      companionIndexOut = index;
-      return true;
-    }
+      const auto& cand = document.connections[index];
+      for (size_t b = 0; b < fromBundle.size(); ++b) {
+          if (endpointsEqual(cand.from, fromBundle[b]) && endpointsEqual(cand.to, toBundle[b])) {
+              bundleIndicesOut[b] = index;
+              break;
+          }
+      }
   }
-
-  return false;
+  
+  for (int idx : bundleIndicesOut) {
+      if (idx == -1) return false;
+  }
+  
+  return true;
 }
-
 
 bool connectionHasBundleCompanion(const TGraphDocument &document,
                                   const TConnection &connection) {
-  TEndpoint fromSibling;
-  TEndpoint toSibling;
-  if (!findStereoSiblingEndpoint(document, connection.from, fromSibling) ||
-      !findStereoSiblingEndpoint(document, connection.to, toSibling)) {
-    return false;
-  }
-
-  for (const auto &candidate : document.connections) {
-    if (candidate.connectionId == connection.connectionId)
-      continue;
-
-    if (endpointsEqual(candidate.from, fromSibling) &&
-        endpointsEqual(candidate.to, toSibling)) {
-      return true;
-    }
-  }
-
-  return false;
+  std::vector<int> dummy;
+  return tryFindBundleConnections(document, connection, dummy);
 }
 
 juce::Point<float> midpoint(juce::Point<float> a, juce::Point<float> b) {
@@ -432,17 +380,18 @@ ConnectionId TGraphCanvas::hitTestConnection(juce::Point<float> pointView,
       continue;
 
     const auto &connection = document.connections[(size_t)index];
-    int companionIndex = -1;
+    std::vector<int> bundleIndices;
     if (dataTypeForEndpoint(connection.from) == TPortDataType::Audio &&
         dataTypeForEndpoint(connection.to) == TPortDataType::Audio &&
-        tryFindBundleCompanionIndex(document, connection, index,
-                                    companionIndex)) {
+        tryFindBundleConnections(document, connection, bundleIndices)) {
+      
       consumed[(size_t)index] = true;
-      consumed[(size_t)companionIndex] = true;
+      for (int bi : bundleIndices) consumed[(size_t)bi] = true;
+
       if (!shouldRenderRailNodeConnection(connection))
         continue;
 
-      const auto &companion = document.connections[(size_t)companionIndex];
+      const auto &companion = document.connections[(size_t)bundleIndices.back()];
       const auto fromA = portCentreInCanvas(connection.from);
       const auto toA = portCentreInCanvas(connection.to);
       const auto fromB = portCentreInCanvas(companion.from);
@@ -497,22 +446,22 @@ void TGraphCanvas::drawConnections(juce::Graphics &g) {
                                            connectionLevelProvider(conn))
                             : 0.0f;
 
-    int companionIndex = -1;
+    std::vector<int> bundleIndices;
     const bool hasBundle =
         sourceType == TPortDataType::Audio &&
         dataTypeForEndpoint(conn.to) == TPortDataType::Audio &&
-        tryFindBundleCompanionIndex(document, conn, (int)index,
-                                    companionIndex);
+        tryFindBundleConnections(document, conn, bundleIndices);
 
     if (hasBundle) {
-      consumed[index] = true;
-      if (companionIndex < (int)index)
+      if (bundleIndices.front() != (int)index) {
+        consumed[index] = true;
         continue;
+      }
+      for (int bi : bundleIndices) consumed[(size_t)bi] = true;
 
-      consumed[(size_t)companionIndex] = true;
       if (!shouldRenderRailNodeConnection(conn))
         continue;
-      const auto &companion = document.connections[(size_t)companionIndex];
+      const auto &companion = document.connections[(size_t)bundleIndices.back()];
       const auto fromA = portCentreInCanvas(conn.from);
       const auto toA = portCentreInCanvas(conn.to);
       const auto fromB = portCentreInCanvas(companion.from);
@@ -526,8 +475,7 @@ void TGraphCanvas::drawConnections(juce::Graphics &g) {
                                                           companion))
                                        : 0.0f;
       const float bundleLevel = juce::jmax(level, companionLevel);
-      const bool isSelected = (conn.connectionId == selectedConnectionId) ||
-                              (companion.connectionId == selectedConnectionId);
+      const bool isSelected = std::any_of(bundleIndices.begin(), bundleIndices.end(), [&](int bIdx) { return document.connections[bIdx].connectionId == selectedConnectionId; });
       const float alpha = isSelected
                               ? 1.0f
                               : juce::jlimit(0.55f, 0.95f,

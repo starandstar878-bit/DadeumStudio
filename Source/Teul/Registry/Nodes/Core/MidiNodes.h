@@ -1,6 +1,7 @@
 #pragma once
 #include "../../../Runtime/TNodeInstance.h"
 #include "../../TNodeSDK.h"
+#include <limits>
 
 namespace Teul::Nodes {
 
@@ -43,19 +44,17 @@ public:
         const int pctCh = findChannelByPortName("V/Oct");
         const int velCh = findChannelByPortName("Velocity");
 
-        int numSamples = ctx.globalPortBuffer->getNumSamples();
+        const int numSamples = ctx.globalPortBuffer->getNumSamples();
 
         float currentGate = lastGate;
         float currentPct = lastPct;
         float currentVel = lastVel;
 
-        // 임시: 전역 MIDI 버퍼에서 가장 최근 이벤트를 모노포닉으로 추적
         for (const auto meta : *ctx.midiMessages) {
           const auto msg = meta.getMessage();
           if (msg.isNoteOn()) {
             currentGate = 1.0f;
-            currentPct =
-                msg.getNoteNumber() / 12.0f; // 1V/Oct 방식 근사 (C0 = 0V)
+            currentPct = msg.getNoteNumber() / 12.0f;
             currentVel = msg.getFloatVelocity();
           } else if (msg.isNoteOff() &&
                      std::abs(currentPct - (msg.getNoteNumber() / 12.0f)) <
@@ -87,7 +86,7 @@ public:
 
     private:
       float lastGate = 0.0f;
-      float lastPct = 5.0f; // 60 / 12 (C4)
+      float lastPct = 5.0f;
       float lastVel = 0.0f;
     };
     return std::make_unique<Implementation>();
@@ -111,7 +110,7 @@ public:
     class Implementation : public TNodeInstance {
     public:
       void processSamples(const TProcessContext &ctx) override {
-        // Output 은 나중에 호스트로 전송할 때 처리
+        juce::ignoreUnused(ctx);
       }
     };
     return std::make_unique<Implementation>();
@@ -136,7 +135,24 @@ public:
     class Implementation : public TNodeInstance {
     public:
       void processSamples(const TProcessContext &ctx) override {
-        // Input 은 외부에서 ctx.midiMessages 에 넣어진 상태라고 간주
+        if (ctx.midiOutputMessages == nullptr)
+          return;
+
+        ctx.midiOutputMessages->clear();
+
+        const juce::MidiBuffer *sourceMessages = nullptr;
+        if (ctx.deviceMidiMessages != nullptr)
+          sourceMessages = ctx.deviceMidiMessages;
+        else if (ctx.midiMessages != nullptr)
+          sourceMessages = ctx.midiMessages;
+
+        if (sourceMessages == nullptr || sourceMessages->isEmpty())
+          return;
+
+        const int numSamples = ctx.globalPortBuffer != nullptr
+                                   ? ctx.globalPortBuffer->getNumSamples()
+                                   : std::numeric_limits<int>::max();
+        ctx.midiOutputMessages->addEvents(*sourceMessages, 0, numSamples, 0);
       }
     };
     return std::make_unique<Implementation>();
