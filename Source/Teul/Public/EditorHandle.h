@@ -74,10 +74,15 @@ public:
   void enqueueControlDeviceProfilesSync(
       const std::vector<TControlDeviceProfilePresence> &profiles,
       bool autoMarkMissing = true);
+  void enqueueControlDeviceProfilePresent(const juce::String &profileId,
+                                          const juce::String &deviceId = {},
+                                          const juce::String &displayName = {},
+                                          bool autoDetected = true);
+  void enqueueControlDeviceProfileMissing(const juce::String &profileId);
   bool reportControlDeviceProfilePresent(const juce::String &profileId,
-                                       const juce::String &deviceId = {},
-                                       const juce::String &displayName = {},
-                                       bool autoDetected = true);
+                                         const juce::String &deviceId = {},
+                                         const juce::String &displayName = {},
+                                         bool autoDetected = true);
   bool reportControlDeviceProfileMissing(const juce::String &profileId);
   bool syncControlDeviceProfiles(
       const std::vector<TControlDeviceProfilePresence> &profiles,

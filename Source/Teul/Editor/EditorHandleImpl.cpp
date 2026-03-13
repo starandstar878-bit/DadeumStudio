@@ -168,9 +168,21 @@ protected:
                                      confirmed);
   }
 
-  bool syncProfiles(const std::vector<TControlDeviceProfilePresence> &profiles,
+    bool syncProfiles(const std::vector<TControlDeviceProfilePresence> &profiles,
                     bool autoMarkMissing) {
     return owner.syncControlDeviceProfiles(profiles, autoMarkMissing);
+  }
+
+  void queueProfilePresent(const juce::String &profileId,
+                           const juce::String &deviceId,
+                           const juce::String &displayName,
+                           bool autoDetected) {
+    owner.queueControlDeviceProfilePresent(profileId, deviceId, displayName,
+                                           autoDetected);
+  }
+
+  void queueProfileMissing(const juce::String &profileId) {
+    owner.queueControlDeviceProfileMissing(profileId);
   }
 
   EditorHandle::Impl &owner;
@@ -3703,6 +3715,30 @@ void EditorHandle::Impl::queueControlDeviceProfileSync(
   pendingProfileSyncEvents.push_back(std::move(event));
 }
 
+void EditorHandle::Impl::queueControlDeviceProfilePresent(
+    const juce::String &profileId, const juce::String &deviceId,
+    const juce::String &displayName, bool autoDetected) {
+  PendingProfileDeltaEvent event;
+  event.kind = PendingProfileDeltaEvent::Kind::present;
+  event.profileId = profileId;
+  event.deviceId = deviceId;
+  event.displayName = displayName;
+  event.autoDetected = autoDetected;
+
+  const juce::ScopedLock lock(controlLearnStateLock);
+  pendingProfileDeltaEvents.push_back(std::move(event));
+}
+
+void EditorHandle::Impl::queueControlDeviceProfileMissing(
+    const juce::String &profileId) {
+  PendingProfileDeltaEvent event;
+  event.kind = PendingProfileDeltaEvent::Kind::missing;
+  event.profileId = profileId;
+
+  const juce::ScopedLock lock(controlLearnStateLock);
+  pendingProfileDeltaEvents.push_back(std::move(event));
+}
+
 void EditorHandle::Impl::drainPendingProfileSyncEvents() {
   PendingProfileSyncEvent latestEvent;
   bool hasEvent = false;
@@ -3717,6 +3753,26 @@ void EditorHandle::Impl::drainPendingProfileSyncEvents() {
 
   if (hasEvent)
     syncControlDeviceProfiles(latestEvent.profiles, latestEvent.autoMarkMissing);
+}
+
+void EditorHandle::Impl::drainPendingProfileDeltaEvents() {
+  std::vector<PendingProfileDeltaEvent> events;
+  {
+    const juce::ScopedLock lock(controlLearnStateLock);
+    if (pendingProfileDeltaEvents.empty())
+      return;
+    events.swap(pendingProfileDeltaEvents);
+  }
+
+  for (const auto &event : events) {
+    if (event.kind == PendingProfileDeltaEvent::Kind::present) {
+      reportControlDeviceProfilePresent(event.profileId, event.deviceId,
+                                        event.displayName,
+                                        event.autoDetected);
+    } else {
+      reportControlDeviceProfileMissing(event.profileId);
+    }
+  }
 }
 
 void EditorHandle::Impl::drainPendingLearnBindings() {
@@ -4122,7 +4178,8 @@ void EditorHandle::Impl::timerCallback() {
     lastBindingRevision = currentBindingRevision;
   }
 
-  drainPendingProfileSyncEvents();
+    drainPendingProfileSyncEvents();
+  drainPendingProfileDeltaEvents();
   drainPendingLearnBindings();
 
   if (++controlInputRefreshCounter >= 20) {

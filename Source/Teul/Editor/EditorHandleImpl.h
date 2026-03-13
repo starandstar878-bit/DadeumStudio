@@ -70,6 +70,11 @@ struct EditorHandle::Impl : private juce::Timer {
   void queueControlDeviceProfileSync(
       const std::vector<TControlDeviceProfilePresence> &profiles,
       bool autoMarkMissing);
+  void queueControlDeviceProfilePresent(const juce::String &profileId,
+                                        const juce::String &deviceId,
+                                        const juce::String &displayName,
+                                        bool autoDetected);
+  void queueControlDeviceProfileMissing(const juce::String &profileId);
   void layout(juce::Rectangle<int> area);
 
 private:
@@ -91,6 +96,16 @@ private:
   struct PendingProfileSyncEvent {
     std::vector<TControlDeviceProfilePresence> profiles;
     bool autoMarkMissing = true;
+  };
+
+  struct PendingProfileDeltaEvent {
+    enum class Kind { present, missing };
+
+    Kind kind = Kind::present;
+    juce::String profileId;
+    juce::String deviceId;
+    juce::String displayName;
+    bool autoDetected = true;
   };
 
   void timerCallback() override;
@@ -116,6 +131,7 @@ private:
                           int ticks = 50);
   void refreshControlInputAdapters(bool announceChanges);
   void drainPendingProfileSyncEvents();
+  void drainPendingProfileDeltaEvents();
   void drainPendingLearnBindings();
 
   EditorHandle &owner;
@@ -164,7 +180,8 @@ private:
   int runtimeMessageTicksRemaining = 0;
   int controlInputRefreshCounter = 0;
   juce::CriticalSection controlLearnStateLock;
-  std::vector<PendingProfileSyncEvent> pendingProfileSyncEvents;
+    std::vector<PendingProfileSyncEvent> pendingProfileSyncEvents;
+  std::vector<PendingProfileDeltaEvent> pendingProfileDeltaEvents;
   std::vector<PendingLearnBindingEvent> pendingLearnBindingEvents;
   std::vector<std::unique_ptr<ControlInputAdapter>> controlInputAdapters;
   ParamBindingRevisionProvider bindingRevisionProvider;

@@ -77,6 +77,24 @@ void EditorHandle::enqueueControlDeviceProfilesSync(
   impl->queueControlDeviceProfileSync(profiles, autoMarkMissing);
 }
 
+void EditorHandle::enqueueControlDeviceProfilePresent(
+    const juce::String &profileId, const juce::String &deviceId,
+    const juce::String &displayName, bool autoDetected) {
+  if (impl == nullptr)
+    return;
+
+  impl->queueControlDeviceProfilePresent(profileId, deviceId, displayName,
+                                         autoDetected);
+}
+
+void EditorHandle::enqueueControlDeviceProfileMissing(
+    const juce::String &profileId) {
+  if (impl == nullptr)
+    return;
+
+  impl->queueControlDeviceProfileMissing(profileId);
+}
+
 bool EditorHandle::reportControlDeviceProfilePresent(
     const juce::String &profileId, const juce::String &deviceId,
     const juce::String &displayName, bool autoDetected) {
