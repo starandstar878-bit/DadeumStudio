@@ -45,6 +45,7 @@ Planned split:
 
 Planned result:
 - `Public/EditorHandle.h` is replaced by `Editor/TTeulEditor.h`
+- `Teul.h` becomes the umbrella public header for the rewritten tree
 - Future public runtime entry lives at `Runtime/TTeulRuntime.h`
 - Future public bridge entry lives at `Bridge/TTeulBridge.h`
 
@@ -265,8 +266,8 @@ Ready for:
 | `Editor/Panels/Property/ParamValueFormatter.cpp` | Param value formatting implementation | `Editor/Panels/NodePropertiesPanel.cpp` | `merge` | Same as above. |
 | `Editor/Panels/DiagnosticsDrawer.h` | Diagnostics drawer API | `Editor/Panels/DiagnosticsDrawer.h` | `move` | Direct move. |
 | `Editor/Panels/DiagnosticsDrawer.cpp` | Diagnostics drawer implementation | `Editor/Panels/DiagnosticsDrawer.cpp` | `move` | Direct move. |
-| `Editor/Panels/PresetBrowserPanel.h` | Preset browser panel API | `Editor/TTeulEditor.cpp` | `phase1 temporary merge` | This panel is outside the current minimum scaffold. Keep it editor-owned temporarily inside `TTeulEditor` until a dedicated preset browser panel is reintroduced. |
-| `Editor/Panels/PresetBrowserPanel.cpp` | Preset browser implementation | `Editor/TTeulEditor.cpp` | `phase1 temporary merge` | Same as above. |
+| `Editor/Panels/PresetBrowserPanel.h` | Preset browser panel API | `Editor/Panels/PresetBrowserPanel.h` | `move` | Keep it as a dedicated editor panel file in the rewritten structure. |
+| `Editor/Panels/PresetBrowserPanel.cpp` | Preset browser implementation | `Editor/Panels/PresetBrowserPanel.cpp` | `move` | Keep it as a dedicated editor panel implementation file in the rewritten structure. |
 | `Editor/Search/SearchController.h` | Search overlay API and search-entry helpers | `Editor/Search/SearchController.h` | `move` | Direct move. |
 | `Editor/Search/SearchController.cpp` | Shared search overlay implementation | `Editor/Search/SearchController.cpp` | `move` | Direct move. |
 | `Editor/Search/QuickAddOverlay.cpp` | Quick-add search and insert-on-wire flow | `Editor/Search/SearchController.cpp` | `merge` | This is search behavior, not a separate top-level file in the minimum structure. |
@@ -335,6 +336,10 @@ Note:
 - Format: `TargetFile: source file 1, source file 2, ...`
 - If a target file has no direct predecessor in current `Source/Teul`, it is marked as `new`.
 
+### Public
+
+- `Teul.h`: `Teul.h`, public include intent from `Public/EditorHandle.h`
+
 ### Document
 
 - `Document/TDocumentTypes.h`: `Model/TTypes.h`, `Model/TPort.h`, `Model/TNode.h`, `Model/TConnection.h`, struct portions of `Model/TGraphDocument.h`
@@ -352,7 +357,7 @@ Note:
 ### Editor
 
 - `Editor/TTeulEditor.h`: `Public/EditorHandle.h`, `Editor/EditorHandleImpl.h`, editor-facing parts of `Bridge/ITeulParamProvider.h`
-- `Editor/TTeulEditor.cpp`: `Editor/EditorHandle.cpp`, orchestration parts of `Editor/EditorHandleImpl.cpp`, temporary preset-browser wiring from `Editor/Panels/PresetBrowserPanel.h`, `Editor/Panels/PresetBrowserPanel.cpp`
+- `Editor/TTeulEditor.cpp`: `Editor/EditorHandle.cpp`, orchestration parts of `Editor/EditorHandleImpl.cpp`
 - `Editor/TIssueState.h`: `Editor/TIssueState.h`
 - `Editor/Theme/TeulPalette.h`: `Editor/Theme/TeulPalette.h`
 - `Editor/Canvas/TGraphCanvas.h`: `Editor/Canvas/TGraphCanvas.h`
@@ -370,6 +375,8 @@ Note:
 - `Editor/Panels/NodeLibraryPanel.cpp`: `Editor/Panels/NodeLibraryPanel.cpp`
 - `Editor/Panels/NodePropertiesPanel.h`: `Editor/Panels/NodePropertiesPanel.h`, `Editor/Panels/Property/BindingSummaryPresenter.h`, `Editor/Panels/Property/ParamEditorFactory.h`, `Editor/Panels/Property/ParamValueFormatter.h`
 - `Editor/Panels/NodePropertiesPanel.cpp`: `Editor/Panels/NodePropertiesPanel.cpp`, `Editor/Panels/Property/BindingSummaryPresenter.cpp`, `Editor/Panels/Property/ParamEditorFactory.cpp`, `Editor/Panels/Property/ParamValueFormatter.cpp`
+- `Editor/Panels/PresetBrowserPanel.h`: `Editor/Panels/PresetBrowserPanel.h`
+- `Editor/Panels/PresetBrowserPanel.cpp`: `Editor/Panels/PresetBrowserPanel.cpp`
 - `Editor/Panels/DiagnosticsDrawer.h`: `Editor/Panels/DiagnosticsDrawer.h`
 - `Editor/Panels/DiagnosticsDrawer.cpp`: `Editor/Panels/DiagnosticsDrawer.cpp`
 - `Editor/Search/SearchController.h`: `Editor/Search/SearchController.h`

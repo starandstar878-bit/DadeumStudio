@@ -11,6 +11,7 @@ Teul is split into four top-level layers.
 
 ```text
 Source/Teul/
+  Teul.h
   Document/
   Editor/
   Runtime/
@@ -21,6 +22,7 @@ Source/Teul/
 
 ```text
 Source/Teul/
+  Teul.h
   Document/
     TDocumentTypes.h
     TTeulDocument.h
@@ -57,6 +59,8 @@ Source/Teul/
       NodeLibraryPanel.cpp
       NodePropertiesPanel.h
       NodePropertiesPanel.cpp
+      PresetBrowserPanel.h
+      PresetBrowserPanel.cpp
       DiagnosticsDrawer.h
       DiagnosticsDrawer.cpp
     Search/
@@ -139,6 +143,7 @@ Source/Teul/
 - Move editor UI and interaction responsibilities into `Editor/`.
 - Split runtime responsibilities into `Runtime/AudioGraph` and `Runtime/IOControl`.
 - Move external integration, codegen, and external JSON responsibilities into `Bridge/`.
+- Keep a single umbrella header `Teul.h` for public inclusion.
 - Delay deeper subdivision until phase 2.
 
 ---
@@ -239,6 +244,7 @@ Source/Teul/Editor/
 ```
 
 ### File Roles
+- `Teul.h`: umbrella public header for the Teul subsystem.
 - `TTeulEditor`: top-level editor orchestration entry.
 - `TGraphCanvas`: live graph canvas orchestration.
 - `TNodeRenderer`: node body rendering.
@@ -249,6 +255,7 @@ Source/Teul/Editor/
 - `ContextMenuController`: contextual editing commands.
 - `NodeLibraryPanel`: node browsing and insertion.
 - `NodePropertiesPanel`: selected node parameter editing.
+- `PresetBrowserPanel`: preset browsing and preset-triggered document actions.
 - `DiagnosticsDrawer`: runtime and verification side info.
 - `SearchController`: quick add, node search, command palette coordination.
 - `TeulPalette`: editor color system.
