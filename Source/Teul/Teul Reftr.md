@@ -162,28 +162,28 @@ Ready for:
 
 | Current file | Current responsibility | Target folder(s) | Move type | Refactor note |
 | --- | --- | --- | --- | --- |
-| `Verification/TVerificationFixtures.h` | Representative graph fixture declarations | `Runtime/AudioGraph/`, `Document/` | `move now, trim later` | Phase 1 can keep fixtures under runtime verification support. They still construct documents, but they exist to test runtime behavior. |
-| `Verification/TVerificationFixtures.cpp` | Representative graph fixture construction | `Runtime/AudioGraph/`, `Document/` | `move now, trim later` | Keep next to runtime verification helpers first. |
+| `Verification/TVerificationFixtures.h` | Representative graph fixture declarations | `Runtime/AudioGraph/TRuntimeValidator.*` | `absorb` | Do not create a standalone verification subtree in `Teul2`. Absorb fixture declarations into runtime validation support. |
+| `Verification/TVerificationFixtures.cpp` | Representative graph fixture construction | `Runtime/AudioGraph/TRuntimeValidator.cpp` | `absorb` | Absorb fixture construction into runtime validation support. |
 | `Verification/TVerificationStimulus.h` | Render profile, automation, MIDI stimulus spec, render result, render helper API | `Runtime/AudioGraph/` | `move` | This is directly tied to runtime rendering behavior. |
 | `Verification/TVerificationStimulus.cpp` | Stimulus builders and render execution helpers | `Runtime/AudioGraph/` | `move` | Runtime verification support. |
-| `Verification/TVerificationParity.h` | Editable export round-trip parity test API and reports | `Runtime/AudioGraph/`, `Bridge/` | `split` | Runtime-side render/compare logic stays with runtime verification. Export round-trip hooks depend on bridge/export code. |
-| `Verification/TVerificationParity.cpp` | Export parity implementation and artifact generation | `Runtime/AudioGraph/`, `Bridge/` | `split` | Separate compare/render logic from export/import round-trip helpers. |
-| `Verification/TVerificationCompiledParity.h` | Compiled runtime parity report and API | `Runtime/AudioGraph/`, `Bridge/` | `split` | Runtime parity stays with runtime verification; external codegen/compile/run orchestration touches bridge/export. |
-| `Verification/TVerificationCompiledParity.cpp` | Compiled runtime parity implementation | `Runtime/AudioGraph/`, `Bridge/` | `split` | Same split as above. |
-| `Verification/TVerificationGoldenAudio.h` | Golden-audio record/verify API and reports | `Runtime/AudioGraph/` | `move` | This is runtime audio validation. |
-| `Verification/TVerificationGoldenAudio.cpp` | Golden-audio record/verify implementation | `Runtime/AudioGraph/` | `move` | Runtime-owned verification support. |
-| `Verification/TVerificationStress.h` | Stress/soak suite API and reports | `Runtime/AudioGraph/` | `move` | Runtime stability verification. |
-| `Verification/TVerificationStress.cpp` | Stress/soak suite implementation | `Runtime/AudioGraph/` | `move` | Runtime stability verification. |
-| `Verification/TVerificationBenchmark.h` | Benchmark thresholds, reports, benchmark suite API | `Runtime/AudioGraph/` | `move` | Runtime performance verification. |
-| `Verification/TVerificationBenchmark.cpp` | Benchmark suite implementation | `Runtime/AudioGraph/` | `move` | Runtime performance verification. |
-| `Verification/CompiledParity/CompiledParityCaseHost.cpp` | Helper executable host for compiled parity cases | `Bridge/`, `Runtime/AudioGraph/` | `split support` | Keep as support tooling. It depends on generated/exported runtime code and parity harness behavior. |
+| `Verification/TVerificationParity.h` | Editable export round-trip parity test API and reports | `Runtime/AudioGraph/TRuntimeValidator.*`, `Bridge/TBridgeCodegen.*` | `absorb` | Absorb runtime compare pieces into `TRuntimeValidator.*` and export/codegen-facing pieces into `TBridgeCodegen.*`. |
+| `Verification/TVerificationParity.cpp` | Export parity implementation and artifact generation | `Runtime/AudioGraph/TRuntimeValidator.cpp`, `Bridge/TBridgeCodegen.cpp` | `absorb` | Absorb runtime compare logic into `TRuntimeValidator.cpp` and export round-trip logic into `TBridgeCodegen.cpp`. |
+| `Verification/TVerificationCompiledParity.h` | Compiled runtime parity report and API | `Runtime/AudioGraph/TRuntimeValidator.*`, `Bridge/TBridgeCodegen.*` | `absorb` | Absorb compiled-runtime compare pieces into `TRuntimeValidator.*` and generated-runtime orchestration into `TBridgeCodegen.*`. |
+| `Verification/TVerificationCompiledParity.cpp` | Compiled runtime parity implementation | `Runtime/AudioGraph/TRuntimeValidator.cpp`, `Bridge/TBridgeCodegen.cpp` | `absorb` | Absorb compiled parity implementation into runtime validation and bridge codegen support. |
+| `Verification/TVerificationGoldenAudio.h` | Golden-audio record/verify API and reports | `Runtime/AudioGraph/TRuntimeValidator.*` | `absorb` | Absorb golden-audio validation API into runtime validation support. |
+| `Verification/TVerificationGoldenAudio.cpp` | Golden-audio record/verify implementation | `Runtime/AudioGraph/TRuntimeValidator.cpp` | `absorb` | Absorb golden-audio validation implementation into runtime validation support. |
+| `Verification/TVerificationStress.h` | Stress/soak suite API and reports | `Runtime/AudioGraph/TRuntimeValidator.*` | `absorb` | Absorb stress-suite declarations into runtime validation support. |
+| `Verification/TVerificationStress.cpp` | Stress/soak suite implementation | `Runtime/AudioGraph/TRuntimeValidator.cpp` | `absorb` | Absorb stress-suite implementation into runtime validation support. |
+| `Verification/TVerificationBenchmark.h` | Benchmark thresholds, reports, benchmark suite API | `Runtime/AudioGraph/TRuntimeValidator.*` | `absorb` | Absorb benchmark declarations into runtime validation support. |
+| `Verification/TVerificationBenchmark.cpp` | Benchmark suite implementation | `Runtime/AudioGraph/TRuntimeValidator.cpp` | `absorb` | Absorb benchmark implementation into runtime validation support. |
+| `Verification/CompiledParity/CompiledParityCaseHost.cpp` | Helper executable host for compiled parity cases | `Bridge/TBridgeCodegen.cpp` | `absorb support` | Treat host orchestration as bridge-side generated-runtime support instead of a standalone verification subtree. |
 | `Verification/GoldenAudio/**` | Golden reference assets, metadata, bundle manifests | `Runtime/AudioGraph/` | `keep support assets` | These are test artifacts, not production runtime code. Keep them in a verification-support bucket during phase 1. |
 
 ### Verification Split Principle
 
 - Verification code is not an end-user runtime layer, but its logic mostly validates `Runtime/AudioGraph`.
-- Export/codegen round-trip verification is the one area that legitimately touches both `Runtime/AudioGraph` and `Bridge`.
-- Golden audio files and compiled parity hosts are support assets/tools and do not need to become production-layer source files.
+- In the minimum `Teul2` tree, verification source files are absorbed into `TRuntimeValidator.*` and `TBridgeCodegen.*` instead of surviving as a separate subtree.
+- Golden audio files remain support assets outside the minimum production source tree.
 
 ### Verification Migration Order
 
@@ -306,7 +306,7 @@ Ready for:
 
 | Current file | Current responsibility | Target folder(s) | Move type | Refactor note |
 | --- | --- | --- | --- | --- |
-| `Bridge/ITeulParamProvider.h` | Exposed-param types and runtime/editor param access interface | `Runtime/TTeulRuntime.h`, `Editor/TTeulEditor.h` | `move out of Bridge` | Despite the current folder, this is not an external bridge concern. It is a runtime surface consumed by the editor. Keep the interface next to the runtime facade and include it from the editor. |
+| `Bridge/ITeulParamProvider.h` | Exposed-param types and runtime/editor param access interface | `Runtime/TTeulRuntime.h`, `Editor/TTeulEditor.h` | `absorb` | Do not keep a standalone successor file in `Teul2`. Absorb the contract into `TTeulRuntime.h` and include/use it from `TTeulEditor.h`. |
 
 ### Bridge Split Principle
 
@@ -384,7 +384,7 @@ Note:
 
 ### Runtime
 
-- `Runtime/TTeulRuntime.h`: `Runtime/TGraphRuntime.h`, runtime-facing parts of `Bridge/ITeulParamProvider.h`, coordinator-facing parts of `Runtime/TNodeInstance.h`
+- `Runtime/TTeulRuntime.h`: `Runtime/TGraphRuntime.h`, `Bridge/ITeulParamProvider.h`, coordinator-facing parts of `Runtime/TNodeInstance.h`
 - `Runtime/TTeulRuntime.cpp`: `Runtime/TGraphRuntime.cpp`
 - `Runtime/AudioGraph/TGraphCompiler.h`: graph-build portions of `Runtime/TGraphRuntime.h`, runtime-registry portions of `Registry/TNodeRegistry.h`, `Registry/TNodeSDK.h`
 - `Runtime/AudioGraph/TGraphCompiler.cpp`: graph-build portions of `Runtime/TGraphRuntime.cpp`, runtime-registry/bootstrap portions of `Registry/TNodeRegistry.cpp`, `Registry/Nodes/CoreNodes.h`, `Registry/Nodes/Core/SourceNodes.h`, `Registry/Nodes/Core/FilterNodes.h`, `Registry/Nodes/Core/FXNodes.h`, `Registry/Nodes/Core/MathLogicNodes.h`, `Registry/Nodes/Core/MidiNodes.h`, `Registry/Nodes/Core/MixerNodes.h`, `Registry/Nodes/Core/ModulationNodes.h`
@@ -392,8 +392,8 @@ Note:
 - `Runtime/AudioGraph/TGraphProcessor.cpp`: inline implementation portions of `Runtime/TGraphProcessor.h`
 - `Runtime/AudioGraph/TRuntimeDiagnostics.h`: diagnostics/stat portions of `Runtime/TGraphRuntime.h`
 - `Runtime/AudioGraph/TRuntimeDiagnostics.cpp`: diagnostics/stat portions of `Runtime/TGraphRuntime.cpp`
-- `Runtime/AudioGraph/TRuntimeValidator.h`: runtime-validation portions of `Verification/TVerificationStimulus.h`, `Verification/TVerificationGoldenAudio.h`, `Verification/TVerificationStress.h`, `Verification/TVerificationBenchmark.h`
-- `Runtime/AudioGraph/TRuntimeValidator.cpp`: runtime-validation portions of `Verification/TVerificationStimulus.cpp`, `Verification/TVerificationGoldenAudio.cpp`, `Verification/TVerificationStress.cpp`, `Verification/TVerificationBenchmark.cpp`, validation-oriented parts of `Export/TExport.cpp`
+- `Runtime/AudioGraph/TRuntimeValidator.h`: `Verification/TVerificationFixtures.h`, `Verification/TVerificationStimulus.h`, `Verification/TVerificationParity.h`, `Verification/TVerificationCompiledParity.h`, `Verification/TVerificationGoldenAudio.h`, `Verification/TVerificationStress.h`, `Verification/TVerificationBenchmark.h`
+- `Runtime/AudioGraph/TRuntimeValidator.cpp`: `Verification/TVerificationFixtures.cpp`, `Verification/TVerificationStimulus.cpp`, runtime-compare portions of `Verification/TVerificationParity.cpp`, runtime-compare portions of `Verification/TVerificationCompiledParity.cpp`, `Verification/TVerificationGoldenAudio.cpp`, `Verification/TVerificationStress.cpp`, `Verification/TVerificationBenchmark.cpp`, validation-oriented parts of `Export/TExport.cpp`
 - `Runtime/IOControl/TRuntimeEvent.h`: runtime-event and rebuild/device-event portions of `Runtime/TGraphRuntime.h`, queued event concepts from `Editor/EditorHandleImpl.h`
 - `Runtime/IOControl/TRuntimeEventQueue.h`: queued event portions of `Runtime/TGraphRuntime.h`, pending queue concepts from `Editor/EditorHandleImpl.h`
 - `Runtime/IOControl/TRuntimeEventQueue.cpp`: queued event portions of `Runtime/TGraphRuntime.cpp`, pending queue concepts from `Editor/EditorHandleImpl.cpp`
@@ -406,12 +406,131 @@ Note:
 - `Bridge/TTeulBridge.cpp`: `Export/TExport.cpp`, bridge-facing portions of `Registry/TNodeRegistry.cpp`
 - `Bridge/TBridgeJsonCodec.h`: JSON/manifest/runtime-data portions of `Export/TExport.h`
 - `Bridge/TBridgeJsonCodec.cpp`: JSON/manifest/runtime-data portions of `Export/TExport.cpp`
-- `Bridge/TBridgeCodegen.h`: codegen/export portions of `Export/TExport.h`
-- `Bridge/TBridgeCodegen.cpp`: codegen/export portions of `Export/TExport.cpp`
+- `Bridge/TBridgeCodegen.h`: codegen/export portions of `Export/TExport.h`, bridge-side portions of `Verification/TVerificationParity.h`, `Verification/TVerificationCompiledParity.h`
+- `Bridge/TBridgeCodegen.cpp`: codegen/export portions of `Export/TExport.cpp`, bridge-side portions of `Verification/TVerificationParity.cpp`, `Verification/TVerificationCompiledParity.cpp`, `Verification/CompiledParity/CompiledParityCaseHost.cpp`
 - `Bridge/TIeumBridge.h`: Ieum-facing param exposure portions of `Bridge/ITeulParamProvider.h`, `Registry/TNodeRegistry.h`
 - `Bridge/TIeumBridge.cpp`: Ieum-facing param exposure portions of `Registry/TNodeRegistry.cpp`, bridge/export integration portions of `Export/TExport.cpp`
 - `Bridge/TGyeolBridge.h`: `new`
 - `Bridge/TGyeolBridge.cpp`: `new`
 - `Bridge/TNaruBridge.h`: `new`
 - `Bridge/TNaruBridge.cpp`: `new`
+
+---
+
+## Refactoring Execution Order
+
+Refactor from the most foundational layer upward.
+
+### 1. Document First
+
+Goal:
+- Finish `Document` first so Teul has a stable source of truth before any UI or runtime rewrite depends on it.
+
+Work:
+- Move and normalize core graph types into `TDocumentTypes`.
+- Build `TTeulDocument` as the canonical in-memory document.
+- Move undo/redo into `TDocumentHistory`.
+- Move `.teul`, patch preset, and state preset save/load into `TDocumentSerializer`, `TDocumentMigration`, and `TDocumentStore`.
+
+Validation:
+- Existing document load/save still works.
+- Undo/redo still works.
+- Migration still restores older documents.
+- Preset import/apply still works.
+
+Why first:
+- `Editor`, `Runtime`, and `Bridge` all depend on a stable document boundary.
+
+### 2. Editor Next
+
+Goal:
+- Build `Editor` on top of the new `Document` layer and confirm that document state is presented and edited correctly.
+
+Work:
+- Replace `EditorHandle` / `EditorHandleImpl` with `TTeulEditor`.
+- Move canvas, renderers, panels, search, and interaction code into the new editor tree.
+- Keep editor mutations flowing through `TTeulDocument`.
+
+Validation:
+- Document state is displayed correctly on canvas and in panels.
+- Node add/move/delete/connect works.
+- Search, quick add, selection, and properties work.
+- Preset browser still works as an editor panel.
+
+Why second:
+- It proves the rewritten `Document` layer is actually usable before runtime work starts.
+
+### 3. Runtime AudioGraph After Editor
+
+Goal:
+- Implement `Runtime/AudioGraph` and verify the core edit-to-sound graph loop.
+
+Work:
+- Split `TGraphRuntime` into `TTeulRuntime`, `TGraphCompiler`, `TGraphProcessor`, and `TRuntimeDiagnostics`.
+- Move runtime validation logic into `TRuntimeValidator`.
+- Keep runtime reading from the rewritten document model.
+
+Validation:
+- `Editor` edit -> `Document` mutation -> `AudioGraph` rebuild/update works.
+- Graph compiles and runs.
+- Parameter changes propagate.
+- Existing runtime smoke and validator checks still pass.
+
+Why here:
+- It verifies the central Teul pipeline before device and control hotplug complexity is added.
+
+### 4. Runtime IOControl After AudioGraph
+
+Goal:
+- Add live device and control-event management only after the core graph pipeline is stable.
+
+Work:
+- Implement `TRuntimeEvent`, `TRuntimeEventQueue`, and `TRuntimeDeviceManager`.
+- Move runtime device-state and control-device logic out of editor/runtime god files.
+- Reconnect runtime I/O state to editor rail presentation.
+
+Validation:
+- Rail panels update when devices or control sources change.
+- Editor rail changes are reflected in runtime I/O state.
+- Connecting rail endpoints to graph nodes results in real signal flow.
+- Audio and control routes reach the graph and audible output still works.
+
+Why after AudioGraph:
+- Device/runtime event logic is much easier to debug once the core graph path already works.
+
+### 5. Bridge Last
+
+Goal:
+- Rebuild external integration after internal boundaries are stable.
+
+Work:
+- Move export/codegen into `TBridgeCodegen`.
+- Move external JSON handling into `TBridgeJsonCodec`.
+- Rebuild Ieum/Gyeol/Naru adapters on top of stable document/runtime boundaries.
+
+Validation:
+- Export still works.
+- External JSON payloads still round-trip correctly.
+- Ieum/Gyeol/Naru integration points build against the new structure.
+
+Why last:
+- `Bridge` depends on the final shape of `Document` and `Runtime`. Doing it earlier creates rework.
+
+## Advice
+
+The proposed order is correct. The main advice is to keep each phase independently shippable.
+
+Recommended guardrails:
+- Do not move `Document`, `Editor`, and `Runtime` at the same time.
+- Keep the app buildable after each phase.
+- Add temporary adapter glue when needed instead of forcing a one-shot rewrite.
+- Treat `Document -> Editor -> AudioGraph` as the minimum vertical slice that must work before `IOControl` starts.
+- Do not begin `Bridge` until export and runtime boundaries stop moving.
+
+Recommended success checkpoints:
+1. `Document` complete and old save/load/history paths still pass.
+2. `Editor` complete and graph editing still works on the new document layer.
+3. `AudioGraph` complete and edits produce real runtime updates.
+4. `IOControl` complete and rail/device/control changes are reflected live.
+5. `Bridge` complete and external integration works again.
 

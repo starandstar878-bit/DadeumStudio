@@ -348,11 +348,11 @@ Source/Teul/Runtime/
 ```
 
 ### File Roles
-- `TTeulRuntime`: top-level runtime orchestration entry.
+- `TTeulRuntime`: top-level runtime orchestration entry. It also absorbs the former `ITeulParamProvider` runtime/editor parameter surface contract instead of keeping a separate bridge-side header.
 - `TGraphCompiler`: `Document -> executable graph` transform.
 - `TGraphProcessor`: live block-based DSP processing.
 - `TRuntimeDiagnostics`: runtime faults and stats.
-- `TRuntimeValidator`: pre-admission validation for DSP graphs and nodes.
+- `TRuntimeValidator`: pre-admission validation for DSP graphs and nodes. It absorbs former runtime verification helpers such as fixtures, stimulus, golden-audio, stress, and benchmark support.
 - `TRuntimeEvent`: runtime event types.
 - `TRuntimeEventQueue`: safe event push/drain path.
 - `TRuntimeDeviceManager`: audio/MIDI/control device state tracking.
@@ -377,6 +377,11 @@ Rules:
 - `IOControl` owns device and runtime-event logic.
 - `IOControl` does not own the DSP graph.
 - `AudioGraph` does not own device discovery logic.
+
+Verification note:
+- There is no standalone `Verification/` subtree in the minimum `Teul2` layout.
+- Former verification source files are absorbed into `Runtime/AudioGraph/TRuntimeValidator.*` and bridge-side codegen support files.
+- Large golden-audio bundles and helper executables remain support assets outside the minimum production tree.
 
 ---
 
@@ -417,7 +422,7 @@ Source/Teul/Bridge/
 ### File Roles
 - `TTeulBridge`: top-level bridge facade.
 - `TBridgeJsonCodec`: external JSON encoding and decoding.
-- `TBridgeCodegen`: code generation output.
+- `TBridgeCodegen`: code generation output. It also absorbs export/parity-side verification support that depends on generated code or bridge packaging.
 - `TIeumBridge`: Ieum adapter.
 - `TGyeolBridge`: Gyeol adapter.
 - `TNaruBridge`: Naru adapter.
@@ -439,6 +444,10 @@ Rules:
 - Shared JSON logic stays in `TBridgeJsonCodec`.
 - Shared code generation stays in `TBridgeCodegen`.
 - External-project-specific rules do not accumulate inside `TTeulBridge`.
+
+Absorption note:
+- Former bridge-side `ITeulParamProvider.h` is not kept as a separate bridge file in `Teul2`; its contract is absorbed into the runtime/editor boundary.
+- Former compiled-parity/export verification helpers are absorbed into bridge codegen support instead of creating a separate verification tree.
 
 ---
 
