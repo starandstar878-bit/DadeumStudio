@@ -1,1 +1,64 @@
-﻿#pragma once
+#pragma once
+
+#include "IBindingTypes.h"
+
+namespace Ieum {
+
+/** 
+ * 소스 또는 타겟의 위치를 가리키는 주소 정보 
+ */
+struct IEndpoint {
+    ProviderId providerId;
+    EntityId entityId;
+    ParamId paramId;
+
+    bool isValid() const { return !providerId.isVoid() && !entityId.isEmpty() && !paramId.isEmpty(); }
+    
+    bool operator==(const IEndpoint& other) const {
+        return providerId == other.providerId && entityId == other.entityId && paramId == other.paramId;
+    }
+    bool operator!=(const IEndpoint& other) const { return !(*this == other); }
+};
+
+/** 
+ * 개별 바인딩의 명세 (Roadmap Phase 2)
+ * 소스에서 타겟으로의 데이터 흐름을 정의하는 핵심 데이터 모델입니다.
+ */
+class IBindingSpec {
+public:
+    IBindingSpec() = default;
+    IBindingSpec(const BindingId& id) : id(id) {}
+
+    BindingId id;                   // 바인딩 고유 ID
+    juce::String name;              // 사용자가 지정한 바인딩 이름
+
+    IEndpoint source;               // 데이터 발생지
+    IEndpoint target;               // 데이터 목적지
+
+    IBindingMode mode = IBindingMode::Continuous;
+    IValueType valueType = IValueType::Floating;
+    
+    bool enabled = true;            // 활성화 여부
+    IBindingStatus status = IBindingStatus::Waiting;
+
+    /** 
+     * 변환 파이프라인 설정 (Roadmap Phase 4)
+     * 현재는 간단히 TransformId 하나만 저장하도록 시작합니다.
+     */
+    TransformId transformId;
+
+    /** 
+     * 데이터의 동일성 비교 (직렬화 및 변경 감지용)
+     */
+    bool isSameAs(const IBindingSpec& other) const {
+        return source == other.source && 
+               target == other.target && 
+               mode == other.mode && 
+               valueType == other.valueType && 
+               enabled == other.enabled && 
+               transformId == other.transformId;
+    }
+};
+
+} // namespace Ieum
+
