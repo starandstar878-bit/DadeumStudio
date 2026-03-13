@@ -106,6 +106,18 @@ bool isLegacyRailSinkNode(const juce::String &typeKey) {
          typeKey == "Teul.Midi.MidiOut";
 }
 
+bool isLegacyMidiOutputBridgeNode(const TNode &node) {
+  if (node.typeKey != "Teul.Midi.MidiOut")
+    return false;
+
+  if (node.ports.size() != 1)
+    return false;
+
+  const auto &port = node.ports.front();
+  return port.direction == TPortDirection::Input &&
+         port.dataType == TPortDataType::MIDI;
+}
+
 bool endpointsEqual(const TEndpoint &a, const TEndpoint &b) {
   return a.ownerKind == b.ownerKind && a.nodeId == b.nodeId &&
          a.portId == b.portId && a.railEndpointId == b.railEndpointId &&
@@ -213,7 +225,9 @@ void normalizeLegacyRailBridgeNodes(TGraphDocument &doc,
 
   for (const auto &node : doc.nodes) {
     const bool isSource = isLegacyRailSourceNode(node.typeKey);
-    const bool isSink = isLegacyRailSinkNode(node.typeKey);
+    bool isSink = isLegacyRailSinkNode(node.typeKey);
+    if (node.typeKey == "Teul.Midi.MidiOut")
+      isSink = isLegacyMidiOutputBridgeNode(node);
     if (!isSource && !isSink)
       continue;
 

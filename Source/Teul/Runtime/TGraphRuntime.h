@@ -59,6 +59,8 @@ public:
   void processBlock(juce::AudioBuffer<float> &deviceBuffer,
                     juce::MidiBuffer &midiMessages);
   void setCurrentChannelLayout(int inputChannels, int outputChannels) noexcept;
+  void setMidiOutputSink(
+      std::function<void(const juce::MidiBuffer &)> sinkCallback);
 
   void audioDeviceAboutToStart(juce::AudioIODevice *device) override;
   void audioDeviceStopped() override;
@@ -304,6 +306,8 @@ private:
   std::atomic<bool> denormalDetected{false};
   std::atomic<bool> xrunDetected{false};
   std::atomic<bool> mutedFallbackActive{false};
+  juce::SpinLock midiOutputSinkLock;
+  std::function<void(const juce::MidiBuffer &)> midiOutputSink;
 
   juce::MidiBuffer deviceCallbackMidiScratch;
   juce::MidiBuffer deviceInputMidiCaptureBuffer;

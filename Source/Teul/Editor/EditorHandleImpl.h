@@ -130,6 +130,8 @@ private:
                           juce::Colour accent,
                           int ticks = 50);
   void refreshControlInputAdapters(bool announceChanges);
+  void refreshMidiOutputDevice(bool announceChanges);
+  void sendRuntimeMidiOutput(const juce::MidiBuffer &midiMessages);
   void drainPendingProfileSyncEvents();
   void drainPendingProfileDeltaEvents();
   void drainPendingLearnBindings();
@@ -153,6 +155,10 @@ private:
   std::unique_ptr<RailPanel> outputRail;
   std::unique_ptr<RailPanel> controlRail;
   juce::AudioDeviceManager *audioDeviceManager = nullptr;
+  juce::CriticalSection midiOutputDeviceLock;
+  std::shared_ptr<juce::MidiOutput> midiOutputDevice;
+  juce::String midiOutputDeviceId;
+  juce::String midiOutputDeviceName;
 
   juce::TextButton toggleLibraryButton;
   juce::TextButton quickAddButton;

@@ -102,7 +102,9 @@ public:
     desc.typeKey = "Teul.Midi.MidiOut";
     desc.displayName = "MIDI Output";
     desc.category = "MIDI";
-    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::MIDI, "MIDI In")};
+    desc.portSpecs = {
+        makePortSpec(TPortDirection::Input, TPortDataType::MIDI, "MIDI In"),
+        makePortSpec(TPortDirection::Output, TPortDataType::MIDI, "MIDI Out")};
     return desc;
   }
 
@@ -110,7 +112,18 @@ public:
     class Implementation : public TNodeInstance {
     public:
       void processSamples(const TProcessContext &ctx) override {
-        juce::ignoreUnused(ctx);
+        if (ctx.midiOutputMessages == nullptr)
+          return;
+
+        ctx.midiOutputMessages->clear();
+
+        if (ctx.midiMessages == nullptr || ctx.midiMessages->isEmpty())
+          return;
+
+        const int numSamples = ctx.globalPortBuffer != nullptr
+                                   ? ctx.globalPortBuffer->getNumSamples()
+                                   : std::numeric_limits<int>::max();
+        ctx.midiOutputMessages->addEvents(*ctx.midiMessages, 0, numSamples, 0);
       }
     };
     return std::make_unique<Implementation>();

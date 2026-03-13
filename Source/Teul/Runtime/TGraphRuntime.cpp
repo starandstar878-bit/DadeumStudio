@@ -760,6 +760,14 @@ void TGraphRuntime::processBlockInternal(
   clipDetected.store(clipped, std::memory_order_relaxed);
   denormalDetected.store(denormal, std::memory_order_relaxed);
 
+  std::function<void(const juce::MidiBuffer &)> midiOutputSinkCopy;
+  {
+    const juce::SpinLock::ScopedLockType lock(midiOutputSinkLock);
+    midiOutputSinkCopy = midiOutputSink;
+  }
+  if (midiOutputSinkCopy && !midiMessages.isEmpty())
+    midiOutputSinkCopy(midiMessages);
+
   if (state->portLevels) {
     for (std::size_t index = 0; index < state->portTelemetry.size(); ++index) {
       const auto &telemetry = state->portTelemetry[index];

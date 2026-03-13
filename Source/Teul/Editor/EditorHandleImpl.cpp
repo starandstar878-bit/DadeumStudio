@@ -3171,6 +3171,9 @@ EditorHandle::Impl::Impl(
     : owner(ownerIn), registryStore(makeDefaultNodeRegistry()),
       runtime(registryStore.get()), audioDeviceManager(audioDeviceManagerIn),
       bindingRevisionProvider(std::move(bindingRevisionProviderIn)) {
+  runtime.setMidiOutputSink([this](const juce::MidiBuffer &midiMessages) {
+    sendRuntimeMidiOutput(midiMessages);
+  });
   canvas = std::make_unique<TGraphCanvas>(doc, *registryStore);
   canvas->setConnectionLevelProvider([this](const TConnection &connection) {
     return connection.from.isNodePort() ? runtime.getPortLevel(connection.from.portId)
@@ -3636,6 +3639,7 @@ EditorHandle::Impl::Impl(
     controlInputAdapters.push_back(
         std::make_unique<MidiControlInputAdapter>(*this, audioDeviceManager));
   refreshControlInputAdapters(false);
+  refreshMidiOutputDevice(false);
   startTimerHz(20);
 }
 
@@ -3699,6 +3703,14 @@ EditorHandle::Impl::~Impl() {
   for (auto &adapter : controlInputAdapters)
     adapter->shutdown();
   controlInputAdapters.clear();
+
+  runtime.setMidiOutputSink({});
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    midiOutputDevice.reset();
+    midiOutputDeviceId.clear();
+    midiOutputDeviceName.clear();
+  }
 
   if (audioDeviceManager != nullptr)
     audioDeviceManager->removeAudioCallback(&runtime);
@@ -4187,6 +4199,99 @@ void EditorHandle::Impl::refreshControlInputAdapters(bool announceChanges) {
     adapter->refresh(announceChanges);
 }
 
+void EditorHandle::Impl::refreshMidiOutputDevice(bool announceChanges) {
+  const auto devices = juce::MidiOutput::getAvailableDevices();
+
+  auto findDeviceById = [&](const juce::String &deviceId)
+      -> const juce::MidiDeviceInfo * {
+    for (const auto &device : devices) {
+      if (device.identifier == deviceId)
+        return &device;
+    }
+    return nullptr;
+  };
+
+  juce::String currentId;
+  juce::String currentName;
+  bool hadDevice = false;
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    currentId = midiOutputDeviceId;
+    currentName = midiOutputDeviceName;
+    hadDevice = midiOutputDevice != nullptr;
+  }
+
+  juce::ignoreUnused(currentName);
+
+  const juce::MidiDeviceInfo *targetDevice = nullptr;
+  if (const auto *existing = findDeviceById(currentId))
+    targetDevice = existing;
+  else if (!devices.isEmpty())
+    targetDevice = &devices.front();
+
+  if (targetDevice == nullptr) {
+    bool changed = false;
+    {
+      const juce::ScopedLock lock(midiOutputDeviceLock);
+      changed = midiOutputDevice != nullptr || midiOutputDeviceId.isNotEmpty() ||
+                midiOutputDeviceName.isNotEmpty();
+      midiOutputDevice.reset();
+      midiOutputDeviceId.clear();
+      midiOutputDeviceName.clear();
+    }
+    if (announceChanges && changed)
+      pushRuntimeMessage("MIDI output disconnected",
+                         TeulPalette::AccentAmber(), 60);
+    return;
+  }
+
+  const auto targetId = targetDevice->identifier;
+  const auto targetName = targetDevice->name.trim().isNotEmpty()
+                              ? targetDevice->name.trim()
+                              : targetId;
+
+  if (hadDevice && currentId == targetId) {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    midiOutputDeviceName = targetName;
+    return;
+  }
+
+  auto openedUnique = juce::MidiOutput::openDevice(targetId);
+  if (openedUnique == nullptr) {
+    if (announceChanges)
+      pushRuntimeMessage("Failed to open MIDI output: " + targetName,
+                         TeulPalette::AccentAmber(), 60);
+    return;
+  }
+
+  std::shared_ptr<juce::MidiOutput> opened(openedUnique.release());
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    midiOutputDevice = std::move(opened);
+    midiOutputDeviceId = targetId;
+    midiOutputDeviceName = targetName;
+  }
+
+  if (announceChanges || !hadDevice || currentId != targetId) {
+    pushRuntimeMessage("MIDI output connected: " + targetName,
+                       TeulPalette::AccentGreen(), 60);
+  }
+}
+
+void EditorHandle::Impl::sendRuntimeMidiOutput(
+    const juce::MidiBuffer &midiMessages) {
+  if (midiMessages.isEmpty())
+    return;
+
+  std::shared_ptr<juce::MidiOutput> device;
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    device = midiOutputDevice;
+  }
+
+  if (device != nullptr)
+    device->sendBlockOfMessagesNow(midiMessages);
+}
 void EditorHandle::Impl::timerCallback() {
   const auto currentRuntimeRevision = doc.getRuntimeRevision();
   if (currentRuntimeRevision != lastRuntimeRevision) {
@@ -4223,6 +4328,7 @@ void EditorHandle::Impl::timerCallback() {
   if (++controlInputRefreshCounter >= 20) {
     controlInputRefreshCounter = 0;
     refreshControlInputAdapters(true);
+    refreshMidiOutputDevice(true);
   }
 
   refreshRuntimeUi();
@@ -4250,6 +4356,7 @@ void EditorHandle::Impl::rebuildAll(bool rebuildRuntime) {
 
   if (!controlInputAdapters.empty())
     refreshControlInputAdapters(false);
+  refreshMidiOutputDevice(false);
 
   lastDocumentRevision = doc.getDocumentRevision();
   lastRuntimeRevision = doc.getRuntimeRevision();
