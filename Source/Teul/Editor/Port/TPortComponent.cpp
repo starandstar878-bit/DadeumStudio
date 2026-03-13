@@ -63,15 +63,15 @@ void TPortComponent::setScaleFactor(float newScale) {
 juce::Colour TPortComponent::getPortColor() const {
   switch (getPortData().dataType) {
   case TPortDataType::Audio:
-    return TeulPalette::PortAudio;
+    return TeulPalette::PortAudio();
   case TPortDataType::CV:
-    return TeulPalette::PortCV;
+    return TeulPalette::PortCV();
   case TPortDataType::Gate:
-    return TeulPalette::PortGate;
+    return TeulPalette::PortGate();
   case TPortDataType::MIDI:
-    return TeulPalette::PortMIDI;
+    return TeulPalette::PortMIDI();
   case TPortDataType::Control:
-    return TeulPalette::PortControl;
+    return TeulPalette::PortControl();
   default:
     return juce::Colours::grey;
   }

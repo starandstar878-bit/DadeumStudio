@@ -1,5 +1,6 @@
 #include "Teul/Public/EditorHandle.h"
 #include "Teul/Editor/EditorHandleImpl.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 
 namespace Teul {
 
@@ -109,7 +110,7 @@ TExportResult EditorHandle::runExportDryRun(
 }
 
 void EditorHandle::paint(juce::Graphics &g) {
-  g.fillAll(juce::Colour(0xff121212));
+  g.fillAll(TeulPalette::WindowBackground());
 }
 
 void EditorHandle::resized() {

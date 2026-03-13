@@ -7,6 +7,7 @@
 #include "Teul/History/TCommands.h"
 #include "Teul/Model/TGraphDocument.h"
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 
 #include <algorithm>
 #include <cmath>
@@ -537,21 +538,21 @@ public:
     headerLabel.setText("Node Properties", juce::dontSendNotification);
     headerLabel.setJustificationType(juce::Justification::centredLeft);
     headerLabel.setColour(juce::Label::textColourId,
-                          juce::Colours::white.withAlpha(0.92f));
+                          TeulPalette::PanelTextStrong().withAlpha(0.92f));
     headerLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
 
     typeLabel.setJustificationType(juce::Justification::centredLeft);
     typeLabel.setColour(juce::Label::textColourId,
-                        juce::Colours::white.withAlpha(0.54f));
+                        TeulPalette::PanelTextMuted().withAlpha(0.86f));
     typeLabel.setFont(juce::FontOptions(10.8f, juce::Font::plain));
 
-    nameEditor.setTextToShowWhenEmpty("Custom node label", juce::Colours::grey);
+    nameEditor.setTextToShowWhenEmpty("Custom node label", TeulPalette::PanelTextFaint());
     nameEditor.setColour(juce::TextEditor::backgroundColourId,
-                         juce::Colour(0xff171717));
+                         TeulPalette::InputBackground());
     nameEditor.setColour(juce::TextEditor::textColourId,
-                         juce::Colours::white);
+                         TeulPalette::PanelTextStrong());
     nameEditor.setColour(juce::TextEditor::outlineColourId,
-                         juce::Colour(0xff343434));
+                         TeulPalette::InputOutline());
 
     colorBox.addItem("None", 1);
     colorBox.addItem("Red", 2);
@@ -757,14 +758,14 @@ public:
 
   void paint(juce::Graphics &g) override {
     const auto panelBounds = getLocalBounds().toFloat().reduced(1.0f);
-    g.setGradientFill(juce::ColourGradient(juce::Colour(0xff0b1220),
+    g.setGradientFill(juce::ColourGradient(TeulPalette::PanelBackgroundDeep(),
                                            panelBounds.getCentreX(),
                                            panelBounds.getY(),
-                                           juce::Colour(0xff111827),
+                                           TeulPalette::PanelBackgroundRaised(),
                                            panelBounds.getCentreX(),
                                            panelBounds.getBottom(), false));
     g.fillRoundedRectangle(panelBounds, 12.0f);
-    g.setColour(juce::Colour(0xff324154));
+    g.setColour(TeulPalette::PanelStrokeStrong());
     g.drawRoundedRectangle(panelBounds, 12.0f, 1.0f);
 
     if (!isPanelOpen())
@@ -788,32 +789,32 @@ public:
 
     auto drawSection = [&](juce::Rectangle<int> rect, const juce::String &title,
                            juce::Colour accent, const juce::String &subtitle) {
-      g.setColour(juce::Colour(0x88182231));
+      g.setColour(TeulPalette::PanelBackgroundAlt().withAlpha(0.54f));
       g.fillRoundedRectangle(rect.toFloat(), 10.0f);
       g.setColour(accent.withAlpha(0.32f));
       g.drawRoundedRectangle(rect.toFloat(), 10.0f, 1.0f);
 
       auto header = rect.reduced(10, 7)
                         .removeFromTop(subtitle.isNotEmpty() ? 24 : 16);
-      g.setColour(juce::Colours::white.withAlpha(0.9f));
+      g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.9f));
       g.setFont(juce::FontOptions(11.4f, juce::Font::bold));
       g.drawText(title, header.removeFromTop(15),
                  juce::Justification::centredLeft, false);
       if (subtitle.isNotEmpty()) {
-        g.setColour(juce::Colours::white.withAlpha(0.48f));
+        g.setColour(TeulPalette::PanelTextFaint().withAlpha(0.88f));
         g.setFont(9.4f);
         g.drawText(subtitle, header, juce::Justification::centredLeft, false);
       }
     };
 
-    drawSection(overview, "Overview", juce::Colour(0xff60a5fa), {});
-    drawSection(state, "State", juce::Colour(0xfff59e0b), {});
+    drawSection(overview, "Overview", TeulPalette::AccentBlue(), {});
+    drawSection(state, "State", TeulPalette::AccentAmber(), {});
     if (!isInspectingFrame()) {
-      drawSection(connections, "Connection Setup", juce::Colour(0xfffbbf24),
+      drawSection(connections, "Connection Setup", TeulPalette::AccentAmber(),
                   "Signal routes and control assignments for the current node.");
     }
     drawSection(params, isInspectingFrame() ? "Group" : "Audio Parameters",
-                juce::Colour(0xff22c55e),
+                TeulPalette::AccentGreen(),
                 isInspectingFrame()
                     ? "Stored membership and identity metadata for this frame group."
                     : "Runtime and binding metadata appear only when relevant.");
@@ -1150,7 +1151,7 @@ private:
       entry->controlAssignmentSettingsLabel->setJustificationType(
           juce::Justification::centredLeft);
       entry->controlAssignmentSettingsLabel->setColour(
-          juce::Label::textColourId, juce::Colours::white.withAlpha(0.58f));
+          juce::Label::textColourId, TeulPalette::PanelTextMuted().withAlpha(0.9f));
       entry->controlAssignmentSettingsLabel->setFont(juce::FontOptions(9.1f));
       entry->controlAssignmentSettingsLabel->setBorderSize(
           juce::BorderSize<int>(1, 6, 1, 6));
@@ -1158,15 +1159,15 @@ private:
       paramsContent->addAndMakeVisible(entry->controlAssignmentSettingsLabel.get());
 
       entry->controlAssignmentRangeMinEditor = std::make_unique<juce::TextEditor>();
-      entry->controlAssignmentRangeMinEditor->setTextToShowWhenEmpty("Min", juce::Colours::grey);
+      entry->controlAssignmentRangeMinEditor->setTextToShowWhenEmpty("Min", TeulPalette::PanelTextFaint());
       entry->controlAssignmentRangeMinEditor->setColour(
-          juce::TextEditor::backgroundColourId, juce::Colour(0xff171717));
+          juce::TextEditor::backgroundColourId, TeulPalette::InputBackground());
       entry->controlAssignmentRangeMinEditor->setColour(
-          juce::TextEditor::textColourId, juce::Colours::white);
+          juce::TextEditor::textColourId, TeulPalette::PanelTextStrong());
       entry->controlAssignmentRangeMinEditor->setColour(
-          juce::TextEditor::outlineColourId, juce::Colour(0xff324154));
+          juce::TextEditor::outlineColourId, TeulPalette::InputOutline());
       entry->controlAssignmentRangeMinEditor->setColour(
-          juce::CaretComponent::caretColourId, juce::Colours::white);
+          juce::CaretComponent::caretColourId, TeulPalette::PanelTextStrong());
       entry->controlAssignmentRangeMinEditor->setInputRestrictions(0, "0123456789.-");
       entry->controlAssignmentRangeMinEditor->setVisible(false);
       entry->controlAssignmentRangeMinEditor->setTooltip(
@@ -1181,15 +1182,15 @@ private:
       paramsContent->addAndMakeVisible(entry->controlAssignmentRangeMinEditor.get());
 
       entry->controlAssignmentRangeMaxEditor = std::make_unique<juce::TextEditor>();
-      entry->controlAssignmentRangeMaxEditor->setTextToShowWhenEmpty("Max", juce::Colours::grey);
+      entry->controlAssignmentRangeMaxEditor->setTextToShowWhenEmpty("Max", TeulPalette::PanelTextFaint());
       entry->controlAssignmentRangeMaxEditor->setColour(
-          juce::TextEditor::backgroundColourId, juce::Colour(0xff171717));
+          juce::TextEditor::backgroundColourId, TeulPalette::InputBackground());
       entry->controlAssignmentRangeMaxEditor->setColour(
-          juce::TextEditor::textColourId, juce::Colours::white);
+          juce::TextEditor::textColourId, TeulPalette::PanelTextStrong());
       entry->controlAssignmentRangeMaxEditor->setColour(
-          juce::TextEditor::outlineColourId, juce::Colour(0xff324154));
+          juce::TextEditor::outlineColourId, TeulPalette::InputOutline());
       entry->controlAssignmentRangeMaxEditor->setColour(
-          juce::CaretComponent::caretColourId, juce::Colours::white);
+          juce::CaretComponent::caretColourId, TeulPalette::PanelTextStrong());
       entry->controlAssignmentRangeMaxEditor->setInputRestrictions(0, "0123456789.-");
       entry->controlAssignmentRangeMaxEditor->setVisible(false);
       entry->controlAssignmentRangeMaxEditor->setTooltip(

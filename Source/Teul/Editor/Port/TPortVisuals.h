@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Teul/Editor/TIssueState.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 #include <JuceHeader.h>
 
 namespace Teul::TPortVisuals {
@@ -34,8 +35,8 @@ inline void drawStateOverlay(juce::Graphics &g, juce::Rectangle<float> bounds,
 
 inline juce::Colour dropTargetColour(juce::Colour accent, bool canConnect) {
   return canConnect ? accent.brighter(0.45f).interpolatedWith(
-                          juce::Colour(0xff22c55e), 0.35f)
-                    : juce::Colour(0xfff97316);
+                          TeulPalette::AccentGreen(), 0.35f)
+                    : TeulPalette::AccentOrange();
 }
 
 inline void drawDropTargetOverlay(juce::Graphics &g,

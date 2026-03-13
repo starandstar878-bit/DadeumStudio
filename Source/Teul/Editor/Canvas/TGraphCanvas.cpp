@@ -224,7 +224,7 @@ void TGraphCanvas::updateChildPositions() {
 }
 
 void TGraphCanvas::paint(juce::Graphics &g) {
-  g.fillAll(TeulPalette::CanvasBackground);
+  g.fillAll(TeulPalette::CanvasBackground());
   drawInfiniteGrid(g);
   drawFrames(g);
   drawLibraryDropPreview(g);

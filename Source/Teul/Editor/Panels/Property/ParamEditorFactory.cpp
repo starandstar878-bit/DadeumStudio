@@ -1,4 +1,5 @@
 #include "Teul/Editor/Panels/Property/ParamEditorFactory.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 
 #include "Teul/Editor/Panels/Property/ParamValueFormatter.h"
 
@@ -54,10 +55,10 @@ std::unique_ptr<juce::Component> createParamEditor(const TParamSpec &spec,
   textEditor->setText(formatValueForDisplay(value, spec),
                       juce::dontSendNotification);
   textEditor->setColour(juce::TextEditor::backgroundColourId,
-                        juce::Colour(0xff171717));
-  textEditor->setColour(juce::TextEditor::textColourId, juce::Colours::white);
+                        TeulPalette::InputBackground());
+  textEditor->setColour(juce::TextEditor::textColourId, TeulPalette::PanelTextStrong());
   textEditor->setColour(juce::TextEditor::outlineColourId,
-                        juce::Colour(0xff343434));
+                        TeulPalette::InputOutline());
   textEditor->setReadOnly(spec.isReadOnly);
   return textEditor;
 }

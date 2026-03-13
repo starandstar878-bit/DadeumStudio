@@ -1,4 +1,5 @@
 #include "Teul/Editor/Panels/NodeLibraryPanel.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 
 #include "Teul/Registry/TNodeRegistry.h"
 
@@ -73,16 +74,16 @@ public:
     titleLabel.setText("Node Library", juce::dontSendNotification);
     titleLabel.setJustificationType(juce::Justification::centredLeft);
     titleLabel.setColour(juce::Label::textColourId,
-                         juce::Colours::white.withAlpha(0.90f));
+                         TeulPalette::PanelTextStrong().withAlpha(0.90f));
     titleLabel.setFont(juce::FontOptions(14.2f, juce::Font::bold));
 
-    searchEditor.setTextToShowWhenEmpty("Search nodes...", juce::Colours::grey);
+    searchEditor.setTextToShowWhenEmpty("Search nodes...", TeulPalette::PanelTextFaint());
     searchEditor.setColour(juce::TextEditor::backgroundColourId,
-                           juce::Colour(0xff1c1c1c));
+                           TeulPalette::InputBackground());
     searchEditor.setColour(juce::TextEditor::textColourId,
-                           juce::Colours::white);
+                           TeulPalette::PanelTextStrong());
     searchEditor.setColour(juce::TextEditor::outlineColourId,
-                           juce::Colour(0xff3a3a3a));
+                           TeulPalette::InputOutline());
     searchEditor.setEscapeAndReturnKeysConsumed(false);
     searchEditor.addListener(this);
     searchEditor.addKeyListener(this);
@@ -93,7 +94,7 @@ public:
     listBox.setModel(this);
     listBox.setRowHeight(26);
     listBox.setColour(juce::ListBox::backgroundColourId,
-                      juce::Colour(0xff14181d));
+                      TeulPalette::PanelBackgroundAlt());
     listBox.addKeyListener(this);
     listBox.setMultipleSelectionEnabled(false);
 
@@ -105,8 +106,8 @@ public:
   }
 
   void paint(juce::Graphics &g) override {
-    g.fillAll(juce::Colour(0xff101317));
-    g.setColour(juce::Colour(0xff2a323c));
+    g.fillAll(TeulPalette::PanelBackground());
+    g.setColour(TeulPalette::PanelStroke());
     g.drawRect(getLocalBounds(), 1);
   }
 
@@ -140,17 +141,17 @@ private:
 
     auto bounds = juce::Rectangle<int>(0, 0, width, height).reduced(2, 1);
     if (selected) {
-      g.setColour(juce::Colour(0xff355d9f).withAlpha(0.92f));
+      g.setColour(TeulPalette::SearchSelected().withAlpha(0.92f));
       g.fillRoundedRectangle(bounds.toFloat(), 4.5f);
     }
 
     auto titleRow = bounds.removeFromTop(14).reduced(7, 0);
     auto subtitleRow = bounds.reduced(7, 0);
-    g.setColour(juce::Colours::white.withAlpha(0.96f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.96f));
     g.setFont(11.6f);
     g.drawText(desc->displayName, titleRow, juce::Justification::centredLeft, false);
 
-    g.setColour(juce::Colours::white.withAlpha(0.46f));
+    g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.78f));
     g.setFont(9.2f);
     g.drawText(desc->category + " / " + desc->typeKey,
                subtitleRow, juce::Justification::centredLeft, false);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 #include "Teul/Registry/TNodeRegistry.h"
 
 namespace Teul {
@@ -28,13 +29,13 @@ public:
     addAndMakeVisible(searchEditor);
     addAndMakeVisible(listBox);
 
-    searchEditor.setTextToShowWhenEmpty("Search...", juce::Colours::grey);
+    searchEditor.setTextToShowWhenEmpty("Search...", TeulPalette::PanelTextFaint());
     searchEditor.setColour(juce::TextEditor::backgroundColourId,
-                           juce::Colour(0xff141414));
+                           TeulPalette::InputBackground());
     searchEditor.setColour(juce::TextEditor::textColourId,
-                           juce::Colours::white);
+                           TeulPalette::PanelTextStrong());
     searchEditor.setColour(juce::TextEditor::outlineColourId,
-                           juce::Colour(0xff2d2d2d));
+                           TeulPalette::InputOutline());
     searchEditor.setEscapeAndReturnKeysConsumed(false);
     searchEditor.addListener(this);
     searchEditor.addKeyListener(this);
@@ -56,7 +57,7 @@ public:
     provider = std::move(providerIn);
     anchored = anchoredIn;
     anchorPoint = anchorIn;
-    searchEditor.setTextToShowWhenEmpty(placeholderIn, juce::Colours::grey);
+    searchEditor.setTextToShowWhenEmpty(placeholderIn, TeulPalette::PanelTextFaint());
     searchEditor.setText({}, juce::dontSendNotification);
     setVisible(true);
     toFront(false);
@@ -104,19 +105,19 @@ public:
     if (!isVisible())
       return;
 
-    g.fillAll(juce::Colour(0x66000000));
-    g.setColour(juce::Colour(0xff111111));
+    g.fillAll(TeulPalette::BackdropScrim());
+    g.setColour(TeulPalette::PanelBackgroundRaised());
     g.fillRoundedRectangle(panelBounds.toFloat(), 8.0f);
-    g.setColour(juce::Colour(0xff2f2f2f));
+    g.setColour(TeulPalette::PanelStroke());
     g.drawRoundedRectangle(panelBounds.toFloat(), 8.0f, 1.0f);
 
     auto titleBounds = panelBounds.withHeight(24).reduced(9, 5);
-    g.setColour(juce::Colours::white.withAlpha(0.92f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.92f));
     g.setFont(juce::FontOptions(12.6f, juce::Font::bold));
     g.drawText(title, titleBounds, juce::Justification::centredLeft, false);
 
     if (items.empty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.45f));
+      g.setColour(TeulPalette::PanelTextFaint().withAlpha(0.82f));
       g.setFont(10.4f);
       g.drawText("No matches", listBox.getBounds(),
                  juce::Justification::centred, false);
@@ -140,16 +141,16 @@ private:
     auto bounds = juce::Rectangle<int>(0, 0, width, height).reduced(2, 1);
 
     if (rowIsSelected) {
-      g.setColour(juce::Colour(0xff234a7e));
+      g.setColour(TeulPalette::SearchSelected());
       g.fillRoundedRectangle(bounds.toFloat(), 4.5f);
     }
 
-    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.95f));
     g.setFont(10.8f);
     g.drawText(item.title, bounds.removeFromTop(14).reduced(7, 0),
                juce::Justification::centredLeft, false);
 
-    g.setColour(juce::Colours::white.withAlpha(0.52f));
+    g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.84f));
     g.setFont(9.1f);
     g.drawText(item.subtitle, bounds.reduced(7, 0),
                juce::Justification::centredLeft, false);

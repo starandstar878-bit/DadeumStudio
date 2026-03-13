@@ -1,4 +1,5 @@
 #include "Teul/Editor/Panels/Property/BindingSummaryPresenter.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 
 namespace Teul {
 
@@ -20,17 +21,17 @@ GyeolBindingPresentation makeGyeolBindingPresentation(
     const TParamSpec &spec, const juce::String &paramId,
     ParamBindingSummaryResolver bindingSummaryResolver) {
   if (!spec.exposeToIeum)
-    return {"Gyeol: hidden", juce::Colours::white.withAlpha(0.28f)};
+    return {"Gyeol: hidden", TeulPalette::PanelTextDisabled().withAlpha(0.82f)};
 
   if (bindingSummaryResolver == nullptr)
     return {"Gyeol: source unavailable",
-            juce::Colours::white.withAlpha(0.36f)};
+            TeulPalette::PanelTextFaint().withAlpha(0.88f)};
 
   const auto summary = bindingSummaryResolver(paramId);
   if (summary.isNotEmpty())
-    return {"Gyeol: bound / " + summary, juce::Colour(0xffd9c27c)};
+    return {"Gyeol: bound / " + summary, TeulPalette::AccentGold()};
 
-  return {"Gyeol: unbound", juce::Colours::white.withAlpha(0.36f)};
+  return {"Gyeol: unbound", TeulPalette::PanelTextFaint().withAlpha(0.88f)};
 }
 
 } // namespace Teul

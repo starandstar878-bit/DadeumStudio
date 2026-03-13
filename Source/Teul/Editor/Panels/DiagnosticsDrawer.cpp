@@ -1,4 +1,5 @@
 #include "Teul/Editor/Panels/DiagnosticsDrawer.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 
 #include <algorithm>
 #include <array>
@@ -103,27 +104,27 @@ juce::String categoryTitle(DiagnosticCategory category) {
 juce::Colour categoryColour(DiagnosticCategory category) {
   switch (category) {
   case DiagnosticCategory::Verification:
-    return juce::Colour(0xff60a5fa);
+    return TeulPalette::AccentBlue();
   case DiagnosticCategory::Performance:
-    return juce::Colour(0xffa78bfa);
+    return TeulPalette::AccentPurple();
   case DiagnosticCategory::Build:
-    return juce::Colour(0xfff59e0b);
+    return TeulPalette::AccentAmber();
   }
 
-  return juce::Colour(0xff94a3b8);
+  return TeulPalette::AccentSlate();
 }
 
 juce::Colour statusColour(const DiagnosticSnapshot &snapshot) {
   switch (snapshot.severity) {
   case DiagnosticSeverity::Passing:
-    return juce::Colour(0xff22c55e);
+    return TeulPalette::AccentGreen();
   case DiagnosticSeverity::Failure:
-    return juce::Colour(0xffef4444);
+    return TeulPalette::AccentRed();
   case DiagnosticSeverity::Missing:
-    return juce::Colour(0xff94a3b8);
+    return TeulPalette::AccentSlate();
   }
 
-  return juce::Colour(0xff94a3b8);
+  return TeulPalette::AccentSlate();
 }
 
 juce::String formatMetric(const juce::String &label, const juce::String &value) {
@@ -532,21 +533,21 @@ public:
     if (bounds.isEmpty())
       return;
 
-    g.setColour(juce::Colour(0xff0b1220));
+    g.setColour(TeulPalette::PanelBackgroundDeep());
     g.fillRoundedRectangle(bounds, 10.0f);
-    g.setColour(juce::Colour(0xff334155));
+    g.setColour(TeulPalette::PanelStrokeStrong());
     g.drawRoundedRectangle(bounds.reduced(0.5f), 10.0f, 1.0f);
 
     auto content = bounds.reduced(10.0f, 8.0f);
     if (entries.empty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.48f));
+      g.setColour(TeulPalette::PanelTextFaint().withAlpha(0.88f));
       g.setFont(juce::FontOptions(11.0f, juce::Font::plain));
       g.drawText("Run Benchmark Gate a few times to build recent history.",
                  content.toNearestInt(), juce::Justification::centredLeft, false);
       return;
     }
 
-    g.setColour(juce::Colours::white.withAlpha(0.70f));
+    g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.90f));
     g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
     g.drawText("Recent Benchmark History", content.removeFromTop(16).toNearestInt(),
                juce::Justification::centredLeft, false);
@@ -732,14 +733,14 @@ public:
     if (bounds.isEmpty())
       return;
 
-    g.setColour(juce::Colour(0xff0b1220));
+    g.setColour(TeulPalette::PanelBackgroundDeep());
     g.fillRoundedRectangle(bounds, 10.0f);
-    g.setColour(juce::Colour(0xff334155));
+    g.setColour(TeulPalette::PanelStrokeStrong());
     g.drawRoundedRectangle(bounds.reduced(0.5f), 10.0f, 1.0f);
 
     auto content = getLocalBounds().reduced(10, 8);
     if (emptyMessage.isNotEmpty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.52f));
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.86f));
       g.setFont(juce::FontOptions(11.0f, juce::Font::plain));
       g.drawText(emptyMessage, content, juce::Justification::centredLeft, true);
       return;
@@ -752,13 +753,13 @@ public:
     drawHeaderChip(g, compareArea, compareTitle, compareStatus, comparePassed);
 
     content.removeFromTop(6);
-    g.setColour(juce::Colours::white.withAlpha(0.28f));
+    g.setColour(TeulPalette::PanelTextDisabled().withAlpha(0.82f));
     g.drawLine(static_cast<float>(content.getX()), static_cast<float>(content.getY()),
                static_cast<float>(content.getRight()), static_cast<float>(content.getY()));
     content.removeFromTop(8);
 
     if (rows.empty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.52f));
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.86f));
       g.setFont(juce::FontOptions(11.0f, juce::Font::plain));
       g.drawText("The selected pair does not expose shared compare metrics.",
                  content, juce::Justification::centredLeft, true);
@@ -777,11 +778,11 @@ public:
       auto selectedValueArea = rowArea;
       auto labelArea = selectedValueArea.removeFromLeft(labelWidth);
 
-      g.setColour(juce::Colours::white.withAlpha(0.48f));
+      g.setColour(TeulPalette::PanelTextFaint().withAlpha(0.88f));
       g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
       g.drawText(row.label, labelArea, juce::Justification::centredLeft, false);
 
-      g.setColour(juce::Colours::white.withAlpha(0.82f));
+      g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.82f));
       g.setFont(juce::FontOptions(10.0f, juce::Font::plain));
       g.drawText(row.selectedValue, selectedValueArea, juce::Justification::centredLeft, false);
       g.drawText(row.compareValue, compareValueArea, juce::Justification::centredLeft, false);
@@ -892,8 +893,8 @@ public:
   void paint(juce::Graphics &g) override {
     const auto bounds = getLocalBounds().toFloat();
     const auto accent = statusColour(snapshot);
-    const auto background = isSelected ? juce::Colour(0xff172033)
-                                       : juce::Colour(0xff101827);
+    const auto background = isSelected ? TeulPalette::PanelBackgroundRaised()
+                                       : TeulPalette::PanelBackgroundAlt();
 
     g.setColour(background);
     g.fillRoundedRectangle(bounds, 9.0f);
@@ -1187,9 +1188,9 @@ public:
 
   void paint(juce::Graphics &g) override {
     const auto bounds = getLocalBounds().toFloat().reduced(1.0f);
-    g.setGradientFill(juce::ColourGradient(juce::Colour(0xff08111d),
+    g.setGradientFill(juce::ColourGradient(TeulPalette::PanelBackgroundDeep(),
                                            bounds.getCentreX(), bounds.getY(),
-                                           juce::Colour(0xff0f172a),
+                                           TeulPalette::PanelBackgroundRaised(),
                                            bounds.getCentreX(), bounds.getBottom(),
                                            false));
     g.fillRoundedRectangle(bounds, 11.0f);

@@ -25,15 +25,15 @@ static juce::Colour colorFromTag(const juce::String &tagRaw) {
 static juce::Colour probeColourForPortType(TPortDataType type) {
   switch (type) {
   case TPortDataType::Audio:
-    return TeulPalette::PortAudio;
+    return TeulPalette::PortAudio();
   case TPortDataType::CV:
-    return TeulPalette::PortCV;
+    return TeulPalette::PortCV();
   case TPortDataType::Gate:
-    return TeulPalette::PortGate;
+    return TeulPalette::PortGate();
   case TPortDataType::MIDI:
-    return TeulPalette::PortMIDI;
+    return TeulPalette::PortMIDI();
   case TPortDataType::Control:
-    return TeulPalette::PortControl;
+    return TeulPalette::PortControl();
   default:
     return juce::Colour(0xff60a5fa);
   }
@@ -443,7 +443,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
                                              (estimatedCpuCost - 0.75f) / 4.25f)
                               : 0.0f;
   const juce::Colour heatColour = heatColourForLevel(heatLevel);
-  const juce::Colour nodeFill = TeulPalette::NodeBackground.interpolatedWith(
+  const juce::Colour nodeFill = TeulPalette::NodeBackground().interpolatedWith(
       heatColour.darker(0.78f), heatLevel * 0.58f);
 
   if (bypassed)
@@ -468,7 +468,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
   }
 
   juce::Rectangle<float> headerBounds = bounds.withHeight(headerHeightPx);
-  juce::Colour headerColor = TeulPalette::NodeHeader;
+  juce::Colour headerColor = TeulPalette::NodeHeader();
   if (nodePtr != nullptr && nodePtr->colorTag.isNotEmpty())
     headerColor = colorFromTag(nodePtr->colorTag).withAlpha(0.75f);
   else if (heatLevel > 0.0f)
@@ -638,10 +638,10 @@ void TNodeComponent::paint(juce::Graphics &g) {
   }
 
   if (isSelected) {
-    g.setColour(TeulPalette::NodeBorderSelected);
+    g.setColour(TeulPalette::NodeBorderSelected());
     g.drawRoundedRectangle(bounds, cornerRadiusPx, borderSelectedThicknessPx);
   } else {
-    g.setColour(TeulPalette::NodeBorder.interpolatedWith(heatColour,
+    g.setColour(TeulPalette::NodeBorder().interpolatedWith(heatColour,
                                                          heatLevel * 0.45f));
     g.drawRoundedRectangle(bounds, cornerRadiusPx, borderThicknessPx);
   }

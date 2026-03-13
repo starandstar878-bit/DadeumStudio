@@ -4,6 +4,7 @@
 #include "Teul/Editor/Canvas/TGraphCanvas.h"
 #include "Teul/Editor/Port/TPortShapeLayout.h"
 #include "Teul/Editor/Port/TPortVisuals.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 #include "Teul/Editor/Panels/DiagnosticsDrawer.h"
 #include "Teul/Editor/Panels/NodeLibraryPanel.h"
 #include "Teul/Editor/Panels/NodePropertiesPanel.h"
@@ -136,9 +137,9 @@ juce::Colour controlStateRuntimeAccent(const TControlStateSnapshot &before,
   const auto beforeIssues = totalControlIssueCount(before);
   const auto afterIssues = totalControlIssueCount(after);
   if (afterIssues > beforeIssues)
-    return juce::Colour(0xfff59e0b);
+    return TeulPalette::AccentAmber();
   if (afterIssues == 0 && beforeIssues > 0)
-    return juce::Colour(0xff22c55e);
+    return TeulPalette::AccentGreen();
   return fallback;
 }
 
@@ -438,7 +439,7 @@ struct RailCardView {
   juce::String title;
   juce::String subtitle;
   juce::String badge;
-  juce::Colour accent = juce::Colour(0xff64748b);
+  juce::Colour accent = TeulPalette::AccentSlate();
   std::vector<RailCardPortView> ports;
   TIssueState issueState = TIssueState::none;
   bool groupedBus = false;
@@ -468,28 +469,28 @@ juce::String compactRailLabel(TRailKind kind) {
 juce::Colour railAccent(TRailKind kind) {
   switch (kind) {
   case TRailKind::input:
-    return juce::Colour(0xff2dd4bf);
+    return TeulPalette::PortAudio();
   case TRailKind::output:
-    return juce::Colour(0xff22d3ee);
+    return TeulPalette::AccentSky();
   case TRailKind::controlSource:
-    return juce::Colour(0xfffbbf24);
+    return TeulPalette::AccentAmber();
   }
 
-  return juce::Colour(0xff94a3b8);
+  return TeulPalette::AccentSlate();
 }
 
 juce::Colour endpointAccent(const TSystemRailEndpoint &endpoint) {
   switch (endpoint.kind) {
   case TSystemRailEndpointKind::audioInput:
   case TSystemRailEndpointKind::audioOutput:
-    return endpoint.stereo ? juce::Colour(0xff2dd4bf)
-                           : juce::Colour(0xff22d3ee);
+    return endpoint.stereo ? TeulPalette::PortAudio()
+                           : TeulPalette::AccentSky();
   case TSystemRailEndpointKind::midiInput:
   case TSystemRailEndpointKind::midiOutput:
-    return juce::Colour(0xff34d399);
+    return TeulPalette::AccentGreen();
   }
 
-  return juce::Colour(0xff94a3b8);
+  return TeulPalette::AccentSlate();
 }
 
 juce::String endpointBadgeText(const TSystemRailEndpoint &endpoint) {
@@ -508,32 +509,32 @@ juce::String endpointBadgeText(const TSystemRailEndpoint &endpoint) {
 juce::Colour controlSourceAccent(TControlSourceKind kind) {
   switch (kind) {
   case TControlSourceKind::expression:
-    return juce::Colour(0xfffbbf24);
+    return TeulPalette::AccentAmber();
   case TControlSourceKind::footswitch:
-    return juce::Colour(0xfffb923c);
+    return TeulPalette::AccentOrange();
   case TControlSourceKind::trigger:
-    return juce::Colour(0xffef4444);
+    return TeulPalette::AccentRed();
   case TControlSourceKind::midiCc:
   case TControlSourceKind::midiNote:
-    return juce::Colour(0xff34d399);
+    return TeulPalette::AccentGreen();
   case TControlSourceKind::macro:
-    return juce::Colour(0xff60a5fa);
+    return TeulPalette::AccentSky();
   }
 
-  return juce::Colour(0xff94a3b8);
+  return TeulPalette::AccentSlate();
 }
 
 juce::Colour controlPortAccent(TControlPortKind kind) {
   switch (kind) {
   case TControlPortKind::value:
-    return juce::Colour(0xfffbbf24);
+    return TeulPalette::AccentAmber();
   case TControlPortKind::gate:
-    return juce::Colour(0xfffb923c);
+    return TeulPalette::AccentOrange();
   case TControlPortKind::trigger:
-    return juce::Colour(0xffef4444);
+    return TeulPalette::AccentRed();
   }
 
-  return juce::Colour(0xff94a3b8);
+  return TeulPalette::AccentSlate();
 }
 
 static bool hasIncompleteRailPort(const TSystemRailPort &port) {
@@ -687,8 +688,8 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
       card.groupedBus = endpoint->ports.size() >= 2;
       for (const auto &port : endpoint->ports) {
         const auto portAccent = port.dataType == TPortDataType::MIDI
-                                    ? juce::Colour(0xff34d399)
-                                    : juce::Colour(0xff2dd4bf);
+                                    ? TeulPalette::AccentGreen()
+                                    : TeulPalette::PortAudio();
         card.ports.push_back({port.portId, port.displayName, portAccent, port.dataType});
       }
       cards.push_back(std::move(card));
@@ -974,9 +975,9 @@ public:
     collapseButton.setColour(juce::TextButton::buttonOnColourId,
                              accent.withAlpha(0.24f));
     collapseButton.setColour(juce::TextButton::textColourOffId,
-                             juce::Colours::white.withAlpha(0.92f));
+                             TeulPalette::PanelTextStrong().withAlpha(0.92f));
     collapseButton.setColour(juce::TextButton::textColourOnId,
-                             juce::Colours::white.withAlpha(0.97f));
+                             TeulPalette::PanelTextStrong().withAlpha(0.97f));
     collapseButton.setTooltip(collapsed ? "Expand rail" : "Collapse rail");
     repaint();
   }
@@ -1174,13 +1175,13 @@ public:
     if (bounds.isEmpty())
       return;
 
-    g.setGradientFill(juce::ColourGradient(juce::Colour(0xee111827),
+    g.setGradientFill(juce::ColourGradient(TeulPalette::PanelBackgroundRaised().withAlpha(0.94f),
                                            bounds.getCentreX(), bounds.getY(),
-                                           juce::Colour(0xee0b1220),
+                                           TeulPalette::PanelBackgroundDeep().withAlpha(0.94f),
                                            bounds.getCentreX(),
                                            bounds.getBottom(), false));
     g.fillRoundedRectangle(bounds, collapsed ? 10.0f : 14.0f);
-    g.setColour(accent.withAlpha(collapsed ? 0.48f : 0.72f));
+    g.setColour(TeulPalette::PanelStrokeStrong().interpolatedWith(accent, 0.55f).withAlpha(collapsed ? 0.48f : 0.72f));
     g.drawRoundedRectangle(bounds, collapsed ? 10.0f : 14.0f, 1.0f);
 
     const auto cards = buildRailCards(document, railId);
@@ -1191,11 +1192,11 @@ public:
     if (!collapsed) {
       auto titleArea = header;
       titleArea.removeFromRight(28);
-      g.setColour(juce::Colours::white.withAlpha(0.94f));
+      g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.94f));
       g.setFont(juce::FontOptions(11.8f, juce::Font::bold));
       g.drawText(railTitle(), titleArea, juce::Justification::centredLeft, false);
 
-      g.setColour(juce::Colours::white.withAlpha(0.48f));
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.48f));
       g.setFont(8.8f);
       g.drawText(metaLabel((int)cards.size()), content.removeFromTop(12),
                  juce::Justification::centredLeft, false);
@@ -1252,7 +1253,7 @@ private:
                                   juce::Colour accent,
                                   bool capOnRight) {
     const auto circle = monoSocketCircleBounds(area).reduced(0.5f);
-    g.setColour(juce::Colour(0xff0f172a));
+    g.setColour(TeulPalette::PortShellBackground());
     g.fillEllipse(circle);
     g.setColour(accent.withAlpha(0.92f));
     g.drawEllipse(circle, 1.0f);
@@ -1291,7 +1292,7 @@ private:
     const auto outer = busSocketOuterBounds(area, channelCount);
     const auto channelBounds = busSocketChannelBounds(outer, channelCount);
     const float radius = outer.getWidth() * 0.5f;
-    g.setColour(juce::Colour(0xff0f172a));
+    g.setColour(TeulPalette::PortShellBackground());
     g.fillRoundedRectangle(outer, radius);
     g.setColour(accent.withAlpha(0.92f));
     g.drawRoundedRectangle(outer, radius, 1.0f);
@@ -1354,8 +1355,8 @@ private:
 
   juce::Colour dropTargetColour(juce::Colour accent) const {
     return dropTargetCanConnect ? accent.brighter(0.45f).interpolatedWith(
-                                      juce::Colour(0xff22c55e), 0.35f)
-                                : juce::Colour(0xfff97316);
+                                      TeulPalette::AccentGreen(), 0.35f)
+                                : TeulPalette::AccentOrange();
   }
 
   void drawDropTargetOverlay(juce::Graphics &g, juce::Rectangle<float> bounds,
@@ -1535,7 +1536,7 @@ private:
     const bool selected = card.itemId.isNotEmpty() && card.itemId == selectedCardId;
     const bool hovered = card.itemId.isNotEmpty() && card.itemId == hoveredCardId;
     const bool focused = selected && hasKeyboardFocus(true);
-    g.setColour(juce::Colour(0xe50f172a));
+    g.setColour(TeulPalette::PanelBackgroundDeep().withAlpha(0.90f));
     g.fillRoundedRectangle(area, 12.0f);
     if (hovered && !selected) {
       g.setColour(accent.withAlpha(0.08f));
@@ -1544,7 +1545,7 @@ private:
     g.setColour(accent.withAlpha(selected ? 0.98f : hovered ? 0.86f : 0.72f));
     g.drawRoundedRectangle(area, 12.0f, selected ? 2.0f : hovered ? 1.4f : 1.0f);
     if (focused) {
-      g.setColour(juce::Colours::white.withAlpha(0.62f));
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.62f));
       g.drawRoundedRectangle(area.reduced(3.0f), 9.0f, 1.0f);
     }
 
@@ -1572,20 +1573,20 @@ private:
       titleRow.removeFromRight(4);
     }
     const bool compactText = titleRow.getWidth() < 90;
-    g.setColour(juce::Colours::white.withAlpha(0.94f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.94f));
     g.setFont(juce::FontOptions(compactText ? 10.5f : 11.3f, juce::Font::bold));
     g.drawFittedText(card.title, titleRow, juce::Justification::topLeft,
                      compactText ? 2 : 1, 0.86f);
 
     if (card.subtitle.isNotEmpty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.58f));
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.58f));
       g.setFont(9.2f);
       g.drawFittedText(card.subtitle, titleBlock.removeFromTop(12),
                        juce::Justification::topLeft, 1, 0.88f);
     }
 
     auto portTrack = portColumn.toFloat().reduced(0.0f, 1.0f);
-    g.setColour(juce::Colours::white.withAlpha(0.024f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.024f));
     g.fillRoundedRectangle(portTrack, 9.0f);
     g.setColour(accent.withAlpha(0.12f));
     g.drawRoundedRectangle(portTrack, 9.0f, 1.0f);
@@ -1623,7 +1624,7 @@ private:
     const bool selected = card.itemId.isNotEmpty() && card.itemId == selectedCardId;
     const bool hovered = card.itemId.isNotEmpty() && card.itemId == hoveredCardId;
     const bool focused = selected && hasKeyboardFocus(true);
-    g.setColour(juce::Colour(0xe50f172a));
+    g.setColour(TeulPalette::PanelBackgroundDeep().withAlpha(0.90f));
     g.fillRoundedRectangle(area, 13.0f);
     if (hovered && !selected) {
       g.setColour(accent.withAlpha(0.08f));
@@ -1632,7 +1633,7 @@ private:
     g.setColour(accent.withAlpha(selected ? 0.98f : hovered ? 0.86f : 0.72f));
     g.drawRoundedRectangle(area, 13.0f, selected ? 2.0f : hovered ? 1.4f : 1.0f);
     if (focused) {
-      g.setColour(juce::Colours::white.withAlpha(0.62f));
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.62f));
       g.drawRoundedRectangle(area.reduced(3.0f), 10.0f, 1.0f);
     }
 
@@ -1647,19 +1648,19 @@ private:
       titleRow.removeFromRight(4);
     }
     const bool compactText = titleRow.getWidth() < 118;
-    g.setColour(juce::Colours::white.withAlpha(0.94f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.94f));
     g.setFont(juce::FontOptions(compactText ? 10.6f : 11.6f, juce::Font::bold));
     g.drawFittedText(card.title, titleRow, juce::Justification::topLeft,
                      compactText ? 2 : 1, 0.86f);
 
     if (card.subtitle.isNotEmpty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.58f));
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.58f));
       g.setFont(9.4f);
       g.drawFittedText(card.subtitle, titleBlock.removeFromTop(14),
                        juce::Justification::topLeft, 1, 0.88f);
     }
 
-    g.setColour(juce::Colours::white.withAlpha(0.024f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.024f));
     g.fillRoundedRectangle(portTray.toFloat(), 9.0f);
     g.setColour(accent.withAlpha(0.12f));
     g.drawRoundedRectangle(portTray.toFloat(), 9.0f, 1.0f);
@@ -1868,16 +1869,16 @@ public:
 
     headerLabel.setJustificationType(juce::Justification::centredLeft);
     headerLabel.setColour(juce::Label::textColourId,
-                          juce::Colours::white.withAlpha(0.95f));
+                          TeulPalette::PanelTextStrong().withAlpha(0.95f));
     headerLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
 
     kindLabel.setJustificationType(juce::Justification::centredLeft);
     kindLabel.setColour(juce::Label::textColourId,
-                        juce::Colours::white.withAlpha(0.64f));
+                        TeulPalette::PanelTextMuted().withAlpha(0.64f));
     kindLabel.setFont(juce::FontOptions(10.8f, juce::Font::plain));
     statusLabel.setJustificationType(juce::Justification::centredLeft);
     statusLabel.setColour(juce::Label::textColourId,
-                          juce::Colours::white.withAlpha(0.54f));
+                          TeulPalette::PanelTextMuted().withAlpha(0.54f));
     statusLabel.setFont(juce::FontOptions(10.2f, juce::Font::plain));
 
     configureFieldLabel(kindFieldLabel, "Kind");
@@ -2042,13 +2043,13 @@ public:
     if (bounds.isEmpty())
       return;
 
-    g.setGradientFill(juce::ColourGradient(juce::Colour(0xee111827),
+    g.setGradientFill(juce::ColourGradient(TeulPalette::PanelBackgroundRaised().withAlpha(0.94f),
                                            bounds.getCentreX(), bounds.getY(),
-                                           juce::Colour(0xee0b1220),
+                                           TeulPalette::PanelBackgroundDeep().withAlpha(0.94f),
                                            bounds.getCentreX(),
                                            bounds.getBottom(), false));
     g.fillRoundedRectangle(bounds, 12.0f);
-    g.setColour(juce::Colour(0x66fbbf24));
+    g.setColour(TeulPalette::AccentAmber().withAlpha(0.40f));
     g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
   }
 
@@ -2096,7 +2097,7 @@ private:
     label.setText(text, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centredLeft);
     label.setColour(juce::Label::textColourId,
-                    juce::Colours::white.withAlpha(0.74f));
+                    TeulPalette::PanelText().withAlpha(0.74f));
     label.setFont(juce::FontOptions(10.6f, juce::Font::plain));
   }
 
@@ -2105,11 +2106,11 @@ private:
     box.setReadOnly(true);
     box.setScrollbarsShown(true);
     box.setColour(juce::TextEditor::backgroundColourId,
-                  juce::Colour(0x55111827));
+                  TeulPalette::InputBackground());
     box.setColour(juce::TextEditor::outlineColourId,
-                  juce::Colour(0xff2b394a));
+                  TeulPalette::InputOutline());
     box.setColour(juce::TextEditor::textColourId,
-                  juce::Colours::white.withAlpha(0.76f));
+                  TeulPalette::PanelText().withAlpha(0.76f));
   }
 
   static void configureEditableField(juce::TextEditor &editor) {
@@ -2117,35 +2118,35 @@ private:
     editor.setReturnKeyStartsNewLine(false);
     editor.setScrollbarsShown(false);
     editor.setColour(juce::TextEditor::backgroundColourId,
-                     juce::Colour(0x55111827));
+                     TeulPalette::InputBackground());
     editor.setColour(juce::TextEditor::outlineColourId,
-                     juce::Colour(0xff2b394a));
+                     TeulPalette::InputOutline());
     editor.setColour(juce::TextEditor::textColourId,
-                     juce::Colours::white.withAlpha(0.88f));
+                     TeulPalette::PanelTextStrong().withAlpha(0.88f));
     editor.setColour(juce::TextEditor::highlightColourId,
-                     juce::Colour(0x6638bdf8));
+                     TeulPalette::AccentBlue().withAlpha(0.40f));
     editor.setColour(juce::CaretComponent::caretColourId,
-                     juce::Colours::white.withAlpha(0.92f));
+                     TeulPalette::PanelTextStrong().withAlpha(0.92f));
   }
 
   static void configureToggle(juce::ToggleButton &button,
                               const juce::String &text) {
     button.setButtonText(text);
     button.setColour(juce::ToggleButton::textColourId,
-                     juce::Colours::white.withAlpha(0.86f));
+                     TeulPalette::PanelTextStrong().withAlpha(0.86f));
   }
 
   static void configureComboBox(juce::ComboBox &combo) {
     combo.setColour(juce::ComboBox::backgroundColourId,
-                    juce::Colour(0x55111827));
+                    TeulPalette::InputBackground());
     combo.setColour(juce::ComboBox::outlineColourId,
-                    juce::Colour(0xff2b394a));
+                    TeulPalette::InputOutline());
     combo.setColour(juce::ComboBox::textColourId,
-                    juce::Colours::white.withAlpha(0.88f));
+                    TeulPalette::PanelTextStrong().withAlpha(0.88f));
     combo.setColour(juce::ComboBox::buttonColourId,
                     juce::Colour(0x00000000));
     combo.setColour(juce::ComboBox::arrowColourId,
-                    juce::Colours::white.withAlpha(0.68f));
+                    TeulPalette::PanelTextMuted().withAlpha(0.68f));
   }
 
   static int comboIdForSourceKind(TControlSourceKind kind) noexcept {
@@ -2517,28 +2518,28 @@ public:
 
     headerLabel.setJustificationType(juce::Justification::centredLeft);
     headerLabel.setColour(juce::Label::textColourId,
-                          juce::Colours::white.withAlpha(0.95f));
+                          TeulPalette::PanelTextStrong().withAlpha(0.95f));
     headerLabel.setFont(juce::FontOptions(15.0f, juce::Font::bold));
 
     kindLabel.setJustificationType(juce::Justification::centredLeft);
     kindLabel.setColour(juce::Label::textColourId,
-                        juce::Colours::white.withAlpha(0.64f));
+                        TeulPalette::PanelTextMuted().withAlpha(0.64f));
     kindLabel.setFont(juce::FontOptions(10.8f, juce::Font::plain));
     statusLabel.setJustificationType(juce::Justification::centredLeft);
     statusLabel.setColour(juce::Label::textColourId,
-                          juce::Colours::white.withAlpha(0.54f));
+                          TeulPalette::PanelTextMuted().withAlpha(0.54f));
     statusLabel.setFont(juce::FontOptions(10.2f, juce::Font::plain));
 
     portsLabel.setText("Ports", juce::dontSendNotification);
     portsLabel.setJustificationType(juce::Justification::centredLeft);
     portsLabel.setColour(juce::Label::textColourId,
-                         juce::Colours::white.withAlpha(0.74f));
+                         TeulPalette::PanelText().withAlpha(0.74f));
     portsLabel.setFont(juce::FontOptions(10.6f, juce::Font::plain));
 
     detailsLabel.setText("Endpoint", juce::dontSendNotification);
     detailsLabel.setJustificationType(juce::Justification::centredLeft);
     detailsLabel.setColour(juce::Label::textColourId,
-                           juce::Colours::white.withAlpha(0.74f));
+                           TeulPalette::PanelText().withAlpha(0.74f));
     detailsLabel.setFont(juce::FontOptions(10.6f, juce::Font::plain));
 
     configureReadOnlyBox(portsBox);
@@ -2612,13 +2613,13 @@ public:
       return;
 
     const auto accent = currentAccent();
-    g.setGradientFill(juce::ColourGradient(juce::Colour(0xee111827),
+    g.setGradientFill(juce::ColourGradient(TeulPalette::PanelBackgroundRaised().withAlpha(0.94f),
                                            bounds.getCentreX(), bounds.getY(),
-                                           juce::Colour(0xee0b1220),
+                                           TeulPalette::PanelBackgroundDeep().withAlpha(0.94f),
                                            bounds.getCentreX(),
                                            bounds.getBottom(), false));
     g.fillRoundedRectangle(bounds, 12.0f);
-    g.setColour(accent.withAlpha(0.42f));
+    g.setColour(TeulPalette::PanelStrokeStrong().interpolatedWith(accent, 0.60f).withAlpha(0.42f));
     g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
   }
 
@@ -2643,11 +2644,11 @@ private:
     box.setReadOnly(true);
     box.setScrollbarsShown(true);
     box.setColour(juce::TextEditor::backgroundColourId,
-                  juce::Colour(0x55111827));
+                  TeulPalette::InputBackground());
     box.setColour(juce::TextEditor::outlineColourId,
-                  juce::Colour(0xff2b394a));
+                  TeulPalette::InputOutline());
     box.setColour(juce::TextEditor::textColourId,
-                  juce::Colours::white.withAlpha(0.76f));
+                  TeulPalette::PanelText().withAlpha(0.76f));
   }
 
   static juce::String endpointKindLabel(TSystemRailEndpointKind kind) {
@@ -2686,7 +2687,7 @@ private:
       return hasIssueState(issueState) ? issueStateAccent(issueState)
                                        : endpointAccent(*endpoint);
     }
-    return juce::Colour(0xff60a5fa);
+    return TeulPalette::AccentSky();
   }
 
   juce::String buildKindLine(const TSystemRailEndpoint &endpoint) const {
@@ -2783,13 +2784,13 @@ public:
     const juce::Colour frameAccent =
         (transientMessage.isNotEmpty() ? transientAccent : statusAccent())
             .withAlpha(0.30f);
-    g.setGradientFill(juce::ColourGradient(juce::Colour(0xee0b1220),
+    g.setGradientFill(juce::ColourGradient(TeulPalette::PanelBackgroundDeep().withAlpha(0.94f),
                                            bounds.getCentreX(), bounds.getY(),
-                                           juce::Colour(0xee111827),
+                                           TeulPalette::PanelBackgroundRaised(),
                                            bounds.getCentreX(),
                                            bounds.getBottom(), false));
     g.fillRoundedRectangle(bounds, 11.0f);
-    g.setColour(frameAccent);
+    g.setColour(TeulPalette::HudStroke().interpolatedWith(frameAccent, 0.60f));
     g.drawRoundedRectangle(bounds.reduced(0.5f), 11.0f, 1.0f);
 
     auto content = getLocalBounds().reduced(7, 4);
@@ -2812,7 +2813,7 @@ public:
         stats.allocatedPortChannels,
         stats.lastProcessMilliseconds);
 
-    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.95f));
     g.setFont(juce::FontOptions(10.6f, juce::Font::bold));
     g.drawText(primaryText, primaryRow, juce::Justification::centredLeft,
                false);
@@ -2831,7 +2832,7 @@ public:
     }
 
     if (summaryArea.getWidth() > 40) {
-      g.setColour(juce::Colours::white.withAlpha(0.52f));
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.52f));
       g.setFont(9.2f);
       g.drawText(summaryText, summaryArea, juce::Justification::centredLeft,
                  false);
@@ -2861,47 +2862,47 @@ public:
 
     bool drewBadge = false;
     if (stats.rebuildPending) {
-      drawBadge("Deferred Apply", juce::Colour(0xfff59e0b));
+      drawBadge("Deferred Apply", TeulPalette::AccentAmber());
       drewBadge = true;
     }
     if (stats.smoothingActiveCount > 0) {
       drawBadge("Smooth " + juce::String(stats.smoothingActiveCount),
-                juce::Colour(0xff60a5fa));
+                TeulPalette::AccentSky());
       drewBadge = true;
     }
     if (stats.xrunDetected) {
-      drawBadge("XRUN", juce::Colour(0xffef4444));
+      drawBadge("XRUN", TeulPalette::AccentRed());
       drewBadge = true;
     }
     if (stats.clipDetected) {
-      drawBadge("Clip", juce::Colour(0xfff97316));
+      drawBadge("Clip", TeulPalette::AccentOrange());
       drewBadge = true;
     }
     if (stats.denormalDetected) {
-      drawBadge("Denormal", juce::Colour(0xffeab308));
+      drawBadge("Denormal", TeulPalette::AccentGold());
       drewBadge = true;
     }
     if (stats.mutedFallbackActive) {
-      drawBadge("Muted Fallback", juce::Colour(0xff94a3b8));
+      drawBadge("Muted Fallback", TeulPalette::AccentSlate());
       drewBadge = true;
     }
     if (!drewBadge)
-      drawBadge("Stable", juce::Colour(0xff22c55e));
+      drawBadge("Stable", TeulPalette::AccentGreen());
 
     drawBadge(dirty ? "Dirty" : "Saved",
-              dirty ? juce::Colour(0xfff59e0b) : juce::Colour(0xff64748b));
+              dirty ? TeulPalette::AccentAmber() : TeulPalette::AccentSlate());
     if (sessionStatus.hasAutosaveSnapshot) {
       const auto timeLabel = sessionStatus.lastAutosaveTime.toMilliseconds() > 0
                                  ? sessionStatus.lastAutosaveTime.formatted("%H:%M")
                                  : juce::String("--:--");
-      drawBadge("Autosave " + timeLabel, juce::Colour(0xff38bdf8));
+      drawBadge("Autosave " + timeLabel, TeulPalette::AccentBlue());
     }
     if (controlSourceCount > 0 || controlProfileCount > 0) {
       drawBadge("Ctrl " + juce::String(controlSourceCount),
-                juce::Colour(0xfff59e0b));
+                TeulPalette::AccentAmber());
       if (controlIssueCount > 0) {
         drawBadge("Issues " + juce::String(controlIssueCount),
-                  juce::Colour(0xfffb7185));
+                  TeulPalette::AccentRed().brighter(0.18f));
       }
     }
   }
@@ -2909,26 +2910,26 @@ public:
 private:
   juce::Colour statusAccent() const {
     if (stats.xrunDetected)
-      return juce::Colour(0xffef4444);
+      return TeulPalette::AccentRed();
     if (stats.clipDetected)
-      return juce::Colour(0xfff97316);
+      return TeulPalette::AccentOrange();
     if (stats.denormalDetected)
-      return juce::Colour(0xffeab308);
+      return TeulPalette::AccentGold();
     if (stats.rebuildPending)
-      return juce::Colour(0xfff59e0b);
+      return TeulPalette::AccentAmber();
     if (stats.mutedFallbackActive)
-      return juce::Colour(0xff94a3b8);
-    return juce::Colour(0xff22c55e);
+      return TeulPalette::AccentSlate();
+    return TeulPalette::AccentGreen();
   }
 
   juce::Colour cpuAccent() const {
     if (stats.xrunDetected || stats.clipDetected)
-      return juce::Colour(0xffef4444);
+      return TeulPalette::AccentRed();
     if (stats.cpuLoadPercent >= 65.0f)
-      return juce::Colour(0xfff97316);
+      return TeulPalette::AccentOrange();
     if (stats.cpuLoadPercent >= 35.0f)
-      return juce::Colour(0xfff59e0b);
-    return juce::Colour(0xff60a5fa);
+      return TeulPalette::AccentAmber();
+    return TeulPalette::AccentSky();
   }
 
   void drawCpuChip(juce::Graphics &g, juce::Rectangle<int> area) const {
@@ -2937,7 +2938,7 @@ private:
     g.fillRoundedRectangle(area.toFloat(), 7.0f);
     g.setColour(accent.withAlpha(0.86f));
     g.drawRoundedRectangle(area.toFloat(), 7.0f, 1.0f);
-    g.setColour(juce::Colours::white.withAlpha(0.96f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.96f));
     g.setFont(juce::FontOptions(9.8f, juce::Font::bold));
     g.drawText(juce::String::formatted("CPU %.1f%%", stats.cpuLoadPercent),
                area, juce::Justification::centred, false);
@@ -2959,7 +2960,7 @@ private:
   TEditorSessionStatus sessionStatus;
   bool dirty = false;
   juce::String transientMessage;
-  juce::Colour transientAccent = juce::Colour(0xff60a5fa);
+  juce::Colour transientAccent = TeulPalette::AccentSky();
   juce::String controlSummary;
   int controlIssueCount = 0;
   int controlSourceCount = 0;
@@ -2997,21 +2998,21 @@ public:
       return;
 
     const auto accent = accentForLevel(notice.level);
-    g.setColour(juce::Colour(0xf4121826));
+    g.setColour(TeulPalette::PanelBackgroundRaised().withAlpha(0.96f));
     g.fillRoundedRectangle(bounds, 11.0f);
-    g.setColour(accent.withAlpha(0.85f));
+    g.setColour(TeulPalette::PanelStrokeStrong().interpolatedWith(accent, 0.65f).withAlpha(0.85f));
     g.drawRoundedRectangle(bounds.reduced(0.5f), 11.0f, 1.0f);
 
     auto textArea = getLocalBounds().reduced(10, 6);
     textArea.removeFromRight(72);
 
-    g.setColour(juce::Colours::white.withAlpha(0.95f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.95f));
     g.setFont(juce::FontOptions(11.2f, juce::Font::bold));
     g.drawText(notice.title, textArea.removeFromTop(16),
                juce::Justification::centredLeft, false);
 
     if (notice.detail.isNotEmpty()) {
-      g.setColour(juce::Colours::white.withAlpha(0.64f));
+      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.64f));
       g.setFont(9.8f);
       g.drawFittedText(notice.detail, textArea.removeFromTop(12),
                        juce::Justification::centredLeft, 1, 0.9f);
@@ -3026,14 +3027,14 @@ private:
   static juce::Colour accentForLevel(TDocumentNoticeLevel level) {
     switch (level) {
     case TDocumentNoticeLevel::degraded:
-      return juce::Colour(0xffef4444);
+      return TeulPalette::AccentRed();
     case TDocumentNoticeLevel::warning:
-      return juce::Colour(0xfff59e0b);
+      return TeulPalette::AccentAmber();
     case TDocumentNoticeLevel::info:
-      return juce::Colour(0xff38bdf8);
+      return TeulPalette::AccentBlue();
     }
 
-    return juce::Colour(0xff38bdf8);
+    return TeulPalette::AccentBlue();
   }
 
   TDocumentNotice notice;
@@ -3093,7 +3094,7 @@ EditorHandle::Impl::Impl(
           const auto result =
               canvas->insertPatchPresetFromFile(entry.file, canvas->getViewCenter());
           if (result.wasOk())
-            pushRuntimeMessage("Patch preset inserted", juce::Colour(0xff22c55e),
+            pushRuntimeMessage("Patch preset inserted", TeulPalette::AccentGreen(),
                                44);
           return result;
         }
@@ -3104,8 +3105,8 @@ EditorHandle::Impl::Impl(
           if (result.wasOk()) {
             juce::String message = "State preset applied | Controls unchanged";
             pushRuntimeMessage(message,
-                               report.degraded ? juce::Colour(0xfff59e0b)
-                                               : juce::Colour(0xff38bdf8),
+                               report.degraded ? TeulPalette::AccentAmber()
+                                               : TeulPalette::AccentBlue(),
                                48);
           }
           return result;
@@ -3127,8 +3128,8 @@ EditorHandle::Impl::Impl(
           pushRuntimeMessage(message,
                              (migrationReport.degraded ||
                               totalControlIssueCount(controlSnapshot) > 0)
-                                 ? juce::Colour(0xfff59e0b)
-                                 : juce::Colour(0xff22c55e),
+                                 ? TeulPalette::AccentAmber()
+                                 : TeulPalette::AccentGreen(),
                              60);
           return juce::Result::ok();
         }
@@ -3159,7 +3160,7 @@ EditorHandle::Impl::Impl(
         sessionStatus.lastAutosaveTime = {};
         refreshSessionStatusUi(true);
         pushRuntimeMessage("Autosave snapshot discarded",
-                           juce::Colour(0xff94a3b8), 44);
+                           TeulPalette::AccentSlate(), 44);
         return juce::Result::ok();
       });
   presetBrowserPanel->setEntryPreviewHandler(
@@ -3680,7 +3681,7 @@ bool EditorHandle::Impl::applyLearnedControlBinding(
       sourceDisplayName, autoDetected, confirmed);
   if (!applied) {
     pushRuntimeMessage("No armed control source to learn",
-                       juce::Colour(0xfff59e0b), 60);
+                       TeulPalette::AccentAmber(), 60);
     return false;
   }
   const auto afterSnapshot = captureControlStateSnapshot(doc.controlState);
@@ -3698,7 +3699,7 @@ bool EditorHandle::Impl::applyLearnedControlBinding(
       formatControlStateRuntimeMessage("Learned binding applied", beforeSnapshot,
                                        afterSnapshot),
       controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
-                                juce::Colour(0xff22c55e)),
+                                TeulPalette::AccentGreen()),
       60);
   return true;
 }
@@ -3726,7 +3727,7 @@ bool EditorHandle::Impl::applyLearnedMidiMessage(
     sourceDisplayName = "MIDI Note " + juce::String(binding.noteNumber);
   } else {
     pushRuntimeMessage("Learn expects MIDI CC or MIDI Note input",
-                       juce::Colour(0xfff59e0b), 60);
+                       TeulPalette::AccentAmber(), 60);
     return false;
   }
 
@@ -3776,7 +3777,7 @@ bool EditorHandle::Impl::reportControlDeviceProfilePresent(
       formatControlStateRuntimeMessage("Control device connected", beforeSnapshot,
                                        afterSnapshot),
       controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
-                                juce::Colour(0xff22c55e)),
+                                TeulPalette::AccentGreen()),
       50);
   return true;
 }
@@ -3802,7 +3803,7 @@ bool EditorHandle::Impl::reportControlDeviceProfileMissing(
       formatControlStateRuntimeMessage("Control device disconnected",
                                        beforeSnapshot, afterSnapshot),
       controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
-                                juce::Colour(0xfff59e0b)),
+                                TeulPalette::AccentAmber()),
       50);
   return true;
 }
@@ -3870,7 +3871,7 @@ bool EditorHandle::Impl::syncControlDeviceProfiles(
       formatControlStateRuntimeMessage("Control devices synced", beforeSnapshot,
                                        afterSnapshot),
       controlStateRuntimeAccent(beforeSnapshot, afterSnapshot,
-                                juce::Colour(0xff38bdf8)),
+                                TeulPalette::AccentBlue()),
       50);
   return true;
 }
@@ -4327,21 +4328,21 @@ void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {
   const auto stats = runtime.getRuntimeStats();
 
   if ((stats.xrunDetected && !lastRuntimeStats.xrunDetected)) {
-    pushRuntimeMessage("Audio block exceeded budget", juce::Colour(0xffef4444),
+    pushRuntimeMessage("Audio block exceeded budget", TeulPalette::AccentRed(),
                        72);
   } else if (stats.clipDetected && !lastRuntimeStats.clipDetected) {
-    pushRuntimeMessage("Output clip detected", juce::Colour(0xfff97316), 72);
+    pushRuntimeMessage("Output clip detected", TeulPalette::AccentOrange(), 72);
   } else if (stats.denormalDetected && !lastRuntimeStats.denormalDetected) {
-    pushRuntimeMessage("Denormal activity detected", juce::Colour(0xffeab308),
+    pushRuntimeMessage("Denormal activity detected", TeulPalette::AccentGold(),
                        66);
   } else if (stats.mutedFallbackActive && !lastRuntimeStats.mutedFallbackActive) {
-    pushRuntimeMessage("Muted fallback is active", juce::Colour(0xff94a3b8),
+    pushRuntimeMessage("Muted fallback is active", TeulPalette::AccentSlate(),
                        60);
   } else if (stats.rebuildPending && !lastRuntimeStats.rebuildPending) {
     pushRuntimeMessage("Deferred apply queued for safe commit",
-                       juce::Colour(0xfff59e0b), 66);
+                       TeulPalette::AccentAmber(), 66);
   } else if (!stats.rebuildPending && lastRuntimeStats.rebuildPending) {
-    pushRuntimeMessage("Deferred apply committed", juce::Colour(0xff22c55e),
+    pushRuntimeMessage("Deferred apply committed", TeulPalette::AccentGreen(),
                        48);
   } else if (forceMessage ||
              stats.sampleRate != lastRuntimeStats.sampleRate ||
@@ -4353,7 +4354,7 @@ void EditorHandle::Impl::refreshRuntimeUi(bool forceMessage) {
             "Runtime prepared: %.1f kHz / %d blk / %d in / %d out",
             stats.sampleRate * 0.001, stats.preparedBlockSize,
             stats.lastInputChannels, stats.lastOutputChannels),
-        juce::Colour(0xff60a5fa), 42);
+        TeulPalette::AccentSky(), 42);
   }
 
   if (runtimeMessageTicksRemaining > 0) {
@@ -4401,29 +4402,29 @@ void EditorHandle::Impl::syncRuntimeViewButtons() {
                      accent.withAlpha(0.92f));
     button.setColour(juce::TextButton::buttonColourId,
                      enabled ? accent.withAlpha(0.58f)
-                             : juce::Colour(0xff111827));
+                             : TeulPalette::PanelBackgroundAlt());
     button.setColour(juce::TextButton::textColourOnId,
-                     juce::Colours::white.withAlpha(0.99f));
+                     TeulPalette::PanelTextStrong().withAlpha(0.99f));
     button.setColour(juce::TextButton::textColourOffId,
-                     enabled ? juce::Colours::white.withAlpha(0.97f)
-                             : juce::Colours::white.withAlpha(0.78f));
+                     enabled ? TeulPalette::PanelTextStrong().withAlpha(0.97f)
+                             : TeulPalette::PanelText().withAlpha(0.78f));
   };
 
   if (canvas != nullptr) {
     syncButton(toggleHeatmapButton, canvas->isRuntimeHeatmapEnabled(),
-               juce::Colour(0xfff97316), "Heat", "Heat");
+               TeulPalette::AccentOrange(), "Heat", "Heat");
     syncButton(toggleProbeButton, canvas->isLiveProbeEnabled(),
-               juce::Colour(0xff60a5fa), "Probe", "Probe");
+               TeulPalette::AccentSky(), "Probe", "Probe");
     syncButton(toggleOverlayButton, canvas->isDebugOverlayEnabled(),
-               juce::Colour(0xff22c55e), "Overlay", "Overlay");
+               TeulPalette::AccentGreen(), "Overlay", "Overlay");
   }
 
   syncButton(toggleDiagnosticsButton,
              diagnosticsDrawer != nullptr && diagnosticsDrawer->isDrawerOpen(),
-             juce::Colour(0xff38bdf8), "Diag", "Diag");
+             TeulPalette::AccentBlue(), "Diag", "Diag");
   syncButton(togglePresetsButton,
              presetBrowserPanel != nullptr && presetBrowserPanel->isBrowserOpen(),
-             juce::Colour(0xff8b5cf6), "Preset", "Preset");
+             TeulPalette::AccentPurple(), "Preset", "Preset");
 }
 void EditorHandle::Impl::pushRuntimeMessage(const juce::String &text,
                                             juce::Colour accent,

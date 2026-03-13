@@ -114,16 +114,16 @@ static float clampUnit(float value) {
 static juce::Colour meterColourForPortType(TPortDataType dataType) {
   switch (dataType) {
   case TPortDataType::Audio:
-    return TeulPalette::PortAudio;
+    return TeulPalette::PortAudio();
   case TPortDataType::CV:
-    return TeulPalette::PortCV;
+    return TeulPalette::PortCV();
   case TPortDataType::Gate:
-    return TeulPalette::PortGate;
+    return TeulPalette::PortGate();
   case TPortDataType::Control:
-    return TeulPalette::PortControl;
+    return TeulPalette::PortControl();
   case TPortDataType::MIDI:
   default:
-    return TeulPalette::PortMIDI;
+    return TeulPalette::PortMIDI();
   }
 }
 
@@ -188,7 +188,7 @@ static void drawOscillatorPreviewImpl(juce::Graphics &g,
   const float cycles = 1.15f + logNorm * 2.75f;
   const float amplitude = 0.25f + gain * 0.55f;
 
-  drawPreviewPanel(g, bounds, TeulPalette::PortAudio);
+  drawPreviewPanel(g, bounds, TeulPalette::PortAudio());
 
   auto area = bounds.reduced(7.0f, 6.0f);
   const auto baselineY = area.getCentreY();
@@ -229,11 +229,11 @@ static void drawOscillatorPreviewImpl(juce::Graphics &g,
       waveform.lineTo(x, y);
   }
 
-  g.setColour(TeulPalette::PortAudio.withAlpha(0.18f));
+  g.setColour(TeulPalette::PortAudio().withAlpha(0.18f));
   g.strokePath(waveform,
                juce::PathStrokeType(5.0f, juce::PathStrokeType::curved,
                                     juce::PathStrokeType::rounded));
-  g.setColour(TeulPalette::PortAudio.withAlpha(0.92f));
+  g.setColour(TeulPalette::PortAudio().withAlpha(0.92f));
   g.strokePath(waveform,
                juce::PathStrokeType(1.8f, juce::PathStrokeType::curved,
                                     juce::PathStrokeType::rounded));
@@ -257,7 +257,7 @@ static void drawAdsrPreviewImpl(juce::Graphics &g, const juce::Rectangle<float> 
                                      (float)paramAsDouble(node, "sustain", 0.5));
   const float release = (float)juce::jmax(1.0, paramAsDouble(node, "release", 300.0));
 
-  drawPreviewPanel(g, bounds, TeulPalette::PortCV);
+  drawPreviewPanel(g, bounds, TeulPalette::PortCV());
 
   auto area = bounds.reduced(7.0f, 7.0f);
   const float bottom = area.getBottom();
@@ -287,16 +287,16 @@ static void drawAdsrPreviewImpl(juce::Graphics &g, const juce::Rectangle<float> 
   env.lineTo(x3, sustainY);
   env.lineTo(x4, bottom - 1.0f);
 
-  g.setColour(TeulPalette::PortCV.withAlpha(0.16f));
+  g.setColour(TeulPalette::PortCV().withAlpha(0.16f));
   g.strokePath(env,
                juce::PathStrokeType(5.0f, juce::PathStrokeType::curved,
                                     juce::PathStrokeType::rounded));
-  g.setColour(TeulPalette::PortCV.withAlpha(0.95f));
+  g.setColour(TeulPalette::PortCV().withAlpha(0.95f));
   g.strokePath(env,
                juce::PathStrokeType(1.8f, juce::PathStrokeType::curved,
                                     juce::PathStrokeType::rounded));
 
-  g.setColour(TeulPalette::PortCV.withAlpha(0.78f));
+  g.setColour(TeulPalette::PortCV().withAlpha(0.78f));
   for (const auto point : {juce::Point<float>(x1, top + 1.0f),
                            juce::Point<float>(x2, sustainY),
                            juce::Point<float>(x3, sustainY)}) {
@@ -336,15 +336,15 @@ static std::vector<MeterBar> buildMeterBars(const TNodeDescriptor *descriptor,
   if (descriptor->typeKey == "Teul.Mixer.VCA") {
     const float gain = juce::jlimit(0.0f, 1.0f,
                                     (float)paramAsDouble(node, "gain", 1.0) / 2.0f);
-    bars.push_back({"OUT", gain, TeulPalette::PortAudio});
+    bars.push_back({"OUT", gain, TeulPalette::PortAudio()});
     return bars;
   }
 
   if (descriptor->typeKey == "Teul.Mixer.Mixer2") {
     const float gain1 = clampUnit((float)paramAsDouble(node, "gain1", 1.0));
     const float gain2 = clampUnit((float)paramAsDouble(node, "gain2", 1.0));
-    bars.push_back({"A", gain1, TeulPalette::PortAudio});
-    bars.push_back({"B", gain2, TeulPalette::PortCV});
+    bars.push_back({"A", gain1, TeulPalette::PortAudio()});
+    bars.push_back({"B", gain2, TeulPalette::PortCV()});
     bars.push_back({"SUM", clampUnit((gain1 + gain2) * 0.5f),
                     juce::Colour(0xfff59e0b)});
     return bars;
@@ -372,8 +372,8 @@ static std::vector<MeterBar> buildMeterBars(const TNodeDescriptor *descriptor,
                                    (float)paramAsDouble(node, "pan", 0.0));
     const float left = clampUnit(1.0f - juce::jmax(0.0f, pan));
     const float right = clampUnit(1.0f - juce::jmax(0.0f, -pan));
-    bars.push_back({"L", left, TeulPalette::PortAudio});
-    bars.push_back({"R", right, TeulPalette::PortMIDI});
+    bars.push_back({"L", left, TeulPalette::PortAudio()});
+    bars.push_back({"R", right, TeulPalette::PortMIDI()});
     return bars;
   }
 
@@ -391,7 +391,7 @@ static std::vector<MeterBar> buildMeterBars(const TNodeDescriptor *descriptor,
   }
 
   bars.push_back({"LVL", numericCount > 0 ? average / (float)numericCount : 0.0f,
-                  TeulPalette::PortAudio});
+                  TeulPalette::PortAudio()});
   return bars;
 }
 

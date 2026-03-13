@@ -1,4 +1,5 @@
 #include "Teul/Editor/Panels/PresetBrowserPanel.h"
+#include "Teul/Editor/Theme/TeulPalette.h"
 
 namespace Teul {
 namespace {
@@ -50,7 +51,7 @@ public:
     titleLabel.setText("Preset Browser", juce::dontSendNotification);
     titleLabel.setJustificationType(juce::Justification::centredLeft);
     titleLabel.setColour(juce::Label::textColourId,
-                         juce::Colours::white.withAlpha(0.94f));
+                         TeulPalette::PanelTextStrong().withAlpha(0.94f));
     titleLabel.setFont(juce::FontOptions(14.8f, juce::Font::bold));
 
     filterBox.addItem("All", filterAll);
@@ -67,14 +68,14 @@ public:
     tagFilterBox.setSelectedId(tagFilterAll, juce::dontSendNotification);
     tagFilterBox.onChange = [this] { rebuildVisibleEntries(); };
 
-    searchEditor.setTextToShowWhenEmpty("Search presets...", juce::Colours::grey);
+    searchEditor.setTextToShowWhenEmpty("Search presets...", TeulPalette::PanelTextFaint());
     searchEditor.setEscapeAndReturnKeysConsumed(false);
     searchEditor.setColour(juce::TextEditor::backgroundColourId,
-                           juce::Colour(0xff111827));
+                           TeulPalette::InputBackgroundAlt());
     searchEditor.setColour(juce::TextEditor::textColourId,
-                           juce::Colours::white.withAlpha(0.95f));
+                           TeulPalette::PanelTextStrong().withAlpha(0.95f));
     searchEditor.setColour(juce::TextEditor::outlineColourId,
-                           juce::Colour(0xff334155));
+                           TeulPalette::InputOutline());
     searchEditor.addListener(this);
     searchEditor.addKeyListener(this);
     tagsEditor.addKeyListener(this);
@@ -83,7 +84,7 @@ public:
     refreshButton.onClick = [this] { refreshEntries(true); };
 
     tagsEditor.setTextToShowWhenEmpty("tags, comma, separated",
-                                      juce::Colours::grey);
+                                      TeulPalette::PanelTextFaint());
     tagsEditor.setColour(juce::TextEditor::backgroundColourId,
                          juce::Colour(0xff111827));
     tagsEditor.setColour(juce::TextEditor::textColourId,
@@ -97,7 +98,7 @@ public:
     listBox.setModel(this);
     listBox.setRowHeight(44);
     listBox.setColour(juce::ListBox::backgroundColourId,
-                      juce::Colour(0xff0f172a));
+                      TeulPalette::InputBackgroundAlt());
     listBox.setMultipleSelectionEnabled(false);
     listBox.addKeyListener(this);
 
@@ -106,7 +107,7 @@ public:
                              float alpha = 0.90f, bool bold = false) {
       label.setJustificationType(justification);
       label.setColour(juce::Label::textColourId,
-                      juce::Colours::white.withAlpha(alpha));
+                      TeulPalette::PanelTextStrong().withAlpha(alpha));
       label.setFont(juce::FontOptions(fontHeight,
                                       bold ? juce::Font::bold
                                            : juce::Font::plain));
@@ -154,8 +155,8 @@ public:
       editor.setVisible(false);
     };
 
-    configurePreviewEditor(sessionPreviewEditor, juce::Colour(0xff111827));
-    configurePreviewEditor(selectionPreviewEditor, juce::Colour(0xff0f172a));
+    configurePreviewEditor(sessionPreviewEditor, TeulPalette::InputBackgroundAlt());
+    configurePreviewEditor(selectionPreviewEditor, TeulPalette::PanelBackgroundDeep());
 
     detailEditor.setMultiLine(true);
     detailEditor.setReadOnly(true);
@@ -163,11 +164,11 @@ public:
     detailEditor.setCaretVisible(false);
     detailEditor.setPopupMenuEnabled(false);
     detailEditor.setColour(juce::TextEditor::backgroundColourId,
-                           juce::Colour(0xff0b1220));
+                           TeulPalette::PanelBackgroundDeep());
     detailEditor.setColour(juce::TextEditor::textColourId,
-                           juce::Colours::white.withAlpha(0.84f));
+                           TeulPalette::PanelTextStrong().withAlpha(0.84f));
     detailEditor.setColour(juce::TextEditor::outlineColourId,
-                           juce::Colour(0xff334155));
+                           TeulPalette::InputOutline());
 
     setVisible(false);
     refreshDetailPanel();
@@ -239,8 +240,8 @@ public:
   }
 
   void paint(juce::Graphics &g) override {
-    g.fillAll(juce::Colour(0xff07101d));
-    g.setColour(juce::Colour(0xff1e293b));
+    g.fillAll(TeulPalette::PanelBackgroundDeep());
+    g.setColour(TeulPalette::PanelStroke());
     g.drawRect(getLocalBounds(), 1);
   }
 
@@ -346,16 +347,16 @@ private:
       g.setColour(accent.withAlpha(0.85f));
       g.drawRoundedRectangle(bounds.toFloat(), 7.0f, 1.0f);
     } else {
-      g.setColour(juce::Colour(0xff101826));
+      g.setColour(TeulPalette::PanelBackgroundRaised());
       g.fillRoundedRectangle(bounds.toFloat(), 7.0f);
-      g.setColour(juce::Colour(0xff1e293b));
+      g.setColour(TeulPalette::PanelStroke());
       g.drawRoundedRectangle(bounds.toFloat(), 7.0f, 1.0f);
     }
 
     auto textArea = bounds.reduced(9, 5);
     auto top = textArea.removeFromTop(16);
     auto tagArea = top.removeFromRight(102);
-    g.setColour(juce::Colours::white.withAlpha(entry->available ? 0.95f : 0.65f));
+    g.setColour(TeulPalette::PanelTextStrong().withAlpha(entry->available ? 0.95f : 0.65f));
     g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
     const auto titleText = entry->favorite ? juce::String("* ") + entry->displayName
                                            : entry->displayName;
@@ -369,7 +370,7 @@ private:
     g.setFont(9.4f);
     g.drawText(entry->kindLabel, tagArea, juce::Justification::centred, false);
 
-    g.setColour(juce::Colours::white.withAlpha(0.65f));
+    g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.92f));
     g.setFont(10.0f);
     juce::String footer = entry->summaryText.isNotEmpty()
                                ? entry->summaryText
