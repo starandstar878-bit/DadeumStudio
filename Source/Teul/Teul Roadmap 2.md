@@ -48,7 +48,7 @@ Source/Teul/
 리라이트 1차 목표는 세부 폴더를 많이 만드는 것이 아니라, 아래를 먼저 달성하는 것이다.
 
 - `Document`, `Editor`, `Runtime`, `Bridge` 4계층 경계 고정
-- `EditorHandleImpl`에서 orchestration 외 책임 제거 준비
+- 기존 `EditorHandleImpl` 구조를 제거하고 `TTeulEditor` 중심으로 단순화
 - 현재 `Model`, `Serialization`, `History`에 흩어진 문서 책임을 `Document` 중심으로 재정리
 - 현재 `EditorHandleImpl`에 몰린 editor UI와 interaction 책임을 `Editor` 폴더 구조로 재정리
 - 나머지 세분화는 2차 작업으로 미룸
@@ -155,14 +155,19 @@ Source/Teul/Document/
 
 ```text
 Source/Teul/Editor/
-  EditorHandle.cpp
-  EditorHandleImpl.h
-  EditorHandleImpl.cpp
+  TTeulEditor.h
+  TTeulEditor.cpp
   TIssueState.h
   Canvas/
     TGraphCanvas.h
     TGraphCanvas.cpp
-    CanvasRenderers.cpp
+  Renderers/
+    TNodeRenderer.h
+    TNodeRenderer.cpp
+    TPortRenderer.h
+    TPortRenderer.cpp
+    TConnectionRenderer.h
+    TConnectionRenderer.cpp
   Interaction/
     SelectionController.cpp
     ConnectionInteraction.cpp
@@ -179,7 +184,6 @@ Source/Teul/Editor/
     SearchController.cpp
   Port/
     TPortShapeLayout.h
-    TPortVisuals.h
   Theme/
     TeulPalette.h
 ```
@@ -188,22 +192,33 @@ Source/Teul/Editor/
 
 ## Editor 최소 파일 설명
 
-### EditorHandle.cpp / EditorHandleImpl.h / EditorHandleImpl.cpp
-- editor 전체 orchestration
+### TTeulEditor.h / TTeulEditor.cpp
+- editor 전체 orchestration 진입점
 - `Document`의 현재 문서를 editor에 연결
 - canvas, panel, search, diagnostics 같은 UI 객체 생성 및 배치
 - refresh, layout, selection routing, rebuild scheduling 담당
-- 여기에는 business logic를 쌓지 않고 coordinator 역할만 남긴다
+- 기존 `EditorHandle` / `EditorHandleImpl` 이중 구조를 없애고 단일 editor entry로 유지한다
 
 ### Canvas/TGraphCanvas.h / TGraphCanvas.cpp
 - 그래프 편집의 중심 canvas
-- node 배치, selection box, zoom, pan, drag, frame 기반 interaction 처리
-- 문서의 node/connection을 실제 화면 객체로 보여주는 중심 컴포넌트
+- node view와 connection view를 관리
+- zoom, pan, selection box, drag 상태, viewport redraw를 조정
+- 즉, canvas는 개별 요소를 직접 다 그리는 곳이라기보다 화면 전체 그래프 표현을 orchestration 하는 곳으로 둔다
 
-### Canvas/CanvasRenderers.cpp
-- node, connection, background grid, overlay 같은 저수준 렌더링 코드
-- 그리는 규칙을 한 곳에 모아서 시각 일관성 유지
-- 나중에 최적화가 필요하면 여기서 draw pass를 다듬는다
+### Renderers/TNodeRenderer.h / .cpp
+- node body 렌더링 담당
+- node 제목, 본문, 상태 강조, 선택 상태 표시
+- 내부에서 `TPortRenderer`를 사용해 포트 외형을 함께 그린다
+
+### Renderers/TPortRenderer.h / .cpp
+- port 외형 렌더링 담당
+- port 타입별 색상, 크기, 상태, hover/active 표시 규칙 관리
+- hit area와 포트 표시 규칙을 일관되게 유지
+
+### Renderers/TConnectionRenderer.h / .cpp
+- connection line 렌더링 담당
+- 방향성, hover, selected, invalid, active 상태 표현
+- spline 또는 curve 규칙을 한 곳에서 관리
 
 ### Interaction/SelectionController.cpp
 - 단일 선택, 다중 선택, marquee 선택, 선택 변경 정책
@@ -230,16 +245,13 @@ Source/Teul/Editor/
 - editor 본문을 가리지 않는 보조 도구 역할
 
 ### Search/SearchController.h / .cpp
-- quick add, node search, command palette 같은 탐색/실행 기능의 공통 제어
-- 검색과 editor action 사이를 연결
+- quick add, node search, command palette 같은 탐색 기반 기능의 공통 조정자
+- 검색 입력, 결과 선택, editor action 연결을 담당
 
 ### Port/TPortShapeLayout.h
 - 포트 위치 계산 규칙
 - node body 내에서 포트를 어디에 배치할지 정의
-
-### Port/TPortVisuals.h
-- 포트 색상, 크기, 타입별 외형 규칙 정의
-- audio/MIDI/control 차이를 시각적으로 통일
+- "어디에 그릴지"를 담당하고, 실제 그리기는 `TPortRenderer`가 맡는다
 
 ### Theme/TeulPalette.h
 - editor 전반의 색상 시스템 정의
@@ -247,6 +259,30 @@ Source/Teul/Editor/
 
 ### TIssueState.h
 - invalid, degraded, missing 같은 상태를 editor가 공통으로 다루도록 하는 표시용 상태 타입
+- node, port, connection, rail, endpoint가 같은 문제 상태 규칙을 공유하게 한다
+
+---
+
+## Editor 내부 포함 관계
+
+editor 내부 관계는 우선 아래처럼 단순하게 잡는다.
+
+```text
+TTeulEditor
+  -> TGraphCanvas
+       -> TNodeRenderer
+            -> TPortRenderer
+       -> TConnectionRenderer
+```
+
+원칙은 아래와 같다.
+
+- `TTeulEditor`는 editor 전체를 조립한다.
+- `TGraphCanvas`는 node와 connection을 화면에 배치하고 그리도록 조정한다.
+- `TNodeRenderer`는 node를 그리고 내부 포트 표현에 `TPortRenderer`를 사용한다.
+- `TConnectionRenderer`는 canvas 좌표계 기준으로 연결선을 그린다.
+
+즉, `Canvas -> Node, Connection`, 그리고 `Node -> PortRenderer` 구조를 기본으로 한다.
 
 ---
 
@@ -310,6 +346,7 @@ Editor는 단순히 데이터를 그리는 것이 아니라, 사용자가 빨리
 - `Serialization/`의 문서 저장/불러오기는 `DocumentSerializer`, `DocumentStore` 중심으로 재구성
 - migration 관련 책임은 `DocumentMigration`으로 통합
 - `EditorHandleImpl`에 몰린 canvas/panel/interaction/renderer 책임은 `Editor/` 하위 구조로 분리
+- `EditorHandle` / `EditorHandleImpl`은 제거하고 `TTeulEditor` 단일 진입점으로 정리
 
 즉, 문서 관련 코드는 최종적으로 `Document` 폴더 하나에서 읽히고, editor 관련 코드는 `Editor` 폴더 하나에서 읽히게 만드는 것이 목표다.
 
@@ -334,4 +371,4 @@ Editor는 단순히 데이터를 그리는 것이 아니라, 사용자가 빨리
 - editor 표현과 interaction 책임이 `Editor` 계층 하나로 읽혀야 한다.
 - undo/redo, migration, serialization, autosave가 문서 계층 책임으로 정리되어야 한다.
 - canvas, panel, interaction, render rule이 editor 계층 책임으로 정리되어야 한다.
-- `EditorHandleImpl`은 문서 처리와 editor 세부 구현을 직접 품지 않아야 한다.
+- `TTeulEditor`는 editor orchestration만 담당해야 한다.
