@@ -21,7 +21,7 @@
 #include "Teul/Serialization/TStatePresetIO.h"
 #include "Teul/Serialization/TFileIo.h"
 #include "Teul/Serialization/TSerializer.h"
-#include "Teul/Public/EditorHandle.h"
+#include "Teul/Teul.h"
 #include "MainComponent.h"
 #include <JuceHeader.h>
 #include <algorithm>
@@ -2364,7 +2364,7 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
     }
   };
 
-  Teul::EditorHandle editor(nullptr);
+  Teul::TTeulEditor editor(nullptr);
   editor.document() = restoredDocument;
   editor.refreshFromDocument();
   const bool editorMarkedMissing =

@@ -192,7 +192,7 @@ private:
   int runtimeMessageTicksRemaining = 0;
   int controlInputRefreshCounter = 0;
   juce::CriticalSection controlLearnStateLock;
-    std::vector<PendingProfileSyncEvent> pendingProfileSyncEvents;
+  std::vector<PendingProfileSyncEvent> pendingProfileSyncEvents;
   std::vector<PendingProfileDeltaEvent> pendingProfileDeltaEvents;
   std::vector<PendingLearnBindingEvent> pendingLearnBindingEvents;
   std::vector<std::unique_ptr<ControlInputAdapter>> controlInputAdapters;
@@ -201,8 +201,6 @@ private:
 
 } // namespace Teul
 
-#include "Teul2/Editor/TTeulEditor.h"
-#include "Teul2/Editor/TTeulEditor.h"
 #include "Teul2/Editor/Theme/TeulPalette.h"
 
 namespace Teul {
@@ -352,13 +350,9 @@ std::unique_ptr<TTeulEditor> createTeulEditor(
 
 } // namespace Teul
 
-#include "Teul2/Editor/TTeulEditor.h"
-
 #include "Teul2/Editor/TIssueState.h"
 #include "Teul2/Editor/Canvas/TGraphCanvas.h"
 #include "Teul2/Editor/Renderers/TPortRenderer.h"
-#include "Teul2/Editor/Renderers/TPortRenderer.h"
-#include "Teul2/Editor/Theme/TeulPalette.h"
 #include "Teul2/Editor/Panels/DiagnosticsDrawer.h"
 #include "Teul2/Editor/Panels/NodeLibraryPanel.h"
 #include "Teul2/Editor/Panels/NodePropertiesPanel.h"

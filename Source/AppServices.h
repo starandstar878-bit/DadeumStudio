@@ -4,10 +4,6 @@
 #include <JuceHeader.h>
 #include <memory>
 
-namespace Teul {
-class EditorHandle;
-}
-
 // =============================================================================
 //  DadeumStudio 앱 공통 서비스 컨테이너
 //

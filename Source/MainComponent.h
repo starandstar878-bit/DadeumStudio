@@ -127,7 +127,7 @@ private:
   //  숨겨도 인스턴스는 살아있어 상태를 유지한다.
   // -------------------------------------------------------------------------
   std::unique_ptr<Gyeol::EditorHandle> gyeolPage;
-  std::unique_ptr<Teul::EditorHandle> teulPage; // TODO [Phase 1]: 구현 채우기
+  std::unique_ptr<Teul::TTeulEditor> teulPage; // TODO [Phase 1]: 구현 채우기
 
   // -------------------------------------------------------------------------
   //  UI 크롬

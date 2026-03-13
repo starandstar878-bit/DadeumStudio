@@ -268,7 +268,7 @@ juce::String mergeNoticeDetail(const juce::String &first,
 // =============================================================================
 MainComponent::MainComponent(AppServices &services) : appServices(services) {
   gyeolPage = Gyeol::createEditor();
-  teulPage = Teul::createEditor(
+  teulPage = Teul::createTeulEditor(
       &appServices.audioDeviceManager,
       [this](const juce::String &paramId) -> juce::String {
         if (gyeolPage == nullptr)
