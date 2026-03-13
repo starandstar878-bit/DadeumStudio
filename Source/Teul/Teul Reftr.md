@@ -327,3 +327,84 @@ Ready for:
 - Importing an editable graph package is document restoration logic and belongs under `Document`.
 - Export report and IR types may be split between codegen and JSON-codec files, but they should stop depending directly on the old `Registry` folder.
 
+---
+
+## Target File Absorption Map
+
+Note:
+- Format: `TargetFile: source file 1, source file 2, ...`
+- If a target file has no direct predecessor in current `Source/Teul`, it is marked as `new`.
+
+### Document
+
+- `Document/TDocumentTypes.h`: `Model/TTypes.h`, `Model/TPort.h`, `Model/TNode.h`, `Model/TConnection.h`, struct portions of `Model/TGraphDocument.h`
+- `Document/TTeulDocument.h`: `Model/TGraphDocument.h`
+- `Document/TTeulDocument.cpp`: `Model/TGraphDocument.cpp`
+- `Document/TDocumentHistory.h`: `History/TCommand.h`, history-facing declarations from `Model/TGraphDocument.h`
+- `Document/TDocumentHistory.cpp`: `History/TCommand.h`, `History/TCommands.h`, history glue from `Model/TGraphDocument.cpp`
+- `Document/TDocumentSerializer.h`: `Serialization/TSerializer.h`
+- `Document/TDocumentSerializer.cpp`: `Serialization/TSerializer.cpp`
+- `Document/TDocumentMigration.h`: migration portions of `Serialization/TSerializer.h`, `Serialization/TPatchPresetIO.h`, `Serialization/TStatePresetIO.h`
+- `Document/TDocumentMigration.cpp`: migration portions of `Serialization/TSerializer.cpp`, `Serialization/TPatchPresetIO.cpp`, `Serialization/TStatePresetIO.cpp`
+- `Document/TDocumentStore.h`: `Serialization/TFileIo.h`, `Serialization/TPatchPresetIO.h`, `Serialization/TStatePresetIO.h`, editable import parts of `Export/TExport.h`
+- `Document/TDocumentStore.cpp`: `Serialization/TFileIo.cpp`, `Serialization/TPatchPresetIO.cpp`, `Serialization/TStatePresetIO.cpp`, editable import parts of `Export/TExport.cpp`
+
+### Editor
+
+- `Editor/TTeulEditor.h`: `Public/EditorHandle.h`, `Editor/EditorHandleImpl.h`, editor-facing parts of `Bridge/ITeulParamProvider.h`
+- `Editor/TTeulEditor.cpp`: `Editor/EditorHandle.cpp`, orchestration parts of `Editor/EditorHandleImpl.cpp`, temporary preset-browser wiring from `Editor/Panels/PresetBrowserPanel.h`, `Editor/Panels/PresetBrowserPanel.cpp`
+- `Editor/TIssueState.h`: `Editor/TIssueState.h`
+- `Editor/Theme/TeulPalette.h`: `Editor/Theme/TeulPalette.h`
+- `Editor/Canvas/TGraphCanvas.h`: `Editor/Canvas/TGraphCanvas.h`
+- `Editor/Canvas/TGraphCanvas.cpp`: `Editor/Canvas/TGraphCanvas.cpp`, canvas-local rendering and mouse-routing portions of `Editor/Canvas/CanvasRenderers.cpp`, `Editor/Interaction/NodeFrameInteraction.cpp`
+- `Editor/Renderers/TNodeRenderer.h`: `Editor/Node/TNodeComponent.h`, `Editor/Node/NodePreviewRenderer.h`
+- `Editor/Renderers/TNodeRenderer.cpp`: `Editor/Node/TNodeComponent.cpp`, `Editor/Node/NodePreviewRenderer.cpp`, node-specific rendering portions of `Editor/Canvas/CanvasRenderers.cpp`
+- `Editor/Renderers/TPortRenderer.h`: `Editor/Port/TPortComponent.h`, `Editor/Port/TPortVisuals.h`, `Editor/Port/TPortShapeLayout.h`
+- `Editor/Renderers/TPortRenderer.cpp`: `Editor/Port/TPortComponent.cpp`, `Editor/Port/TPortVisuals.h`, `Editor/Port/TPortShapeLayout.h`
+- `Editor/Renderers/TConnectionRenderer.h`: connection-rendering portions of `Editor/Canvas/CanvasRenderers.cpp`
+- `Editor/Renderers/TConnectionRenderer.cpp`: connection-rendering portions of `Editor/Canvas/CanvasRenderers.cpp`
+- `Editor/Interaction/SelectionController.cpp`: `Editor/Interaction/SelectionController.cpp`, `Editor/Interaction/AlignmentEngine.cpp`, selection-side portions of `Editor/Interaction/NodeFrameInteraction.cpp`
+- `Editor/Interaction/ConnectionInteraction.cpp`: `Editor/Interaction/ConnectionInteraction.cpp`
+- `Editor/Interaction/ContextMenuController.cpp`: `Editor/Interaction/ContextMenuController.cpp`
+- `Editor/Panels/NodeLibraryPanel.h`: `Editor/Panels/NodeLibraryPanel.h`
+- `Editor/Panels/NodeLibraryPanel.cpp`: `Editor/Panels/NodeLibraryPanel.cpp`
+- `Editor/Panels/NodePropertiesPanel.h`: `Editor/Panels/NodePropertiesPanel.h`, `Editor/Panels/Property/BindingSummaryPresenter.h`, `Editor/Panels/Property/ParamEditorFactory.h`, `Editor/Panels/Property/ParamValueFormatter.h`
+- `Editor/Panels/NodePropertiesPanel.cpp`: `Editor/Panels/NodePropertiesPanel.cpp`, `Editor/Panels/Property/BindingSummaryPresenter.cpp`, `Editor/Panels/Property/ParamEditorFactory.cpp`, `Editor/Panels/Property/ParamValueFormatter.cpp`
+- `Editor/Panels/DiagnosticsDrawer.h`: `Editor/Panels/DiagnosticsDrawer.h`
+- `Editor/Panels/DiagnosticsDrawer.cpp`: `Editor/Panels/DiagnosticsDrawer.cpp`
+- `Editor/Search/SearchController.h`: `Editor/Search/SearchController.h`
+- `Editor/Search/SearchController.cpp`: `Editor/Search/SearchController.cpp`, `Editor/Search/QuickAddOverlay.cpp`, `Editor/Search/NodeSearchOverlay.cpp`, `Editor/Search/CommandPaletteOverlay.cpp`
+
+### Runtime
+
+- `Runtime/TTeulRuntime.h`: `Runtime/TGraphRuntime.h`, runtime-facing parts of `Bridge/ITeulParamProvider.h`, coordinator-facing parts of `Runtime/TNodeInstance.h`
+- `Runtime/TTeulRuntime.cpp`: `Runtime/TGraphRuntime.cpp`
+- `Runtime/AudioGraph/TGraphCompiler.h`: graph-build portions of `Runtime/TGraphRuntime.h`, runtime-registry portions of `Registry/TNodeRegistry.h`, `Registry/TNodeSDK.h`
+- `Runtime/AudioGraph/TGraphCompiler.cpp`: graph-build portions of `Runtime/TGraphRuntime.cpp`, runtime-registry/bootstrap portions of `Registry/TNodeRegistry.cpp`, `Registry/Nodes/CoreNodes.h`, `Registry/Nodes/Core/SourceNodes.h`, `Registry/Nodes/Core/FilterNodes.h`, `Registry/Nodes/Core/FXNodes.h`, `Registry/Nodes/Core/MathLogicNodes.h`, `Registry/Nodes/Core/MidiNodes.h`, `Registry/Nodes/Core/MixerNodes.h`, `Registry/Nodes/Core/ModulationNodes.h`
+- `Runtime/AudioGraph/TGraphProcessor.h`: `Runtime/TGraphProcessor.h`, process-interface portions of `Runtime/TNodeInstance.h`
+- `Runtime/AudioGraph/TGraphProcessor.cpp`: inline implementation portions of `Runtime/TGraphProcessor.h`
+- `Runtime/AudioGraph/TRuntimeDiagnostics.h`: diagnostics/stat portions of `Runtime/TGraphRuntime.h`
+- `Runtime/AudioGraph/TRuntimeDiagnostics.cpp`: diagnostics/stat portions of `Runtime/TGraphRuntime.cpp`
+- `Runtime/AudioGraph/TRuntimeValidator.h`: runtime-validation portions of `Verification/TVerificationStimulus.h`, `Verification/TVerificationGoldenAudio.h`, `Verification/TVerificationStress.h`, `Verification/TVerificationBenchmark.h`
+- `Runtime/AudioGraph/TRuntimeValidator.cpp`: runtime-validation portions of `Verification/TVerificationStimulus.cpp`, `Verification/TVerificationGoldenAudio.cpp`, `Verification/TVerificationStress.cpp`, `Verification/TVerificationBenchmark.cpp`, validation-oriented parts of `Export/TExport.cpp`
+- `Runtime/IOControl/TRuntimeEvent.h`: runtime-event and rebuild/device-event portions of `Runtime/TGraphRuntime.h`, queued event concepts from `Editor/EditorHandleImpl.h`
+- `Runtime/IOControl/TRuntimeEventQueue.h`: queued event portions of `Runtime/TGraphRuntime.h`, pending queue concepts from `Editor/EditorHandleImpl.h`
+- `Runtime/IOControl/TRuntimeEventQueue.cpp`: queued event portions of `Runtime/TGraphRuntime.cpp`, pending queue concepts from `Editor/EditorHandleImpl.cpp`
+- `Runtime/IOControl/TRuntimeDeviceManager.h`: device/layout/control-device portions of `Runtime/TGraphRuntime.h`, device/profile sync portions of `Editor/EditorHandleImpl.h`, control-source state portions of `Model/TGraphDocument.h`
+- `Runtime/IOControl/TRuntimeDeviceManager.cpp`: device/layout/control-device portions of `Runtime/TGraphRuntime.cpp`, MIDI/control adapter and device refresh portions of `Editor/EditorHandleImpl.cpp`, control-source reconciliation portions of `Model/TGraphDocument.h`
+
+### Bridge
+
+- `Bridge/TTeulBridge.h`: `Export/TExport.h`, bridge-facing portions of `Registry/TNodeRegistry.h`
+- `Bridge/TTeulBridge.cpp`: `Export/TExport.cpp`, bridge-facing portions of `Registry/TNodeRegistry.cpp`
+- `Bridge/TBridgeJsonCodec.h`: JSON/manifest/runtime-data portions of `Export/TExport.h`
+- `Bridge/TBridgeJsonCodec.cpp`: JSON/manifest/runtime-data portions of `Export/TExport.cpp`
+- `Bridge/TBridgeCodegen.h`: codegen/export portions of `Export/TExport.h`
+- `Bridge/TBridgeCodegen.cpp`: codegen/export portions of `Export/TExport.cpp`
+- `Bridge/TIeumBridge.h`: Ieum-facing param exposure portions of `Bridge/ITeulParamProvider.h`, `Registry/TNodeRegistry.h`
+- `Bridge/TIeumBridge.cpp`: Ieum-facing param exposure portions of `Registry/TNodeRegistry.cpp`, bridge/export integration portions of `Export/TExport.cpp`
+- `Bridge/TGyeolBridge.h`: `new`
+- `Bridge/TGyeolBridge.cpp`: `new`
+- `Bridge/TNaruBridge.h`: `new`
+- `Bridge/TNaruBridge.cpp`: `new`
+
