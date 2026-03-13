@@ -1,16 +1,16 @@
-#include "IIeumDocument.h"
-#include "IIeumDocumentHistory.h"
+#include "IeumDocument.h"
+#include "IeumDocumentHistory.h"
 
 namespace Ieum {
 
-IIeumDocument::IIeumDocument()
-    : history(std::make_unique<IIeumDocumentHistory>())
+IeumDocument::IeumDocument()
+    : history(std::make_unique<IeumDocumentHistory>())
 {
 }
 
-IIeumDocument::~IIeumDocument() = default;
+IeumDocument::~IeumDocument() = default;
 
-IBindingSpec* IIeumDocument::findBinding(const BindingId& id) noexcept
+IeumBindingSpec* IeumDocument::findBinding(const BindingId& id) noexcept
 {
     for (auto& b : bindings)
     {
@@ -20,7 +20,7 @@ IBindingSpec* IIeumDocument::findBinding(const BindingId& id) noexcept
     return nullptr;
 }
 
-const IBindingSpec* IIeumDocument::findBinding(const BindingId& id) const noexcept
+const IeumBindingSpec* IeumDocument::findBinding(const BindingId& id) const noexcept
 {
     for (const auto& b : bindings)
     {
@@ -30,12 +30,12 @@ const IBindingSpec* IIeumDocument::findBinding(const BindingId& id) const noexce
     return nullptr;
 }
 
-BindingId IIeumDocument::allocBindingId() noexcept
+BindingId IeumDocument::allocBindingId() noexcept
 {
     return "binding-" + juce::String(nextIdCounter++);
 }
 
-void IIeumDocument::executeCommand(std::unique_ptr<IIeumCommand> command)
+void IeumDocument::executeCommand(std::unique_ptr<IeumCommand> command)
 {
     if (history && command != nullptr)
     {
@@ -44,7 +44,7 @@ void IIeumDocument::executeCommand(std::unique_ptr<IIeumCommand> command)
     }
 }
 
-bool IIeumDocument::undo()
+bool IeumDocument::undo()
 {
     if (history && history->undo(*this))
     {
@@ -54,7 +54,7 @@ bool IIeumDocument::undo()
     return false;
 }
 
-bool IIeumDocument::redo()
+bool IeumDocument::redo()
 {
     if (history && history->redo(*this))
     {
@@ -64,13 +64,13 @@ bool IIeumDocument::redo()
     return false;
 }
 
-void IIeumDocument::clearHistory()
+void IeumDocument::clearHistory()
 {
     if (history)
         history->clear();
 }
 
-void IIeumDocument::touch() noexcept
+void IeumDocument::touch() noexcept
 {
     ++documentRevision;
 }

@@ -1,51 +1,51 @@
-#include "IIeumSerializer.h"
+#include "IeumSerializer.h"
 
 namespace Ieum {
 
 namespace {
-    juce::String modeToString(IBindingMode mode) {
+    juce::String modeToString(IeumBindingMode mode) {
         switch (mode) {
-            case IBindingMode::Continuous: return "continuous";
-            case IBindingMode::Toggle:     return "toggle";
-            case IBindingMode::Trigger:    return "trigger";
-            case IBindingMode::Relative:   return "relative";
-            case IBindingMode::Momentary:  return "momentary";
+            case IeumBindingMode::Continuous: return "continuous";
+            case IeumBindingMode::Toggle:     return "toggle";
+            case IeumBindingMode::Trigger:    return "trigger";
+            case IeumBindingMode::Relative:   return "relative";
+            case IeumBindingMode::Momentary:  return "momentary";
         }
         return "continuous";
     }
 
-    IBindingMode stringToMode(const juce::String& s) {
-        if (s == "toggle")    return IBindingMode::Toggle;
-        if (s == "trigger")   return IBindingMode::Trigger;
-        if (s == "relative")  return IBindingMode::Relative;
-        if (s == "momentary") return IBindingMode::Momentary;
-        return IBindingMode::Continuous;
+    IeumBindingMode stringToMode(const juce::String& s) {
+        if (s == "toggle")    return IeumBindingMode::Toggle;
+        if (s == "trigger")   return IeumBindingMode::Trigger;
+        if (s == "relative")  return IeumBindingMode::Relative;
+        if (s == "momentary") return IeumBindingMode::Momentary;
+        return IeumBindingMode::Continuous;
     }
 
-    juce::String typeToString(IValueType type) {
+    juce::String typeToString(IeumValueType type) {
         switch (type) {
-            case IValueType::Floating: return "floating";
-            case IValueType::Integer:  return "integer";
-            case IValueType::Boolean:  return "boolean";
-            case IValueType::Trigger:  return "trigger";
-            case IValueType::Color:    return "color";
-            case IValueType::String:   return "string";
+            case IeumValueType::Floating: return "floating";
+            case IeumValueType::Integer:  return "integer";
+            case IeumValueType::Boolean:  return "boolean";
+            case IeumValueType::Trigger:  return "trigger";
+            case IeumValueType::Color:    return "color";
+            case IeumValueType::String:   return "string";
             default:                   return "unknown";
         }
     }
 
-    IValueType stringToType(const juce::String& s) {
-        if (s == "floating") return IValueType::Floating;
-        if (s == "integer")  return IValueType::Integer;
-        if (s == "boolean")  return IValueType::Boolean;
-        if (s == "trigger")  return IValueType::Trigger;
-        if (s == "color")    return IValueType::Color;
-        if (s == "string")   return IValueType::String;
-        return IValueType::Unknown;
+    IeumValueType stringToType(const juce::String& s) {
+        if (s == "floating") return IeumValueType::Floating;
+        if (s == "integer")  return IeumValueType::Integer;
+        if (s == "boolean")  return IeumValueType::Boolean;
+        if (s == "trigger")  return IeumValueType::Trigger;
+        if (s == "color")    return IeumValueType::Color;
+        if (s == "string")   return IeumValueType::String;
+        return IeumValueType::Unknown;
     }
 }
 
-juce::var IIeumSerializer::toJson(const IIeumDocument& doc)
+juce::var IeumSerializer::toJson(const IeumDocument& doc)
 {
     juce::DynamicObject::Ptr obj = new juce::DynamicObject();
     obj->setProperty("schemaVersion", currentSchemaVersion());
@@ -58,7 +58,7 @@ juce::var IIeumSerializer::toJson(const IIeumDocument& doc)
     return juce::var(obj.get());
 }
 
-bool IIeumSerializer::fromJson(IIeumDocument& doc, const juce::var& json)
+bool IeumSerializer::fromJson(IeumDocument& doc, const juce::var& json)
 {
     if (!json.isObject()) return false;
     
@@ -68,7 +68,7 @@ bool IIeumSerializer::fromJson(IIeumDocument& doc, const juce::var& json)
     {
         for (const auto& bVar : *bindingsArray)
         {
-            IBindingSpec spec;
+            IeumBindingSpec spec;
             if (jsonToBinding(spec, bVar))
                 doc.bindings.push_back(spec);
         }
@@ -77,7 +77,7 @@ bool IIeumSerializer::fromJson(IIeumDocument& doc, const juce::var& json)
     return true;
 }
 
-juce::var IIeumSerializer::bindingToJson(const IBindingSpec& spec)
+juce::var IeumSerializer::bindingToJson(const IeumBindingSpec& spec)
 {
     juce::DynamicObject::Ptr obj = new juce::DynamicObject();
     obj->setProperty("id", spec.id);
@@ -93,7 +93,7 @@ juce::var IIeumSerializer::bindingToJson(const IBindingSpec& spec)
     return juce::var(obj.get());
 }
 
-juce::var IIeumSerializer::endpointToJson(const IEndpoint& endpoint)
+juce::var IeumSerializer::endpointToJson(const IeumEndpoint& endpoint)
 {
     juce::DynamicObject::Ptr obj = new juce::DynamicObject();
     obj->setProperty("providerId", endpoint.providerId.toString());
@@ -102,7 +102,7 @@ juce::var IIeumSerializer::endpointToJson(const IEndpoint& endpoint)
     return juce::var(obj.get());
 }
 
-bool IIeumSerializer::jsonToBinding(IBindingSpec& spec, const juce::var& json)
+bool IeumSerializer::jsonToBinding(IeumBindingSpec& spec, const juce::var& json)
 {
     if (!json.isObject()) return false;
     
@@ -119,7 +119,7 @@ bool IIeumSerializer::jsonToBinding(IBindingSpec& spec, const juce::var& json)
     return true;
 }
 
-bool IIeumSerializer::jsonToEndpoint(IEndpoint& endpoint, const juce::var& json)
+bool IeumSerializer::jsonToEndpoint(IeumEndpoint& endpoint, const juce::var& json)
 {
     if (!json.isObject()) return false;
     endpoint.providerId = json.getProperty("providerId", "").toString();

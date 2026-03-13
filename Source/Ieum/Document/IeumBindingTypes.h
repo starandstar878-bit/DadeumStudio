@@ -13,10 +13,10 @@ using ParamId = juce::String;
 using TransformId = juce::Identifier;
 
 /** 바인딩 시스템의 핵심 정밀도 정의: 상용 수준의 정밀도를 위해 double 사용 */
-using IValue = double;
+using IeumValue = double;
 
 /** 바인딩 가능 데이터의 물리적 성격 (Roadmap 6.1, 6.2) */
-enum class IValueType {
+enum class IeumValueType {
     Floating,  // 연속적인 수치 (0.0 ~ 1.0 등)
     Integer,   // 이산적인 숫자 (Index, Count)
     Boolean,   // On/Off 상태
@@ -27,7 +27,7 @@ enum class IValueType {
 };
 
 /** 바인딩 모드: 값이 전달되는 로직 패턴 (Roadmap 6.3) */
-enum class IBindingMode {
+enum class IeumBindingMode {
     Continuous, // 실시간 업데이트
     Toggle,     // 이벤트 발생 시 상태 반전
     Trigger,    // 한 번만 실행
@@ -36,7 +36,7 @@ enum class IBindingMode {
 };
 
 /** 바인딩 건강 상태: 상용급 진단의 핵심 (Roadmap 8.1) */
-enum class IBindingStatus {
+enum class IeumBindingStatus {
     Ok,         // 정상
     Missing,    // 소스나 타겟을 찾을 수 없음
     Degraded,   // 연결은 되었으나 성능/정밀도 제한 발생
@@ -45,11 +45,10 @@ enum class IBindingStatus {
 };
 
 /** 오디오 스레드 전송 시 사용되는 데이터 패킷 구조 */
-struct IRuntimePayload {
-    IValue value = 0.0;
+struct IeumRuntimePayload {
+    IeumValue value = 0.0;
     std::uint64_t timestamp = 0;
     bool isActive = true;
 };
 
 } // namespace Ieum
-
