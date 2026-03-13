@@ -1561,7 +1561,7 @@ private:
     if (!mutate(*assignment))
       return;
 
-    document.touch(false);
+    document.touch(true);
     refreshNodeConnectionSummary();
     updateRuntimeValueLabels();
     canvas.repaint();
@@ -1632,7 +1632,7 @@ private:
     if (!changed)
       return;
 
-    document.touch(false);
+    document.touch(true);
     refreshNodeConnectionSummary();
     updateRuntimeValueLabels();
     canvas.repaint();
@@ -1654,7 +1654,7 @@ private:
     if (document.controlState.assignments.size() == beforeCount)
       return;
 
-    document.touch(false);
+    document.touch(true);
     refreshNodeConnectionSummary();
     updateRuntimeValueLabels();
     canvas.repaint();

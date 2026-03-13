@@ -132,6 +132,10 @@ private:
   void refreshControlInputAdapters(bool announceChanges);
   void refreshMidiOutputDevice(bool announceChanges);
   void sendRuntimeMidiOutput(const juce::MidiBuffer &midiMessages);
+  bool applyRuntimeControlMidiMessage(const juce::MidiMessage &message,
+                                     const juce::String &profileId,
+                                     const juce::String &midiDeviceName,
+                                     const juce::String &hardwareId);
   juce::String railEndpointSubtitleOverride(const TSystemRailEndpoint &endpoint) const;
   juce::String systemEndpointExtraStatusLine(const TSystemRailEndpoint &endpoint) const;
   juce::String systemEndpointExtraDetailSummary(const TSystemRailEndpoint &endpoint) const;

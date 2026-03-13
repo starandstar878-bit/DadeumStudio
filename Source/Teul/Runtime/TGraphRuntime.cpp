@@ -114,6 +114,7 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
   std::vector<RailMidiInputTarget> railMidiInputTargets;
   std::vector<RailMidiOutputTarget> railMidiOutputTargets;
   std::vector<MidiRoute> midiRoutes;
+  std::vector<ControlRoute> controlRoutes;
   const double sampleRate = currentSampleRate.load(std::memory_order_relaxed);
   const int blockSize = currentBlockSize.load(std::memory_order_relaxed);
 
@@ -296,6 +297,76 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
     }
   }
 
+
+  std::map<juce::String, TTeulExposedParam> exposedParamById;
+  for (const auto &node : doc.nodes) {
+    if (nodeRegistry == nullptr)
+      continue;
+
+    for (auto &param : nodeRegistry->listExposedParamsForNode(node))
+      exposedParamById[param.paramId] = std::move(param);
+  }
+
+  std::map<juce::String, TControlPortKind> controlPortKindByKey;
+  for (const auto &source : doc.controlState.sources) {
+    const auto sourceId = source.sourceId.trim();
+    if (sourceId.isEmpty())
+      continue;
+
+    for (const auto &port : source.ports) {
+      const auto portId = port.portId.trim();
+      if (portId.isEmpty())
+        continue;
+      controlPortKindByKey[makeControlSourcePortKey(sourceId, portId)] =
+          port.kind;
+    }
+  }
+
+  for (const auto &assignment : doc.controlState.assignments) {
+    if (!assignment.enabled)
+      continue;
+
+    const auto sourceKey =
+        makeControlSourcePortKey(assignment.sourceId, assignment.portId);
+    const auto portKindIt = controlPortKindByKey.find(sourceKey);
+    if (portKindIt == controlPortKindByKey.end())
+      continue;
+
+    const auto paramId = assignment.targetParamId.trim();
+    if (paramId.isEmpty())
+      continue;
+
+    const auto paramIt = exposedParamById.find(paramId);
+    if (paramIt == exposedParamById.end())
+      continue;
+
+    const auto &param = paramIt->second;
+    const juce::var prototype =
+        param.currentValue.isVoid() ? param.defaultValue : param.currentValue;
+    if (param.isReadOnly || !param.isModulatable)
+      continue;
+    if ((param.valueType == TParamValueType::String || prototype.isString()) &&
+        param.enumOptions.empty()) {
+      continue;
+    }
+
+    ControlRoute route;
+    route.sourceKey = sourceKey;
+    route.paramId = paramId;
+    route.portKind = portKindIt->second;
+    route.valueType = param.valueType;
+    route.preferredWidget = param.preferredWidget;
+    route.defaultValue = param.defaultValue;
+    route.minValue = param.minValue;
+    route.maxValue = param.maxValue;
+    route.enumOptions = param.enumOptions;
+    route.inverted = assignment.inverted;
+    route.rangeMin = juce::jlimit(0.0f, 1.0f, assignment.rangeMin);
+    route.rangeMax = juce::jlimit(0.0f, 1.0f, assignment.rangeMax);
+    if (route.rangeMin > route.rangeMax)
+      std::swap(route.rangeMin, route.rangeMax);
+    controlRoutes.push_back(std::move(route));
+  }
   auto newState = new RenderState();
   newState->generation =
       buildGenerationCounter.fetch_add(1, std::memory_order_relaxed) + 1;
@@ -305,6 +376,7 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
   newState->railMidiInputTargets = std::move(railMidiInputTargets);
   newState->railMidiOutputTargets = std::move(railMidiOutputTargets);
   newState->midiRoutes = std::move(midiRoutes);
+  newState->controlRoutes = std::move(controlRoutes);
   newState->globalPortBuffer.setSize(
       portChannelCounter > 0 ? portChannelCounter : 1, juce::jmax(1, blockSize),
       false, false, true);
@@ -389,6 +461,11 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
   lastBuildMicros.store(buildMicros, std::memory_order_relaxed);
   updateAtomicMax(maxBuildMicros, buildMicros);
 
+  {
+    const juce::ScopedLock lock(controlRouteLock);
+    controlPortStates.clear();
+  }
+
   if (!activeState.hasState()) {
     activeState.set(newState);
     pendingState.set(nullptr);
@@ -455,6 +532,57 @@ void TGraphRuntime::setMidiOutputSink(
   midiOutputSink = std::move(sinkCallback);
 }
 
+
+bool TGraphRuntime::applyControlSourceValue(const juce::String &sourceId,
+                                            const juce::String &portId,
+                                            float normalizedValue) {
+  const auto sourceKey = makeControlSourcePortKey(sourceId, portId);
+  if (sourceKey.isEmpty())
+    return false;
+
+  const auto state = activeState.get();
+  if (!state || state->controlRoutes.empty())
+    return false;
+
+  ControlPortState previousState;
+  {
+    const juce::ScopedLock lock(controlRouteLock);
+    if (const auto it = controlPortStates.find(sourceKey);
+        it != controlPortStates.end()) {
+      previousState = it->second;
+    }
+  }
+
+  const float clampedValue = juce::jlimit(0.0f, 1.0f, normalizedValue);
+  bool applied = false;
+  for (const auto &route : state->controlRoutes) {
+    if (route.sourceKey != sourceKey)
+      continue;
+
+    const auto currentValue = getParam(route.paramId);
+    bool shouldApply = false;
+    const auto nextValue =
+        valueForControlRoute(route, clampedValue, currentValue, previousState,
+                             shouldApply);
+    if (!shouldApply)
+      continue;
+    if (valuesEquivalent(currentValue, nextValue)) {
+      applied = true;
+      continue;
+    }
+    if (setParam(route.paramId, nextValue))
+      applied = true;
+  }
+
+  {
+    const juce::ScopedLock lock(controlRouteLock);
+    auto &portState = controlPortStates[sourceKey];
+    portState.lastNormalizedValue = clampedValue;
+    portState.lastActive = clampedValue >= 0.5f;
+  }
+
+  return applied;
+}
 void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
                                  juce::MidiBuffer &midiMessages) {
   const int inputChannels = juce::jmin(
@@ -1254,6 +1382,108 @@ bool TGraphRuntime::shouldSmoothParam(const TParamSpec *paramSpec,
   return true;
 }
 
+
+juce::String TGraphRuntime::makeControlSourcePortKey(
+    const juce::String &sourceId, const juce::String &portId) {
+  const auto normalizedSourceId = sourceId.trim();
+  const auto normalizedPortId = portId.trim();
+  if (normalizedSourceId.isEmpty() || normalizedPortId.isEmpty())
+    return {};
+  return normalizedSourceId + "::" + normalizedPortId;
+}
+
+bool TGraphRuntime::valuesEquivalent(const juce::var &lhs,
+                                     const juce::var &rhs) noexcept {
+  const bool lhsNumeric = lhs.isBool() || lhs.isInt() || lhs.isInt64() ||
+                          lhs.isDouble();
+  const bool rhsNumeric = rhs.isBool() || rhs.isInt() || rhs.isInt64() ||
+                          rhs.isDouble();
+  if (lhsNumeric && rhsNumeric)
+    return std::abs(paramValueToFloat(lhs) - paramValueToFloat(rhs)) <= 0.0001f;
+  return lhs.toString() == rhs.toString();
+}
+
+juce::var TGraphRuntime::valueForControlRoute(
+    const ControlRoute &route, float normalizedValue,
+    const juce::var &currentValue, const ControlPortState &previousState,
+    bool &shouldApply) {
+  shouldApply = false;
+
+  const juce::var prototype =
+      currentValue.isVoid() ? route.defaultValue : currentValue;
+  auto normalizedToValue = [&](float effectiveNormalized) -> juce::var {
+    const float clamped = juce::jlimit(0.0f, 1.0f, effectiveNormalized);
+    if (route.valueType == TParamValueType::Enum && !route.enumOptions.empty()) {
+      const auto optionCount = (int)route.enumOptions.size();
+      const int optionIndex = juce::jlimit(
+          0, optionCount - 1,
+          juce::roundToInt(clamped * (float)juce::jmax(0, optionCount - 1)));
+      return route.enumOptions[(size_t)optionIndex].value;
+    }
+
+    if (route.valueType == TParamValueType::Bool || prototype.isBool() ||
+        route.preferredWidget == TParamWidgetHint::Toggle) {
+      return clamped >= 0.5f;
+    }
+
+    if ((route.valueType == TParamValueType::String || prototype.isString()) &&
+        route.enumOptions.empty()) {
+      return prototype;
+    }
+
+    double minValue = route.minValue.isVoid() ? 0.0 : (double)route.minValue;
+    double maxValue = route.maxValue.isVoid() ? 1.0 : (double)route.maxValue;
+    if (maxValue < minValue)
+      std::swap(minValue, maxValue);
+
+    const double mappedValue =
+        minValue + (maxValue - minValue) * (double)clamped;
+    if (!prototype.isVoid())
+      return coerceValueLike(prototype, mappedValue);
+    return (float)mappedValue;
+  };
+
+  switch (route.portKind) {
+  case TControlPortKind::value: {
+    float effectiveNormalized = route.inverted ? (1.0f - normalizedValue)
+                                               : normalizedValue;
+    effectiveNormalized = route.rangeMin +
+                          effectiveNormalized * (route.rangeMax - route.rangeMin);
+    shouldApply = true;
+    return normalizedToValue(effectiveNormalized);
+  }
+  case TControlPortKind::gate: {
+    bool gateActive = normalizedValue >= 0.5f;
+    if (route.inverted)
+      gateActive = !gateActive;
+    shouldApply = true;
+    return normalizedToValue(gateActive ? route.rangeMax : route.rangeMin);
+  }
+  case TControlPortKind::trigger: {
+    bool triggerActive = normalizedValue >= 0.5f;
+    bool previousActive = previousState.lastNormalizedValue >= 0.5f;
+    if (route.inverted) {
+      triggerActive = !triggerActive;
+      previousActive = !previousActive;
+    }
+    if (!triggerActive || previousActive)
+      return prototype;
+
+    shouldApply = true;
+    if (route.valueType == TParamValueType::Bool || prototype.isBool() ||
+        route.preferredWidget == TParamWidgetHint::Toggle) {
+      const bool currentBool = prototype.isBool()
+                                   ? (bool)prototype
+                                   : (paramValueToFloat(prototype) >= 0.5f);
+      return !currentBool;
+    }
+
+    return normalizedToValue(route.rangeMax);
+  }
+  }
+
+  return prototype;
+}
 void TGraphRuntime::writeParamKey(char *dest,
                                   std::size_t destSize,
                                   const juce::String &paramKey) {

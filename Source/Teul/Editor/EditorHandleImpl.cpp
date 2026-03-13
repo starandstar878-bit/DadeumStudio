@@ -142,7 +142,45 @@ juce::Colour controlStateRuntimeAccent(const TControlStateSnapshot &before,
     return TeulPalette::AccentGreen();
   return fallback;
 }
+float normalizedControlValueForMidiMessage(const juce::MidiMessage &message) {
+  if (message.isController())
+    return (float)message.getControllerValue() / 127.0f;
+  if (message.isNoteOn())
+    return juce::jlimit(0.0f, 1.0f, message.getFloatVelocity());
+  if (message.isNoteOff())
+    return 0.0f;
+  return 0.0f;
+}
 
+bool midiBindingMatchesMessage(const TDeviceBindingSignature &binding,
+                               const juce::MidiMessage &message,
+                               juce::StringRef midiDeviceName,
+                               juce::StringRef hardwareId) {
+  if (binding.midiChannel > 0 && binding.midiChannel != message.getChannel())
+    return false;
+
+  if (message.isController()) {
+    if (binding.controllerNumber < 0 ||
+        binding.controllerNumber != message.getControllerNumber()) {
+      return false;
+    }
+  } else if (message.isNoteOnOrOff()) {
+    if (binding.noteNumber < 0 || binding.noteNumber != message.getNoteNumber())
+      return false;
+  } else {
+    return false;
+  }
+
+  const auto normalizedHardwareId = juce::String(hardwareId).trim();
+  if (binding.hardwareId.trim().isNotEmpty())
+    return binding.hardwareId.trim() == normalizedHardwareId;
+
+  const auto normalizedDeviceName = juce::String(midiDeviceName).trim();
+  if (binding.midiDeviceName.trim().isNotEmpty())
+    return binding.midiDeviceName.trim() == normalizedDeviceName;
+
+  return true;
+}
 } // namespace
 
 struct EditorHandle::Impl::ControlInputAdapter {
@@ -282,7 +320,7 @@ struct EditorHandle::Impl::MidiControlInputAdapter final
 private:
   void handleIncomingMidiMessage(juce::MidiInput *source,
                                  const juce::MidiMessage &message) override {
-    if (!message.isController() && !message.isNoteOn())
+    if (!message.isController() && !message.isNoteOnOrOff())
       return;
 
     const auto sourceName =
@@ -311,6 +349,9 @@ private:
       autoDetected = profileIter->autoDetected;
     }
 
+    owner.applyRuntimeControlMidiMessage(message, profileId, midiDeviceName,
+                                        hardwareId);
+
     TDeviceBindingSignature binding;
     binding.midiDeviceName = midiDeviceName.trim();
     binding.hardwareId = hardwareId.trim();
@@ -331,6 +372,9 @@ private:
     } else {
       return;
     }
+
+    if (!message.isController() && !message.isNoteOn())
+      return;
 
     queueLearnedBinding(binding, profileId, hardwareId.trim(),
                         profileDisplayName, kind, mode, sourceDisplayName,
@@ -889,7 +933,7 @@ bool connectControlSourcePortToParam(
   assignment.targetNodeId = targetNodeId;
   assignment.targetParamId = zoneId;
   document.controlState.assignments.push_back(std::move(assignment));
-  document.touch(false);
+  document.touch(true);
   return true;
 }
 } // namespace
@@ -3407,7 +3451,7 @@ EditorHandle::Impl::Impl(
       });
   controlSourceInspector->setDocumentChangedCallback(
       [this] {
-        doc.touch(false);
+        doc.touch(true);
         if (controlSourceInspector != nullptr)
           controlSourceInspector->refreshFromDocument();
         refreshRailUi();
@@ -3921,6 +3965,7 @@ bool EditorHandle::Impl::applyLearnedControlBinding(
                        TeulPalette::AccentAmber(), 60);
     return false;
   }
+  doc.touch(true);
   const auto afterSnapshot = captureControlStateSnapshot(doc.controlState);
 
   if (propertiesPanel != nullptr) {
@@ -4425,6 +4470,53 @@ void EditorHandle::Impl::sendRuntimeMidiOutput(
 
   if (device != nullptr)
     device->sendBlockOfMessagesNow(midiMessages);
+}
+
+bool EditorHandle::Impl::applyRuntimeControlMidiMessage(
+    const juce::MidiMessage &message, const juce::String &profileId,
+    const juce::String &midiDeviceName, const juce::String &hardwareId) {
+  if (!message.isController() && !message.isNoteOnOrOff())
+    return false;
+
+  const auto normalizedProfileId = profileId.trim();
+  const auto normalizedDeviceName = midiDeviceName.trim();
+  const auto normalizedHardwareId = hardwareId.trim();
+  const float normalizedValue = normalizedControlValueForMidiMessage(message);
+  bool applied = false;
+
+  for (const auto &source : doc.controlState.sources) {
+    const auto sourceId = source.sourceId.trim();
+    if (sourceId.isEmpty() || source.missing || source.degraded)
+      continue;
+    if (normalizedProfileId.isNotEmpty() &&
+        source.deviceProfileId.trim() != normalizedProfileId) {
+      continue;
+    }
+
+    const auto *profileSource = doc.controlState.findDeviceSourceProfile(
+        source.deviceProfileId, source.sourceId);
+    if (profileSource == nullptr || profileSource->bindings.empty())
+      continue;
+
+    const bool matchesBinding = std::any_of(
+        profileSource->bindings.begin(), profileSource->bindings.end(),
+        [&](const TDeviceBindingSignature &binding) {
+          return midiBindingMatchesMessage(binding, message,
+                                           normalizedDeviceName,
+                                           normalizedHardwareId);
+        });
+    if (!matchesBinding)
+      continue;
+
+    for (const auto &port : source.ports) {
+      if (runtime.applyControlSourceValue(sourceId, port.portId,
+                                          normalizedValue)) {
+        applied = true;
+      }
+    }
+  }
+
+  return applied;
 }
 void EditorHandle::Impl::timerCallback() {
   const auto currentRuntimeRevision = doc.getRuntimeRevision();

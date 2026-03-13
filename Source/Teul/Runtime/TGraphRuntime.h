@@ -71,6 +71,9 @@ public:
 
   void queueParameterChange(NodeId nodeId, const juce::String &paramKey,
                             float value);
+  bool applyControlSourceValue(const juce::String &sourceId,
+                               const juce::String &portId,
+                               float normalizedValue);
   float getPortLevel(PortId portId) const noexcept;
   RuntimeStats getRuntimeStats() const noexcept;
 
@@ -145,6 +148,26 @@ private:
     PortId targetPortId = kInvalidPortId;
   };
 
+  struct ControlRoute {
+    juce::String sourceKey;
+    juce::String paramId;
+    TControlPortKind portKind = TControlPortKind::value;
+    TParamValueType valueType = TParamValueType::Auto;
+    TParamWidgetHint preferredWidget = TParamWidgetHint::Auto;
+    juce::var defaultValue;
+    juce::var minValue;
+    juce::var maxValue;
+    std::vector<TParamOptionSpec> enumOptions;
+    bool inverted = false;
+    float rangeMin = 0.0f;
+    float rangeMax = 1.0f;
+  };
+
+  struct ControlPortState {
+    float lastNormalizedValue = 0.0f;
+    bool lastActive = false;
+  };
+
   struct ParamDispatch {
     NodeId nodeId = kInvalidNodeId;
     TNodeInstance *instance = nullptr;
@@ -168,6 +191,7 @@ private:
     std::vector<RailMidiInputTarget> railMidiInputTargets;
     std::vector<RailMidiOutputTarget> railMidiOutputTargets;
     std::vector<MidiRoute> midiRoutes;
+    std::vector<ControlRoute> controlRoutes;
     std::vector<ParamDispatch> paramDispatches;
     std::uint64_t generation = 0;
     int totalAllocatedChannels = 0;
@@ -248,6 +272,15 @@ private:
                                 float measuredLevel) noexcept;
   static bool shouldSmoothParam(const TParamSpec *paramSpec,
                                 const juce::var &initialValue) noexcept;
+  static juce::String makeControlSourcePortKey(const juce::String &sourceId,
+                                               const juce::String &portId);
+  static bool valuesEquivalent(const juce::var &lhs,
+                               const juce::var &rhs) noexcept;
+  static juce::var valueForControlRoute(const ControlRoute &route,
+                                        float normalizedValue,
+                                        const juce::var &currentValue,
+                                        const ControlPortState &previousState,
+                                        bool &shouldApply);
   static void writeParamKey(char *dest,
                             std::size_t destSize,
                             const juce::String &paramKey);
@@ -308,6 +341,8 @@ private:
   std::atomic<bool> mutedFallbackActive{false};
   juce::SpinLock midiOutputSinkLock;
   std::function<void(const juce::MidiBuffer &)> midiOutputSink;
+  mutable juce::CriticalSection controlRouteLock;
+  std::map<juce::String, ControlPortState> controlPortStates;
 
   juce::MidiBuffer deviceCallbackMidiScratch;
   juce::MidiBuffer deviceInputMidiCaptureBuffer;

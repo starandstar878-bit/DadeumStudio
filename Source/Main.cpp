@@ -2517,6 +2517,303 @@ juce::Result runTeulPhase8ControlModelSmoke(const juce::StringArray &args) {
   return juce::Result::ok();
 }
 
+juce::Result runTeulPhase8ControlRuntimeSmoke(const juce::StringArray &args) {
+  const auto outputArg = argValue(args, "--output-dir=");
+  juce::File outputDirectory;
+  if (outputArg.isNotEmpty()) {
+    outputDirectory = juce::File(outputArg);
+  } else {
+    outputDirectory =
+        juce::File::getCurrentWorkingDirectory()
+            .getChildFile("Builds")
+            .getChildFile("TeulControlRuntimeSmoke_" +
+                          juce::String(juce::Time::currentTimeMillis()));
+  }
+
+  if (!outputDirectory.createDirectory() && !outputDirectory.isDirectory()) {
+    return juce::Result::fail(
+        "Teul control runtime smoke output directory could not be created.");
+  }
+
+  auto registry = Teul::makeDefaultNodeRegistry();
+  if (!registry)
+    return juce::Result::fail("Failed to create Teul node registry.");
+
+  const auto *oscillatorDescriptor =
+      registry->descriptorFor("Teul.Source.Oscillator");
+  const auto *outputDescriptor = registry->descriptorFor("Teul.Routing.AudioOut");
+  if (oscillatorDescriptor == nullptr || outputDescriptor == nullptr) {
+    return juce::Result::fail(
+        "Teul control runtime smoke could not find required node descriptors.");
+  }
+
+  Teul::TGraphDocument document;
+  document.meta.name = "Teul Control Runtime Smoke";
+  document.meta.sampleRate = 48000.0;
+  document.meta.blockSize = 128;
+  document.controlState.ensureDefaultRails();
+  document.controlState.sources.clear();
+  document.controlState.deviceProfiles.clear();
+  document.controlState.assignments.clear();
+  document.controlState.missingDeviceProfileIds.clear();
+
+  auto oscillator = makeTeulNodeFromDescriptor(*oscillatorDescriptor, document,
+                                               120.0f, 120.0f, "Carrier");
+  oscillator.params["waveform"] = 0;
+  oscillator.params["frequency"] = 220.0;
+  oscillator.params["gain"] = 0.4;
+  oscillator.params["armed"] = false;
+
+  auto output = makeTeulNodeFromDescriptor(*outputDescriptor, document, 360.0f,
+                                           120.0f, "Main Out");
+  output.params["volume"] = 1.0f;
+
+  const auto oscillatorId = oscillator.nodeId;
+  const auto outputId = output.nodeId;
+  const auto gainParamId = Teul::makeTeulParamId(oscillatorId, "gain");
+  const auto volumeParamId = Teul::makeTeulParamId(outputId, "volume");
+  const auto armedParamId = Teul::makeTeulParamId(oscillatorId, "armed");
+
+  document.nodes.push_back(std::move(oscillator));
+  document.nodes.push_back(std::move(output));
+
+  const auto leftConnection =
+      addTeulConnection(document, oscillatorId, "Out", outputId, "L In");
+  if (leftConnection.failed())
+    return leftConnection;
+  const auto rightConnection =
+      addTeulConnection(document, oscillatorId, "Out", outputId, "R In");
+  if (rightConnection.failed())
+    return rightConnection;
+
+  Teul::TControlSource expressionSource;
+  expressionSource.sourceId = "exp-1";
+  expressionSource.displayName = "EXP 1";
+  expressionSource.kind = Teul::TControlSourceKind::expression;
+  expressionSource.mode = Teul::TControlSourceMode::continuous;
+  expressionSource.confirmed = true;
+  expressionSource.ports.push_back(
+      {"exp-1-value", "Value", Teul::TControlPortKind::value});
+
+  Teul::TControlSource footswitchSource;
+  footswitchSource.sourceId = "fs-1";
+  footswitchSource.displayName = "FS 1";
+  footswitchSource.kind = Teul::TControlSourceKind::footswitch;
+  footswitchSource.mode = Teul::TControlSourceMode::momentary;
+  footswitchSource.confirmed = true;
+  footswitchSource.ports.push_back(
+      {"fs-1-gate", "Gate", Teul::TControlPortKind::gate});
+  footswitchSource.ports.push_back(
+      {"fs-1-trigger", "Trigger", Teul::TControlPortKind::trigger});
+
+  document.controlState.sources.push_back(expressionSource);
+  document.controlState.sources.push_back(footswitchSource);
+
+  auto addAssignment = [&](juce::StringRef sourceId, juce::StringRef portId,
+                           Teul::NodeId targetNodeId,
+                           const juce::String &targetParamId, float rangeMin,
+                           float rangeMax) {
+    Teul::TControlSourceAssignment assignment;
+    assignment.sourceId = juce::String(sourceId);
+    assignment.portId = juce::String(portId);
+    assignment.targetNodeId = targetNodeId;
+    assignment.targetParamId = targetParamId;
+    assignment.rangeMin = rangeMin;
+    assignment.rangeMax = rangeMax;
+    document.controlState.assignments.push_back(std::move(assignment));
+  };
+
+  addAssignment("exp-1", "exp-1-value", oscillatorId, gainParamId, 0.0f,
+                1.0f);
+  addAssignment("fs-1", "fs-1-gate", outputId, volumeParamId, 0.0f, 1.0f);
+  addAssignment("fs-1", "fs-1-trigger", oscillatorId, armedParamId, 0.0f,
+                1.0f);
+
+  const auto documentFile =
+      outputDirectory.getChildFile("control-runtime-document.json");
+  if (!documentFile.replaceWithText(
+          juce::JSON::toString(Teul::TSerializer::toJson(document), true), false,
+          false, "\r\n")) {
+    return juce::Result::fail(
+        "Teul control runtime smoke could not write its document.");
+  }
+
+  Teul::TGraphRuntime runtime(registry.get());
+  if (!runtime.buildGraph(document)) {
+    return juce::Result::fail(
+        "Teul control runtime smoke failed to build runtime graph.");
+  }
+
+  runtime.prepareToPlay(document.meta.sampleRate, document.meta.blockSize);
+  runtime.setCurrentChannelLayout(0, 2);
+
+  const auto toDouble = [](const juce::var &value) -> double {
+    if (value.isBool())
+      return static_cast<bool>(value) ? 1.0 : 0.0;
+    if (value.isInt())
+      return static_cast<double>(static_cast<int>(value));
+    if (value.isInt64())
+      return static_cast<double>(static_cast<juce::int64>(value));
+    if (value.isDouble())
+      return static_cast<double>(value);
+    if (value.isString())
+      return value.toString().getDoubleValue();
+    return 0.0;
+  };
+  const auto toBool = [&](const juce::var &value) {
+    return value.isBool() ? static_cast<bool>(value) : (toDouble(value) >= 0.5);
+  };
+  auto renderSettledPeak = [&](int settleBlocks, int measureBlocks) {
+    juce::AudioBuffer<float> deviceBuffer(2, (int)document.meta.blockSize);
+    juce::MidiBuffer midiMessages;
+    for (int blockIndex = 0; blockIndex < juce::jmax(0, settleBlocks);
+         ++blockIndex) {
+      deviceBuffer.clear();
+      runtime.processBlock(deviceBuffer, midiMessages);
+    }
+
+    float peak = 0.0f;
+    for (int blockIndex = 0; blockIndex < juce::jmax(1, measureBlocks);
+         ++blockIndex) {
+      deviceBuffer.clear();
+      runtime.processBlock(deviceBuffer, midiMessages);
+      peak = juce::jmax(peak,
+                        deviceBuffer.getMagnitude(0, 0,
+                                                  deviceBuffer.getNumSamples()));
+      if (deviceBuffer.getNumChannels() > 1) {
+        peak = juce::jmax(peak,
+                          deviceBuffer.getMagnitude(
+                              1, 0, deviceBuffer.getNumSamples()));
+      }
+    }
+
+    return peak;
+  };
+
+  renderSettledPeak(4, 1);
+
+  const bool gatePrimed =
+      runtime.applyControlSourceValue("fs-1", "fs-1-gate", 1.0f);
+  const float baselinePeak = renderSettledPeak(8, 2);
+  const bool lowApplied =
+      runtime.applyControlSourceValue("exp-1", "exp-1-value", 0.2f);
+  const auto lowGainValue = runtime.getParam(gainParamId);
+  const float lowPeak = renderSettledPeak(24, 4);
+
+  const bool highApplied =
+      runtime.applyControlSourceValue("exp-1", "exp-1-value", 0.8f);
+  const auto highGainValue = runtime.getParam(gainParamId);
+  const float highPeak = renderSettledPeak(24, 4);
+
+  const bool gateOffApplied =
+      runtime.applyControlSourceValue("fs-1", "fs-1-gate", 0.0f);
+  const auto mutedVolumeValue = runtime.getParam(volumeParamId);
+  const float mutedPeak = renderSettledPeak(48, 4);
+
+  const bool gateOnApplied =
+      runtime.applyControlSourceValue("fs-1", "fs-1-gate", 1.0f);
+  const auto openVolumeValue = runtime.getParam(volumeParamId);
+  const float reopenedPeak = renderSettledPeak(48, 4);
+
+  const auto initialArmedValue = runtime.getParam(armedParamId);
+  const bool triggerFirstApplied =
+      runtime.applyControlSourceValue("fs-1", "fs-1-trigger", 1.0f);
+  const auto armedAfterFirst = runtime.getParam(armedParamId);
+  const bool triggerHeldApplied =
+      runtime.applyControlSourceValue("fs-1", "fs-1-trigger", 1.0f);
+  const auto armedWhileHeld = runtime.getParam(armedParamId);
+  const bool triggerReleaseApplied =
+      runtime.applyControlSourceValue("fs-1", "fs-1-trigger", 0.0f);
+  const auto armedAfterRelease = runtime.getParam(armedParamId);
+  const bool triggerSecondApplied =
+      runtime.applyControlSourceValue("fs-1", "fs-1-trigger", 1.0f);
+  const auto armedAfterSecond = runtime.getParam(armedParamId);
+
+  const bool valueRoutePassed =
+      gatePrimed && baselinePeak > 0.05f && lowApplied && highApplied &&
+      std::abs(toDouble(lowGainValue) - 0.2) <= 0.02 &&
+      std::abs(toDouble(highGainValue) - 0.8) <= 0.02 && highPeak > 0.2f &&
+      highPeak > lowPeak * 2.0f;
+  const bool gateRoutePassed =
+      gateOffApplied && gateOnApplied && std::abs(toDouble(mutedVolumeValue)) <= 0.02 &&
+      std::abs(toDouble(openVolumeValue) - 1.0) <= 0.02 && mutedPeak < 0.05f &&
+      reopenedPeak > 0.2f;
+  const bool triggerRoutePassed =
+      !toBool(initialArmedValue) && triggerFirstApplied &&
+      toBool(armedAfterFirst) && !triggerHeldApplied && toBool(armedWhileHeld) &&
+      !triggerReleaseApplied && toBool(armedAfterRelease) &&
+      triggerSecondApplied && !toBool(armedAfterSecond);
+  const bool passed =
+      valueRoutePassed && gateRoutePassed && triggerRoutePassed;
+
+  const auto summaryFile =
+      outputDirectory.getChildFile("control-runtime-summary.txt");
+  const auto bundleFile = outputDirectory.getChildFile("artifact-bundle.json");
+  const juce::String summaryText =
+      juce::StringArray{
+          "nodeCount=" + juce::String((int)document.nodes.size()),
+          "assignmentCount=" +
+              juce::String((int)document.controlState.assignments.size()),
+          "baselinePeak=" + juce::String(baselinePeak, 6),
+          "lowGainValue=" + juce::String(toDouble(lowGainValue), 6),
+          "highGainValue=" + juce::String(toDouble(highGainValue), 6),
+          "mutedVolumeValue=" + juce::String(toDouble(mutedVolumeValue), 6),
+          "openVolumeValue=" + juce::String(toDouble(openVolumeValue), 6),
+          "lowPeak=" + juce::String(lowPeak, 6),
+          "highPeak=" + juce::String(highPeak, 6),
+          "mutedPeak=" + juce::String(mutedPeak, 6),
+          "reopenedPeak=" + juce::String(reopenedPeak, 6),
+          "initialArmed=" + juce::String(toBool(initialArmedValue) ? "true" : "false"),
+          "armedAfterFirst=" + juce::String(toBool(armedAfterFirst) ? "true" : "false"),
+          "armedAfterSecond=" + juce::String(toBool(armedAfterSecond) ? "true" : "false"),
+          "valueRoutePassed=" +
+              juce::String(valueRoutePassed ? "true" : "false"),
+          "gateRoutePassed=" +
+              juce::String(gateRoutePassed ? "true" : "false"),
+          "triggerRoutePassed=" +
+              juce::String(triggerRoutePassed ? "true" : "false"),
+          "passed=" + juce::String(passed ? "true" : "false")}
+          .joinIntoString("\r\n") +
+      "\r\n";
+  if (!summaryFile.replaceWithText(summaryText, false, false, "\r\n")) {
+    return juce::Result::fail(
+        "Teul control runtime smoke could not write its summary file.");
+  }
+
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("document", outputDirectory, documentFile));
+  files.add(makeArtifactFileEntry("summary", outputDirectory, summaryFile));
+  auto *bundleRoot = new juce::DynamicObject();
+  bundleRoot->setProperty("kind", "teul-verification-artifact-bundle");
+  bundleRoot->setProperty("scope", "control-runtime-smoke");
+  bundleRoot->setProperty("passed", passed);
+  bundleRoot->setProperty("artifactDirectory", outputDirectory.getFullPathName());
+  bundleRoot->setProperty("nodeCount", (int)document.nodes.size());
+  bundleRoot->setProperty("assignmentCount",
+                          (int)document.controlState.assignments.size());
+  bundleRoot->setProperty("baselinePeak", baselinePeak);
+  bundleRoot->setProperty("lowPeak", lowPeak);
+  bundleRoot->setProperty("highPeak", highPeak);
+  bundleRoot->setProperty("mutedPeak", mutedPeak);
+  bundleRoot->setProperty("reopenedPeak", reopenedPeak);
+  bundleRoot->setProperty("valueRoutePassed", valueRoutePassed);
+  bundleRoot->setProperty("gateRoutePassed", gateRoutePassed);
+  bundleRoot->setProperty("triggerRoutePassed", triggerRoutePassed);
+  bundleRoot->setProperty("files", juce::var(files));
+  if (!writeJsonArtifact(bundleFile, juce::var(bundleRoot))) {
+    return juce::Result::fail(
+        "Teul control runtime smoke could not write its artifact bundle.");
+  }
+
+  if (!passed)
+    return juce::Result::fail("Teul control runtime smoke checks failed.");
+
+  std::cout << "Teul Phase8 control runtime smoke directory: "
+            << outputDirectory.getFullPathName() << std::endl;
+  std::cout << summaryText << std::endl;
+  std::cout << "Teul Phase8 control runtime smoke checks: PASS" << std::endl;
+  return juce::Result::ok();
+}
 juce::Result runTeulPhase8MidiRuntimeSmoke(const juce::StringArray &args) {
   const auto outputArg = argValue(args, "--output-dir=");
   juce::File outputDirectory;
@@ -3488,9 +3785,9 @@ public:
   //==============================================================================
   DadeumStudioApplication() {}
 
-  // AppServices ??????傭?끆????????????????濚밸Ŧ?긺쳥???雅?퍔瑗?땟戮щ쐩?????????????????ル???????耀붾굝???????
-  // AudioDeviceManager ?????????????뀀맩鍮???癲ル슢?????嶺뚮ㅎ??????썹땟?????????嶺뚮∥???????癲????
-  // MainComponent(??Teul) ??????븐뼐?????????????怨뚮뼺?됰뗀?????????袁⑸즴筌?씛彛?????耀붾굝???????
+  // AppServices ??????????????????????????μ떜媛?걫?疫뀀툙???????遺븍き???욎췀??????????????????????????????븐뼐????????
+  // AudioDeviceManager ???????????????筌띯뫔?????轅붽틓???????꿔꺂?????????諛몃마??????????꿔꺂??????????????
+  // MainComponent(??Teul) ???????됰Ŧ????????????????ㅼ뒧???怨???????????ш끽維뽳쭩?뱀땡???얩맪????????븐뼐????????
   AppServices appServices;
 
   const juce::String getApplicationName() override {
@@ -3685,6 +3982,19 @@ public:
       return;
     }
 
+    if (hasArg(args, "--teul-phase8-control-runtime-smoke")) {
+      const auto smokeResult = runTeulPhase8ControlRuntimeSmoke(args);
+      if (smokeResult.failed()) {
+        std::cerr << "Teul Phase8 control runtime smoke failed: "
+                  << smokeResult.getErrorMessage() << std::endl;
+        setApplicationReturnValue(1);
+      } else {
+        setApplicationReturnValue(0);
+      }
+
+      quit();
+      return;
+    }
     if (hasArg(args, "--teul-phase8-midi-runtime-smoke")) {
       const auto smokeResult = runTeulPhase8MidiRuntimeSmoke(args);
       if (smokeResult.failed()) {
