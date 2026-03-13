@@ -677,8 +677,10 @@ collectRailEndpoints(const std::vector<TSystemRailEndpoint> &endpoints,
   return result;
 }
 
-std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
-                                         const juce::String &railId) {
+std::vector<RailCardView> buildRailCards(
+    const TGraphDocument &document, const juce::String &railId,
+    const std::function<juce::String(const TSystemRailEndpoint &)> &
+        endpointSubtitleProvider = {}) {
   std::vector<RailCardView> cards;
 
   if (railId == "input-rail" || railId == "output-rail") {
@@ -691,9 +693,14 @@ std::vector<RailCardView> buildRailCards(const TGraphDocument &document,
       RailCardView card;
       card.itemId = endpoint->endpointId;
       card.title = endpoint->displayName;
-      card.subtitle = endpoint->subtitle.isNotEmpty()
-                          ? endpoint->subtitle
-                          : juce::String("System endpoint");
+      const auto subtitleOverride =
+          endpointSubtitleProvider != nullptr ? endpointSubtitleProvider(*endpoint)
+                                              : juce::String{};
+      card.subtitle = subtitleOverride.isNotEmpty()
+                          ? subtitleOverride
+                          : (endpoint->subtitle.isNotEmpty()
+                                 ? endpoint->subtitle
+                                 : juce::String("System endpoint"));
       card.badge = endpointBadgeText(*endpoint);
       card.accent = endpointAccent(*endpoint);
       card.issueState = issueStateForEndpoint(*endpoint);
@@ -922,6 +929,12 @@ public:
       cardHitZones.clear();
       portHitZones.clear();
     }
+    repaint();
+  }
+
+  void setEndpointSubtitleProvider(
+      std::function<juce::String(const TSystemRailEndpoint &)> provider) {
+    endpointSubtitleProvider = std::move(provider);
     repaint();
   }
 
@@ -1196,7 +1209,7 @@ public:
     g.setColour(TeulPalette::PanelStrokeStrong().interpolatedWith(accent, 0.55f).withAlpha(collapsed ? 0.48f : 0.72f));
     g.drawRoundedRectangle(bounds, collapsed ? 10.0f : 14.0f, 1.0f);
 
-    const auto cards = buildRailCards(document, railId);
+    const auto cards = buildRailCards(document, railId, endpointSubtitleProvider);
     auto content = getLocalBounds().reduced(collapsed ? 6 : 10,
                                             collapsed ? 6 : 8);
     auto header = content.removeFromTop(collapsed ? 20 : 20);
@@ -1806,6 +1819,7 @@ private:
   juce::TextButton collapseButton;
   CollapseHandler collapseHandler;
   CardSelectionHandler cardSelectionHandler;
+  std::function<juce::String(const TSystemRailEndpoint &)> endpointSubtitleProvider;
   PortDragBeginHandler portDragBeginHandler;
   PortDragMotionHandler portDragUpdateHandler;
   PortDragMotionHandler portDragEndHandler;
@@ -2638,6 +2652,16 @@ public:
     onLayoutChanged = std::move(callback);
   }
 
+  void setExtraStatusLineProvider(
+      std::function<juce::String(const TSystemRailEndpoint &)> provider) {
+    extraStatusLineProvider = std::move(provider);
+  }
+
+  void setExtraDetailSummaryProvider(
+      std::function<juce::String(const TSystemRailEndpoint &)> provider) {
+    extraDetailSummaryProvider = std::move(provider);
+  }
+
   bool isPanelOpen() const noexcept {
     return isVisible() && currentEndpointId.isNotEmpty();
   }
@@ -2816,6 +2840,11 @@ private:
 
     if (const auto *rail = document.controlState.findRail(endpoint.railId))
       line << " | Rail: " << rail->title;
+    const auto extraLine = extraStatusLineProvider != nullptr
+                               ? extraStatusLineProvider(endpoint)
+                               : juce::String{};
+    if (extraLine.isNotEmpty())
+      line << " | " << extraLine;
     return line;
   }
 
@@ -2854,6 +2883,15 @@ private:
     lines.add("Port count: " + juce::String((int)endpoint.ports.size()));
     if (endpoint.subtitle.isNotEmpty())
       lines.add("Detail: " + endpoint.subtitle);
+    const auto extraSummary = extraDetailSummaryProvider != nullptr
+                                  ? extraDetailSummaryProvider(endpoint)
+                                  : juce::String{};
+    if (extraSummary.isNotEmpty()) {
+      for (const auto &extraLine : juce::StringArray::fromLines(extraSummary)) {
+        if (extraLine.trim().isNotEmpty())
+          lines.add(extraLine);
+      }
+    }
     return lines.joinIntoString("\r\r\r\n");
   }
 
@@ -2868,6 +2906,8 @@ private:
   juce::TextEditor detailsBox;
   juce::TextButton closeButton;
   std::function<void()> onLayoutChanged;
+  std::function<juce::String(const TSystemRailEndpoint &)> extraStatusLineProvider;
+  std::function<juce::String(const TSystemRailEndpoint &)> extraDetailSummaryProvider;
 };
 class RuntimeStatusStrip : public juce::Component {
 public:
@@ -3382,11 +3422,23 @@ EditorHandle::Impl::Impl(
         owner.resized();
         refreshRailUi();
       });
+  systemEndpointInspector->setExtraStatusLineProvider(
+      [this](const TSystemRailEndpoint &endpoint) {
+        return systemEndpointExtraStatusLine(endpoint);
+      });
+  systemEndpointInspector->setExtraDetailSummaryProvider(
+      [this](const TSystemRailEndpoint &endpoint) {
+        return systemEndpointExtraDetailSummary(endpoint);
+      });
   owner.addAndMakeVisible(*systemEndpointInspector);
   systemEndpointInspector->setVisible(false);
 
   inputRail = std::make_unique<RailPanel>(doc, "input-rail",
                                           RailOrientation::vertical);
+  inputRail->setEndpointSubtitleProvider(
+      [this](const TSystemRailEndpoint &endpoint) {
+        return railEndpointSubtitleOverride(endpoint);
+      });
   inputRail->setCollapseHandler([this] { refreshRailUi(true); });
   inputRail->setCardSelectionHandler(
       [this](const juce::String &endpointId) { inspectSystemEndpoint(endpointId); });
@@ -3410,6 +3462,10 @@ EditorHandle::Impl::Impl(
 
   outputRail = std::make_unique<RailPanel>(doc, "output-rail",
                                            RailOrientation::vertical);
+  outputRail->setEndpointSubtitleProvider(
+      [this](const TSystemRailEndpoint &endpoint) {
+        return railEndpointSubtitleOverride(endpoint);
+      });
   outputRail->setCollapseHandler([this] { refreshRailUi(true); });
   outputRail->setCardSelectionHandler(
       [this](const juce::String &endpointId) { inspectSystemEndpoint(endpointId); });
@@ -4194,6 +4250,64 @@ void EditorHandle::Impl::layout(juce::Rectangle<int> area) {
   }
 }
 
+juce::String EditorHandle::Impl::railEndpointSubtitleOverride(
+    const TSystemRailEndpoint &endpoint) const {
+  if (endpoint.kind != TSystemRailEndpointKind::midiOutput)
+    return {};
+
+  juce::String deviceName;
+  bool connected = false;
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    deviceName = midiOutputDeviceName;
+    connected = midiOutputDevice != nullptr;
+  }
+
+  if (connected && deviceName.isNotEmpty())
+    return "To " + deviceName;
+  return "No MIDI output device";
+}
+
+juce::String EditorHandle::Impl::systemEndpointExtraStatusLine(
+    const TSystemRailEndpoint &endpoint) const {
+  if (endpoint.kind != TSystemRailEndpointKind::midiOutput)
+    return {};
+
+  juce::String deviceName;
+  bool connected = false;
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    deviceName = midiOutputDeviceName;
+    connected = midiOutputDevice != nullptr;
+  }
+
+  if (connected && deviceName.isNotEmpty())
+    return "Device: " + deviceName;
+  return "Device: Not connected";
+}
+
+juce::String EditorHandle::Impl::systemEndpointExtraDetailSummary(
+    const TSystemRailEndpoint &endpoint) const {
+  if (endpoint.kind != TSystemRailEndpointKind::midiOutput)
+    return {};
+
+  juce::String deviceId;
+  juce::String deviceName;
+  bool connected = false;
+  {
+    const juce::ScopedLock lock(midiOutputDeviceLock);
+    deviceId = midiOutputDeviceId;
+    deviceName = midiOutputDeviceName;
+    connected = midiOutputDevice != nullptr;
+  }
+
+  juce::StringArray lines;
+  lines.add("Output device: " + ((connected && deviceName.isNotEmpty()) ? deviceName : juce::String("Not connected")));
+  if (deviceId.isNotEmpty())
+    lines.add("Output device id: " + deviceId);
+  return lines.joinIntoString("\n");
+}
+
 void EditorHandle::Impl::refreshControlInputAdapters(bool announceChanges) {
   for (auto &adapter : controlInputAdapters)
     adapter->refresh(announceChanges);
@@ -4242,6 +4356,12 @@ void EditorHandle::Impl::refreshMidiOutputDevice(bool announceChanges) {
     if (announceChanges && changed)
       pushRuntimeMessage("MIDI output disconnected",
                          TeulPalette::AccentAmber(), 60);
+    if (changed) {
+      if (systemEndpointInspector != nullptr)
+        systemEndpointInspector->refreshFromDocument();
+      refreshRailUi();
+      refreshSessionStatusUi(true);
+    }
     return;
   }
 
@@ -4251,8 +4371,17 @@ void EditorHandle::Impl::refreshMidiOutputDevice(bool announceChanges) {
                               : targetId;
 
   if (hadDevice && currentId == targetId) {
-    const juce::ScopedLock lock(midiOutputDeviceLock);
-    midiOutputDeviceName = targetName;
+    const bool nameChanged = currentName != targetName;
+    {
+      const juce::ScopedLock lock(midiOutputDeviceLock);
+      midiOutputDeviceName = targetName;
+    }
+    if (nameChanged) {
+      if (systemEndpointInspector != nullptr)
+        systemEndpointInspector->refreshFromDocument();
+      refreshRailUi();
+      refreshSessionStatusUi(true);
+    }
     return;
   }
 
@@ -4276,6 +4405,11 @@ void EditorHandle::Impl::refreshMidiOutputDevice(bool announceChanges) {
     pushRuntimeMessage("MIDI output connected: " + targetName,
                        TeulPalette::AccentGreen(), 60);
   }
+
+  if (systemEndpointInspector != nullptr)
+    systemEndpointInspector->refreshFromDocument();
+  refreshRailUi();
+  refreshSessionStatusUi(true);
 }
 
 void EditorHandle::Impl::sendRuntimeMidiOutput(
