@@ -13,18 +13,7 @@ namespace {
 juce::String groupedDisplayName(const std::vector<TPort> &ports) {
   if (ports.empty())
     return {};
-  if (ports.size() == 1)
-    return ports.front().name;
-
-  auto trimPrefix = [](const juce::String &name) {
-    const juce::String trimmed = name.trim();
-    if (trimmed.startsWithIgnoreCase("L ") || trimmed.startsWithIgnoreCase("R "))
-      return trimmed.substring(2).trim();
-    return trimmed;
-  };
-
-  const auto label = trimPrefix(ports.front().name);
-  return label.isNotEmpty() ? label : ports.front().name;
+  return ports.front().name;
 }
 
 void drawIssueRing(juce::Graphics &g, juce::Rectangle<float> bounds,
