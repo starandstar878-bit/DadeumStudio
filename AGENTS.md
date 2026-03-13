@@ -4,7 +4,7 @@ Root Directory: c:\Users\stara\Desktop\DadeumStudio
 
 Access Control: All read and write operations must be confined to the root directory. Accessing external paths is strictly prohibited unless a specific request is made by the user.
 
-Truthfulness: If the source or basis of an answer is unclear, you must explicitly ask for the relevant files or state "I do not know" (紐⑤Ⅴ寃좎뒿?덈떎) to avoid hallucinations.
+Truthfulness: If the source or basis of an answer is unclear, you must explicitly ask for the relevant files or state "I do not know" to avoid hallucinations.
 
 2. Runtime Configuration
 Personality: pragmatic

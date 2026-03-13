@@ -12,7 +12,7 @@ namespace BinaryData
     const int            FONTS_README_mdSize = 1927;
 
     extern const char*   Gyeol_Roadmap_md;
-    const int            Gyeol_Roadmap_mdSize = 50186;
+    const int            Gyeol_Roadmap_mdSize = 51941;
 
     extern const char*   NunitoRegular_ttf;
     const int            NunitoRegular_ttfSize = 132200;
@@ -33,10 +33,10 @@ namespace BinaryData
     const int            NanumSquareRoundEB_ttfSize = 1029388;
 
     extern const char*   Teul_Roadmap_md;
-    const int            Teul_Roadmap_mdSize = 12953;
+    const int            Teul_Roadmap_mdSize = 32595;
 
     extern const char*   Teul_UI_Roadmap_md;
-    const int            Teul_UI_Roadmap_mdSize = 8933;
+    const int            Teul_UI_Roadmap_mdSize = 27409;
 
     // Number of elements in the namedResourceList and originalFileNames arrays.
     const int namedResourceListSize = 10;

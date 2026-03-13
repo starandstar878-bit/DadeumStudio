@@ -1,35 +1,537 @@
 
-  ContextMenuController.cpp
-  TVerificationFixtures.cpp
+  Document.cpp
+  DocumentHandle.cpp
+  EditorHandle.cpp
+  EditorHandleImpl.cpp
+  CanvasComponent.cpp
+  CanvasRenderer.cpp
+  MarqueeSelectionOverlay.cpp
+  SnapGuideOverlay.cpp
+  WidgetComponent.cpp
+  AlignDistributeEngine.cpp
+  EditorInteractionEngine.cpp
+  LayerOrderEngine.cpp
+  SelectionEngine.cpp
+  SnapEngine.cpp
+  AssetsPanel.cpp
+  EventActionPanel.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\EventActionPanel.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\EventActionPanel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/EventActionPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/SnapGuideOverlay.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/MarqueeSelectionOverlay.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/EventActionPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/EventActionPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/AssetsPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/EventActionPanel.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/AssetsPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/EditorHandle.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/EditorHandle.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/WidgetComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/WidgetComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/AssetsPanel.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/EditorHandle.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/WidgetComponent.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/CanvasRenderer.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/CanvasRenderer.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/CanvasComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/CanvasComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/CanvasRenderer.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Canvas/CanvasComponent.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\AssetsPanel.cpp(266,35): warning C4996: 'juce::Font::Font': Use the constructor that takes a FontOptions argument [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\EventActionPanel.cpp(1476,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\EventActionPanel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/EditorHandleImpl.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\AssetsPanel.cpp(922,14): warning C4189: 'previousSelectedId': 지역 변수가 초기화되었으나 참조되지 않았습니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\EventActionPanel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/EditorHandle.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\EventActionPanel.cpp(2218,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\EventActionPanel.cpp(2986,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\EventActionPanel.cpp(3800,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  ExportPreviewPanel.cpp
+  GridSnapPanel.cpp
+  HistoryPanel.cpp
+  LayerTreePanel.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\LayerTreePanel.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  PropertyEditorFactory.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/PropertyEditorFactory.cpp'을(를) 컴파일하는 중)
+  
+  PropertyPanel.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\PropertyPanel.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  ValidationPanel.cpp
+  WidgetLibraryPanel.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\WidgetLibraryPanel.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  NavigatorPanel.cpp
+  PerformancePanel.cpp
+  GyeolCustomLookAndFeel.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.cpp(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Theme/GyeolCustomLookAndFeel.cpp'을(를) 컴파일하는 중)
+  
+  EditorCommandSystem.cpp
+  EditorHistoryBridge.cpp
+  EditorLayoutCoordinator.cpp
+  EditorModeCoordinator.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/ExportPreviewPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/LayerTreePanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/LayerTreePanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/LayerTreePanel.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/GridSnapPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/HistoryPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/PropertyEditorFactory.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/PropertyEditorFactory.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/PropertyPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/PropertyPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/PropertyPanel.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/ValidationPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/ValidationPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/ValidationPanel.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/WidgetLibraryPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/WidgetLibraryPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/WidgetLibraryPanel.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+  EditorPanelMediator.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/PerformancePanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Panels/NavigatorPanel.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\NavigatorPanel.cpp(200,55): warning C4996: 'juce::Font::getStringWidthFloat': Use GlyphArrangement or TextLayout to compute text layouts [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\NavigatorPanel.cpp(334,66): warning C4100: 'transform': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.cpp(433,46): warning C4100: 'shouldDrawButtonAsDown': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.cpp(630,20): warning C4996: 'juce::Font::Font': Use the constructor that takes a FontOptions argument [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.cpp(660,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  EditorSettingsStore.cpp
+  EditorPerfTracker.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorHistoryBridge.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorHistoryBridge.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorHistoryBridge.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+  HitTestGrid.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorLayoutCoordinator.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorModeCoordinator.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorModeCoordinator.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorModeCoordinator.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+  PerfReportWriter.cpp
+  JuceComponentExport.cpp
+  RuntimeBindingEngine.cpp
+  RuntimeActionExecutor.cpp
+  RuntimeParamBridge.cpp
+  RuntimeDiagnostics.cpp
+  WidgetLibraryExchange.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorPanelMediator.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorPanelMediator.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorPanelMediator.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+  DocumentJson.cpp
+  TSerializer.cpp
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Serialization/TSerializer.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationFixtures.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Panels\EventActionPanel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorPanelMediator.cpp'을(를) 컴파일하는 중)
   
+  Teul.cpp
+\Source\Teul\Teul.cpp(1,1): error C1083: 소스 파일을 열 수 없습니다. '..\..\Source\Teul\Teul.cpp': No such file or directory [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '/Source/Teul/Teul.cpp'을(를) 컴파일하는 중)
+  
+  Main.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\AppServices.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorSettingsStore.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorSettingsStore.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Editor/Shell/EditorSettingsStore.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+  MainComponent.cpp
+  BinaryData.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\AppServices.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Export/JuceComponentExport.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Export/JuceComponentExport.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Export/JuceComponentExport.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+  BinaryData2.cpp
+  include_juce_audio_basics.cpp
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationFixtures.cpp'을(를) 컴파일하는 중)
-  
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Serialization/TSerializer.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationFixtures.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Teul/Serialization/TSerializer.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Widgets/WidgetLibraryExchange.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Widgets/WidgetLibraryExchange.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Widgets/WidgetLibraryExchange.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+  include_juce_audio_devices.cpp
+  include_juce_audio_formats.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Serialization/DocumentJson.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Serialization/DocumentJson.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Gyeol/Serialization/DocumentJson.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+  include_juce_audio_plugin_client_ARA.cpp
+C:\JUCE\modules\juce_audio_plugin_client\detail\juce_CheckSettingMacros.h(42,1): error C1189: #error:  "You need to enable at least one plugin format!" [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_audio_plugin_client_ARA.cpp'을(를) 컴파일하는 중)
+  
+  include_juce_audio_processors_headless_ara.cpp
+  include_juce_audio_processors_headless_lv2_libs.cpp
+  include_juce_core_CompilationTime.cpp
+  include_juce_data_structures.cpp
+  include_juce_dsp.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Editor\Theme\GyeolCustomLookAndFeel.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(86,50): warning C4458: 'key' 선언은 클래스 멤버를 숨깁니다. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+      C:\Users\stara\Desktop\DadeumStudio\Source\Gyeol\Widgets\WidgetSDK.h(88,20):
+      'Gyeol::Widgets::WidgetPropertySpec::key' 선언을 참조하십시오.
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
   
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
   
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(35,34): warning C4100: 'maximumExpectedSamplesPerBlock': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(34,37): warning C4100: 'sampleRate': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(37,54): warning C4100: 'context': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,70): warning C4100: 'newValue': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Runtime\TNodeInstance.h(38,54): warning C4100: 'paramKey': 참조되지 않은 매개 변수 [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+  include_juce_events.cpp
+  include_juce_graphics_Harfbuzz.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Serialization\TFileIo.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\MainComponent.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/Main.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TTypes.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TNode.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Model\TPort.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-style.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+  include_juce_gui_extra.cpp
 C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Registry\TNodeRegistry.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Verification/TVerificationFixtures.cpp'을(를) 컴파일하는 중)
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommands.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
+  include_juce_video.cpp
+C:\Users\stara\Desktop\DadeumStudio\Source\Teul\Serialization\TFileIo.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../Source/MainComponent.cpp'을(를) 컴파일하는 중)
   
-C:\Users\stara\Desktop\DadeumStudio\Source\Teul\History\TCommand.h(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
-  (소스 파일 '../../Source/Teul/Editor/Interaction/ContextMenuController.cpp'을(를) 컴파일하는 중)
+C:\Users\stara\Desktop\DadeumStudio\Source\Main.cpp(3233,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
   
-  DadeumStudio_App.vcxproj -> C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\x64\Debug\App\DadeumStudio.exe
-EXIT_CODE=0 
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-algs.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-layout-common.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\OT\glyf\glyf.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-head-table.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-var-mvar-table.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-var-common.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-common.cc(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-name-language-static.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-coretext-shape.cc(895,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-var-fvar-table.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\OT\Color\CPAL\CPAL.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\OT\Color\sbix\sbix.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-meta-table.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-stat-table.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-layout-base-table.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-layout.cc(814,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-layout.cc(1715,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-math.cc(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-shaper-indic.cc(847,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-shaper-thai.cc(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-tag-table.hh(1,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-tag-table.hh(380,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-tag-table.hh(727,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-tag-table.hh(1088,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-tag-table.hh(1426,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+C:\JUCE\modules\juce_graphics\fonts\harfbuzz\hb-ot-tag-table.hh(2816,1): warning C4819: 현재 코드 페이지(949)에서 표시할 수 없는 문자가 파일에 들어 있습니다. 데이터가 손실되지 않게 하려면 해당 파일을 유니코드 형식으로 저장하십시오. [C:\Users\stara\Desktop\DadeumStudio\Builds\VisualStudio2026\DadeumStudio_App.vcxproj]
+  (소스 파일 '../../JuceLibraryCode/include_juce_graphics_Harfbuzz.cpp'을(를) 컴파일하는 중)
+  
+EXIT_CODE=1 

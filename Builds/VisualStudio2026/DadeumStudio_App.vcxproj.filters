@@ -68,15 +68,6 @@
     <Filter Include="DadeumStudio\Source\Teul\Serialization">
       <UniqueIdentifier>{C67EC42A-69A7-211D-CDF3-2B3A64B1505F}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DadeumStudio\Source\Teul\Preset">
-      <UniqueIdentifier>{9F3DB4CA-DF68-4B8A-B5B7-3862E3B58B43}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="DadeumStudio\Source\Teul\Export">
-      <UniqueIdentifier>{4D4F42A6-A4F0-4D72-8B6F-92A6B9CF8A70}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="DadeumStudio\Source\Teul\Verification">
-      <UniqueIdentifier>{F0AE6C4E-25F8-41C3-90A8-7E09D6D1E7A5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="DadeumStudio\Source\Teul">
       <UniqueIdentifier>{6352B415-E509-789B-5761-54E9EFAA463C}</UniqueIdentifier>
     </Filter>
@@ -518,6 +509,30 @@
     <Filter Include="JUCE Modules\juce_data_structures">
       <UniqueIdentifier>{911F0159-A7A8-4A43-3FD4-154F62F4A44B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="JUCE Modules\juce_dsp\containers">
+      <UniqueIdentifier>{53CF03D3-988B-CD28-9130-CE08FDCEF7E9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JUCE Modules\juce_dsp\filter_design">
+      <UniqueIdentifier>{29C6FE02-507E-F3FE-16CD-74D84842C1EA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JUCE Modules\juce_dsp\frequency">
+      <UniqueIdentifier>{8001BD68-125B-E392-8D3B-1F9C9520A65A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JUCE Modules\juce_dsp\maths">
+      <UniqueIdentifier>{EDC17061-CFA0-8EA0-0ADA-90F31C2FB0F2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JUCE Modules\juce_dsp\native">
+      <UniqueIdentifier>{B813BD14-6565-2525-9AC3-E3AA48EDDA85}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JUCE Modules\juce_dsp\processors">
+      <UniqueIdentifier>{DDF4BA73-8578-406D-21F8-06B9BC70BFEA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JUCE Modules\juce_dsp\widgets">
+      <UniqueIdentifier>{73374573-0194-9A6E-461A-A81EEB511C26}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JUCE Modules\juce_dsp">
+      <UniqueIdentifier>{5DD60D0E-B16A-0BED-EDC4-C56E6960CA9E}</UniqueIdentifier>
+    </Filter>
     <Filter Include="JUCE Modules\juce_events\broadcasters">
       <UniqueIdentifier>{9D5816C2-E2B2-2E3F-B095-AC8BD1100D29}</UniqueIdentifier>
     </Filter>
@@ -883,119 +898,11 @@
     <ClCompile Include="..\..\Source\Gyeol\Serialization\DocumentJson.cpp">
       <Filter>DadeumStudio\Source\Gyeol\Serialization</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Model\TGraphDocument.cpp">
-      <Filter>DadeumStudio\Source\Teul\Model</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Registry\TNodeRegistry.cpp">
-      <Filter>DadeumStudio\Source\Teul\Registry</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Runtime\TGraphRuntime.cpp">
-      <Filter>DadeumStudio\Source\Teul\Runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationFixtures.cpp">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationStimulus.cpp">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationStress.cpp">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationBenchmark.cpp">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationGoldenAudio.cpp">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Verification\TVerificationCompiledParity.cpp">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Source\Teul\Serialization\TSerializer.cpp">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Serialization\TFileIo.cpp">
-      <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Serialization\TPatchPresetIO.cpp">
-      <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Serialization\TStatePresetIO.cpp">
-      <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Preset\TPresetCatalog.cpp">
-      <Filter>DadeumStudio\Source\Teul\Preset</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Export\TExport.cpp">
-      <Filter>DadeumStudio\Source\Teul\Export</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\EditorHandle.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\EditorHandleImpl.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Canvas\TGraphCanvas.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Canvas</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Canvas\CanvasRenderers.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Canvas</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Search\SearchController.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Search</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Search\QuickAddOverlay.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Search</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Search\NodeSearchOverlay.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Search</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Search\CommandPaletteOverlay.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Search</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\ConnectionInteraction.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Interaction</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\SelectionController.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Interaction</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\NodeFrameInteraction.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Interaction</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\AlignmentEngine.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Interaction</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Interaction\ContextMenuController.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Interaction</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Node\TNodeComponent.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Node</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Node\NodePreviewRenderer.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Node</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Port\TPortComponent.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Port</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodeLibraryPanel.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Panels\NodePropertiesPanel.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Panels\DiagnosticsDrawer.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Panels\PresetBrowserPanel.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamValueFormatter.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Panels\Property</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\ParamEditorFactory.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Panels\Property</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Teul\Editor\Panels\Property\BindingSummaryPresenter.cpp">
-      <Filter>DadeumStudio\Source\Teul\Editor\Panels\Property</Filter>
+    <ClCompile Include="..\..\Source\Teul\Teul.cpp">
+      <Filter>DadeumStudio\Source\Teul</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\Main.cpp">
       <Filter>DadeumStudio\Source</Filter>
@@ -2415,6 +2322,114 @@
     </ClCompile>
     <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_data_structures\juce_data_structures.mm">
       <Filter>JUCE Modules\juce_data_structures</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\containers\juce_AudioBlock_test.cpp">
+      <Filter>JUCE Modules\juce_dsp\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\containers\juce_SIMDRegister_test.cpp">
+      <Filter>JUCE Modules\juce_dsp\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\filter_design\juce_FilterDesign.cpp">
+      <Filter>JUCE Modules\juce_dsp\filter_design</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\frequency\juce_Convolution.cpp">
+      <Filter>JUCE Modules\juce_dsp\frequency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\frequency\juce_Convolution_test.cpp">
+      <Filter>JUCE Modules\juce_dsp\frequency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\frequency\juce_FFT.cpp">
+      <Filter>JUCE Modules\juce_dsp\frequency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\frequency\juce_FFT_test.cpp">
+      <Filter>JUCE Modules\juce_dsp\frequency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\frequency\juce_Windowing.cpp">
+      <Filter>JUCE Modules\juce_dsp\frequency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_LogRampedValue_test.cpp">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_LookupTable.cpp">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_Matrix.cpp">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_Matrix_test.cpp">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_SpecialFunctions.cpp">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\native\juce_SIMDNativeOps_avx.cpp">
+      <Filter>JUCE Modules\juce_dsp\native</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\native\juce_SIMDNativeOps_neon.cpp">
+      <Filter>JUCE Modules\juce_dsp\native</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\native\juce_SIMDNativeOps_sse.cpp">
+      <Filter>JUCE Modules\juce_dsp\native</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_BallisticsFilter.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_DelayLine.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_DryWetMixer.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_FIRFilter.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_FIRFilter_test.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_FirstOrderTPTFilter.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_IIRFilter.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_LinkwitzRileyFilter.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_Oversampling.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_Panner.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_ProcessorChain_test.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_StateVariableTPTFilter.cpp">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Chorus.cpp">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Compressor.cpp">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_LadderFilter.cpp">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Limiter.cpp">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_NoiseGate.cpp">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Phaser.cpp">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\juce_dsp.cpp">
+      <Filter>JUCE Modules\juce_dsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\juce_dsp.mm">
+      <Filter>JUCE Modules\juce_dsp</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\..\..\JUCE\modules\juce_events\broadcasters\juce_ActionBroadcaster.cpp">
       <Filter>JUCE Modules\juce_events\broadcasters</Filter>
@@ -3850,6 +3865,9 @@
     <ClCompile Include="..\..\JuceLibraryCode\include_juce_data_structures.cpp">
       <Filter>JUCE Library Code</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\JuceLibraryCode\include_juce_dsp.cpp">
+      <Filter>JUCE Library Code</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\JuceLibraryCode\include_juce_events.cpp">
       <Filter>JUCE Library Code</Filter>
     </ClCompile>
@@ -3981,38 +3999,8 @@
     <ClInclude Include="..\..\Source\Teul\Model\TGraphDocument.h">
       <Filter>DadeumStudio\Source\Teul\Model</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationFixtures.h">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationStimulus.h">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationStress.h">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationBenchmark.h">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationGoldenAudio.h">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Teul\Verification\TVerificationCompiledParity.h">
-      <Filter>DadeumStudio\Source\Teul\Verification</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Serialization\TSerializer.h">
       <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Teul\Serialization\TPatchPresetIO.h">
-      <Filter>DadeumStudio\Source\Teul\Serialization</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Teul\Preset\TPresetCatalog.h">
-      <Filter>DadeumStudio\Source\Teul\Preset</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Teul\Editor\Panels\PresetBrowserPanel.h">
-      <Filter>DadeumStudio\Source\Teul\Editor\Panels</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Teul\Export\TExport.h">
-      <Filter>DadeumStudio\Source\Teul\Export</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Source\Teul\Teul.h">
       <Filter>DadeumStudio\Source\Teul</Filter>
@@ -6032,6 +6020,144 @@
     </ClInclude>
     <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_data_structures\juce_data_structures.h">
       <Filter>JUCE Modules\juce_data_structures</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\containers\juce_AudioBlock.h">
+      <Filter>JUCE Modules\juce_dsp\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\containers\juce_SIMDRegister.h">
+      <Filter>JUCE Modules\juce_dsp\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\containers\juce_SIMDRegister_Impl.h">
+      <Filter>JUCE Modules\juce_dsp\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\filter_design\juce_FilterDesign.h">
+      <Filter>JUCE Modules\juce_dsp\filter_design</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\frequency\juce_Convolution.h">
+      <Filter>JUCE Modules\juce_dsp\frequency</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\frequency\juce_FFT.h">
+      <Filter>JUCE Modules\juce_dsp\frequency</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\frequency\juce_Windowing.h">
+      <Filter>JUCE Modules\juce_dsp\frequency</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_FastMathApproximations.h">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_LogRampedValue.h">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_LookupTable.h">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_Matrix.h">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_Phase.h">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_Polynomial.h">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\maths\juce_SpecialFunctions.h">
+      <Filter>JUCE Modules\juce_dsp\maths</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\native\juce_SIMDNativeOps_avx.h">
+      <Filter>JUCE Modules\juce_dsp\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\native\juce_SIMDNativeOps_fallback.h">
+      <Filter>JUCE Modules\juce_dsp\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\native\juce_SIMDNativeOps_neon.h">
+      <Filter>JUCE Modules\juce_dsp\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\native\juce_SIMDNativeOps_sse.h">
+      <Filter>JUCE Modules\juce_dsp\native</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_BallisticsFilter.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_DelayLine.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_DryWetMixer.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_FIRFilter.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_FirstOrderTPTFilter.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_IIRFilter.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_IIRFilter_Impl.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_LinkwitzRileyFilter.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_Oversampling.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_Panner.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_ProcessContext.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_ProcessorChain.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_ProcessorDuplicator.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_ProcessorWrapper.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_StateVariableFilter.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\processors\juce_StateVariableTPTFilter.h">
+      <Filter>JUCE Modules\juce_dsp\processors</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Bias.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Chorus.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Compressor.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Gain.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_LadderFilter.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Limiter.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_NoiseGate.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Oscillator.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Phaser.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_Reverb.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\widgets\juce_WaveShaper.h">
+      <Filter>JUCE Modules\juce_dsp\widgets</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_dsp\juce_dsp.h">
+      <Filter>JUCE Modules\juce_dsp</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\..\..\JUCE\modules\juce_events\broadcasters\juce_ActionBroadcaster.h">
       <Filter>JUCE Modules\juce_events\broadcasters</Filter>
