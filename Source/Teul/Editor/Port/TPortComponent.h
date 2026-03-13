@@ -44,6 +44,8 @@ public:
   const std::vector<TPort> &getPortGroup() const noexcept { return portGroup; }
   bool containsPort(PortId portId) const noexcept;
   juce::Point<float> localAnchorForPort(PortId portId) const;
+  juce::Rectangle<float> visualBoundsForPort(PortId portId) const;
+  juce::Rectangle<float> visualBoundsForBundle() const;
   juce::String getDisplayName() const;
   HitResult hitTestLocal(juce::Point<float> point) const;
 

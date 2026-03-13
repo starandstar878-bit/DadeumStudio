@@ -89,7 +89,7 @@ public:
 
 private:
   static TeulThemeVariant &currentVariant() noexcept {
-    static TeulThemeVariant variant = TeulThemeVariant::studioDark;
+    static TeulThemeVariant variant = TeulThemeVariant::studioSlate;
     return variant;
   }
 

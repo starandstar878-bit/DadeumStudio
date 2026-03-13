@@ -262,6 +262,11 @@ private:
   juce::Point<float> portCentreInCanvas(NodeId nodeId, PortId portId) const;
   juce::Point<float> portCentreInCanvas(const TEndpoint &endpoint) const;
 
+  juce::Rectangle<float> canvasViewportBounds() const;
+  juce::Rectangle<float> endpointVisualBoundsInCanvas(const TEndpoint &endpoint) const;
+  juce::Rectangle<float> endpointBundleVisualBoundsInCanvas(const TEndpoint &endpoint) const;
+  bool isNodeEndpointVisibleInViewport(const TEndpoint &endpoint) const;
+  bool shouldRenderRailNodeConnection(const TConnection &connection) const;
   ConnectionId hitTestConnection(juce::Point<float> pointView,
                                  float hitThickness = 7.0f) const;
 

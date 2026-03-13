@@ -146,6 +146,29 @@ bool tryFindBundleCompanionIndex(const TGraphDocument &document,
   return false;
 }
 
+
+bool connectionHasBundleCompanion(const TGraphDocument &document,
+                                  const TConnection &connection) {
+  TEndpoint fromSibling;
+  TEndpoint toSibling;
+  if (!findStereoSiblingEndpoint(document, connection.from, fromSibling) ||
+      !findStereoSiblingEndpoint(document, connection.to, toSibling)) {
+    return false;
+  }
+
+  for (const auto &candidate : document.connections) {
+    if (candidate.connectionId == connection.connectionId)
+      continue;
+
+    if (endpointsEqual(candidate.from, fromSibling) &&
+        endpointsEqual(candidate.to, toSibling)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 juce::Point<float> midpoint(juce::Point<float> a, juce::Point<float> b) {
   return {(a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f};
 }
@@ -340,6 +363,66 @@ juce::Point<float> TGraphCanvas::portCentreInCanvas(const TEndpoint &endpoint) c
   return {};
 }
 
+
+juce::Rectangle<float> TGraphCanvas::canvasViewportBounds() const {
+  return getLocalBounds().toFloat();
+}
+
+juce::Rectangle<float>
+TGraphCanvas::endpointVisualBoundsInCanvas(const TEndpoint &endpoint) const {
+  if (!endpoint.isNodePort())
+    return {};
+
+  const auto *portComp = findPortComponent(endpoint.nodeId, endpoint.portId);
+  if (portComp == nullptr)
+    return {};
+
+  const auto localBounds = portComp->visualBoundsForPort(endpoint.portId);
+  if (localBounds.isEmpty())
+    return {};
+
+  return getLocalArea(portComp, localBounds.getSmallestIntegerContainer()).toFloat();
+}
+
+juce::Rectangle<float>
+TGraphCanvas::endpointBundleVisualBoundsInCanvas(const TEndpoint &endpoint) const {
+  if (!endpoint.isNodePort())
+    return {};
+
+  const auto *portComp = findPortComponent(endpoint.nodeId, endpoint.portId);
+  if (portComp == nullptr)
+    return {};
+
+  const auto localBounds = portComp->visualBoundsForBundle();
+  if (localBounds.isEmpty())
+    return {};
+
+  return getLocalArea(portComp, localBounds.getSmallestIntegerContainer()).toFloat();
+}
+
+bool TGraphCanvas::isNodeEndpointVisibleInViewport(const TEndpoint &endpoint) const {
+  const auto visualBounds = endpointVisualBoundsInCanvas(endpoint);
+  return !visualBounds.isEmpty() &&
+         visualBounds.intersects(canvasViewportBounds());
+}
+
+bool TGraphCanvas::shouldRenderRailNodeConnection(const TConnection &connection) const {
+  const bool railToNode = connection.from.isRailPort() && connection.to.isNodePort();
+  const bool nodeToRail = connection.from.isNodePort() && connection.to.isRailPort();
+  if (!railToNode && !nodeToRail)
+    return true;
+
+  const auto &nodeEndpoint = nodeToRail ? connection.from : connection.to;
+  const bool isBundle = dataTypeForEndpoint(connection.from) == TPortDataType::Audio &&
+                        dataTypeForEndpoint(connection.to) == TPortDataType::Audio &&
+                        connectionHasBundleCompanion(document, connection);
+  const auto visualBounds = isBundle
+                                ? endpointBundleVisualBoundsInCanvas(nodeEndpoint)
+                                : endpointVisualBoundsInCanvas(nodeEndpoint);
+  return !visualBounds.isEmpty() &&
+         visualBounds.intersects(canvasViewportBounds());
+}
+
 ConnectionId TGraphCanvas::hitTestConnection(juce::Point<float> pointView,
                                              float hitThickness) const {
   std::vector<bool> consumed(document.connections.size(), false);
@@ -356,6 +439,8 @@ ConnectionId TGraphCanvas::hitTestConnection(juce::Point<float> pointView,
                                     companionIndex)) {
       consumed[(size_t)index] = true;
       consumed[(size_t)companionIndex] = true;
+      if (!shouldRenderRailNodeConnection(connection))
+        continue;
 
       const auto &companion = document.connections[(size_t)companionIndex];
       const auto fromA = portCentreInCanvas(connection.from);
@@ -382,6 +467,8 @@ ConnectionId TGraphCanvas::hitTestConnection(juce::Point<float> pointView,
     }
 
     consumed[(size_t)index] = true;
+    if (!shouldRenderRailNodeConnection(connection))
+      continue;
     const auto fromPos = portCentreInCanvas(connection.from);
     const auto toPos = portCentreInCanvas(connection.to);
 
@@ -423,6 +510,8 @@ void TGraphCanvas::drawConnections(juce::Graphics &g) {
         continue;
 
       consumed[(size_t)companionIndex] = true;
+      if (!shouldRenderRailNodeConnection(conn))
+        continue;
       const auto &companion = document.connections[(size_t)companionIndex];
       const auto fromA = portCentreInCanvas(conn.from);
       const auto toA = portCentreInCanvas(conn.to);
@@ -498,6 +587,8 @@ void TGraphCanvas::drawConnections(juce::Graphics &g) {
     }
 
     consumed[index] = true;
+    if (!shouldRenderRailNodeConnection(conn))
+      continue;
     const auto fromPos = portCentreInCanvas(conn.from);
     const auto toPos = portCentreInCanvas(conn.to);
     if (fromPos.isOrigin() && toPos.isOrigin())

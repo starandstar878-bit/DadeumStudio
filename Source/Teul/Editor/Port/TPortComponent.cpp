@@ -136,6 +136,26 @@ juce::Point<float> TPortComponent::localAnchorForPort(PortId portId) const {
   return isBus() ? busOuterBounds().getCentre() : monoBounds().getCentre();
 }
 
+
+juce::Rectangle<float> TPortComponent::visualBoundsForPort(PortId portId) const {
+  if (!containsPort(portId))
+    return {};
+
+  if (!isBus())
+    return monoBounds();
+
+  const auto bounds = channelBounds();
+  for (size_t index = 0; index < portGroup.size() && index < bounds.size(); ++index) {
+    if (portGroup[index].portId == portId)
+      return bounds[index];
+  }
+
+  return {};
+}
+
+juce::Rectangle<float> TPortComponent::visualBoundsForBundle() const {
+  return isBus() ? busOuterBounds() : monoBounds();
+}
 void TPortComponent::setDragTargetHighlight(bool enabled, bool validType,
                                             PortId newHighlightedPortId,
                                             bool newHighlightBundle) {
