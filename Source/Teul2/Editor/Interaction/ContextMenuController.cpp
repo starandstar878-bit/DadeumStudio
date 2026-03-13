@@ -1,10 +1,9 @@
 #include "Teul2/Editor/Canvas/TGraphCanvas.h"
 
 #include "Teul2/Editor/Search/SearchController.h"
-#include "Teul/History/TCommands.h"
+#include "Teul2/Document/TDocumentHistory.h"
+#include "Teul2/Document/TDocumentStore.h"
 #include "Teul/Registry/TNodeRegistry.h"
-#include "Teul/Serialization/TPatchPresetIO.h"
-#include "Teul/Serialization/TStatePresetIO.h"
 
 #include <algorithm>
 #include <limits>
@@ -626,10 +625,10 @@ bool TGraphCanvas::replaceNode(NodeId nodeId,
     rebuilt.push_back(conn);
   }
 
-  document.executeCommand(std::make_unique<DeleteNodeCommand>(nodeId));
-  document.executeCommand(std::make_unique<AddNodeCommand>(next));
+  document.executeCommand(createDeleteNodeCommand(nodeId));
+  document.executeCommand(createAddNodeCommand(next));
   for (const auto &conn : rebuilt)
-    document.executeCommand(std::make_unique<AddConnectionCommand>(conn));
+    document.executeCommand(createAddConnectionCommand(conn));
 
   selectOnlyNode(next.nodeId);
   rebuildNodeComponents();

@@ -1,5 +1,7 @@
 #include "Teul2/Editor/Search/SearchController.h"
 
+#include "Teul2/Document/TDocumentHistory.h"
+
 #include <algorithm>
 #include <limits>
 #include <set>
@@ -309,6 +311,8 @@ void TGraphCanvas::rememberRecentNode(const juce::String &typeKey) {
 
 #include "Teul2/Editor/Search/SearchController.h"
 
+#include "Teul2/Document/TDocumentHistory.h"
+
 #include "Teul/History/TCommands.h"
 
 #include <algorithm>
@@ -493,7 +497,7 @@ bool TGraphCanvas::insertNodeOnConnection(ConnectionId connectionId,
   }
 
   for (const auto oldConnectionId : connectionsToReplace) {
-    document.executeCommand(std::make_unique<DeleteConnectionCommand>(oldConnectionId));
+    document.executeCommand(createDeleteConnectionCommand(oldConnectionId));
   }
 
   ConnectionId lastConnectionId = kInvalidConnectionId;
@@ -502,7 +506,7 @@ bool TGraphCanvas::insertNodeOnConnection(ConnectionId connectionId,
     left.connectionId = document.allocConnectionId();
     left.from = sourceEndpoints[index];
     left.to = TEndpoint::makeNodePort(insertedNodeId, inputPortIds[index]);
-    document.executeCommand(std::make_unique<AddConnectionCommand>(left));
+    document.executeCommand(createAddConnectionCommand(left));
     lastConnectionId = left.connectionId;
   }
 
@@ -511,7 +515,7 @@ bool TGraphCanvas::insertNodeOnConnection(ConnectionId connectionId,
     right.connectionId = document.allocConnectionId();
     right.from = TEndpoint::makeNodePort(insertedNodeId, outputPortIds[index]);
     right.to = targetEndpoints[index];
-    document.executeCommand(std::make_unique<AddConnectionCommand>(right));
+    document.executeCommand(createAddConnectionCommand(right));
     lastConnectionId = right.connectionId;
   }
 
@@ -560,7 +564,7 @@ bool TGraphCanvas::addNodeByTypeAtView(const juce::String &typeKey,
     }
   }
 
-  document.executeCommand(std::make_unique<AddNodeCommand>(node));
+  document.executeCommand(createAddNodeCommand(node));
   rememberRecentNode(desc->typeKey);
 
   if (tryInsertOnWire) {
@@ -638,6 +642,8 @@ void TGraphCanvas::showQuickAddPrompt(juce::Point<float> pointView) {
 
 #include "Teul2/Editor/Search/SearchController.h"
 
+#include "Teul2/Document/TDocumentHistory.h"
+
 #include <algorithm>
 
 namespace Teul {
@@ -710,6 +716,8 @@ void TGraphCanvas::showNodeSearchOverlay() {
 } // namespace Teul
 
 #include "Teul2/Editor/Search/SearchController.h"
+
+#include "Teul2/Document/TDocumentHistory.h"
 
 #include <algorithm>
 

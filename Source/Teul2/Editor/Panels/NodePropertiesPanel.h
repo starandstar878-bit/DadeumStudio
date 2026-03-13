@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Teul/Bridge/ITeulParamProvider.h"
 #include "Teul2/Editor/TTeulEditor.h"
 #include "Teul/Registry/TNodeRegistry.h"
 

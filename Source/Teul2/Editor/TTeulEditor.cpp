@@ -358,9 +358,7 @@ std::unique_ptr<TTeulEditor> createTeulEditor(
 #include "Teul2/Editor/Panels/NodePropertiesPanel.h"
 #include "Teul2/Editor/Panels/PresetBrowserPanel.h"
 #include "Teul/Registry/TNodeRegistry.h"
-#include "Teul/History/TCommands.h"
-#include "Teul/Serialization/TFileIo.h"
-#include "Teul/Serialization/TStatePresetIO.h"
+#include "Teul2/Document/TDocumentStore.h"
 
 #include <algorithm>
 

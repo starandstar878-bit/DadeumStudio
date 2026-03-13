@@ -3,7 +3,7 @@
 #include "Teul2/Editor/Search/SearchController.h"
 #include "Teul2/Editor/Renderers/TNodeRenderer.h"
 #include "Teul2/Editor/Renderers/TPortRenderer.h"
-#include "Teul/History/TCommands.h"
+#include "Teul2/Document/TDocumentHistory.h"
 
 namespace Teul {
 namespace {
@@ -746,7 +746,7 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
       conn.connectionId = document.allocConnectionId();
       conn.from = froms[index];
       conn.to = tos[index];
-      document.executeCommand(std::make_unique<AddConnectionCommand>(conn));
+      document.executeCommand(createAddConnectionCommand(conn));
       selectedConnectionId = conn.connectionId;
     }
   };
@@ -838,7 +838,7 @@ void TGraphCanvas::tryCreateConnectionFromDrag() {
   conn.to = TEndpoint::makeNodePort(wireDragState.targetNodeId,
                                     wireDragState.targetPortId);
 
-  document.executeCommand(std::make_unique<AddConnectionCommand>(conn));
+  document.executeCommand(createAddConnectionCommand(conn));
   selectedConnectionId = conn.connectionId;
 }
 
@@ -957,8 +957,7 @@ void TGraphCanvas::deleteConnectionWithAnimation(ConnectionId connectionId,
 
   startDisconnectAnimation(anchorPos, breakPointView, impulseView, sourceType);
 
-  document.executeCommand(
-      std::make_unique<DeleteConnectionCommand>(connectionId));
+  document.executeCommand(createDeleteConnectionCommand(connectionId));
 
   if (selectedConnectionId == connectionId)
     selectedConnectionId = kInvalidConnectionId;

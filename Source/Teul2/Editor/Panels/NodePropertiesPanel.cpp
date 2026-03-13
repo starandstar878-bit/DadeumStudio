@@ -1,7 +1,7 @@
 #include "Teul2/Editor/Panels/NodePropertiesPanel.h"
 
 #include "Teul2/Editor/TIssueState.h"
-#include "Teul/History/TCommands.h"
+#include "Teul2/Document/TDocumentHistory.h"
 #include "Teul2/Document/TTeulDocument.h"
 #include "Teul2/Editor/Canvas/TGraphCanvas.h"
 #include "Teul2/Editor/Theme/TeulPalette.h"
@@ -2040,7 +2040,7 @@ private:
       if (varEquals(currentValue, nextValue))
         continue;
 
-      document.executeCommand(std::make_unique<SetParamCommand>(
+      document.executeCommand(createSetParamCommand(
           inspectedNodeId, entry->spec.key, currentValue, nextValue));
       if (paramProvider != nullptr && entry->spec.exposeToIeum)
         paramProvider->setParam(entry->paramId, nextValue);

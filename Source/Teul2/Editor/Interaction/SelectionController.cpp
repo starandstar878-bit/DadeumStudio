@@ -1,7 +1,7 @@
 #include "Teul2/Editor/Canvas/TGraphCanvas.h"
 
 #include "Teul2/Editor/Renderers/TNodeRenderer.h"
-#include "Teul/History/TCommands.h"
+#include "Teul2/Document/TDocumentHistory.h"
 #include "Teul/Registry/TNodeRegistry.h"
 
 #include <algorithm>
@@ -178,7 +178,7 @@ void TGraphCanvas::duplicateSelection() {
 
     newNodeByOld[oldNodeId] = copy.nodeId;
     newSelection.push_back(copy.nodeId);
-    document.executeCommand(std::make_unique<AddNodeCommand>(copy));
+    document.executeCommand(createAddNodeCommand(copy));
   }
 
   const std::vector<TConnection> existingConnections = document.connections;
@@ -202,7 +202,7 @@ void TGraphCanvas::duplicateSelection() {
     copyConn.connectionId = document.allocConnectionId();
     copyConn.from = {fromNodeIt->second, fromPortIt->second};
     copyConn.to = {toNodeIt->second, toPortIt->second};
-    document.executeCommand(std::make_unique<AddConnectionCommand>(copyConn));
+    document.executeCommand(createAddConnectionCommand(copyConn));
   }
 
   selectedNodeIds = std::move(newSelection);
@@ -264,7 +264,7 @@ void TGraphCanvas::deleteNodes(const std::vector<NodeId> &targets) {
   clearNodeSelection();
 
   for (const NodeId id : targets)
-    document.executeCommand(std::make_unique<DeleteNodeCommand>(id));
+    document.executeCommand(createDeleteNodeCommand(id));
 
   selectedConnectionId = kInvalidConnectionId;
   rebuildNodeComponents();
@@ -395,7 +395,7 @@ void TGraphCanvas::disconnectSelectionWithPrompt() {
     return;
 
   for (const ConnectionId id : toDelete)
-    document.executeCommand(std::make_unique<DeleteConnectionCommand>(id));
+    document.executeCommand(createDeleteConnectionCommand(id));
 
   selectedConnectionId = kInvalidConnectionId;
   pushStatusHint("Disconnected selection. Undo: Ctrl+Z");
