@@ -4,7 +4,6 @@
 #include "Teul2/Editor/Renderers/TNodeRenderer.h"
 #include "Teul2/Editor/Renderers/TPortRenderer.h"
 #include "Teul2/Editor/Theme/TeulPalette.h"
-#include "Teul/History/TCommands.h"
 #include "Teul/Registry/TNodeRegistry.h"
 
 #include <algorithm>

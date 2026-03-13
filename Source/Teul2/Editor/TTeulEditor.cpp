@@ -1,7 +1,7 @@
 
 #include "Teul2/Editor/TTeulEditor.h"
 #include "Teul2/Document/TTeulDocument.h"
-#include "Teul/Runtime/TGraphRuntime.h"
+#include "Teul2/Runtime/TTeulRuntime.h"
 
 #include <memory>
 #include <vector>
@@ -145,7 +145,7 @@ private:
   TTeulEditor &owner;
   TTeulDocument doc;
   std::unique_ptr<TNodeRegistry> registryStore;
-  TGraphRuntime runtime;
+  TTeulRuntime runtime;
   std::unique_ptr<TGraphCanvas> canvas;
   std::unique_ptr<juce::Component> canvasOverlayLayer;
   std::unique_ptr<NodeLibraryPanel> libraryPanel;
@@ -186,7 +186,7 @@ private:
   std::int64_t lastSessionAutosaveMillis = 0;
   juce::String lastSessionControlSummary;
   TEditorSessionStatus sessionStatus;
-  TGraphRuntime::RuntimeStats lastRuntimeStats;
+  TTeulRuntime::RuntimeStats lastRuntimeStats;
   juce::String runtimeMessageText;
   juce::Colour runtimeMessageAccent = juce::Colour(0xff60a5fa);
   int runtimeMessageTicksRemaining = 0;
@@ -3301,7 +3301,7 @@ private:
 };
 class RuntimeStatusStrip : public juce::Component {
 public:
-  void setStats(const TGraphRuntime::RuntimeStats &newStats) {
+  void setStats(const TTeulRuntime::RuntimeStats &newStats) {
     stats = newStats;
     repaint();
   }
@@ -3508,7 +3508,7 @@ private:
                false);
   }
 
-  TGraphRuntime::RuntimeStats stats;
+  TTeulRuntime::RuntimeStats stats;
   TEditorSessionStatus sessionStatus;
   bool dirty = false;
   juce::String transientMessage;

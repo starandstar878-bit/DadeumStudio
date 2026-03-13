@@ -2,9 +2,10 @@
 
 #include "Teul2/Editor/Canvas/TGraphCanvas.h"
 #include "Teul2/Editor/Theme/TeulPalette.h"
-#include "Teul/Registry/TNodeRegistry.h"
 
 namespace Teul {
+
+class TNodeRegistry;
 
 const TNodeRegistry *getSharedRegistry();
 juce::String nodeLabelForUi(const TNode &node, const TNodeRegistry *registry);

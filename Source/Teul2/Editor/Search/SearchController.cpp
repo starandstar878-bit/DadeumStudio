@@ -1,6 +1,7 @@
 #include "Teul2/Editor/Search/SearchController.h"
 
 #include "Teul2/Document/TDocumentHistory.h"
+#include "Teul/Registry/TNodeRegistry.h"
 
 #include <algorithm>
 #include <limits>
@@ -308,16 +309,6 @@ void TGraphCanvas::rememberRecentNode(const juce::String &typeKey) {
 }
 
 } // namespace Teul
-
-#include "Teul2/Editor/Search/SearchController.h"
-
-#include "Teul2/Document/TDocumentHistory.h"
-
-#include "Teul/History/TCommands.h"
-
-#include <algorithm>
-#include <limits>
-#include <set>
 
 namespace Teul {
 namespace {
@@ -640,12 +631,6 @@ void TGraphCanvas::showQuickAddPrompt(juce::Point<float> pointView) {
 
 } // namespace Teul
 
-#include "Teul2/Editor/Search/SearchController.h"
-
-#include "Teul2/Document/TDocumentHistory.h"
-
-#include <algorithm>
-
 namespace Teul {
 
 void TGraphCanvas::showNodeSearchOverlay() {
@@ -714,12 +699,6 @@ void TGraphCanvas::showNodeSearchOverlay() {
 }
 
 } // namespace Teul
-
-#include "Teul2/Editor/Search/SearchController.h"
-
-#include "Teul2/Document/TDocumentHistory.h"
-
-#include <algorithm>
 
 namespace Teul {
 

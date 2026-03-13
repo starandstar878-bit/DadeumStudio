@@ -1,15 +1,17 @@
 #pragma once
 
 #include "Teul2/Document/TDocumentTypes.h"
-#include "Teul/Registry/TNodeRegistry.h"
 #include "Teul2/Editor/Renderers/TPortRenderer.h"
+
 #include <JuceHeader.h>
+#include <functional>
 #include <memory>
 #include <vector>
 
 namespace Teul {
 
 class TGraphCanvas;
+struct TNodeDescriptor;
 
 class TNodeComponent : public juce::Component {
 public:
@@ -81,17 +83,6 @@ private:
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TNodeComponent)
 };
-
-} // namespace Teul
-
-#include "Teul2/Document/TDocumentTypes.h"
-#include "Teul/Registry/TNodeRegistry.h"
-
-#include <JuceHeader.h>
-
-#include <functional>
-
-namespace Teul {
 
 using PortLevelReader = std::function<float(PortId)>;
 

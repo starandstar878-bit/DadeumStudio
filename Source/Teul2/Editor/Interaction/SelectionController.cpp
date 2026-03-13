@@ -2,7 +2,6 @@
 
 #include "Teul2/Editor/Renderers/TNodeRenderer.h"
 #include "Teul2/Document/TDocumentHistory.h"
-#include "Teul/Registry/TNodeRegistry.h"
 
 #include <algorithm>
 #include <set>
@@ -418,10 +417,6 @@ void TGraphCanvas::toggleBypassSelection() {
 
 } // namespace Teul
 
-#include "Teul2/Editor/Canvas/TGraphCanvas.h"
-
-#include <algorithm>
-
 namespace Teul {
 
 void TGraphCanvas::alignSelectionLeft() {
@@ -535,11 +530,6 @@ void TGraphCanvas::distributeSelectionVertically() {
 }
 
 } // namespace Teul
-
-#include "Teul2/Editor/Canvas/TGraphCanvas.h"
-
-#include "Teul2/Editor/Renderers/TNodeRenderer.h"
-#include "Teul/History/TCommands.h"
 
 namespace Teul {
 
