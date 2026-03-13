@@ -1,8 +1,8 @@
 #include "Teul2/Editor/Canvas/TGraphCanvas.h"
 
 #include "Teul2/Editor/Search/SearchController.h"
-#include "Teul/Editor/Node/TNodeComponent.h"
-#include "Teul/Editor/Port/TPortComponent.h"
+#include "Teul2/Editor/Renderers/TNodeRenderer.h"
+#include "Teul2/Editor/Renderers/TPortRenderer.h"
 #include "Teul/History/TCommands.h"
 
 namespace Teul {

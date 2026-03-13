@@ -356,8 +356,8 @@ std::unique_ptr<TTeulEditor> createTeulEditor(
 
 #include "Teul2/Editor/TIssueState.h"
 #include "Teul2/Editor/Canvas/TGraphCanvas.h"
-#include "Teul/Editor/Port/TPortShapeLayout.h"
-#include "Teul/Editor/Port/TPortVisuals.h"
+#include "Teul2/Editor/Renderers/TPortRenderer.h"
+#include "Teul2/Editor/Renderers/TPortRenderer.h"
 #include "Teul2/Editor/Theme/TeulPalette.h"
 #include "Teul2/Editor/Panels/DiagnosticsDrawer.h"
 #include "Teul2/Editor/Panels/NodeLibraryPanel.h"
