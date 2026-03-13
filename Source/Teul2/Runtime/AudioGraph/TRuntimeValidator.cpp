@@ -706,3 +706,268 @@ bool compareWithGolden(const TRuntimeValidationRenderResult &renderResult,
   }
   return reportOut.passed;
 }
+bool isFiniteRuntimeStats(const TTeulRuntime::RuntimeStats &stats) {
+  return std::isfinite(stats.sampleRate) && std::isfinite(stats.cpuLoadPercent) &&
+         std::isfinite(stats.lastBuildMilliseconds) &&
+         std::isfinite(stats.maxBuildMilliseconds) &&
+         std::isfinite(stats.lastProcessMilliseconds) &&
+         std::isfinite(stats.maxProcessMilliseconds);
+}
+
+TTeulRuntime::RuntimeStats
+maxRuntimeStats(const TTeulRuntime::RuntimeStats &lhs,
+                const TTeulRuntime::RuntimeStats &rhs) {
+  TTeulRuntime::RuntimeStats result = lhs;
+  result.sampleRate = rhs.sampleRate;
+  result.preparedBlockSize = juce::jmax(lhs.preparedBlockSize, rhs.preparedBlockSize);
+  result.lastInputChannels = juce::jmax(lhs.lastInputChannels, rhs.lastInputChannels);
+  result.lastOutputChannels = juce::jmax(lhs.lastOutputChannels, rhs.lastOutputChannels);
+  result.activeNodeCount = juce::jmax(lhs.activeNodeCount, rhs.activeNodeCount);
+  result.allocatedPortChannels =
+      juce::jmax(lhs.allocatedPortChannels, rhs.allocatedPortChannels);
+  result.largestBlockSeen = juce::jmax(lhs.largestBlockSeen, rhs.largestBlockSeen);
+  result.largestOutputChannelCountSeen = juce::jmax(
+      lhs.largestOutputChannelCountSeen, rhs.largestOutputChannelCountSeen);
+  result.smoothingActiveCount =
+      juce::jmax(lhs.smoothingActiveCount, rhs.smoothingActiveCount);
+  result.processBlockCount = juce::jmax(lhs.processBlockCount, rhs.processBlockCount);
+  result.rebuildRequestCount =
+      juce::jmax(lhs.rebuildRequestCount, rhs.rebuildRequestCount);
+  result.rebuildCommitCount =
+      juce::jmax(lhs.rebuildCommitCount, rhs.rebuildCommitCount);
+  result.paramChangeCount = juce::jmax(lhs.paramChangeCount, rhs.paramChangeCount);
+  result.droppedParamChangeCount =
+      juce::jmax(lhs.droppedParamChangeCount, rhs.droppedParamChangeCount);
+  result.droppedParamNotificationCount = juce::jmax(
+      lhs.droppedParamNotificationCount, rhs.droppedParamNotificationCount);
+  result.activeGeneration = juce::jmax(lhs.activeGeneration, rhs.activeGeneration);
+  result.pendingGeneration = juce::jmax(lhs.pendingGeneration, rhs.pendingGeneration);
+  result.rebuildPending = lhs.rebuildPending || rhs.rebuildPending;
+  result.clipDetected = lhs.clipDetected || rhs.clipDetected;
+  result.denormalDetected = lhs.denormalDetected || rhs.denormalDetected;
+  result.xrunDetected = lhs.xrunDetected || rhs.xrunDetected;
+  result.mutedFallbackActive = lhs.mutedFallbackActive || rhs.mutedFallbackActive;
+  result.cpuLoadPercent = juce::jmax(lhs.cpuLoadPercent, rhs.cpuLoadPercent);
+  result.lastBuildMilliseconds =
+      juce::jmax(lhs.lastBuildMilliseconds, rhs.lastBuildMilliseconds);
+  result.maxBuildMilliseconds =
+      juce::jmax(lhs.maxBuildMilliseconds, rhs.maxBuildMilliseconds);
+  result.lastProcessMilliseconds =
+      juce::jmax(lhs.lastProcessMilliseconds, rhs.lastProcessMilliseconds);
+  result.maxProcessMilliseconds =
+      juce::jmax(lhs.maxProcessMilliseconds, rhs.maxProcessMilliseconds);
+  return result;
+}
+
+juce::File makeStressSuiteArtifactDirectory(const juce::String &suiteId) {
+  return juce::File::getCurrentWorkingDirectory()
+      .getChildFile("Builds")
+      .getChildFile("TeulVerification")
+      .getChildFile("StressSoak")
+      .getChildFile(sanitizePathFragment(suiteId));
+}
+
+juce::File makeStressCaseArtifactDirectory(
+    const juce::File &suiteDirectory,
+    const TRuntimeValidationGraphFixture &fixture,
+    const TRuntimeValidationRenderProfile &profile,
+    const TRuntimeValidationStimulusSpec &stimulus) {
+  return suiteDirectory.getChildFile(sanitizePathFragment(fixture.fixtureId) + "_" +
+                                     sanitizePathFragment(stimulus.stimulusId) + "_" +
+                                     sanitizePathFragment(profile.profileId));
+}
+
+juce::String buildStressCaseSummaryText(
+    const TRuntimeValidationStressCaseReport &report) {
+  juce::String summary;
+  summary << "graphId=" << report.graphId << "\r\n";
+  summary << "stimulusId=" << report.stimulusId << "\r\n";
+  summary << "profileId=" << report.profileId << "\r\n";
+  summary << "passed=" << (report.passed ? "true" : "false") << "\r\n";
+  summary << "iterationCount=" << report.iterationCount << "\r\n";
+  summary << "totalRenderedSamples=" << report.totalRenderedSamples << "\r\n";
+  summary << "totalRenderedBlocks=" << report.totalRenderedBlocks << "\r\n";
+  summary << "artifactDirectory=" << report.artifactDirectory << "\r\n";
+  summary << "worstCpuLoadPercent="
+          << juce::String(report.worstRuntimeStats.cpuLoadPercent, 6) << "\r\n";
+  summary << "worstMaxProcessMilliseconds="
+          << juce::String(report.worstRuntimeStats.maxProcessMilliseconds, 6)
+          << "\r\n";
+  summary << "xrunDetected="
+          << (report.worstRuntimeStats.xrunDetected ? "true" : "false")
+          << "\r\n";
+  summary << "clipDetected="
+          << (report.worstRuntimeStats.clipDetected ? "true" : "false")
+          << "\r\n";
+  summary << "denormalDetected="
+          << (report.worstRuntimeStats.denormalDetected ? "true" : "false")
+          << "\r\n";
+  summary << "mutedFallbackActive="
+          << (report.worstRuntimeStats.mutedFallbackActive ? "true" : "false")
+          << "\r\n";
+  if (report.failureReason.isNotEmpty())
+    summary << "failureReason=" << report.failureReason << "\r\n";
+  return summary;
+}
+
+juce::var makeStressCaseArtifactBundle(
+    const juce::File &artifactDirectory,
+    const TRuntimeValidationStressCaseReport &report) {
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("stressCaseSummary", artifactDirectory,
+                                  artifactDirectory.getChildFile("case-summary.txt")));
+
+  auto *root = new juce::DynamicObject();
+  root->setProperty("kind", "teul-verification-artifact-bundle");
+  root->setProperty("scope", "stress-case");
+  root->setProperty("graphId", report.graphId);
+  root->setProperty("stimulusId", report.stimulusId);
+  root->setProperty("profileId", report.profileId);
+  root->setProperty("passed", report.passed);
+  root->setProperty("iterationCount", report.iterationCount);
+  root->setProperty("totalRenderedSamples", report.totalRenderedSamples);
+  root->setProperty("totalRenderedBlocks", report.totalRenderedBlocks);
+  root->setProperty("artifactDirectory", artifactDirectory.getFullPathName());
+  root->setProperty("worstCpuLoadPercent", report.worstRuntimeStats.cpuLoadPercent);
+  root->setProperty("worstMaxProcessMilliseconds",
+                    report.worstRuntimeStats.maxProcessMilliseconds);
+  root->setProperty("xrunDetected", report.worstRuntimeStats.xrunDetected);
+  root->setProperty("clipDetected", report.worstRuntimeStats.clipDetected);
+  root->setProperty("denormalDetected", report.worstRuntimeStats.denormalDetected);
+  root->setProperty("mutedFallbackActive",
+                    report.worstRuntimeStats.mutedFallbackActive);
+  if (report.failureReason.isNotEmpty())
+    root->setProperty("failureReason", report.failureReason);
+  root->setProperty("files", juce::var(files));
+  return juce::var(root);
+}
+
+void finalizeStressCaseArtifacts(
+    const juce::File &artifactDirectory,
+    const TRuntimeValidationStressCaseReport &report) {
+  juce::ignoreUnused(artifactDirectory.createDirectory());
+  juce::ignoreUnused(writeTextArtifact(
+      artifactDirectory.getChildFile("case-summary.txt"),
+      buildStressCaseSummaryText(report)));
+  juce::ignoreUnused(writeJsonArtifact(
+      artifactDirectory.getChildFile("artifact-bundle.json"),
+      makeStressCaseArtifactBundle(artifactDirectory, report)));
+}
+
+juce::String buildStressSuiteSummaryText(
+    const TRuntimeValidationStressSuiteReport &report) {
+  juce::String summary;
+  summary << "suiteId=" << report.suiteId << "\r\n";
+  summary << "passed=" << (report.passed ? "true" : "false") << "\r\n";
+  summary << "iterationCount=" << report.iterationCount << "\r\n";
+  summary << "artifactDirectory=" << report.artifactDirectory << "\r\n";
+  summary << "totalCaseCount=" << report.totalCaseCount << "\r\n";
+  summary << "passedCaseCount=" << report.passedCaseCount << "\r\n";
+  summary << "failedCaseCount=" << report.failedCaseCount << "\r\n\r\n";
+  for (const auto &caseReport : report.caseReports) {
+    summary << "case=" << caseReport.graphId << "/" << caseReport.stimulusId
+            << "/" << caseReport.profileId << "\r\n";
+    summary << "passed=" << (caseReport.passed ? "true" : "false")
+            << "\r\n";
+    summary << "artifactDirectory=" << caseReport.artifactDirectory << "\r\n";
+    summary << "iterationCount=" << caseReport.iterationCount << "\r\n";
+    summary << "totalRenderedSamples=" << caseReport.totalRenderedSamples
+            << "\r\n";
+    summary << "totalRenderedBlocks=" << caseReport.totalRenderedBlocks
+            << "\r\n";
+    summary << "worstCpuLoadPercent="
+            << juce::String(caseReport.worstRuntimeStats.cpuLoadPercent, 6)
+            << "\r\n";
+    summary << "worstMaxProcessMilliseconds="
+            << juce::String(caseReport.worstRuntimeStats.maxProcessMilliseconds, 6)
+            << "\r\n";
+    if (caseReport.failureReason.isNotEmpty())
+      summary << "failureReason=" << caseReport.failureReason << "\r\n";
+    summary << "\r\n";
+  }
+  return summary;
+}
+
+juce::var makeStressSuiteArtifactBundle(
+    const juce::File &artifactDirectory,
+    const TRuntimeValidationStressSuiteReport &report) {
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("stressSummary", artifactDirectory,
+                                  artifactDirectory.getChildFile("stress-summary.txt")));
+
+  juce::Array<juce::var> cases;
+  for (const auto &caseReport : report.caseReports) {
+    auto *entry = new juce::DynamicObject();
+    entry->setProperty("graphId", caseReport.graphId);
+    entry->setProperty("stimulusId", caseReport.stimulusId);
+    entry->setProperty("profileId", caseReport.profileId);
+    entry->setProperty("passed", caseReport.passed);
+    entry->setProperty("iterationCount", caseReport.iterationCount);
+    entry->setProperty("artifactDirectory", caseReport.artifactDirectory);
+    if (caseReport.artifactDirectory.isNotEmpty()) {
+      const auto caseDir = juce::File(caseReport.artifactDirectory);
+      entry->setProperty("relativeArtifactDirectory",
+                         relativeArtifactPath(artifactDirectory, caseDir));
+      entry->setProperty(
+          "bundleRelativePath",
+          relativeArtifactPath(
+              artifactDirectory,
+              caseDir.getChildFile("artifact-bundle.json")));
+    }
+    if (caseReport.failureReason.isNotEmpty())
+      entry->setProperty("failureReason", caseReport.failureReason);
+    cases.add(juce::var(entry));
+  }
+
+  auto *root = new juce::DynamicObject();
+  root->setProperty("kind", "teul-verification-artifact-bundle");
+  root->setProperty("scope", "stress-suite");
+  root->setProperty("suiteId", report.suiteId);
+  root->setProperty("passed", report.passed);
+  root->setProperty("iterationCount", report.iterationCount);
+  root->setProperty("artifactDirectory", artifactDirectory.getFullPathName());
+  root->setProperty("totalCaseCount", report.totalCaseCount);
+  root->setProperty("passedCaseCount", report.passedCaseCount);
+  root->setProperty("failedCaseCount", report.failedCaseCount);
+  root->setProperty("files", juce::var(files));
+  root->setProperty("cases", juce::var(cases));
+  return juce::var(root);
+}
+
+void finalizeStressSuiteArtifacts(
+    const juce::File &artifactDirectory,
+    const TRuntimeValidationStressSuiteReport &report) {
+  juce::ignoreUnused(artifactDirectory.createDirectory());
+  juce::ignoreUnused(writeTextArtifact(
+      artifactDirectory.getChildFile("stress-summary.txt"),
+      buildStressSuiteSummaryText(report)));
+  juce::ignoreUnused(writeJsonArtifact(
+      artifactDirectory.getChildFile("artifact-bundle.json"),
+      makeStressSuiteArtifactBundle(artifactDirectory, report)));
+}
+
+juce::File makeBenchmarkSuiteArtifactDirectory(const juce::String &suiteId) {
+  return juce::File::getCurrentWorkingDirectory()
+      .getChildFile("Builds")
+      .getChildFile("TeulVerification")
+      .getChildFile("Benchmark")
+      .getChildFile(sanitizePathFragment(suiteId));
+}
+
+juce::File makeBenchmarkCaseArtifactDirectory(
+    const juce::File &suiteDirectory,
+    const TRuntimeValidationGraphFixture &fixture,
+    const TRuntimeValidationRenderProfile &profile,
+    const TRuntimeValidationStimulusSpec &stimulus) {
+  return suiteDirectory.getChildFile(sanitizePathFragment(fixture.fixtureId) + "_" +
+                                     sanitizePathFragment(stimulus.stimulusId) + "_" +
+                                     sanitizePathFragment(profile.profileId));
+}
+
+juce::File makeBenchmarkSuiteHistoryFile(const juce::String &suiteId) {
+  return juce::File::getCurrentWorkingDirectory()
+      .getChildFile("Builds")
+      .getChildFile("TeulVerification")
+      .getChildFile("Benchmark")
+      .getChildFile(sanitizePathFragment(suiteId) + "-history.json");
+}

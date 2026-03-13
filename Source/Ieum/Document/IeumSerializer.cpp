@@ -50,7 +50,7 @@ juce::var IeumSerializer::toJson(const IeumDocument& doc)
     juce::DynamicObject::Ptr obj = new juce::DynamicObject();
     obj->setProperty("schemaVersion", currentSchemaVersion());
     
-    juce::Array bindingsArray;
+    juce::Array<juce::var> bindingsArray;
     for (const auto& b : doc.bindings)
         bindingsArray.add(bindingToJson(b));
         
