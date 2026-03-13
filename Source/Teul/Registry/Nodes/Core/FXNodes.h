@@ -19,10 +19,8 @@ public:
                        {"damping", "Damping", 0.5f},
                        {"width", "Width", 1.0f},
                        {"mix", "Mix", 0.3f}};
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In"},
-                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
-                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, 2, {"L In", "R In"}),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, 2, {"L Out", "R Out"})};
     return desc;
   }
 };
@@ -43,10 +41,8 @@ public:
     desc.paramSpecs = {{"time", "Time (ms)", 250.0f},
                        {"feedback", "Feedback", 0.3f},
                        {"mix", "Mix", 0.5f}};
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In"},
-                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
-                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, 2, {"L In", "R In"}),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, 2, {"L Out", "R Out"})};
     return desc;
   }
 };

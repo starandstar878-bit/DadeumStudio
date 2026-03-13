@@ -20,6 +20,8 @@ struct TProcessContext {
   const juce::AudioBuffer<float> *inputAudioBuffer = nullptr;
   juce::AudioBuffer<float> *deviceAudioBuffer = nullptr;
   juce::MidiBuffer *midiMessages = nullptr;
+  const juce::MidiBuffer *deviceMidiMessages = nullptr;
+  juce::MidiBuffer *midiOutputMessages = nullptr;
   const std::map<PortId, int> *portToChannel = nullptr;
   const TNode *nodeData = nullptr;
   TParamValueReporter *paramValueReporter = nullptr;

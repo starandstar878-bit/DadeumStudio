@@ -93,10 +93,57 @@ inline TParamSpec makeEnumParamSpec(const juce::String &key,
 struct TPortSpec {
   TPortDirection direction;
   TPortDataType dataType;
-  juce::String name;
+  juce::String name; // 포트 기본 명칭
+  
+  int channelCount = 1; // 1: Mono, 2 이상: 다중 채널
+  std::vector<juce::String> channelNames; // 다중 채널 시 각 채널에 대응할 세부 명칭
+
   int maxIncomingConnections = 1;
   int maxOutgoingConnections = -1;
 };
+
+// 1) 기본 Mono 포트 생성
+inline TPortSpec makePortSpec(TPortDirection direction, TPortDataType dataType,
+                              const juce::String &name) {
+  TPortSpec spec;
+  spec.direction = direction;
+  spec.dataType = dataType;
+  spec.name = name;
+  spec.channelCount = 1;
+  return spec;
+}
+
+// 2) 다중 채널 포트 생성 (접두사 기반으로 "이름 1", "이름 2" 자동 생성)
+inline TPortSpec makePortSpec(TPortDirection direction, TPortDataType dataType,
+                              int channelCount, const juce::String &baseName) {
+  TPortSpec spec;
+  spec.direction = direction;
+  spec.dataType = dataType;
+  spec.name = baseName;
+  spec.channelCount = juce::jmax(1, channelCount); // 최소 1
+  for (int i = 0; i < spec.channelCount; ++i) {
+    spec.channelNames.push_back(baseName + " " + juce::String(i + 1));
+  }
+  return spec;
+}
+
+// 3) 다중 채널 포트 생성 (명시적으로 각 채널별 이름을 {"L", "R"} 등으로 넘김)
+inline TPortSpec makePortSpec(TPortDirection direction, TPortDataType dataType,
+                              int channelCount, std::vector<juce::String> targetNames) {
+  TPortSpec spec;
+  spec.direction = direction;
+  spec.dataType = dataType;
+  // 이름이 제공되지 않았을 땐 기본적으로 "Bus"라고 이름 붙임
+  spec.name = targetNames.empty() ? "Bus" : targetNames.front();
+  spec.channelCount = juce::jmax(1, channelCount);
+  spec.channelNames = std::move(targetNames);
+  
+  // 이름 배열이 갯수보다 모자라면 번호를 매겨서 채움
+  while ((int)spec.channelNames.size() < spec.channelCount) {
+     spec.channelNames.push_back(spec.name + " " + juce::String(spec.channelNames.size() + 1));
+  }
+  return spec;
+}
 
 struct TNodeCapabilities {
   bool canBypass = true;

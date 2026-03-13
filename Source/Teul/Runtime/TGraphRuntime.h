@@ -95,6 +95,8 @@ private:
     std::unique_ptr<TNodeInstance> instance;
     std::vector<MixOp> preProcessMixes;
     std::map<PortId, int> portChannels;
+    std::map<PortId, juce::MidiBuffer> midiInputBuffers;
+    std::map<PortId, juce::MidiBuffer> midiOutputBuffers;
   };
 
   struct PortTelemetry {
@@ -120,6 +122,27 @@ private:
     TPortDataType dataType = TPortDataType::Audio;
   };
 
+  struct RailMidiInputTarget {
+    juce::String endpointId;
+    juce::String portId;
+    std::size_t targetNodeIndex = 0;
+    PortId targetPortId = kInvalidPortId;
+  };
+
+  struct RailMidiOutputTarget {
+    juce::String endpointId;
+    juce::String portId;
+    std::size_t sourceNodeIndex = 0;
+    PortId sourcePortId = kInvalidPortId;
+  };
+
+  struct MidiRoute {
+    std::size_t sourceNodeIndex = 0;
+    PortId sourcePortId = kInvalidPortId;
+    std::size_t targetNodeIndex = 0;
+    PortId targetPortId = kInvalidPortId;
+  };
+
   struct ParamDispatch {
     NodeId nodeId = kInvalidNodeId;
     TNodeInstance *instance = nullptr;
@@ -140,6 +163,9 @@ private:
     std::unique_ptr<std::atomic<float>[]> portLevels;
     std::vector<RailInputSource> railInputSources;
     std::vector<RailOutputTarget> railOutputTargets;
+    std::vector<RailMidiInputTarget> railMidiInputTargets;
+    std::vector<RailMidiOutputTarget> railMidiOutputTargets;
+    std::vector<MidiRoute> midiRoutes;
     std::vector<ParamDispatch> paramDispatches;
     std::uint64_t generation = 0;
     int totalAllocatedChannels = 0;
@@ -280,6 +306,7 @@ private:
   std::atomic<bool> mutedFallbackActive{false};
 
   juce::MidiBuffer deviceCallbackMidiScratch;
+  juce::MidiBuffer deviceInputMidiCaptureBuffer;
   juce::AudioBuffer<float> deviceInputCaptureBuffer;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TGraphRuntime)

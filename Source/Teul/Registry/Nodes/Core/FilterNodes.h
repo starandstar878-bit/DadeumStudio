@@ -26,11 +26,9 @@ public:
 
     desc.paramSpecs = {cutoff, resonance};
 
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In"},
-                      {TPortDirection::Input, TPortDataType::CV, "Freq CV"},
-                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
-                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, 2, {"L In", "R In"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "Freq CV"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, 2, {"L Out", "R Out"})};
     return desc;
   }
 };
@@ -47,11 +45,9 @@ public:
 
     desc.paramSpecs = {{"cutoff", "Cutoff", 1000.0f},
                        {"resonance", "Resonance", 0.707f}};
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In"},
-                      {TPortDirection::Input, TPortDataType::CV, "Freq CV"},
-                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
-                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, 2, {"L In", "R In"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "Freq CV"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, 2, {"L Out", "R Out"})};
     return desc;
   }
 };
@@ -67,11 +63,9 @@ public:
     desc.category = "Filter";
 
     desc.paramSpecs = {{"cutoff", "Cutoff", 1000.0f}, {"q", "Q Factor", 1.0f}};
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In"},
-                      {TPortDirection::Input, TPortDataType::CV, "Freq CV"},
-                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
-                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, 2, {"L In", "R In"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "Freq CV"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, 2, {"L Out", "R Out"})};
     return desc;
   }
 };

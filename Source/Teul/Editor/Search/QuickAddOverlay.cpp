@@ -317,15 +317,23 @@ bool TGraphCanvas::addNodeByTypeAtView(const juce::String &typeKey,
     node.params[param.key] = param.defaultValue;
 
   for (const auto &portSpec : desc->portSpecs) {
-    TPort port;
-    port.portId = document.allocPortId();
-    port.direction = portSpec.direction;
-    port.dataType = portSpec.dataType;
-    port.name = portSpec.name;
-    port.ownerNodeId = node.nodeId;
-    port.maxIncomingConnections = portSpec.maxIncomingConnections;
-    port.maxOutgoingConnections = portSpec.maxOutgoingConnections;
-    node.ports.push_back(port);
+    for (int ch = 0; ch < portSpec.channelCount; ++ch) {
+      TPort port;
+      port.portId = document.allocPortId();
+      port.direction = portSpec.direction;
+      port.dataType = portSpec.dataType;
+      // 다중 채널이면 각 채널에 지정된 이름을 사용, 모노면 단일 이름 사용
+      if (portSpec.channelCount > 1 && ch < (int)portSpec.channelNames.size()) {
+        port.name = portSpec.channelNames[ch];
+      } else {
+        port.name = portSpec.name;
+      }
+      port.ownerNodeId = node.nodeId;
+      port.channelIndex = ch; // Bus 내부에서의 채널 순번 기록
+      port.maxIncomingConnections = portSpec.maxIncomingConnections;
+      port.maxOutgoingConnections = portSpec.maxOutgoingConnections;
+      node.ports.push_back(port);
+    }
   }
 
   document.executeCommand(std::make_unique<AddNodeCommand>(node));

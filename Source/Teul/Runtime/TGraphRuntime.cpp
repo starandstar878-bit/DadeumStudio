@@ -111,6 +111,9 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
   std::map<juce::String, int> railInputChannelMap;
   std::vector<RailInputSource> railInputSources;
   std::vector<RailOutputTarget> railOutputTargets;
+  std::vector<RailMidiInputTarget> railMidiInputTargets;
+  std::vector<RailMidiOutputTarget> railMidiOutputTargets;
+  std::vector<MidiRoute> midiRoutes;
   const double sampleRate = currentSampleRate.load(std::memory_order_relaxed);
   const int blockSize = currentBlockSize.load(std::memory_order_relaxed);
 
@@ -127,6 +130,13 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
       entry.portChannels[port.portId] = portChannelCounter;
       globalPortIndexMap[port.portId] = portChannelCounter;
       ++portChannelCounter;
+
+      if (port.dataType == TPortDataType::MIDI) {
+        if (port.direction == TPortDirection::Input)
+          entry.midiInputBuffers.emplace(port.portId, juce::MidiBuffer{});
+        else
+          entry.midiOutputBuffers.emplace(port.portId, juce::MidiBuffer{});
+      }
     }
 
     const TNodeDescriptor *desc = nullptr;
@@ -152,6 +162,9 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
       if (usedRailInputKeys.find(key) == usedRailInputKeys.end())
         continue;
 
+      if (port.dataType == TPortDataType::MIDI)
+        continue;
+
       RailInputSource source;
       source.endpointId = endpoint.endpointId;
       source.portId = port.portId;
@@ -175,17 +188,35 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
       continue;
 
     if (conn.from.isNodePort() && conn.to.isNodePort()) {
-      const auto srcChannelIt = globalPortIndexMap.find(conn.from.portId);
+      const auto *sourceNode = doc.findNode(conn.from.nodeId);
+      const auto *targetNode = doc.findNode(conn.to.nodeId);
+      const auto *sourcePort = sourceNode != nullptr ? sourceNode->findPort(conn.from.portId) : nullptr;
+      const auto *targetPort = targetNode != nullptr ? targetNode->findPort(conn.to.portId) : nullptr;
+      const auto srcEntryIt = entryIndexByNodeId.find(conn.from.nodeId);
       const auto dstEntryIt = entryIndexByNodeId.find(conn.to.nodeId);
-      if (srcChannelIt == globalPortIndexMap.end() ||
-          dstEntryIt == entryIndexByNodeId.end()) {
+      if (srcEntryIt == entryIndexByNodeId.end() || dstEntryIt == entryIndexByNodeId.end() ||
+          sourcePort == nullptr || targetPort == nullptr) {
         continue;
       }
 
+      if (sourcePort->dataType == TPortDataType::MIDI &&
+          targetPort->dataType == TPortDataType::MIDI) {
+        MidiRoute route;
+        route.sourceNodeIndex = srcEntryIt->second;
+        route.sourcePortId = conn.from.portId;
+        route.targetNodeIndex = dstEntryIt->second;
+        route.targetPortId = conn.to.portId;
+        midiRoutes.push_back(std::move(route));
+        continue;
+      }
+
+      const auto srcChannelIt = globalPortIndexMap.find(conn.from.portId);
       auto &dstEntry = newSortedNodes[dstEntryIt->second];
       const auto dstChannelIt = dstEntry.portChannels.find(conn.to.portId);
-      if (dstChannelIt == dstEntry.portChannels.end())
+      if (srcChannelIt == globalPortIndexMap.end() ||
+          dstChannelIt == dstEntry.portChannels.end()) {
         continue;
+      }
 
       dstEntry.preProcessMixes.push_back(
           {srcChannelIt->second, dstChannelIt->second});
@@ -193,18 +224,32 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
     }
 
     if (conn.from.isRailPort() && conn.to.isNodePort()) {
-      const auto srcChannelIt = railInputChannelMap.find(
-          makeRailPortKey(conn.from.railEndpointId, conn.from.railPortId));
+      const auto *endpoint = doc.controlState.findEndpoint(conn.from.railEndpointId);
+      const auto *targetNode = doc.findNode(conn.to.nodeId);
+      const auto *targetPort = targetNode != nullptr ? targetNode->findPort(conn.to.portId) : nullptr;
       const auto dstEntryIt = entryIndexByNodeId.find(conn.to.nodeId);
-      if (srcChannelIt == railInputChannelMap.end() ||
-          dstEntryIt == entryIndexByNodeId.end()) {
+      if (endpoint == nullptr || targetPort == nullptr || dstEntryIt == entryIndexByNodeId.end())
+        continue;
+
+      if (endpoint->kind == TSystemRailEndpointKind::midiInput &&
+          targetPort->dataType == TPortDataType::MIDI) {
+        RailMidiInputTarget target;
+        target.endpointId = conn.from.railEndpointId;
+        target.portId = conn.from.railPortId;
+        target.targetNodeIndex = dstEntryIt->second;
+        target.targetPortId = conn.to.portId;
+        railMidiInputTargets.push_back(std::move(target));
         continue;
       }
 
+      const auto srcChannelIt = railInputChannelMap.find(
+          makeRailPortKey(conn.from.railEndpointId, conn.from.railPortId));
       auto &dstEntry = newSortedNodes[dstEntryIt->second];
       const auto dstChannelIt = dstEntry.portChannels.find(conn.to.portId);
-      if (dstChannelIt == dstEntry.portChannels.end())
+      if (srcChannelIt == railInputChannelMap.end() ||
+          dstChannelIt == dstEntry.portChannels.end()) {
         continue;
+      }
 
       dstEntry.preProcessMixes.push_back(
           {srcChannelIt->second, dstChannelIt->second});
@@ -212,10 +257,26 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
     }
 
     if (conn.from.isNodePort() && conn.to.isRailPort()) {
+      const auto *endpoint = doc.controlState.findEndpoint(conn.to.railEndpointId);
+      const auto *sourceNode = doc.findNode(conn.from.nodeId);
+      const auto *sourcePort = sourceNode != nullptr ? sourceNode->findPort(conn.from.portId) : nullptr;
+      const auto srcEntryIt = entryIndexByNodeId.find(conn.from.nodeId);
+      if (endpoint == nullptr || sourcePort == nullptr || srcEntryIt == entryIndexByNodeId.end())
+        continue;
+
+      if (endpoint->kind == TSystemRailEndpointKind::midiOutput &&
+          sourcePort->dataType == TPortDataType::MIDI) {
+        RailMidiOutputTarget target;
+        target.endpointId = conn.to.railEndpointId;
+        target.portId = conn.to.railPortId;
+        target.sourceNodeIndex = srcEntryIt->second;
+        target.sourcePortId = conn.from.portId;
+        railMidiOutputTargets.push_back(std::move(target));
+        continue;
+      }
+
       const auto srcChannelIt = globalPortIndexMap.find(conn.from.portId);
-      const auto *endpoint =
-          doc.controlState.findEndpoint(conn.to.railEndpointId);
-      if (srcChannelIt == globalPortIndexMap.end() || endpoint == nullptr ||
+      if (srcChannelIt == globalPortIndexMap.end() ||
           endpoint->kind != TSystemRailEndpointKind::audioOutput) {
         continue;
       }
@@ -230,10 +291,7 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
       target.portId = conn.to.railPortId;
       target.sourceChannelIndex = srcChannelIt->second;
       target.deviceChannelIndex = deviceChannelIndex;
-      if (const auto *sourceNode = doc.findNode(conn.from.nodeId)) {
-        if (const auto *sourcePort = sourceNode->findPort(conn.from.portId))
-          target.dataType = sourcePort->dataType;
-      }
+      target.dataType = sourcePort->dataType;
       railOutputTargets.push_back(std::move(target));
     }
   }
@@ -244,6 +302,9 @@ bool TGraphRuntime::buildGraph(const TGraphDocument &doc) {
   newState->sortedNodes = std::move(newSortedNodes);
   newState->railInputSources = std::move(railInputSources);
   newState->railOutputTargets = std::move(railOutputTargets);
+  newState->railMidiInputTargets = std::move(railMidiInputTargets);
+  newState->railMidiOutputTargets = std::move(railMidiOutputTargets);
+  newState->midiRoutes = std::move(midiRoutes);
   newState->globalPortBuffer.setSize(
       portChannelCounter > 0 ? portChannelCounter : 1, juce::jmax(1, blockSize),
       false, false, true);
@@ -406,6 +467,11 @@ void TGraphRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
     deviceInputCaptureBuffer.clear();
   }
 
+  deviceInputMidiCaptureBuffer.clear();
+  if (deviceBuffer.getNumSamples() > 0)
+    deviceInputMidiCaptureBuffer.addEvents(midiMessages, 0, deviceBuffer.getNumSamples(), 0);
+  midiMessages.clear();
+
   processBlockInternal(deviceBuffer, midiMessages,
                        inputChannels > 0 ? &deviceInputCaptureBuffer : nullptr);
 }
@@ -460,6 +526,13 @@ void TGraphRuntime::processBlockInternal(
   mutedFallbackActive.store(false, std::memory_order_relaxed);
   state->globalPortBuffer.clear();
 
+  for (auto &entry : state->sortedNodes) {
+    for (auto &bufferEntry : entry.midiInputBuffers)
+      bufferEntry.second.clear();
+    for (auto &bufferEntry : entry.midiOutputBuffers)
+      bufferEntry.second.clear();
+  }
+
   for (const auto &railInput : state->railInputSources) {
     if (railInput.channelIndex < 0 ||
         railInput.channelIndex >= state->globalPortBuffer.getNumChannels()) {
@@ -477,6 +550,20 @@ void TGraphRuntime::processBlockInternal(
           numSamples);
     } else {
       juce::FloatVectorOperations::clear(destination, numSamples);
+    }
+  }
+
+  if (!deviceInputMidiCaptureBuffer.isEmpty()) {
+    for (const auto &railInput : state->railMidiInputTargets) {
+      if (railInput.targetNodeIndex >= state->sortedNodes.size())
+        continue;
+
+      auto &dstEntry = state->sortedNodes[railInput.targetNodeIndex];
+      const auto dstIt = dstEntry.midiInputBuffers.find(railInput.targetPortId);
+      if (dstIt == dstEntry.midiInputBuffers.end())
+        continue;
+
+      dstIt->second.addEvents(deviceInputMidiCaptureBuffer, 0, numSamples, 0);
     }
   }
 
@@ -556,23 +643,64 @@ void TGraphRuntime::processBlockInternal(
 
   smoothingActiveCount.store(smoothingCount, std::memory_order_relaxed);
 
-  for (auto &entry : state->sortedNodes) {
+  for (std::size_t entryIndex = 0; entryIndex < state->sortedNodes.size(); ++entryIndex) {
+    auto &entry = state->sortedNodes[entryIndex];
+
     for (const auto &mix : entry.preProcessMixes) {
       state->globalPortBuffer.addFrom(mix.dstChannelIndex, 0,
                                       state->globalPortBuffer,
                                       mix.srcChannelIndex, 0, numSamples);
     }
 
+    juce::MidiBuffer *nodeMidiInput = nullptr;
+    if (!entry.midiInputBuffers.empty())
+      nodeMidiInput = &entry.midiInputBuffers.begin()->second;
+
+    juce::MidiBuffer *nodeMidiOutput = nullptr;
+    if (!entry.midiOutputBuffers.empty())
+      nodeMidiOutput = &entry.midiOutputBuffers.begin()->second;
+
     if (entry.instance && !entry.nodeSnapshot.bypassed) {
       TProcessContext ctx;
       ctx.globalPortBuffer = &state->globalPortBuffer;
       ctx.inputAudioBuffer = inputBufferOverride;
       ctx.deviceAudioBuffer = &deviceBuffer;
-      ctx.midiMessages = &midiMessages;
+      ctx.midiMessages = nodeMidiInput;
+      ctx.deviceMidiMessages = &deviceInputMidiCaptureBuffer;
+      ctx.midiOutputMessages = nodeMidiOutput;
       ctx.portToChannel = &entry.portChannels;
       ctx.nodeData = &entry.nodeSnapshot;
       ctx.paramValueReporter = this;
       entry.instance->processSamples(ctx);
+    }
+
+    for (const auto &route : state->midiRoutes) {
+      if (route.sourceNodeIndex != entryIndex)
+        continue;
+
+      const auto srcIt = entry.midiOutputBuffers.find(route.sourcePortId);
+      if (srcIt == entry.midiOutputBuffers.end() || srcIt->second.isEmpty() ||
+          route.targetNodeIndex >= state->sortedNodes.size()) {
+        continue;
+      }
+
+      auto &dstEntry = state->sortedNodes[route.targetNodeIndex];
+      const auto dstIt = dstEntry.midiInputBuffers.find(route.targetPortId);
+      if (dstIt == dstEntry.midiInputBuffers.end())
+        continue;
+
+      dstIt->second.addEvents(srcIt->second, 0, numSamples, 0);
+    }
+
+    for (const auto &target : state->railMidiOutputTargets) {
+      if (target.sourceNodeIndex != entryIndex)
+        continue;
+
+      const auto srcIt = entry.midiOutputBuffers.find(target.sourcePortId);
+      if (srcIt == entry.midiOutputBuffers.end() || srcIt->second.isEmpty())
+        continue;
+
+      midiMessages.addEvents(srcIt->second, 0, numSamples, 0);
     }
   }
 
