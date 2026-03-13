@@ -145,6 +145,27 @@ static bool splitStereoPortLabel(juce::StringRef name, bool &isLeft,
   return false;
 }
 
+static juce::String trimNumericSuffixForSummary(juce::StringRef name) {
+  juce::String trimmed = juce::String(name).trim();
+  while (trimmed.isNotEmpty() &&
+         juce::CharacterFunctions::isDigit(trimmed.getLastCharacter()))
+    trimmed = trimmed.dropLastCharacters(1);
+  return trimmed.trimEnd();
+}
+
+static juce::String displayBaseNameForSummary(juce::StringRef name) {
+  bool ignoredIsLeft = false;
+  juce::String suffix;
+  if (splitStereoPortLabel(name, ignoredIsLeft, suffix) && suffix.isNotEmpty())
+    return suffix;
+
+  const auto numericBase = trimNumericSuffixForSummary(name);
+  if (numericBase.isNotEmpty() && numericBase != juce::String(name).trim())
+    return numericBase;
+
+  return juce::String(name).trim();
+}
+
 struct GroupedNodePortSummary {
   juce::String displayName;
   TPortDirection direction = TPortDirection::Input;
@@ -155,66 +176,47 @@ struct GroupedNodePortSummary {
 static std::vector<GroupedNodePortSummary>
 groupNodePortsForSummary(const TNode &node) {
   std::vector<GroupedNodePortSummary> groups;
-  std::vector<bool> used(node.ports.size(), false);
-
-  const auto groupedDisplayName = [](const TPort &port) {
-    bool ignoredIsLeft = false;
-    juce::String suffix;
-    if (splitStereoPortLabel(port.name, ignoredIsLeft, suffix) &&
-        suffix.isNotEmpty()) {
-      return suffix;
-    }
-    return port.name;
-  };
-
-  for (size_t index = 0; index < node.ports.size(); ++index) {
-    if (used[index])
-      continue;
-
+  auto index = size_t{0};
+  while (index < node.ports.size()) {
     const auto &port = node.ports[index];
     GroupedNodePortSummary group;
     group.direction = port.direction;
     group.dataType = port.dataType;
-    group.displayName = groupedDisplayName(port);
     group.ports.push_back(&port);
-    used[index] = true;
 
-    if (port.dataType == TPortDataType::Audio) {
-      bool isLeft = false;
-      juce::String suffix;
-      if (splitStereoPortLabel(port.name, isLeft, suffix)) {
-        for (size_t candidateIndex = index + 1; candidateIndex < node.ports.size();
-             ++candidateIndex) {
-          if (used[candidateIndex])
-            continue;
+    size_t candidateIndex = index + 1;
+    int expectedChannelIndex = port.channelIndex + 1;
+    while (candidateIndex < node.ports.size()) {
+      const auto &candidate = node.ports[candidateIndex];
+      if (candidate.direction != port.direction ||
+          candidate.dataType != port.dataType ||
+          candidate.channelIndex != expectedChannelIndex) {
+        break;
+      }
 
-          const auto &candidate = node.ports[candidateIndex];
-          if (candidate.direction != port.direction ||
-              candidate.dataType != port.dataType) {
-            continue;
-          }
+      group.ports.push_back(&candidate);
+      ++candidateIndex;
+      ++expectedChannelIndex;
+    }
 
-          bool candidateIsLeft = false;
-          juce::String candidateSuffix;
-          if (!splitStereoPortLabel(candidate.name, candidateIsLeft,
-                                    candidateSuffix) ||
-              candidateIsLeft == isLeft || candidateSuffix != suffix) {
-            continue;
-          }
-
-          if (isLeft) {
-            group.ports = {&port, &candidate};
-          } else {
-            group.ports = {&candidate, &port};
-          }
-          group.displayName = suffix.isNotEmpty() ? suffix : port.name;
-          used[candidateIndex] = true;
+    juce::String displayName =
+        displayBaseNameForSummary(group.ports.front()->name);
+    if (group.ports.size() > 1) {
+      bool allShareBase = true;
+      for (const auto *groupPort : group.ports) {
+        if (displayBaseNameForSummary(groupPort->name) != displayName) {
+          allShareBase = false;
           break;
         }
       }
+
+      if (!allShareBase)
+        displayName = group.ports.front()->name;
     }
 
+    group.displayName = displayName;
     groups.push_back(std::move(group));
+    index = candidateIndex;
   }
 
   return groups;
@@ -303,11 +305,20 @@ static juce::String groupedPortOccupancyLabel(const GroupedNodePortSummary &grou
   juce::StringArray parts;
   for (size_t index = 0; index < group.ports.size() && index < counts.size(); ++index) {
     const auto *port = group.ports[index];
-    juce::String slotLabel = juce::String((int)index + 1);
+    juce::String slotLabel = juce::String(port->channelIndex + 1);
     bool isLeft = false;
     juce::String suffix;
-    if (splitStereoPortLabel(port->name, isLeft, suffix))
+    if (splitStereoPortLabel(port->name, isLeft, suffix)) {
       slotLabel = isLeft ? "L" : "R";
+    } else {
+      const auto numericBase = trimNumericSuffixForSummary(port->name);
+      if (numericBase.isNotEmpty() && numericBase != port->name.trim()) {
+        const auto trailingNumber =
+            port->name.fromLastOccurrenceOf(" ", false, false).trim();
+        if (trailingNumber.isNotEmpty())
+          slotLabel = trailingNumber;
+      }
+    }
     parts.add(slotLabel + ":" + juce::String(counts[index]));
   }
 
