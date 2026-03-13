@@ -117,3 +117,75 @@ Suggested columns:
 3. Move bridge-only exposed-param fallback helpers out of the registry code.
 4. Update `Editor` so it reads node-library/category data from the new shared descriptor layer.
 
+---
+
+## Serialization File-Level Mapping
+
+| Current file | Current responsibility | Target folder(s) | Move type | Refactor note |
+| --- | --- | --- | --- | --- |
+| `Serialization/TSerializer.h` | `.teul` document JSON schema, migration report, document JSON encode/decode API | `Document/` | `move` | This is document import/export and schema migration, not bridge JSON. |
+| `Serialization/TSerializer.cpp` | Document JSON serialization, legacy alias handling, schema migration steps, field-level encode/decode | `Document/` | `move` | Split only if the migration helpers become too large; otherwise keep under the document layer. |
+| `Serialization/TFileIo.h` | `.teul` file save/load facade | `Document/` | `move` | This becomes the document file store entry point. |
+| `Serialization/TFileIo.cpp` | `.teul` file IO plus transient document notice side effects | `Document/` | `move now, trim later` | Move into `Document` first. If desired later, move notice formatting out so file IO stays pure. |
+| `Serialization/TPatchPresetIO.h` | Patch preset file format, schema versioning, frame extraction/import API | `Document/` | `move` | Patch presets are document-level assets because they serialize graph fragments. |
+| `Serialization/TPatchPresetIO.cpp` | Patch preset JSON codec, migration, graph-fragment extraction, graph insertion | `Document/` | `move` | Keep with document lifecycle code. The insertion logic is document mutation, not editor UI. |
+| `Serialization/TStatePresetIO.h` | State preset format, diff preview/apply API | `Document/` | `move` | State presets are document-owned snapshots. |
+| `Serialization/TStatePresetIO.cpp` | State preset JSON codec, migration, diff/preview/apply logic, document notices | `Document/` | `move now, trim later` | Move into `Document` first. Preview/apply can remain together until a dedicated preset service is needed. |
+
+### Serialization Split Principle
+
+- `.teul`, `.teulpatch`, and `.teulstate` parsing belongs to `Document`.
+- External-system JSON does not belong here and should be handled by `Bridge` later.
+- File IO can keep small document-notice hooks in phase 1, but those hooks should not spread back into `Editor`.
+
+---
+
+## Preset File-Level Mapping
+
+| Current file | Current responsibility | Target folder(s) | Move type | Refactor note |
+| --- | --- | --- | --- | --- |
+| `Preset/TPresetCatalog.h` | Preset browser entry model, provider abstraction, favorite/recent/tag state, catalog facade | `Document/`, `Editor/` | `split` | Entry/provider/state persistence fit `Document`. Browser-facing catalog presentation and filtering should be consumed by `Editor`. |
+| `Preset/TPresetCatalog.cpp` | Patch/state/recovery providers, preset browser state file IO, preset summary/detail formatting, sorting | `Document/`, `Editor/` | `split` | Provider-side file discovery and persistence move to `Document`. Human-readable summary/detail formatting and browser ordering rules move to `Editor`. |
+
+### Preset Split Principle
+
+- Preset files and recovery snapshots are document-owned assets.
+- Favorite, recent, and tag persistence can stay near the document-side preset store.
+- Preset card text, warning text, and browser ordering are editor presentation concerns.
+- The current single catalog file should become a document-side preset source plus an editor-side browser/view-model layer.
+
+---
+
+## Verification File-Level Mapping
+
+| Current file | Current responsibility | Target folder(s) | Move type | Refactor note |
+| --- | --- | --- | --- | --- |
+| `Verification/TVerificationFixtures.h` | Representative graph fixture declarations | `Runtime/AudioGraph/`, `Document/` | `move now, trim later` | Phase 1 can keep fixtures under runtime verification support. They still construct documents, but they exist to test runtime behavior. |
+| `Verification/TVerificationFixtures.cpp` | Representative graph fixture construction | `Runtime/AudioGraph/`, `Document/` | `move now, trim later` | Keep next to runtime verification helpers first. |
+| `Verification/TVerificationStimulus.h` | Render profile, automation, MIDI stimulus spec, render result, render helper API | `Runtime/AudioGraph/` | `move` | This is directly tied to runtime rendering behavior. |
+| `Verification/TVerificationStimulus.cpp` | Stimulus builders and render execution helpers | `Runtime/AudioGraph/` | `move` | Runtime verification support. |
+| `Verification/TVerificationParity.h` | Editable export round-trip parity test API and reports | `Runtime/AudioGraph/`, `Bridge/` | `split` | Runtime-side render/compare logic stays with runtime verification. Export round-trip hooks depend on bridge/export code. |
+| `Verification/TVerificationParity.cpp` | Export parity implementation and artifact generation | `Runtime/AudioGraph/`, `Bridge/` | `split` | Separate compare/render logic from export/import round-trip helpers. |
+| `Verification/TVerificationCompiledParity.h` | Compiled runtime parity report and API | `Runtime/AudioGraph/`, `Bridge/` | `split` | Runtime parity stays with runtime verification; external codegen/compile/run orchestration touches bridge/export. |
+| `Verification/TVerificationCompiledParity.cpp` | Compiled runtime parity implementation | `Runtime/AudioGraph/`, `Bridge/` | `split` | Same split as above. |
+| `Verification/TVerificationGoldenAudio.h` | Golden-audio record/verify API and reports | `Runtime/AudioGraph/` | `move` | This is runtime audio validation. |
+| `Verification/TVerificationGoldenAudio.cpp` | Golden-audio record/verify implementation | `Runtime/AudioGraph/` | `move` | Runtime-owned verification support. |
+| `Verification/TVerificationStress.h` | Stress/soak suite API and reports | `Runtime/AudioGraph/` | `move` | Runtime stability verification. |
+| `Verification/TVerificationStress.cpp` | Stress/soak suite implementation | `Runtime/AudioGraph/` | `move` | Runtime stability verification. |
+| `Verification/TVerificationBenchmark.h` | Benchmark thresholds, reports, benchmark suite API | `Runtime/AudioGraph/` | `move` | Runtime performance verification. |
+| `Verification/TVerificationBenchmark.cpp` | Benchmark suite implementation | `Runtime/AudioGraph/` | `move` | Runtime performance verification. |
+| `Verification/CompiledParity/CompiledParityCaseHost.cpp` | Helper executable host for compiled parity cases | `Bridge/`, `Runtime/AudioGraph/` | `split support` | Keep as support tooling. It depends on generated/exported runtime code and parity harness behavior. |
+| `Verification/GoldenAudio/**` | Golden reference assets, metadata, bundle manifests | `Runtime/AudioGraph/` | `keep support assets` | These are test artifacts, not production runtime code. Keep them in a verification-support bucket during phase 1. |
+
+### Verification Split Principle
+
+- Verification code is not an end-user runtime layer, but its logic mostly validates `Runtime/AudioGraph`.
+- Export/codegen round-trip verification is the one area that legitimately touches both `Runtime/AudioGraph` and `Bridge`.
+- Golden audio files and compiled parity hosts are support assets/tools and do not need to become production-layer source files.
+
+### Verification Migration Order
+
+1. Move stimulus, golden-audio, stress, and benchmark helpers under runtime verification support.
+2. Split parity and compiled-parity files into runtime compare logic and bridge/export orchestration.
+3. Leave large artifact bundles and helper executables as support assets until the production layers are stable.
+
