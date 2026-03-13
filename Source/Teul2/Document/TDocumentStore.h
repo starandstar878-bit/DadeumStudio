@@ -1,40 +1,30 @@
 #pragma once
 
+#include "TDocumentMigration.h"
 #include "TTeulDocument.h"
+
+#include <map>
+#include <vector>
 
 namespace Teul {
 
-
-
-
-
-
-
-
-// =============================================================================
-//  TFileIo — .teul 확장자 파일 입출력
-// =============================================================================
-class TFileIo {
+class TDocumentStore {
 public:
-  /** TTeulDocument 객체를 .teul (JSON 형식) 파일로 저장합니다. */
-  static bool saveToFile(const TTeulDocument &doc, const juce::File &file);
-
-  /** .teul 파일에서 JSON 데이터를 읽어 TTeulDocument 객체에 채웁니다. */
-  static bool loadFromFile(TTeulDocument &doc, const juce::File &file,
+  static bool saveToFile(const TTeulDocument &document, const juce::File &file);
+  static bool loadFromFile(TTeulDocument &document,
+                           const juce::File &file,
                            TSchemaMigrationReport *migrationReportOut = nullptr);
+  static juce::Result importEditableGraphPackage(const juce::File &path,
+                                                 TTeulDocument &documentOut);
 };
 
-
-
-
-
-
-
-
-
-
-
-
+class TFileIo {
+public:
+  static bool saveToFile(const TTeulDocument &document, const juce::File &file);
+  static bool loadFromFile(TTeulDocument &document,
+                           const juce::File &file,
+                           TSchemaMigrationReport *migrationReportOut = nullptr);
+};
 
 struct TPatchPresetSummary {
   juce::String presetName;
@@ -43,17 +33,6 @@ struct TPatchPresetSummary {
   int connectionCount = 0;
   int frameCount = 0;
   juce::Rectangle<float> bounds;
-};
-
-struct TPatchPresetLoadReport {
-  int sourceSchemaVersion = 0;
-  int targetSchemaVersion = 0;
-  bool migrated = false;
-  bool usedLegacyAliases = false;
-  bool degraded = false;
-  juce::StringArray warnings;
-  juce::StringArray appliedSteps;
-  TSchemaMigrationReport graphMigration;
 };
 
 class TPatchPresetIO {
@@ -77,18 +56,6 @@ public:
                                      TPatchPresetSummary *summaryOut = nullptr);
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
 struct TStatePresetNodeState {
   NodeId nodeId = kInvalidNodeId;
   juce::String typeKey;
@@ -102,16 +69,6 @@ struct TStatePresetSummary {
   juce::String targetGraphName;
   int nodeStateCount = 0;
   int paramValueCount = 0;
-};
-
-struct TStatePresetLoadReport {
-  int sourceSchemaVersion = 0;
-  int targetSchemaVersion = 0;
-  bool migrated = false;
-  bool usedLegacyAliases = false;
-  bool degraded = false;
-  juce::StringArray warnings;
-  juce::StringArray appliedSteps;
 };
 
 struct TStatePresetApplyReport {
@@ -158,7 +115,5 @@ public:
                                       const juce::File &file,
                                       TStatePresetApplyReport *reportOut = nullptr);
 };
-
-
 
 } // namespace Teul

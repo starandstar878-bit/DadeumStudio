@@ -37,26 +37,6 @@ bool hasAnyProperty(const juce::DynamicObject *object,
   return false;
 }
 
-void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
-  const auto normalized = warning.trim();
-  if (normalized.isEmpty())
-    return;
-  if (!warnings.contains(normalized))
-    warnings.add(normalized);
-}
-
-void appendMigrationStep(TSchemaMigrationReport *report,
-                         const juce::String &stepName) {
-  if (report == nullptr)
-    return;
-
-  const auto normalized = stepName.trim();
-  if (normalized.isEmpty())
-    return;
-  if (!report->appliedSteps.contains(normalized))
-    report->appliedSteps.add(normalized);
-}
-
 juce::Array<juce::var> migrateArray(
     const juce::var &source,
     const std::function<juce::var(const juce::var &)> &migrateItem) {
@@ -327,8 +307,8 @@ void normalizeLegacyRailBridgeNodes(TTeulDocument &doc,
         frame.memberNodeIds.end());
   }
 
-  appendMigrationStep(&migrationReport, "document:normalize-legacy-rail-io");
-  appendWarning(migrationReport.warnings,
+  TDocumentMigration::appendMigrationStep(&migrationReport, "document:normalize-legacy-rail-io");
+  TDocumentMigration::appendWarning(migrationReport.warnings,
                 "Legacy Audio Input / MIDI Input / Audio Output / MIDI Output nodes were moved to rail endpoints.");
   migrationReport.migrated = true;
 }
@@ -1030,14 +1010,14 @@ juce::var TDocumentSerializer::migrateDocumentJson(
     TSchemaMigrationReport *migrationReportOut) {
   if (sourceSchemaVersion <= 1) {
     auto migrated = migrateDocumentV1ToV2(json);
-    appendMigrationStep(migrationReportOut, "document:v1->v2");
+    TDocumentMigration::appendMigrationStep(migrationReportOut, "document:v1->v2");
     migrated = migrateDocumentV2ToV3(migrated);
-    appendMigrationStep(migrationReportOut, "document:v2->v3");
+    TDocumentMigration::appendMigrationStep(migrationReportOut, "document:v2->v3");
     return migrated;
   }
 
   if (sourceSchemaVersion == 2) {
-    appendMigrationStep(migrationReportOut, "document:v2->v3");
+    TDocumentMigration::appendMigrationStep(migrationReportOut, "document:v2->v3");
     return migrateDocumentV2ToV3(json);
   }
 
@@ -1574,19 +1554,19 @@ bool TDocumentSerializer::fromJson(TTeulDocument &doc,
       migrationReport.sourceSchemaVersion != migrationReport.targetSchemaVersion;
 
   if (migrationReport.usedLegacyAliases) {
-    appendWarning(migrationReport.warnings,
+    TDocumentMigration::appendWarning(migrationReport.warnings,
                   "Document used legacy field aliases during restore.");
   }
 
   if (migrationReport.sourceSchemaVersion < migrationReport.targetSchemaVersion) {
-    appendWarning(migrationReport.warnings,
+    TDocumentMigration::appendWarning(migrationReport.warnings,
                   "Document schema upgraded from v" +
                       juce::String(migrationReport.sourceSchemaVersion) + " to v" +
                       juce::String(migrationReport.targetSchemaVersion) + ".");
   } else if (migrationReport.sourceSchemaVersion >
              migrationReport.targetSchemaVersion) {
     migrationReport.degraded = true;
-    appendWarning(
+    TDocumentMigration::appendWarning(
         migrationReport.warnings,
         "Document schema is newer than this build supports; using best-effort restore.");
   }
@@ -1596,7 +1576,7 @@ bool TDocumentSerializer::fromJson(TTeulDocument &doc,
 
   if (!propertyOrAlias(sourceRoot, {"meta", "graphMeta"}).isObject()) {
     migrationReport.degraded = true;
-    appendWarning(migrationReport.warnings,
+    TDocumentMigration::appendWarning(migrationReport.warnings,
                   "Document meta missing; defaults were applied.");
   }
 
@@ -1680,7 +1660,7 @@ bool TDocumentSerializer::fromJson(TTeulDocument &doc,
     for (const auto &frame : doc.frames)
       maxFrameId = juce::jmax(maxFrameId, frame.frameId);
     doc.setNextFrameId(maxFrameId + 1);
-    appendWarning(migrationReport.warnings,
+    TDocumentMigration::appendWarning(migrationReport.warnings,
                   "Document frame id sequence was repaired from frame contents.");
   }
 
@@ -1689,7 +1669,7 @@ bool TDocumentSerializer::fromJson(TTeulDocument &doc,
     for (const auto &bookmark : doc.bookmarks)
       maxBookmarkId = juce::jmax(maxBookmarkId, bookmark.bookmarkId);
     doc.setNextBookmarkId(maxBookmarkId + 1);
-    appendWarning(
+    TDocumentMigration::appendWarning(
         migrationReport.warnings,
         "Document bookmark id sequence was repaired from bookmark contents.");
   }

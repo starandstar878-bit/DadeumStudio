@@ -3,32 +3,27 @@
 
 namespace Teul {
 
-
-
-
-
-bool TFileIo::saveToFile(const TTeulDocument &doc, const juce::File &file) {
-  juce::var json = TDocumentSerializer::toJson(doc);
-  juce::String jsonString = juce::JSON::toString(json);
-
-  // UTF-8 without BOM 파일 작성
-  return file.replaceWithText(jsonString, false, false, "\r\n");
+bool TDocumentStore::saveToFile(const TTeulDocument &document,
+                                const juce::File &file) {
+  const auto json = TDocumentSerializer::toJson(document);
+  const auto jsonText = juce::JSON::toString(json);
+  return file.replaceWithText(jsonText, false, false, "\r\n");
 }
 
-bool TFileIo::loadFromFile(TTeulDocument &doc, const juce::File &file,
-                           TSchemaMigrationReport *migrationReportOut) {
+bool TDocumentStore::loadFromFile(
+    TTeulDocument &document,
+    const juce::File &file,
+    TSchemaMigrationReport *migrationReportOut) {
   if (!file.existsAsFile())
     return false;
 
-  juce::String jsonString = file.loadFileAsString();
   juce::var json;
-  juce::Result result = juce::JSON::parse(jsonString, json);
-
-  if (result.failed())
+  const auto parseResult = juce::JSON::parse(file.loadFileAsString(), json);
+  if (parseResult.failed())
     return false;
 
   TSchemaMigrationReport migrationReport;
-  if (!TDocumentSerializer::fromJson(doc, json, &migrationReport))
+  if (!TDocumentSerializer::fromJson(document, json, &migrationReport))
     return false;
 
   if (migrationReport.degraded || !migrationReport.warnings.isEmpty()) {
@@ -38,10 +33,11 @@ bool TFileIo::loadFromFile(TTeulDocument &doc, const juce::File &file,
     const auto title = migrationReport.degraded
                            ? juce::String("Document restored in degraded mode")
                            : juce::String("Document compatibility warnings");
-    doc.setTransientNotice(level, title,
-                           migrationReport.warnings.joinIntoString(" | "));
+    document.setTransientNotice(
+        level, title,
+        TDocumentMigration::joinWarnings(migrationReport.warnings));
   } else {
-    doc.clearTransientNotice();
+    document.clearTransientNotice();
   }
 
   if (migrationReportOut != nullptr)
@@ -50,18 +46,98 @@ bool TFileIo::loadFromFile(TTeulDocument &doc, const juce::File &file,
   return true;
 }
 
+juce::Result TDocumentStore::importEditableGraphPackage(
+    const juce::File &path,
+    TTeulDocument &documentOut) {
+  constexpr auto kGraphFileName = "editable-graph.teul";
+  constexpr auto kManifestFileName = "export-manifest.json";
 
+  juce::File graphFile;
+  if (path.isDirectory()) {
+    const auto manifestFile = path.getChildFile(kManifestFileName);
+    if (manifestFile.existsAsFile()) {
+      juce::var manifestJson;
+      const auto parseResult =
+          TDocumentMigration::parseJsonFile(manifestFile, manifestJson,
+                                            "manifest");
+      if (parseResult.failed())
+        return parseResult;
 
+      if (auto *manifestObject = manifestJson.getDynamicObject()) {
+        const auto graphFileName =
+            manifestObject->getProperty("graphFile").toString().trim();
+        if (graphFileName.isNotEmpty())
+          graphFile = path.getChildFile(graphFileName);
+      }
+    }
 
+    if (!graphFile.existsAsFile())
+      graphFile = path.getChildFile(kGraphFileName);
+  } else if (path.existsAsFile()) {
+    if (path.getFileName().equalsIgnoreCase(kManifestFileName)) {
+      juce::var manifestJson;
+      const auto parseResult =
+          TDocumentMigration::parseJsonFile(path, manifestJson, "manifest");
+      if (parseResult.failed())
+        return parseResult;
 
+      if (auto *manifestObject = manifestJson.getDynamicObject()) {
+        const auto graphFileName =
+            manifestObject->getProperty("graphFile").toString().trim();
+        if (graphFileName.isNotEmpty())
+          graphFile = path.getParentDirectory().getChildFile(graphFileName);
+      }
+    } else {
+      graphFile = path;
+    }
+  }
 
+  if (!graphFile.existsAsFile()) {
+    return juce::Result::fail(
+        "EditableGraph package is missing editable-graph.teul.");
+  }
 
+  juce::var graphJson;
+  const auto parseResult =
+      TDocumentMigration::parseJsonFile(graphFile, graphJson, "graph");
+  if (parseResult.failed())
+    return parseResult;
 
+  TSchemaMigrationReport migrationReport;
+  if (!TDocumentSerializer::fromJson(documentOut, graphJson, &migrationReport)) {
+    return juce::Result::fail("Failed to deserialize editable graph package: " +
+                              graphFile.getFullPathName());
+  }
 
+  if (migrationReport.degraded || !migrationReport.warnings.isEmpty()) {
+    const auto level = migrationReport.degraded
+                           ? TDocumentNoticeLevel::degraded
+                           : TDocumentNoticeLevel::warning;
+    const auto title = migrationReport.degraded
+                           ? juce::String("Editable graph restored in degraded mode")
+                           : juce::String("Editable graph compatibility warnings");
+    documentOut.setTransientNotice(
+        level, title,
+        TDocumentMigration::joinWarnings(migrationReport.warnings));
+  } else {
+    documentOut.clearTransientNotice();
+  }
 
+  return juce::Result::ok();
+}
+
+bool TFileIo::saveToFile(const TTeulDocument &document,
+                         const juce::File &file) {
+  return TDocumentStore::saveToFile(document, file);
+}
+
+bool TFileIo::loadFromFile(TTeulDocument &document,
+                           const juce::File &file,
+                           TSchemaMigrationReport *migrationReportOut) {
+  return TDocumentStore::loadFromFile(document, file, migrationReportOut);
+}
 
 namespace {
-
 constexpr float kNodeWidth = 160.0f;
 constexpr float kNodeHeight = 90.0f;
 
@@ -80,6 +156,11 @@ juce::var propertyOrAlias(const juce::DynamicObject *object,
   }
 
   return fallback;
+}
+
+bool writeJsonFile(const juce::File &file, const juce::var &json) {
+  return file.replaceWithText(juce::JSON::toString(json, true), false, false,
+                              "\r\n");
 }
 
 juce::Rectangle<float> nodeRectForPreset(const TNode &node) {
@@ -166,12 +247,9 @@ juce::File withPatchPresetExtension(const juce::File &file) {
   return file.withFileExtension(extension);
 }
 
-bool writeJsonFile(const juce::File &file, const juce::var &json) {
-  return file.replaceWithText(juce::JSON::toString(json, true), false, false,
-                              "\r\n");
-}
 
-juce::String sanitizePresetName(const juce::String &rawName) {
+
+juce::String sanitizePatchPresetName(const juce::String &rawName) {
   juce::String text = rawName.trim();
   if (text.isEmpty())
     text = "PatchPreset";
@@ -234,26 +312,6 @@ bool usesLegacyPatchAliases(const juce::DynamicObject *root) {
           root->hasProperty("graph_json"));
 }
 
-void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
-  const auto normalized = warning.trim();
-  if (normalized.isEmpty())
-    return;
-  if (!warnings.contains(normalized))
-    warnings.add(normalized);
-}
-
-void appendMigrationStep(TPatchPresetLoadReport *report,
-                         const juce::String &stepName) {
-  if (report == nullptr)
-    return;
-
-  const auto normalized = stepName.trim();
-  if (normalized.isEmpty())
-    return;
-  if (!report->appliedSteps.contains(normalized))
-    report->appliedSteps.add(normalized);
-}
-
 juce::var normalizePatchPresetJson(const juce::var &rootVar) {
   if (!rootVar.isObject())
     return {};
@@ -306,22 +364,11 @@ juce::var migratePatchPresetJson(const juce::var &rootVar,
                                  int sourceSchemaVersion,
                                  TPatchPresetLoadReport *report) {
   if (sourceSchemaVersion <= 1) {
-    appendMigrationStep(report, "patch:v1->v2");
+    TDocumentMigration::appendMigrationStep(report, "patch:v1->v2");
     return migratePatchPresetV1ToV2(rootVar);
   }
 
   return normalizePatchPresetJson(rootVar);
-}
-
-juce::String joinWarnings(const juce::StringArray &warnings) {
-  juce::StringArray normalizedWarnings;
-  for (const auto &warning : warnings) {
-    const auto normalized = warning.trim();
-    if (normalized.isNotEmpty() && !normalizedWarnings.contains(normalized))
-      normalizedWarnings.add(normalized);
-  }
-
-  return normalizedWarnings.joinIntoString(" | ");
 }
 
 } // namespace
@@ -393,7 +440,7 @@ juce::Result TPatchPresetIO::saveFrameToFile(const TTeulDocument &document,
 
   TPatchPresetSummary summary;
   summary.presetName = frame->title.isNotEmpty() ? frame->title
-                                                 : sanitizePresetName(file.getFileNameWithoutExtension());
+                                                 : sanitizePatchPresetName(file.getFileNameWithoutExtension());
   summary.sourceFrameUuid = frame->frameUuid;
   summary.nodeCount = (int)presetDocument.nodes.size();
   summary.connectionCount = (int)presetDocument.connections.size();
@@ -454,18 +501,18 @@ juce::Result TPatchPresetIO::loadFromFile(
   loadReport.usedLegacyAliases = usesLegacyPatchAliases(sourceRoot);
 
   if (loadReport.usedLegacyAliases) {
-    appendWarning(loadReport.warnings,
+    TDocumentMigration::appendWarning(loadReport.warnings,
                   "Patch preset used legacy root field aliases during load.");
   }
 
   if (loadReport.sourceSchemaVersion < loadReport.targetSchemaVersion) {
-    appendWarning(loadReport.warnings,
+    TDocumentMigration::appendWarning(loadReport.warnings,
                   "Patch preset schema upgraded from v" +
                       juce::String(loadReport.sourceSchemaVersion) + " to v" +
                       juce::String(loadReport.targetSchemaVersion) + ".");
   } else if (loadReport.sourceSchemaVersion > loadReport.targetSchemaVersion) {
     loadReport.degraded = true;
-    appendWarning(
+    TDocumentMigration::appendWarning(
         loadReport.warnings,
         "Patch preset schema is newer than this build supports; using best-effort load.");
   }
@@ -501,7 +548,7 @@ juce::Result TPatchPresetIO::loadFromFile(
   }
 
   for (const auto &warning : loadReport.graphMigration.warnings)
-    appendWarning(loadReport.warnings, "Graph: " + warning);
+    TDocumentMigration::appendWarning(loadReport.warnings, "Graph: " + warning);
 
   bool derivedSummaryField = false;
   if (summaryOut.nodeCount <= 0) {
@@ -522,10 +569,10 @@ juce::Result TPatchPresetIO::loadFromFile(
   }
 
   if (!hasSummaryObject) {
-    appendWarning(loadReport.warnings,
+    TDocumentMigration::appendWarning(loadReport.warnings,
                   "Patch preset summary missing; summary fields were derived from the graph payload.");
   } else if (derivedSummaryField) {
-    appendWarning(loadReport.warnings,
+    TDocumentMigration::appendWarning(loadReport.warnings,
                   "Patch preset summary incomplete; missing fields were derived from the graph payload.");
   }
 
@@ -565,7 +612,7 @@ juce::Result TPatchPresetIO::insertFromFile(
     auto detail = summary.presetName.trim();
     if (detail.isNotEmpty())
       detail << ": ";
-    detail << joinWarnings(loadReport.warnings);
+    detail << TDocumentMigration::joinWarnings(loadReport.warnings);
     targetDocument.setTransientNotice(level, title, detail);
   }
 
@@ -645,20 +692,7 @@ namespace {
 
 constexpr int kStatePresetSchemaVersion = 2;
 
-juce::var propertyOrAlias(const juce::DynamicObject *object,
-                          std::initializer_list<const char *> keys,
-                          const juce::var &fallback = juce::var()) {
-  if (object == nullptr)
-    return fallback;
 
-  for (const auto *key : keys) {
-    const juce::Identifier id(key);
-    if (object->hasProperty(id))
-      return object->getProperty(id);
-  }
-
-  return fallback;
-}
 
 juce::File withStatePresetExtension(const juce::File &file) {
   const auto extension = TStatePresetIO::fileExtension();
@@ -668,12 +702,9 @@ juce::File withStatePresetExtension(const juce::File &file) {
   return file.withFileExtension(extension);
 }
 
-bool writeJsonFile(const juce::File &file, const juce::var &json) {
-  return file.replaceWithText(juce::JSON::toString(json, true), false, false,
-                              "\r\n");
-}
 
-juce::String sanitizePresetName(const juce::String &rawName) {
+
+juce::String sanitizeStatePresetName(const juce::String &rawName) {
   juce::String text = rawName.trim();
   if (text.isEmpty())
     text = "StatePreset";
@@ -771,26 +802,6 @@ bool usesLegacyStateAliases(const juce::DynamicObject *root) {
           root->hasProperty("nodeStates"));
 }
 
-void appendWarning(juce::StringArray &warnings, const juce::String &warning) {
-  const auto normalized = warning.trim();
-  if (normalized.isEmpty())
-    return;
-  if (!warnings.contains(normalized))
-    warnings.add(normalized);
-}
-
-void appendMigrationStep(TStatePresetLoadReport *report,
-                         const juce::String &stepName) {
-  if (report == nullptr)
-    return;
-
-  const auto normalized = stepName.trim();
-  if (normalized.isEmpty())
-    return;
-  if (!report->appliedSteps.contains(normalized))
-    report->appliedSteps.add(normalized);
-}
-
 juce::var normalizeStatePresetJson(const juce::var &rootVar) {
   if (!rootVar.isObject())
     return {};
@@ -837,22 +848,11 @@ juce::var migrateStatePresetJson(const juce::var &rootVar,
                                  int sourceSchemaVersion,
                                  TStatePresetLoadReport *report) {
   if (sourceSchemaVersion <= 1) {
-    appendMigrationStep(report, "state:v1->v2");
+    TDocumentMigration::appendMigrationStep(report, "state:v1->v2");
     return migrateStatePresetV1ToV2(rootVar);
   }
 
   return normalizeStatePresetJson(rootVar);
-}
-
-juce::String joinWarnings(const juce::StringArray &warnings) {
-  juce::StringArray normalizedWarnings;
-  for (const auto &warning : warnings) {
-    const auto normalized = warning.trim();
-    if (normalized.isNotEmpty() && !normalizedWarnings.contains(normalized))
-      normalizedWarnings.add(normalized);
-  }
-
-  return normalizedWarnings.joinIntoString(" | ");
 }
 
 const TNode *findFallbackNode(const TTeulDocument &document,
@@ -912,7 +912,7 @@ bool varsDiffer(const juce::var &lhs, const juce::var &rhs) {
 }
 
 void appendPreviewWarning(juce::StringArray &warnings, const juce::String &warning) {
-  appendWarning(warnings, warning);
+  TDocumentMigration::appendWarning(warnings, warning);
 }
 
 } // namespace
@@ -942,9 +942,9 @@ juce::Result TStatePresetIO::saveDocumentToFile(const TTeulDocument &document,
   }
 
   TStatePresetSummary summary;
-  summary.presetName = sanitizePresetName(file.getFileNameWithoutExtension());
+  summary.presetName = sanitizeStatePresetName(file.getFileNameWithoutExtension());
   if (summary.presetName == "StatePreset" && document.meta.name.isNotEmpty())
-    summary.presetName = sanitizePresetName(document.meta.name + " State");
+    summary.presetName = sanitizeStatePresetName(document.meta.name + " State");
   summary.targetGraphName = document.meta.name;
   summary.nodeStateCount = (int)nodeStates.size();
   summary.paramValueCount = countParamValues(nodeStates);
@@ -1005,18 +1005,18 @@ juce::Result TStatePresetIO::loadFromFile(
   loadReport.usedLegacyAliases = usesLegacyStateAliases(sourceRoot);
 
   if (loadReport.usedLegacyAliases) {
-    appendWarning(loadReport.warnings,
+    TDocumentMigration::appendWarning(loadReport.warnings,
                   "State preset used legacy root field aliases during load.");
   }
 
   if (loadReport.sourceSchemaVersion < loadReport.targetSchemaVersion) {
-    appendWarning(loadReport.warnings,
+    TDocumentMigration::appendWarning(loadReport.warnings,
                   "State preset schema upgraded from v" +
                       juce::String(loadReport.sourceSchemaVersion) + " to v" +
                       juce::String(loadReport.targetSchemaVersion) + ".");
   } else if (loadReport.sourceSchemaVersion > loadReport.targetSchemaVersion) {
     loadReport.degraded = true;
-    appendWarning(
+    TDocumentMigration::appendWarning(
         loadReport.warnings,
         "State preset schema is newer than this build supports; using best-effort load.");
   }
@@ -1062,10 +1062,10 @@ juce::Result TStatePresetIO::loadFromFile(
   }
 
   if (!hasSummaryObject) {
-    appendWarning(loadReport.warnings,
+    TDocumentMigration::appendWarning(loadReport.warnings,
                   "State preset summary missing; summary fields were derived from node states.");
   } else if (derivedSummaryField) {
-    appendWarning(loadReport.warnings,
+    TDocumentMigration::appendWarning(loadReport.warnings,
                   "State preset summary incomplete; missing fields were derived from node states.");
   }
 
@@ -1174,7 +1174,7 @@ juce::Result TStatePresetIO::applyToDocument(TTeulDocument &document,
 
   if (report.skippedNodeCount > 0) {
     report.degraded = true;
-    appendWarning(report.warnings,
+    TDocumentMigration::appendWarning(report.warnings,
                   "State preset skipped " + juce::String(report.skippedNodeCount) +
                       " nodes while applying to the current document.");
   }
@@ -1195,7 +1195,7 @@ juce::Result TStatePresetIO::applyToDocument(TTeulDocument &document,
     auto detail = summary.presetName.trim();
     if (detail.isNotEmpty())
       detail << ": ";
-    detail << joinWarnings(report.warnings);
+    detail << TDocumentMigration::joinWarnings(report.warnings);
     document.setTransientNotice(level, title, detail);
   }
 

@@ -1,18 +1,9 @@
 #pragma once
 
+#include "TDocumentMigration.h"
 #include "TTeulDocument.h"
 
 namespace Teul {
-
-struct TSchemaMigrationReport {
-  int sourceSchemaVersion = 0;
-  int targetSchemaVersion = 0;
-  bool migrated = false;
-  bool usedLegacyAliases = false;
-  bool degraded = false;
-  juce::StringArray warnings;
-  juce::StringArray appliedSteps;
-};
 
 class TDocumentSerializer {
 public:
