@@ -101,6 +101,91 @@ struct TRuntimeValidationParitySuiteReport {
   std::vector<TRuntimeValidationParityReport> caseReports;
 };
 
+struct TRuntimeValidationGoldenAudioReport {
+  juce::String graphId;
+  juce::String stimulusId;
+  juce::String profileId;
+  juce::String modeId;
+  bool passed = false;
+  bool baselineExists = false;
+  int totalSamples = 0;
+  int comparedChannels = 0;
+  int firstMismatchChannel = -1;
+  int firstMismatchSample = -1;
+  float maxAbsoluteError = 0.0f;
+  double rmsError = 0.0;
+  juce::String baselineDirectory;
+  juce::String artifactDirectory;
+  juce::String failureReason;
+};
+
+struct TRuntimeValidationGoldenAudioSuiteReport {
+  juce::String suiteId;
+  juce::String modeId;
+  bool passed = false;
+  int totalCaseCount = 0;
+  int passedCaseCount = 0;
+  int failedCaseCount = 0;
+  juce::String baselineDirectory;
+  juce::String artifactDirectory;
+  std::vector<TRuntimeValidationGoldenAudioReport> caseReports;
+};
+
+struct TRuntimeValidationStressCaseReport {
+  juce::String graphId;
+  juce::String stimulusId;
+  juce::String profileId;
+  bool passed = false;
+  int iterationCount = 0;
+  int totalRenderedSamples = 0;
+  int totalRenderedBlocks = 0;
+  juce::String artifactDirectory;
+  juce::String failureReason;
+  TTeulRuntime::RuntimeStats worstRuntimeStats;
+};
+
+struct TRuntimeValidationStressSuiteReport {
+  juce::String suiteId;
+  bool passed = false;
+  int totalCaseCount = 0;
+  int passedCaseCount = 0;
+  int failedCaseCount = 0;
+  int iterationCount = 0;
+  juce::String artifactDirectory;
+  std::vector<TRuntimeValidationStressCaseReport> caseReports;
+};
+
+struct TRuntimeValidationBenchmarkThresholds {
+  float maxCpuLoadPercent = 0.0f;
+  double maxProcessMilliseconds = 0.0;
+  double maxBuildMilliseconds = 0.0;
+};
+
+struct TRuntimeValidationBenchmarkCaseReport {
+  juce::String graphId;
+  juce::String stimulusId;
+  juce::String profileId;
+  bool passed = false;
+  int iterationCount = 0;
+  int totalRenderedSamples = 0;
+  int totalRenderedBlocks = 0;
+  juce::String artifactDirectory;
+  juce::String failureReason;
+  TRuntimeValidationBenchmarkThresholds thresholds;
+  TTeulRuntime::RuntimeStats worstRuntimeStats;
+};
+
+struct TRuntimeValidationBenchmarkSuiteReport {
+  juce::String suiteId;
+  bool passed = false;
+  int totalCaseCount = 0;
+  int passedCaseCount = 0;
+  int failedCaseCount = 0;
+  int iterationCount = 0;
+  juce::String artifactDirectory;
+  std::vector<TRuntimeValidationBenchmarkCaseReport> caseReports;
+};
+
 class TRuntimeValidator {
 public:
   static std::vector<TRuntimeValidationGraphFixture>
@@ -143,6 +228,26 @@ public:
   static bool runRepresentativePrimaryParityMatrix(
       const TNodeRegistry &registry,
       TRuntimeValidationParitySuiteReport &reportOut);
+
+  static bool runRepresentativeGoldenAudioRecord(
+      const TNodeRegistry &registry,
+      TRuntimeValidationGoldenAudioSuiteReport &reportOut);
+
+  static bool runRepresentativeGoldenAudioVerify(
+      const TNodeRegistry &registry,
+      TRuntimeValidationGoldenAudioSuiteReport &reportOut,
+      float maxAbsoluteTolerance = 1.0e-5f,
+      double rmsTolerance = 1.0e-6);
+
+  static bool runRepresentativeStressSoakSuite(
+      const TNodeRegistry &registry,
+      TRuntimeValidationStressSuiteReport &reportOut,
+      int iterationCount = 32);
+
+  static bool runRepresentativeBenchmarkGate(
+      const TNodeRegistry &registry,
+      TRuntimeValidationBenchmarkSuiteReport &reportOut,
+      int iterationCount = 8);
 };
 
 } // namespace Teul
