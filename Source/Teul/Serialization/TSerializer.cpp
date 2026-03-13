@@ -102,7 +102,8 @@ bool isLegacyRailSourceNode(const juce::String &typeKey) {
 }
 
 bool isLegacyRailSinkNode(const juce::String &typeKey) {
-  return typeKey == "Teul.Routing.AudioOut";
+  return typeKey == "Teul.Routing.AudioOut" ||
+         typeKey == "Teul.Midi.MidiOut";
 }
 
 bool endpointsEqual(const TEndpoint &a, const TEndpoint &b) {
@@ -185,6 +186,17 @@ bool tryMapLegacySinkPort(const TGraphDocument &doc,
       return false;
 
     mappedOut = TEndpoint::makeRailPort(endpoint->endpointId, railPort->portId);
+    return true;
+  }
+
+  if (node.typeKey == "Teul.Midi.MidiOut") {
+    const auto *endpoint =
+        findRailEndpointByKind(doc, TSystemRailEndpointKind::midiOutput);
+    if (endpoint == nullptr || endpoint->ports.empty())
+      return false;
+
+    mappedOut =
+        TEndpoint::makeRailPort(endpoint->endpointId, endpoint->ports.front().portId);
     return true;
   }
 
@@ -303,7 +315,7 @@ void normalizeLegacyRailBridgeNodes(TGraphDocument &doc,
 
   appendMigrationStep(&migrationReport, "document:normalize-legacy-rail-io");
   appendWarning(migrationReport.warnings,
-                "Legacy Audio Input / MIDI Input / Audio Output nodes were moved to rail endpoints.");
+                "Legacy Audio Input / MIDI Input / Audio Output / MIDI Output nodes were moved to rail endpoints.");
   migrationReport.migrated = true;
 }
 

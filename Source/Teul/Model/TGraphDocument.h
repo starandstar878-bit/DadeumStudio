@@ -396,6 +396,16 @@ struct TControlSourceState {
     stereoOut.ports.push_back({"audio-out-r", "R", TPortDataType::Audio});
     outputEndpoints.push_back(std::move(stereoOut));
 
+    TSystemRailEndpoint midiOut;
+    midiOut.endpointId = "midi-out-main";
+    midiOut.railId = "output-rail";
+    midiOut.displayName = "MIDI Out";
+    midiOut.subtitle = "External device";
+    midiOut.kind = TSystemRailEndpointKind::midiOutput;
+    midiOut.order = 1;
+    midiOut.ports.push_back({"midi-out-port", "MIDI", TPortDataType::MIDI});
+    outputEndpoints.push_back(std::move(midiOut));
+
     TControlSource expression;
     expression.sourceId = "exp-1";
     expression.deviceProfileId = "preview-device";

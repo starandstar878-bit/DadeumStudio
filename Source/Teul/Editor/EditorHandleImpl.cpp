@@ -2782,6 +2782,18 @@ private:
       line << " / " << juce::String((int)endpoint.ports.size()) << " ports";
     else
       line << " / Single";
+
+    switch (endpoint.kind) {
+    case TSystemRailEndpointKind::audioInput:
+    case TSystemRailEndpointKind::midiInput:
+      line << " / Source";
+      break;
+    case TSystemRailEndpointKind::audioOutput:
+    case TSystemRailEndpointKind::midiOutput:
+      line << " / Sink";
+      break;
+    }
+
     return line;
   }
 
@@ -2790,6 +2802,18 @@ private:
     juce::String line = hasIssueState(issueState)
                             ? "Status: " + issueStateLabel(issueState)
                             : juce::String("Status: Ready");
+
+    switch (endpoint.kind) {
+    case TSystemRailEndpointKind::audioInput:
+    case TSystemRailEndpointKind::midiInput:
+      line << " | Role: Incoming source";
+      break;
+    case TSystemRailEndpointKind::audioOutput:
+    case TSystemRailEndpointKind::midiOutput:
+      line << " | Role: Outgoing sink";
+      break;
+    }
+
     if (const auto *rail = document.controlState.findRail(endpoint.railId))
       line << " | Rail: " << rail->title;
     return line;
@@ -2812,6 +2836,20 @@ private:
     lines.add("Endpoint id: " + endpoint.endpointId);
     lines.add("Rail id: " + endpoint.railId);
     lines.add("Kind: " + endpointKindLabel(endpoint.kind));
+
+    switch (endpoint.kind) {
+    case TSystemRailEndpointKind::audioInput:
+    case TSystemRailEndpointKind::midiInput:
+      lines.add("Direction: Into graph");
+      lines.add("Role: Source endpoint");
+      break;
+    case TSystemRailEndpointKind::audioOutput:
+    case TSystemRailEndpointKind::midiOutput:
+      lines.add("Direction: Out of graph");
+      lines.add("Role: Sink endpoint");
+      break;
+    }
+
     lines.add("Stereo: " + juce::String(endpoint.stereo ? "Yes" : "No"));
     lines.add("Port count: " + juce::String((int)endpoint.ports.size()));
     if (endpoint.subtitle.isNotEmpty())
