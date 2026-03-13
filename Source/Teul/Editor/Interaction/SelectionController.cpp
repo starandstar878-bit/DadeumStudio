@@ -33,7 +33,26 @@ void TGraphCanvas::clearFrameSelection() {
   repaint();
 }
 
+void TGraphCanvas::clearAllSelection() {
+  const bool hadConnectionSelection =
+      selectedConnectionId != kInvalidConnectionId ||
+      pressedConnectionId != kInvalidConnectionId || connectionBreakDragArmed;
+
+  selectedConnectionId = kInvalidConnectionId;
+  pressedConnectionId = kInvalidConnectionId;
+  connectionBreakDragArmed = false;
+
+  clearFrameSelection();
+  clearNodeSelection();
+
+  if (hadConnectionSelection)
+    repaint();
+}
+
 void TGraphCanvas::setNodeSelection(NodeId nodeId, bool selected) {
+  selectedConnectionId = kInvalidConnectionId;
+  pressedConnectionId = kInvalidConnectionId;
+  connectionBreakDragArmed = false;
   auto it = std::find(selectedNodeIds.begin(), selectedNodeIds.end(), nodeId);
 
   if (selected) {
@@ -48,6 +67,10 @@ void TGraphCanvas::setNodeSelection(NodeId nodeId, bool selected) {
 }
 
 void TGraphCanvas::selectOnlyNode(NodeId nodeId) {
+  clearFrameSelection();
+  selectedConnectionId = kInvalidConnectionId;
+  pressedConnectionId = kInvalidConnectionId;
+  connectionBreakDragArmed = false;
   selectedNodeIds.clear();
   selectedNodeIds.push_back(nodeId);
   syncNodeSelectionToComponents();
@@ -55,6 +78,9 @@ void TGraphCanvas::selectOnlyNode(NodeId nodeId) {
 
 void TGraphCanvas::selectOnlyNodes(const std::vector<NodeId> &nodeIds) {
   clearFrameSelection();
+  selectedConnectionId = kInvalidConnectionId;
+  pressedConnectionId = kInvalidConnectionId;
+  connectionBreakDragArmed = false;
   selectedNodeIds.clear();
   for (const auto nodeId : nodeIds) {
     if (document.findNode(nodeId) == nullptr)
@@ -72,6 +98,11 @@ void TGraphCanvas::selectOnlyFrame(int frameId) {
     clearFrameSelection();
     return;
   }
+
+  selectedConnectionId = kInvalidConnectionId;
+  pressedConnectionId = kInvalidConnectionId;
+  connectionBreakDragArmed = false;
+  clearNodeSelection();
 
   selectedFrameId = frameId;
   auto handler = frameSelectionChangedHandler;

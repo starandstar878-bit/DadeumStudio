@@ -284,6 +284,11 @@ void TGraphCanvas::mouseDown(const juce::MouseEvent &event) {
     return;
   }
 
+  const bool isPrimaryCanvasInteraction =
+      event.mods.isLeftButtonDown() && !event.mods.isMiddleButtonDown();
+  if (isPrimaryCanvasInteraction && canvasPrimaryInteractionHandler != nullptr)
+    canvasPrimaryInteractionHandler();
+
   if (event.mods.isAltDown() && event.mods.isLeftButtonDown()) {
     const ConnectionId hit = hitTestConnection(event.position);
     if (hit != kInvalidConnectionId) {
@@ -297,6 +302,8 @@ void TGraphCanvas::mouseDown(const juce::MouseEvent &event) {
   if (event.mods.isLeftButtonDown() && !event.mods.isMiddleButtonDown()) {
     const ConnectionId hit = hitTestConnection(event.position);
     if (hit != kInvalidConnectionId) {
+      clearFrameSelection();
+      clearNodeSelection();
       selectedConnectionId = hit;
       pressedConnectionId = hit;
       pressedConnectionPointView = event.position;
@@ -332,10 +339,16 @@ void TGraphCanvas::mouseDown(const juce::MouseEvent &event) {
   }
 
   if (event.mods.isLeftButtonDown()) {
-    clearFrameSelection();
+    const bool additiveSelection = event.mods.isShiftDown() ||
+                                   event.mods.isCtrlDown() ||
+                                   event.mods.isCommandDown();
+    if (additiveSelection)
+      clearFrameSelection();
+    else
+      clearAllSelection();
+
     marqueeState.active = true;
-    marqueeState.additive = event.mods.isShiftDown() || event.mods.isCtrlDown() ||
-                            event.mods.isCommandDown();
+    marqueeState.additive = additiveSelection;
     marqueeState.startView = event.position;
     marqueeState.rectView = {event.position.x, event.position.y, 0.0f, 0.0f};
     marqueeState.baseSelection =

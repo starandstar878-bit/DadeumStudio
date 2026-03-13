@@ -1120,26 +1120,28 @@ public:
       return;
     }
 
-    if (isRailCollapsed() || cardSelectionHandler == nullptr)
-      return;
+    if (!isRailCollapsed() && cardSelectionHandler != nullptr) {
+      const auto pointInt = point.roundToInt();
+      for (auto it = cardHitZones.rbegin(); it != cardHitZones.rend(); ++it) {
+        if (!it->second.contains(pointInt))
+          continue;
 
-    const auto pointInt = point.roundToInt();
-    for (auto it = cardHitZones.rbegin(); it != cardHitZones.rend(); ++it) {
-      if (!it->second.contains(pointInt))
-        continue;
-
-      if (selectedCardId != it->first)
-        selectedCardId = it->first;
-      repaint();
-      cardSelectionHandler(it->first);
-      return;
+        if (selectedCardId != it->first)
+          selectedCardId = it->first;
+        repaint();
+        cardSelectionHandler(it->first);
+        return;
+      }
     }
+
+    if (cardSelectionHandler == nullptr)
+      return;
 
     if (selectedCardId.isNotEmpty()) {
       selectedCardId.clear();
       repaint();
-      cardSelectionHandler({});
     }
+    cardSelectionHandler({});
   }
 
   void mouseDrag(const juce::MouseEvent &event) override {
@@ -3385,6 +3387,8 @@ EditorHandle::Impl::Impl(
       });
   canvas->setFrameSelectionChangedHandler(
       [this](int frameId) { handleFrameSelectionChanged(frameId); });
+  canvas->setCanvasPrimaryInteractionHandler(
+      [this]() { clearRailInspectors(); });
 
   owner.addAndMakeVisible(toggleLibraryButton);
   owner.addAndMakeVisible(quickAddButton);
@@ -4088,8 +4092,7 @@ void EditorHandle::Impl::handleSelectionChanged(
   if (propertiesPanel == nullptr)
     return;
 
-  if (!selectedNodeIds.empty())
-    clearRailInspectors();
+  clearRailInspectors();
 
   if (selectedNodeIds.size() == 1)
     inspectNodeWithReveal(selectedNodeIds.front());
@@ -4101,8 +4104,9 @@ void EditorHandle::Impl::handleFrameSelectionChanged(int frameId) {
   if (propertiesPanel == nullptr)
     return;
 
+  clearRailInspectors();
+
   if (frameId > 0) {
-    clearRailInspectors();
     propertiesPanel->inspectFrame(frameId);
     return;
   }
@@ -4135,9 +4139,14 @@ void EditorHandle::Impl::inspectControlSource(const juce::String &sourceId) {
 
   const auto normalized = sourceId.trim();
   if (normalized.isEmpty()) {
+    if (canvas != nullptr)
+      canvas->clearAllSelection();
     clearControlSourceInspector();
     return;
   }
+
+  if (canvas != nullptr)
+    canvas->clearAllSelection();
 
   if (propertiesPanel != nullptr)
     propertiesPanel->hidePanel();
@@ -4154,9 +4163,14 @@ void EditorHandle::Impl::inspectSystemEndpoint(const juce::String &endpointId) {
 
   const auto normalized = endpointId.trim();
   if (normalized.isEmpty()) {
+    if (canvas != nullptr)
+      canvas->clearAllSelection();
     clearSystemEndpointInspector();
     return;
   }
+
+  if (canvas != nullptr)
+    canvas->clearAllSelection();
 
   if (propertiesPanel != nullptr)
     propertiesPanel->hidePanel();

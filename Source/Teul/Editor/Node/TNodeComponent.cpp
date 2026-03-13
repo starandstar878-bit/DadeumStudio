@@ -181,11 +181,11 @@ void TNodeComponent::recalculateHeight() {
                                 (int)outPorts.size(), collapsed);
 
   if (!collapsed) {
-    const auto stackHeightForPorts = [this](const auto &ports) {
+    const int rowGap = portRowGapLogical();
+    const auto stackHeightForPorts = [this, rowGap](const auto &ports) {
       if (ports.empty())
         return 0;
 
-      constexpr int rowGap = 6;
       int total = 0;
       for (size_t index = 0; index < ports.size(); ++index) {
         total += juce::roundToInt((float)ports[index]->getHeight() / viewScale);
@@ -198,8 +198,7 @@ void TNodeComponent::recalculateHeight() {
     const int stackHeight = juce::jmax(stackHeightForPorts(inPorts),
                                        stackHeightForPorts(outPorts));
     const auto previewKind = inlinePreviewKindFor(descriptor);
-    const bool hasLaneCaption = inPorts.size() > 1 || outPorts.size() > 1;
-    const int laneCaptionHeight = hasLaneCaption ? 10 : 0;
+    const int laneCaptionHeight = laneCaptionLogicalHeight();
     const int desiredHeight = headerHeight + 6 + laneCaptionHeight + stackHeight + 10 +
                               previewHeightForKind(previewKind);
     logicalSize.y = juce::jmax(logicalSize.y, desiredHeight);
@@ -329,13 +328,22 @@ float TNodeComponent::scaledFloat(float value) const noexcept {
   return value * viewScale;
 }
 
+int TNodeComponent::portRowGapLogical() const noexcept {
+  return juce::jmax(inPorts.size(), outPorts.size()) >= 4 ? 8 : 6;
+}
+
+int TNodeComponent::laneCaptionLogicalHeight() const noexcept {
+  if (inPorts.size() <= 1 && outPorts.size() <= 1)
+    return 0;
+  return juce::jmax(inPorts.size(), outPorts.size()) >= 4 ? 12 : 10;
+}
+
 void TNodeComponent::resized() {
   const TNode *nodePtr = ownerCanvas.getDocument().findNode(nodeId);
   const bool collapsed = nodePtr ? nodePtr->collapsed : false;
   const int headerHeightPx = scaledInt(headerHeight);
-  const int rowGapPx = scaledInt(6);
-  const bool hasLaneCaption = inPorts.size() > 1 || outPorts.size() > 1;
-  const int laneCaptionHeightPx = hasLaneCaption ? scaledInt(10) : 0;
+  const int rowGapPx = scaledInt(portRowGapLogical());
+  const int laneCaptionHeightPx = scaledInt(laneCaptionLogicalHeight());
   const int portYInset = scaledInt(6);
   const int inputLaneWidth = inputLaneWidthPx();
   const int outputLaneWidth = outputLaneWidthPx();
@@ -501,9 +509,8 @@ void TNodeComponent::paint(juce::Graphics &g) {
     const int inputLaneWidth = inputLaneWidthPx();
     const int outputLaneWidth = outputLaneWidthPx();
     const int labelPaddingPx = scaledInt(6);
-    const int laneCaptionHeightPx = (inPorts.size() > 1 || outPorts.size() > 1)
-                                        ? scaledInt(10)
-                                        : 0;
+    const bool densePortStack = juce::jmax(inPorts.size(), outPorts.size()) >= 4;
+    const int laneCaptionHeightPx = scaledInt(laneCaptionLogicalHeight());
     const int inputLabelX = juce::jmax(labelInsetPx, inputLaneWidth + labelPaddingPx);
     const int outputLabelRight =
         juce::jmax(inputLabelX + labelWidthPx + scaledInt(8),
@@ -512,8 +519,10 @@ void TNodeComponent::paint(juce::Graphics &g) {
                                         outputLabelRight - labelWidthPx);
 
     if (laneCaptionHeightPx > 0) {
-      g.setColour(juce::Colours::white.withAlpha(0.4f));
-      g.setFont(juce::FontOptions(juce::jmax(6.0f, scaledFloat(8.2f)), juce::Font::bold));
+      g.setColour(juce::Colours::white.withAlpha(densePortStack ? 0.58f : 0.4f));
+      g.setFont(juce::FontOptions(
+          juce::jmax(6.2f, scaledFloat(densePortStack ? 8.6f : 8.2f)),
+          juce::Font::bold));
       const int captionY = juce::roundToInt(headerHeightPx + scaledFloat(1.0f));
       const auto inputCaption = laneCaptionText(inPorts, "input", "inputs");
       if (inputCaption.isNotEmpty())
@@ -523,7 +532,7 @@ void TNodeComponent::paint(juce::Graphics &g) {
       if (outputCaption.isNotEmpty())
         g.drawText(outputCaption, outputLabelX, captionY, labelWidthPx, laneCaptionHeightPx,
                    juce::Justification::centredRight);
-      g.setColour(juce::Colours::lightgrey);
+      g.setColour(juce::Colours::white.withAlpha(densePortStack ? 0.78f : 0.68f));
       g.setFont(juce::FontOptions(bodyFontPx));
     }
 

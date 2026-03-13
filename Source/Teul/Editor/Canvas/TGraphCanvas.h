@@ -67,6 +67,7 @@ public:
     return selectedNodeIds;
   }
   int getSelectedFrameId() const noexcept { return selectedFrameId; }
+  void clearAllSelection();
 
   void rebuildNodeComponents();
   void updateChildPositions();
@@ -192,6 +193,11 @@ public:
 
   using FrameSelectionChangedHandler = std::function<void(int)>;
   void setFrameSelectionChangedHandler(FrameSelectionChangedHandler handler);
+
+  using CanvasPrimaryInteractionHandler = std::function<void()>;
+  void setCanvasPrimaryInteractionHandler(CanvasPrimaryInteractionHandler handler) {
+    canvasPrimaryInteractionHandler = std::move(handler);
+  }
 
   void openQuickAddAt(juce::Point<float> pointView);
   void openNodeSearchPrompt();
@@ -451,6 +457,7 @@ private:
   ExternalConnectionCommitHandler externalConnectionCommitHandler;
   ExternalDragTargetChangedHandler externalDragTargetChangedHandler;
   FrameSelectionChangedHandler frameSelectionChangedHandler;
+  CanvasPrimaryInteractionHandler canvasPrimaryInteractionHandler;
 
   std::vector<juce::String> recentNodeTypes;
 

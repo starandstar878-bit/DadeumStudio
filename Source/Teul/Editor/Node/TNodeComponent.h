@@ -76,6 +76,8 @@ private:
   void updatePortIssueStates();
   int inputLaneWidthPx() const noexcept;
   int outputLaneWidthPx() const noexcept;
+  int portRowGapLogical() const noexcept;
+  int laneCaptionLogicalHeight() const noexcept;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TNodeComponent)
 };
