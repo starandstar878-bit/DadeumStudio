@@ -15,10 +15,10 @@ public:
 
     desc.capabilities.maxPolyphony = 1;
 
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::MIDI, "MIDI In"},
-                      {TPortDirection::Output, TPortDataType::CV, "V/Oct"},
-                      {TPortDirection::Output, TPortDataType::Gate, "Gate"},
-                      {TPortDirection::Output, TPortDataType::CV, "Velocity"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::MIDI, "MIDI In"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::CV, "V/Oct"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Gate, "Gate"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::CV, "Velocity")};
     return desc;
   }
 
@@ -102,7 +102,7 @@ public:
     desc.typeKey = "Teul.Midi.MidiOut";
     desc.displayName = "MIDI Output";
     desc.category = "MIDI";
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::MIDI, "MIDI In"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::MIDI, "MIDI In")};
     return desc;
   }
 
@@ -127,7 +127,7 @@ public:
     desc.displayName = "MIDI Input";
     desc.category = "MIDI";
     desc.portSpecs = {
-        {TPortDirection::Output, TPortDataType::MIDI, "MIDI Out"}};
+        makePortSpec(TPortDirection::Output, TPortDataType::MIDI, "MIDI Out")};
     return desc;
   }
 

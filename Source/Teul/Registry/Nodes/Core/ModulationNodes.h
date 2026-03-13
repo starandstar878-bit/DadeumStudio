@@ -33,8 +33,8 @@ public:
 
     desc.paramSpecs = {attack, decay, sustain, release};
 
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Gate, "Gate"},
-                      {TPortDirection::Output, TPortDataType::CV, "Env"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Gate, "Gate"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::CV, "Env")};
     return desc;
   }
 };

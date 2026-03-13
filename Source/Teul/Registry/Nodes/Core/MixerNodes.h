@@ -64,11 +64,9 @@ public:
     gain.categoryPath = "VCA/Level";
     desc.paramSpecs = {gain};
 
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In"},
-                      {TPortDirection::Input, TPortDataType::CV, "CV"},
-                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
-                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In", 2, {"L In", "R In"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "CV"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
     return desc;
   }
 
@@ -155,10 +153,9 @@ public:
     pan.categoryPath = "StereoPanner/Placement";
     desc.paramSpecs = {pan};
 
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "In"},
-                      {TPortDirection::Input, TPortDataType::CV, "Pan CV"},
-                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
-                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "Pan CV"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
     return desc;
   }
 
@@ -222,9 +219,9 @@ public:
     desc.capabilities.canMute = true;
 
     desc.paramSpecs = {{"gain1", "Gain 1", 1.0f}, {"gain2", "Gain 2", 1.0f}};
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "In 1"},
-                      {TPortDirection::Input, TPortDataType::Audio, "In 2"},
-                      {TPortDirection::Output, TPortDataType::Audio, "Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 1"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 2"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out")};
     return desc;
   }
 
@@ -296,11 +293,11 @@ public:
     }
     desc.paramSpecs = std::move(params);
 
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "In 1"},
-                      {TPortDirection::Input, TPortDataType::Audio, "In 2"},
-                      {TPortDirection::Input, TPortDataType::Audio, "In 3"},
-                      {TPortDirection::Input, TPortDataType::Audio, "In 4"},
-                      {TPortDirection::Output, TPortDataType::Audio, "Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 1"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 2"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 3"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 4"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out")};
     return desc;
   }
 
@@ -377,16 +374,11 @@ public:
     }
     desc.paramSpecs = std::move(params);
 
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In 1"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In 1"},
-                      {TPortDirection::Input, TPortDataType::Audio, "L In 2"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In 2"},
-                      {TPortDirection::Input, TPortDataType::Audio, "L In 3"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In 3"},
-                      {TPortDirection::Input, TPortDataType::Audio, "L In 4"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In 4"},
-                      {TPortDirection::Output, TPortDataType::Audio, "L Out"},
-                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 1", 2, {"L In 1", "R In 1"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 2", 2, {"L In 2", "R In 2"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 3", 2, {"L In 3", "R In 3"}),
+                      makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In 4", 2, {"L In 4", "R In 4"}),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
     return desc;
   }
 
@@ -477,8 +469,7 @@ public:
     desc.capabilities.canMute = false;
     desc.capabilities.canBypass = false;
 
-    desc.portSpecs = {{TPortDirection::Output, TPortDataType::Audio, "L Out"},
-                      {TPortDirection::Output, TPortDataType::Audio, "R Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out", 2, {"L Out", "R Out"})};
     return desc;
   }
 
@@ -546,8 +537,7 @@ public:
     desc.capabilities.maxInstances = 1;
 
     desc.paramSpecs = {{"volume", "Volume", 1.0f}};
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::Audio, "L In"},
-                      {TPortDirection::Input, TPortDataType::Audio, "R In"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::Audio, "In", 2, {"L In", "R In"})};
     return desc;
   }
 

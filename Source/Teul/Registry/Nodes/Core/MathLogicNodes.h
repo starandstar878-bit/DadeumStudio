@@ -10,9 +10,9 @@ public:
     desc.typeKey = "Teul.Math.Add";
     desc.displayName = "Add";
     desc.category = "Math";
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::CV, "A"},
-                      {TPortDirection::Input, TPortDataType::CV, "B"},
-                      {TPortDirection::Output, TPortDataType::CV, "A+B"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::CV, "A"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "B"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::CV, "A+B")};
     return desc;
   }
 };
@@ -25,9 +25,9 @@ public:
     desc.typeKey = "Teul.Math.Subtract";
     desc.displayName = "Subtract";
     desc.category = "Math";
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::CV, "A"},
-                      {TPortDirection::Input, TPortDataType::CV, "B"},
-                      {TPortDirection::Output, TPortDataType::CV, "A-B"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::CV, "A"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "B"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::CV, "A-B")};
     return desc;
   }
 };
@@ -40,9 +40,9 @@ public:
     desc.typeKey = "Teul.Math.Multiply";
     desc.displayName = "Multiply";
     desc.category = "Math";
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::CV, "A"},
-                      {TPortDirection::Input, TPortDataType::CV, "B"},
-                      {TPortDirection::Output, TPortDataType::CV, "A*B"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::CV, "A"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "B"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::CV, "A*B")};
     return desc;
   }
 };
@@ -55,9 +55,9 @@ public:
     desc.typeKey = "Teul.Math.Divide";
     desc.displayName = "Divide";
     desc.category = "Math";
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::CV, "A"},
-                      {TPortDirection::Input, TPortDataType::CV, "B"},
-                      {TPortDirection::Output, TPortDataType::CV, "A/B"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::CV, "A"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "B"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::CV, "A/B")};
     return desc;
   }
 };
@@ -71,8 +71,8 @@ public:
     desc.displayName = "Clamp";
     desc.category = "Math";
     desc.paramSpecs = {{"min", "Min", 0.0f}, {"max", "Max", 1.0f}};
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::CV, "In"},
-                      {TPortDirection::Output, TPortDataType::CV, "Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::CV, "In"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::CV, "Out")};
     return desc;
   }
 };
@@ -89,8 +89,8 @@ public:
                        {"inMax", "In Max", 1.0f},
                        {"outMin", "Out Min", -1.0f},
                        {"outMax", "Out Max", 1.0f}};
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::CV, "In"},
-                      {TPortDirection::Output, TPortDataType::CV, "Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::CV, "In"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::CV, "Out")};
     return desc;
   }
 };

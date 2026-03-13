@@ -78,9 +78,9 @@ public:
 
     desc.paramSpecs = {waveform, frequency, gain};
 
-    desc.portSpecs = {{TPortDirection::Input, TPortDataType::CV, "V/Oct"},
-                      {TPortDirection::Input, TPortDataType::CV, "Sync"},
-                      {TPortDirection::Output, TPortDataType::Audio, "Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Input, TPortDataType::CV, "V/Oct"),
+                      makePortSpec(TPortDirection::Input, TPortDataType::CV, "Sync"),
+                      makePortSpec(TPortDirection::Output, TPortDataType::Audio, "Out")};
     return desc;
   }
 
@@ -177,7 +177,7 @@ public:
     rate.categoryPath = "LFO/Motion";
 
     desc.paramSpecs = {waveform, rate};
-    desc.portSpecs = {{TPortDirection::Output, TPortDataType::CV, "Out"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Output, TPortDataType::CV, "Out")};
     return desc;
   }
 
@@ -242,7 +242,7 @@ public:
     desc.category = "Source";
     desc.capabilities.canMute = true;
     desc.paramSpecs = {{"value", "Value", 1.0f}};
-    desc.portSpecs = {{TPortDirection::Output, TPortDataType::CV, "Value"}};
+    desc.portSpecs = {makePortSpec(TPortDirection::Output, TPortDataType::CV, "Value")};
     return desc;
   }
 
