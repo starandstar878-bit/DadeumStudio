@@ -182,8 +182,6 @@ Source/Teul/Editor/
   Search/
     SearchController.h
     SearchController.cpp
-  Port/
-    TPortShapeLayout.h
   Theme/
     TeulPalette.h
 ```
@@ -214,6 +212,8 @@ Source/Teul/Editor/
 - port 외형 렌더링 담당
 - port 타입별 색상, 크기, 상태, hover/active 표시 규칙 관리
 - hit area와 포트 표시 규칙을 일관되게 유지
+- 포트 위치 계산과 포트 외형 계산은 우선 이 파일 내부 책임으로 둔다
+- bus channel bounds, mono/bundle hit test 같은 geometry helper도 별도 파일로 빼지 않고 여기 포함한다
 
 ### Renderers/TConnectionRenderer.h / .cpp
 - connection line 렌더링 담당
@@ -248,11 +248,6 @@ Source/Teul/Editor/
 - quick add, node search, command palette 같은 탐색 기반 기능의 공통 조정자
 - 검색 입력, 결과 선택, editor action 연결을 담당
 
-### Port/TPortShapeLayout.h
-- 포트 위치 계산 규칙
-- node body 내에서 포트를 어디에 배치할지 정의
-- "어디에 그릴지"를 담당하고, 실제 그리기는 `TPortRenderer`가 맡는다
-
 ### Theme/TeulPalette.h
 - editor 전반의 색상 시스템 정의
 - 선택, hover, warning, accent 색상 일관성 유지
@@ -281,6 +276,7 @@ TTeulEditor
 - `TGraphCanvas`는 node와 connection을 화면에 배치하고 그리도록 조정한다.
 - `TNodeRenderer`는 node를 그리고 내부 포트 표현에 `TPortRenderer`를 사용한다.
 - `TConnectionRenderer`는 canvas 좌표계 기준으로 연결선을 그린다.
+- 포트 위치/형상 geometry는 우선 `TPortRenderer` 내부 helper로 처리한다.
 
 즉, `Canvas -> Node, Connection`, 그리고 `Node -> PortRenderer` 구조를 기본으로 한다.
 
