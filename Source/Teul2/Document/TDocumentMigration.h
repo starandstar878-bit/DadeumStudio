@@ -39,6 +39,8 @@ struct TStatePresetLoadReport {
 
 class TDocumentMigration {
 public:
+  using JsonTransform = juce::var (*)(const juce::var &);
+
   static void appendWarning(juce::StringArray &warnings,
                             const juce::String &warning);
   static void appendMigrationStep(TSchemaMigrationReport *report,
@@ -53,6 +55,11 @@ public:
                                     const juce::String &label);
 
   static bool usesLegacyDocumentAliases(const juce::var &json);
+  static juce::var migrateDocumentJson(const juce::var &json,
+                                       int sourceSchemaVersion,
+                                       int targetSchemaVersion,
+                                       JsonTransform controlStateMigration,
+                                       TSchemaMigrationReport *migrationReportOut = nullptr);
   static void normalizeLegacyRailBridgeNodes(TTeulDocument &document,
                                              TSchemaMigrationReport &migrationReport);
   static bool usesLegacyPatchAliases(const juce::var &json);
