@@ -81,3 +81,39 @@ Suggested columns:
 - Target file
 - Move / split / delete / keep
 - Refactor risk
+
+---
+
+## Registry File-Level Mapping
+
+`Registry/` should not survive as a single folder. The file-level plan below uses the current code in `Source/Teul/Registry` as the basis.
+
+| Current file | Current responsibility | Target folder(s) | Move type | Refactor note |
+| --- | --- | --- | --- | --- |
+| `Registry/TNodeRegistry.h` | Mixed node descriptor types, param/port spec types, registry API, editor-facing metadata, bridge-facing export metadata, runtime factory hook | `Document/`, `Runtime/AudioGraph/`, `Bridge/` | `split` | Move document-safe descriptor/spec types into `Document`. Move runtime factory-facing pieces into `Runtime/AudioGraph`. Keep external exposure metadata only where `Bridge` needs it. |
+| `Registry/TNodeRegistry.cpp` | Descriptor normalization, registry storage/lookup, exposed-param fallback generation, default registry bootstrap | `Document/`, `Runtime/AudioGraph/`, `Bridge/` | `split` | `registerNode` and descriptor lookup become the shared descriptor registry. Exposed-param fallback generation moves to `Bridge`. Default factory bootstrap moves to `Runtime/AudioGraph`. |
+| `Registry/TNodeSDK.h` | Node class registration, auto-registration macro, runtime factory catalog | `Runtime/AudioGraph/` | `move` | This is runtime factory infrastructure. It does not belong in `Document` or `Editor`. |
+| `Registry/Nodes/CoreNodes.h` | Aggregates core node headers so core nodes register into the factory catalog | `Runtime/AudioGraph/` | `move` | Keep as runtime bootstrap glue for built-in nodes. |
+| `Registry/Nodes/Core/SourceNodes.h` | Built-in source node descriptors and DSP implementations | `Runtime/AudioGraph/` | `move now, split later` | Move into runtime first. Later split descriptor metadata from DSP implementation only if the file becomes too large. |
+| `Registry/Nodes/Core/FilterNodes.h` | Built-in filter node descriptors and DSP implementations | `Runtime/AudioGraph/` | `move now, split later` | Same rule as other built-in node files. Runtime owns the executable node classes. |
+| `Registry/Nodes/Core/FXNodes.h` | Built-in FX node descriptors and DSP implementations | `Runtime/AudioGraph/` | `move now, split later` | Keep node class and implementation together in phase 1, then split only if needed. |
+| `Registry/Nodes/Core/MathLogicNodes.h` | Built-in math/logic node descriptors and DSP implementations | `Runtime/AudioGraph/` | `move now, split later` | Runtime-owned built-in nodes. Descriptor extraction can be a later cleanup step. |
+| `Registry/Nodes/Core/MidiNodes.h` | Built-in MIDI node descriptors and runtime MIDI processing implementations | `Runtime/AudioGraph/` | `move now, split later` | Runtime owns both the executable MIDI behavior and the compile-time factory registration. |
+| `Registry/Nodes/Core/MixerNodes.h` | Built-in mixer node descriptors and DSP implementations | `Runtime/AudioGraph/` | `move now, split later` | Same as other built-in runtime nodes. |
+| `Registry/Nodes/Core/ModulationNodes.h` | Built-in modulation node descriptors and DSP implementations | `Runtime/AudioGraph/` | `move now, split later` | Runtime owns the executable modulation graph nodes. |
+
+### Registry Split Principle
+
+- `Registry` does not move as one folder.
+- Shared node description data moves toward `Document`.
+- Runtime node factory registration and built-in node implementations move to `Runtime/AudioGraph`.
+- External exposure helpers that build bridge-facing parameter metadata move to `Bridge`.
+- Editor should consume node library/category metadata from the shared descriptor layer instead of owning a separate registry implementation.
+
+### Registry Migration Order
+
+1. Move `TNodeSDK.h` and `Nodes/Core*.h` into `Runtime/AudioGraph` first.
+2. Split `TNodeRegistry.h/.cpp` into shared descriptor storage and runtime bootstrap pieces.
+3. Move bridge-only exposed-param fallback helpers out of the registry code.
+4. Update `Editor` so it reads node-library/category data from the new shared descriptor layer.
+
