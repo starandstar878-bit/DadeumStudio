@@ -12,7 +12,7 @@
 #include "Gyeol/Widgets/WidgetRegistry.h"
 #include "Teul/Export/TExport.h"
 #include "Teul/Registry/TNodeRegistry.h"
-#include "Teul/Verification/TVerificationParity.h"
+#include "Teul2/Runtime/AudioGraph/TRuntimeValidator.h"
 #include "Teul/Verification/TVerificationBenchmark.h"
 #include "Teul/Verification/TVerificationGoldenAudio.h"
 #include "Teul/Verification/TVerificationCompiledParity.h"
@@ -878,8 +878,8 @@ juce::Result runTeulPhase7ParitySmoke(const juce::StringArray &args) {
   auto registry = Teul::makeDefaultNodeRegistry();
   if (!registry)
     return juce::Result::fail("Failed to create Teul node registry.");
-  Teul::TVerificationParityReport report;
-  const bool passed = Teul::runInitialG1StaticParitySmoke(*registry, report);
+  Teul::TRuntimeValidationParityReport report;
+  const bool passed = Teul::TRuntimeValidator::runInitialG1StaticParitySmoke(*registry, report);
   if (report.artifactDirectory.isEmpty()) {
     return juce::Result::fail(
         "Teul parity smoke did not produce an artifact directory.");
@@ -925,8 +925,8 @@ juce::Result runTeulPhase7ParityMatrix(const juce::StringArray &args) {
   if (!registry)
     return juce::Result::fail("Failed to create Teul node registry.");
 
-  Teul::TVerificationParitySuiteReport report;
-  const bool passed = Teul::runRepresentativePrimaryParityMatrix(*registry, report);
+  Teul::TRuntimeValidationParitySuiteReport report;
+  const bool passed = Teul::TRuntimeValidator::runRepresentativePrimaryParityMatrix(*registry, report);
   if (report.artifactDirectory.isEmpty()) {
     return juce::Result::fail(
         "Teul parity matrix did not produce an artifact directory.");
