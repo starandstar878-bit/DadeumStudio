@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Teul2/Document/TTeulDocument.h"
+#include "Teul2/Runtime/TTeulRuntime.h"
 #include "Teul/Registry/TNodeRegistry.h"
 #include <JuceHeader.h>
 #include <cstdint>

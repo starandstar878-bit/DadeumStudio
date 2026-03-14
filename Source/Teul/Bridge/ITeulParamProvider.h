@@ -6,6 +6,9 @@
 
 namespace Teul {
 
+#ifndef TEUL_PARAM_PROVIDER_CONTRACT_DEFINED
+#define TEUL_PARAM_PROVIDER_CONTRACT_DEFINED 1
+
 enum class TParamValueType {
   Auto,
   Float,
@@ -99,5 +102,7 @@ public:
   virtual void addListener(Listener *listener) = 0;
   virtual void removeListener(Listener *listener) = 0;
 };
+
+#endif
 
 } // namespace Teul
