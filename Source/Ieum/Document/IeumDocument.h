@@ -15,6 +15,18 @@ class IeumDocumentHistory;
  */
 class IeumDocument {
 public:
+    /** 문서 변경 이벤트를 수신하기 위한 인터페이스 */
+    class Listener {
+    public:
+        virtual ~Listener() = default;
+        
+        /** 바인딩 목록이나 개별 바인딩의 설정이 변경되었을 때 호출됩니다. */
+        virtual void onIeumDocumentChanged(IeumDocument& doc) = 0;
+        
+        /** 바인딩의 상태(Status)가 실시간으로 변경되었을 때 호출됩니다. */
+        virtual void onIeumBindingStatusChanged(IeumDocument& doc, const BindingId& id) {}
+    };
+
     IeumDocument();
     ~IeumDocument();
 
@@ -34,17 +46,25 @@ public:
     bool redo();
     void clearHistory();
 
+    // -- 리스너 관리 --
+    void addListener(Listener* l) { listeners.add(l); }
+    void removeListener(Listener* l) { listeners.remove(l); }
+
     // -- 상태 추적 --
     std::uint64_t getDocumentRevision() const noexcept { return documentRevision; }
     
     /** 문서가 변경되었음을 알리고 레비전을 증가시킵니다. */
     void touch() noexcept;
 
+    /** 바인딩 상태가 변경되었음을 리스너에게 알립니다. */
+    void notifyBindingStatusChanged(const BindingId& id);
+
 private:
     std::uint64_t documentRevision = 0;
     std::uint32_t nextIdCounter = 1;
 
     std::unique_ptr<IeumDocumentHistory> history;
+    juce::ListenerList<Listener> listeners;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(IeumDocument)
 };
