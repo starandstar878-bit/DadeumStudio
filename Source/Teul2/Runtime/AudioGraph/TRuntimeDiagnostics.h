@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include <cstdint>
+#include <atomic>
 
 namespace Teul {
 
@@ -43,6 +44,13 @@ public:
       TRuntimeStats &stats, const TRuntimeDeviceState &deviceState) noexcept;
   static bool hasFault(const TRuntimeStats &stats) noexcept;
   static juce::String summarizeStatus(const TRuntimeStats &stats);
+
+  // Timing & Atomic Utilities (TGraphRuntime 에서 이관)
+  static std::uint64_t ticksToMicros(juce::int64 tickDelta) noexcept;
+  static double microsToMilliseconds(std::uint64_t micros) noexcept;
+  static void updateAtomicMax(std::atomic<std::uint64_t> &target,
+                              std::uint64_t candidate) noexcept;
+  static void updateAtomicMax(std::atomic<int> &target, int candidate) noexcept;
 };
 
 } // namespace Teul

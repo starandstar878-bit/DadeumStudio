@@ -60,5 +60,36 @@ juce::String TRuntimeDiagnostics::summarizeStatus(const TRuntimeStats &stats) {
 
   return text;
 }
+std::uint64_t TRuntimeDiagnostics::ticksToMicros(juce::int64 tickDelta) noexcept {
+  const auto ticksPerSecond = juce::Time::getHighResolutionTicksPerSecond();
+  if (tickDelta <= 0 || ticksPerSecond <= 0)
+    return 0;
+
+  return static_cast<std::uint64_t>((tickDelta * 1000000) / ticksPerSecond);
+}
+
+double TRuntimeDiagnostics::microsToMilliseconds(std::uint64_t micros) noexcept {
+  return static_cast<double>(micros) / 1000.0;
+}
+
+void TRuntimeDiagnostics::updateAtomicMax(std::atomic<std::uint64_t> &target,
+                                          std::uint64_t candidate) noexcept {
+  auto current = target.load(std::memory_order_relaxed);
+  while (candidate > current && !target.compare_exchange_weak(
+                                    current, candidate,
+                                    std::memory_order_relaxed,
+                                    std::memory_order_relaxed)) {
+  }
+}
+
+void TRuntimeDiagnostics::updateAtomicMax(std::atomic<int> &target,
+                                          int candidate) noexcept {
+  auto current = target.load(std::memory_order_relaxed);
+  while (candidate > current && !target.compare_exchange_weak(
+                                    current, candidate,
+                                    std::memory_order_relaxed,
+                                    std::memory_order_relaxed)) {
+  }
+}
 
 } // namespace Teul
