@@ -11,6 +11,7 @@ using ProviderId = juce::Identifier;
 using EntityId = juce::String;
 using ParamId = juce::String;
 using TransformId = juce::Identifier;
+using GroupId = juce::String;
 
 /** 바인딩 시스템의 핵심 정밀도 정의: 상용 수준의 정밀도를 위해 double 사용 */
 using IeumValue = double;
@@ -42,6 +43,23 @@ enum class IeumBindingStatus {
     Degraded,   // 연결은 되었으나 성능/정밀도 제한 발생
     Invalid,    // 타입 불일치 등 계약 위반
     Waiting     // 초기화 중 또는 지연 로딩 상태
+};
+
+/** 바인딩 실패 원인에 대한 상세 설명 (Roadmap 6.3, 8.1) */
+struct IeumStatusDetail {
+    juce::String message;           // 사용자에게 보여줄 메시지 (예: "Source entity 'Slider1' not found")
+    juce::String missingEntityId;   // 누락된 엔티티 ID (추적용)
+    juce::String missingParamId;    // 누락된 파라미터 ID
+    std::uint64_t timestamp = 0;    // 발생 시각
+};
+
+/** 수치 매핑 범위를 나타내는 구조체 */
+struct IeumRange {
+    IeumValue min = 0.0;
+    IeumValue max = 1.0;
+    
+    bool operator==(const IeumRange& other) const { return min == other.min && max == other.max; }
+    bool operator!=(const IeumRange& other) const { return !(*this == other); }
 };
 
 /** 오디오 스레드 전송 시 사용되는 데이터 패킷 구조 */

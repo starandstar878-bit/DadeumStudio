@@ -40,6 +40,19 @@ public:
     
     bool enabled = true;            // 활성화 여부
     IeumBindingStatus status = IeumBindingStatus::Waiting;
+    
+    /** 상세 상태 내역 (Roadmap 6.3) */
+    IeumStatusDetail statusDetail;
+
+    /** 바인딩 그룹 ID (Roadmap 6.4) */
+    GroupId groupId;
+
+    /** 
+     * 사용자 정의 매핑 범위 (Roadmap 3.1)
+     * 소스 도메인(0~1 등)을 타겟 도메인(Hz, dB 등)으로 변환하기 위한 기준 정보.
+     */
+    IeumRange sourceRange = { 0.0, 1.0 };
+    IeumRange targetRange = { 0.0, 1.0 };
 
     /** 
      * 변환 파이프라인 설정 (Roadmap Phase 4)
@@ -56,8 +69,26 @@ public:
                mode == other.mode && 
                valueType == other.valueType && 
                enabled == other.enabled && 
-               transformId == other.transformId;
+               transformId == other.transformId &&
+               groupId == other.groupId &&
+               sourceRange == other.sourceRange &&
+               targetRange == other.targetRange;
     }
+};
+
+/** 
+ * 바인딩들의 논리적 묶음 (Roadmap 6.4)
+ */
+class IeumBindingGroup {
+public:
+    GroupId id;
+    juce::String name;
+    
+    /** 그룹에 속한 바인딩 ID 목록 */
+    std::vector<BindingId> memberIds;
+    
+    /** 그룹 전체 활성/비활성 상태 */
+    bool enabled = true;
 };
 
 } // namespace Ieum

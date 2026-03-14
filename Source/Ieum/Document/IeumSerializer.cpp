@@ -3,6 +3,8 @@
 namespace Ieum {
 
 namespace {
+    int currentSchemaVersion() { return 110; } // v1.1.0
+
     juce::String modeToString(IeumBindingMode mode) {
         switch (mode) {
             case IeumBindingMode::Continuous: return "continuous";
@@ -42,6 +44,18 @@ namespace {
         if (s == "color")    return IeumValueType::Color;
         if (s == "string")   return IeumValueType::String;
         return IeumValueType::Unknown;
+    }
+
+    juce::var rangeToJson(const IeumRange& range) {
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+        obj->setProperty("min", range.min);
+        obj->setProperty("max", range.max);
+        return juce::var(obj.get());
+    }
+
+    IeumRange jsonToRange(const juce::var& json) {
+        if (!json.isObject()) return { 0.0, 1.0 };
+        return { (double)json.getProperty("min", 0.0), (double)json.getProperty("max", 1.0) };
     }
 }
 
@@ -90,6 +104,10 @@ juce::var IeumSerializer::bindingToJson(const IeumBindingSpec& spec)
     obj->setProperty("source", endpointToJson(spec.source));
     obj->setProperty("target", endpointToJson(spec.target));
     
+    obj->setProperty("groupId", spec.groupId);
+    obj->setProperty("sourceRange", rangeToJson(spec.sourceRange));
+    obj->setProperty("targetRange", rangeToJson(spec.targetRange));
+    
     return juce::var(obj.get());
 }
 
@@ -115,6 +133,10 @@ bool IeumSerializer::jsonToBinding(IeumBindingSpec& spec, const juce::var& json)
     
     jsonToEndpoint(spec.source, json.getProperty("source", juce::var()));
     jsonToEndpoint(spec.target, json.getProperty("target", juce::var()));
+    
+    spec.groupId = json.getProperty("groupId", "").toString();
+    spec.sourceRange = jsonToRange(json.getProperty("sourceRange", juce::var()));
+    spec.targetRange = jsonToRange(json.getProperty("targetRange", juce::var()));
     
     return true;
 }
