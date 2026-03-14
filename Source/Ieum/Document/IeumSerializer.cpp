@@ -26,12 +26,33 @@ IeumBindingMode stringToMode(const juce::String &s) {
     return IeumBindingMode::Toggle;
   if (s == "trigger")
     return IeumBindingMode::Trigger;
-  if (s == "relative")
-    return IeumBindingMode::Relative;
-  if (s == "momentary")
-    return IeumBindingMode::Momentary;
-  return IeumBindingMode::Continuous;
-}
+        if (s == "relative")  return IeumBindingMode::Relative;
+        if (s == "momentary") return IeumBindingMode::Momentary;
+        return IeumBindingMode::Continuous;
+    }
+
+    juce::String aggregationToString(IeumAggregationMode mode) {
+        switch (mode) {
+            case IeumAggregationMode::Sum:        return "sum";
+            case IeumAggregationMode::Average:    return "average";
+            case IeumAggregationMode::Max:        return "max";
+            case IeumAggregationMode::Min:        return "min";
+            case IeumAggregationMode::Latest:     return "latest";
+            case IeumAggregationMode::Multiply:   return "multiply";
+            case IeumAggregationMode::Expression: return "expression";
+        }
+        return "sum";
+    }
+
+    IeumAggregationMode stringToAggregation(const juce::String& s) {
+        if (s == "average")    return IeumAggregationMode::Average;
+        if (s == "max")        return IeumAggregationMode::Max;
+        if (s == "min")        return IeumAggregationMode::Min;
+        if (s == "latest")     return IeumAggregationMode::Latest;
+        if (s == "multiply")   return IeumAggregationMode::Multiply;
+        if (s == "expression") return IeumAggregationMode::Expression;
+        return IeumAggregationMode::Sum;
+    }
 
 juce::String typeToString(IeumValueType type) {
   switch (type) {
@@ -75,12 +96,25 @@ juce::var rangeToJson(const IeumRange &range) {
   return juce::var(obj.get());
 }
 
-IeumRange jsonToRange(const juce::var &json) {
-  if (!json.isObject())
-    return {0.0, 1.0};
-  return {(double)json.getProperty("min", 0.0),
-          (double)json.getProperty("max", 1.0)};
-}
+    IeumRange jsonToRange(const juce::var& json) {
+        if (!json.isObject()) return { 0.0, 1.0 };
+        return { (double)json.getProperty("min", 0.0), (double)json.getProperty("max", 1.0) };
+    }
+
+    juce::var conditionToJson(const IeumConditionSpec& cond) {
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+        obj->setProperty("expression", cond.expression);
+        obj->setProperty("enabled", cond.enabled);
+        return juce::var(obj.get());
+    }
+
+    IeumConditionSpec jsonToCondition(const juce::var& json) {
+        if (!json.isObject()) return {};
+        IeumConditionSpec cond;
+        cond.expression = json.getProperty("expression", "").toString();
+        cond.enabled = json.getProperty("enabled", false);
+        return cond;
+    }
 } // namespace
 
 juce::var IeumSerializer::toJson(const IeumDocument &doc) {
@@ -123,11 +157,13 @@ juce::var IeumSerializer::bindingToJson(const IeumBindingSpec &spec) {
   obj->setProperty("transformId", spec.transformId.toString());
 
   obj->setProperty("source", endpointToJson(spec.source));
-  obj->setProperty("target", endpointToJson(spec.target));
-
-  obj->setProperty("groupId", spec.groupId);
-  obj->setProperty("sourceRange", rangeToJson(spec.sourceRange));
-  obj->setProperty("targetRange", rangeToJson(spec.targetRange));
+    obj->setProperty("target", endpointToJson(spec.target));
+    
+    obj->setProperty("groupId", spec.groupId);
+    obj->setProperty("priority", spec.priority);
+    obj->setProperty("condition", conditionToJson(spec.condition));
+    obj->setProperty("sourceRange", rangeToJson(spec.sourceRange));
+    obj->setProperty("targetRange", rangeToJson(spec.targetRange));
 
   return juce::var(obj.get());
 }
@@ -153,11 +189,13 @@ bool IeumSerializer::jsonToBinding(IeumBindingSpec &spec,
   spec.transformId = json.getProperty("transformId", "").toString();
 
   jsonToEndpoint(spec.source, json.getProperty("source", juce::var()));
-  jsonToEndpoint(spec.target, json.getProperty("target", juce::var()));
-
-  spec.groupId = json.getProperty("groupId", "").toString();
-  spec.sourceRange = jsonToRange(json.getProperty("sourceRange", juce::var()));
-  spec.targetRange = jsonToRange(json.getProperty("targetRange", juce::var()));
+    jsonToEndpoint(spec.target, json.getProperty("target", juce::var()));
+    
+    spec.groupId = json.getProperty("groupId", "").toString();
+    spec.priority = json.getProperty("priority", 0);
+    spec.condition = jsonToCondition(json.getProperty("condition", juce::var()));
+    spec.sourceRange = jsonToRange(json.getProperty("sourceRange", juce::var()));
+    spec.targetRange = jsonToRange(json.getProperty("targetRange", juce::var()));
 
   return true;
 }
