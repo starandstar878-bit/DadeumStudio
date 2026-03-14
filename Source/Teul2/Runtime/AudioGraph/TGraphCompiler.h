@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Teul2/Document/TDocumentTypes.h"
+#include "Teul/Model/TGraphDocument.h"
 #include <JuceHeader.h>
 #include <functional>
 #include <memory>
@@ -83,6 +84,13 @@ public:
 class TGraphCompiler {
 public:
   static juce::var compileDocumentJson(const TTeulDocument &document);
+
+  /**
+   * \brief 런타임 엔진에 전달하기 위해 새로운 도큐먼트 모델을 레거시 구조로 변환합니다.
+   * (과도기적 어댑터)
+   */
+  static bool compileLegacyDocument(TGraphDocument &legacyOut,
+                                    const TTeulDocument &document);
 };
 
 } // namespace Teul

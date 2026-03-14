@@ -2,6 +2,7 @@
 
 #include "Teul2/Document/TDocumentSerializer.h"
 #include "Teul2/Document/TTeulDocument.h"
+#include "Teul2/Runtime/AudioGraph/Nodes/CoreNodes.h"
 
 #include <set>
 
@@ -242,6 +243,20 @@ std::unique_ptr<TNodeRegistry> makeDefaultNodeRegistry() {
 
 juce::var TGraphCompiler::compileDocumentJson(const TTeulDocument &document) {
   return TDocumentSerializer::toJson(document);
+}
+
+bool TGraphCompiler::compileLegacyDocument(TGraphDocument &legacyOut,
+                                           const TTeulDocument &document) {
+  // 새로운 규격의 도큐먼트를 레거시 런타임이 이해할 수 있는 구조로 복사/변환합니다.
+  legacyOut.meta = document.meta;
+  legacyOut.nodes = document.nodes;
+  legacyOut.connections = document.connections;
+  legacyOut.frames = document.frames;
+  legacyOut.bookmarks = document.bookmarks;
+  legacyOut.controlState = document.controlState;
+
+  // 나머지 내부 인덱스 정보 등은 도큐먼트 모델에서 직접 접근 가능하다고 가정합니다.
+  return true;
 }
 
 } // namespace Teul
