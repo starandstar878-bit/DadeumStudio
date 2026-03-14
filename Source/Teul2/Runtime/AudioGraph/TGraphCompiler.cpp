@@ -363,6 +363,17 @@ TCompiledGraph::Ptr TGraphCompiler::compileDocument(const TTeulDocument &documen
     compiled->sortedNodes.push_back(std::move(entry));
   }
 
+  // 포트 통계 계산
+  compiled->nodeCount = static_cast<int>(compiled->sortedNodes.size());
+  for (const auto& nodeEntry : compiled->sortedNodes) {
+    for (const auto& port : nodeEntry.nodeSnapshot.ports) {
+      if (port.dataType == TPortDataType::Audio)
+        compiled->audioPortCount++;
+      else if (port.dataType == TPortDataType::Control)
+        compiled->controlPortCount++;
+    }
+  }
+
   // 3. Rail Setup
   for (const auto &endpoint : document.controlState.inputEndpoints) {
     for (const auto &port : endpoint.ports) {

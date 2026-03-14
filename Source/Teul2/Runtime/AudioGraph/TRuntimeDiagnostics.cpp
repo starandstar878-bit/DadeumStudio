@@ -92,4 +92,26 @@ void TRuntimeDiagnostics::updateAtomicMax(std::atomic<int> &target,
   }
 }
 
+float TRuntimeDiagnostics::measureSignalLevel(const float *samples,
+                                               int numSamples) noexcept {
+  float maxPeak = 0.0f;
+  if (samples == nullptr)
+    return 0.0f;
+  for (int i = 0; i < numSamples; ++i) {
+    const float absVal = std::abs(samples[i]);
+    if (absVal > maxPeak)
+      maxPeak = absVal;
+  }
+  return maxPeak;
+}
+
+float TRuntimeDiagnostics::smoothMeterLevel(float previous,
+                                             float current) noexcept {
+  if (current > previous)
+    return current; // Instant attack
+
+  // Simple exponential decay (approx 0.98 at 48k/128blk)
+  return previous * 0.98f + current * 0.02f;
+}
+
 } // namespace Teul

@@ -51,6 +51,10 @@ public:
   static void updateAtomicMax(std::atomic<std::uint64_t> &target,
                               std::uint64_t candidate) noexcept;
   static void updateAtomicMax(std::atomic<int> &target, int candidate) noexcept;
+
+  // Signal & Metering Utilities (TGraphRuntime 에서 이관)
+  static float measureSignalLevel(const float *samples, int numSamples) noexcept;
+  static float smoothMeterLevel(float previous, float current) noexcept;
 };
 
 } // namespace Teul

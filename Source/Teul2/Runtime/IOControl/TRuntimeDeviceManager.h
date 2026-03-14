@@ -18,6 +18,9 @@ struct TRuntimeDeviceState {
   bool buildPending = false;
   std::uint64_t requestedBuildRevision = 0;
   std::uint64_t committedBuildRevision = 0;
+  int nodeCount = 0;
+  int audioPortCount = 0;
+  int controlPortCount = 0;
   juce::String activeDeviceName;
 };
 

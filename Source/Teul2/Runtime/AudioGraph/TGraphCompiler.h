@@ -110,6 +110,9 @@ struct TCompiledGraph : public juce::ReferenceCountedObject {
   std::vector<TNodeEntry> sortedNodes;
   juce::AudioBuffer<float> globalPortBuffer;
   std::vector<TPortTelemetry> portTelemetry;
+  int nodeCount = 0;
+  int audioPortCount = 0;
+  int controlPortCount = 0;
   std::map<PortId, std::size_t> portTelemetryIndex;
   std::unique_ptr<std::atomic<float>[]> portLevels;
   std::vector<TRailInputSource> railInputSources;

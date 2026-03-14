@@ -13,6 +13,9 @@ void TRuntimeDeviceManager::consume(const TRuntimeEvent &event) {
   case TRuntimeEventKind::GraphBuildCommitted:
     state.requestedBuildRevision = event.documentRuntimeRevision;
     state.committedBuildRevision = event.documentRuntimeRevision;
+    state.nodeCount = event.nodeCount;
+    state.audioPortCount = event.audioPortCount;
+    state.controlPortCount = event.controlPortCount;
     state.buildPending = false;
     break;
   case TRuntimeEventKind::GraphBuildFailed:

@@ -24,12 +24,18 @@ struct TRuntimeEvent {
   int blockSize = 0;
   int inputChannels = 0;
   int outputChannels = 0;
+  int nodeCount = 0;
+  int audioPortCount = 0;
+  int controlPortCount = 0;
   bool flag = false;
   juce::String text;
   juce::Time timestamp = juce::Time::getCurrentTime();
 
   static TRuntimeEvent makeGraphBuildRequested(std::uint64_t runtimeRevision);
-  static TRuntimeEvent makeGraphBuildCommitted(std::uint64_t runtimeRevision);
+  static TRuntimeEvent makeGraphBuildCommitted(std::uint64_t runtimeRevision,
+                                               int nodeCount = 0,
+                                               int audioPortCount = 0,
+                                               int controlPortCount = 0);
   static TRuntimeEvent makeGraphBuildFailed(std::uint64_t runtimeRevision);
   static TRuntimeEvent makePrepareToPlay(double sampleRate, int blockSize);
   static TRuntimeEvent makeReleaseResources();
@@ -51,10 +57,16 @@ TRuntimeEvent::makeGraphBuildRequested(std::uint64_t runtimeRevision) {
 }
 
 inline TRuntimeEvent
-TRuntimeEvent::makeGraphBuildCommitted(std::uint64_t runtimeRevision) {
+TRuntimeEvent::makeGraphBuildCommitted(std::uint64_t runtimeRevision,
+                                       int nodeCountIn,
+                                       int audioPortCountIn,
+                                       int controlPortCountIn) {
   TRuntimeEvent event;
   event.kind = TRuntimeEventKind::GraphBuildCommitted;
   event.documentRuntimeRevision = runtimeRevision;
+  event.nodeCount = nodeCountIn;
+  event.audioPortCount = audioPortCountIn;
+  event.controlPortCount = controlPortCountIn;
   return event;
 }
 
