@@ -1729,6 +1729,12 @@ bool TRuntimeValidator::runEditableExportRoundTripParity(
     return false;
   }
 
+  // Teul2 자립화를 위해 레거시 Export 테스트 로직 일시 중단
+  reportOut.failureReason = "Legacy export parity test is disabled in Teul2-only mode.";
+  finalizeCaseArtifacts(artifactDirectory, reportOut);
+  return false;
+
+  /*
   TGraphDocument exportDocument;
   if (!TGraphCompiler::compileLegacyDocument(exportDocument, fixture.document)) {
     reportOut.failureReason =
@@ -1756,6 +1762,7 @@ bool TRuntimeValidator::runEditableExportRoundTripParity(
     finalizeCaseArtifacts(artifactDirectory, reportOut);
     return false;
   }
+  */
 
   TTeulDocument importedDocument;
   const auto importResult =
