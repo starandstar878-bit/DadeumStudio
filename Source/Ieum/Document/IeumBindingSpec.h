@@ -54,10 +54,10 @@ public:
     int priority = 0;
 
     /** 
-     * 조건부 매핑 (Roadmap Phase 8 확장)
-     * 특정 수식이 시동될 때만 이 바인딩을 활성화합니다.
+     * 통합 논리 엔진 (Roadmap Phase 8/12 확장)
+     * 조건부 활성화 및 값 변환(Expression/Script)을 담당합니다.
      */
-    IeumConditionSpec condition;
+    IeumLogicSpec logic;
 
     /** 
      * 사용자 정의 매핑 범위 (Roadmap 3.1)
@@ -84,7 +84,7 @@ public:
                transformId == other.transformId &&
                groupId == other.groupId &&
                priority == other.priority &&
-               condition == other.condition &&
+               logic == other.logic &&
                sourceRange == other.sourceRange &&
                targetRange == other.targetRange;
     }
@@ -104,8 +104,8 @@ public:
     /** 그룹 전체 활성/비활성 상태 */
     bool enabled = true;
 
-    /** 그룹 내 바인딩들이 타겟에 적용될 때의 합산 정책 (Expression 지원) */
-    IeumAggregationPolicy aggregationPolicy;
+    /** 그룹 내 바인딩들이 타겟에 적용될 때의 통합 논리 (Aggregation/Script 지원) */
+    IeumLogicSpec logic;
 };
 
 } // namespace Ieum

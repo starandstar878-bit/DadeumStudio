@@ -36,40 +36,37 @@ enum class IeumBindingMode {
     Momentary   // 누르고 있는 동안만 활성화
 };
 
-/** 합산 처리 방식 (Roadmap Phase 8) */
-enum class IeumAggregationMode {
-    Sum,        // 단순 합산
-    Average,    // 평균
-    Max,        // 최대값
-    Min,        // 최소값
-    Latest,     // 최신값 우선
-    Multiply,   // 곱하기
-    Expression  // 사용자 정의 수식 (예: "A + B * 0.5")
-};
-
-/** 합산 상세 정책 */
-struct IeumAggregationPolicy {
-    IeumAggregationMode mode = IeumAggregationMode::Sum;
-    juce::String customExpression; // mode가 Expression일 때 사용될 실제 수식 문자열
-    
-    bool operator==(const IeumAggregationPolicy& other) const {
-        return mode == other.mode && customExpression == other.customExpression;
-    }
-    bool operator!=(const IeumAggregationPolicy& other) const { return !(*this == other); }
+/** 논리 연산 모드: 단순 합산부터 고사양 스크립트까지 지원 (Roadmap Phase 8/12) */
+enum class IeumLogicMode {
+    Passive,    // 논리 사용 안 함 (단순 통과)
+    Standard,   // 기본 합산 규칙 (Sum, Average 등)
+    Expression, // 단순 수식 (예: "source * 0.5 + 1.0")
+    Script      // 고급 스크립트 (if/else, 다중 변수 등)
 };
 
 /** 
- * 조건부 매핑 명세 (Roadmap Phase 8/12 확장용)
- * 특정 조건이 충족될 때만 바인딩이 활성화되거나 값이 반영되는 로직을 정의합니다.
+ * 통합 논리 명세 (Ieum Logic Engine용)
+ * 바인딩의 조건부 활성화, 값 변환, 그룹 합산에 모두 사용됩니다.
  */
-struct IeumConditionSpec {
-    juce::String expression; // 조건식 (예: "Gyeol.Slider1 > 0.5")
-    bool enabled = false;    // 조건 사용 여부
+struct IeumLogicSpec {
+    IeumLogicMode mode = IeumLogicMode::Passive;
+    
+    /** 실행 코드 또는 수식 */
+    juce::String code;
+    
+    /** 
+     * 표준 모드에서의 세부 설정 (Sum, Average 등) 
+     * TODO: 필요 시 Enum 등으로 확장
+     */
+    juce::String standardMethod;
 
-    bool operator==(const IeumConditionSpec& other) const {
-        return expression == other.expression && enabled == other.enabled;
+    bool enabled = true;
+
+    bool operator==(const IeumLogicSpec& other) const {
+        return mode == other.mode && code == other.code && 
+               standardMethod == other.standardMethod && enabled == other.enabled;
     }
-    bool operator!=(const IeumConditionSpec& other) const { return !(*this == other); }
+    bool operator!=(const IeumLogicSpec& other) const { return !(*this == other); }
 };
 
 /** 바인딩 건강 상태: 상용급 진단의 핵심 (Roadmap 8.1) */
