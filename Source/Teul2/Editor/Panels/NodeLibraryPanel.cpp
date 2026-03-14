@@ -1,7 +1,7 @@
 #include "Teul2/Editor/Panels/NodeLibraryPanel.h"
 #include "Teul2/Editor/Theme/TeulPalette.h"
 
-#include "Teul/Registry/TNodeRegistry.h"
+#include "Teul2/Runtime/AudioGraph/TGraphCompiler.h"
 
 #include <algorithm>
 #include <limits>

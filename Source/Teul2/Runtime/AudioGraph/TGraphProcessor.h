@@ -1,10 +1,56 @@
 #pragma once
 
+#include "Teul2/Document/TDocumentTypes.h"
 #include "Teul2/Runtime/TTeulRuntime.h"
 
 #include <JuceHeader.h>
+#include <map>
 
 namespace Teul {
+
+// =============================================================================
+//  TParamValueReporter — 파라미터 업데이트 브로드캐스트용 인터페이스
+// =============================================================================
+
+class TParamValueReporter {
+public:
+  virtual ~TParamValueReporter() = default;
+  virtual void reportParamValueChange(NodeId nodeId,
+                                      const juce::String &paramKey,
+                                      float value) = 0;
+};
+
+// =============================================================================
+//  TProcessContext — DSP 프로세싱을 위한 런타임 환경
+// =============================================================================
+
+struct TProcessContext {
+  juce::AudioBuffer<float> *globalPortBuffer = nullptr;
+  const juce::AudioBuffer<float> *inputAudioBuffer = nullptr;
+  juce::AudioBuffer<float> *deviceAudioBuffer = nullptr;
+  juce::MidiBuffer *midiMessages = nullptr;
+  const juce::MidiBuffer *deviceMidiMessages = nullptr;
+  juce::MidiBuffer *midiOutputMessages = nullptr;
+  const std::map<PortId, int> *portToChannel = nullptr;
+  const TNode *nodeData = nullptr;
+  TParamValueReporter *paramValueReporter = nullptr;
+};
+
+// =============================================================================
+//  TNodeInstance — DSP 노드 실행체의 베이스 클래스
+// =============================================================================
+
+class TNodeInstance {
+public:
+  virtual ~TNodeInstance() = default;
+
+  virtual void prepareToPlay(double sampleRate,
+                             int maximumExpectedSamplesPerBlock) {}
+  virtual void releaseResources() {}
+  virtual void processSamples(const TProcessContext &context) {}
+  virtual void setParameterValue(const juce::String &paramKey, float newValue) {}
+  virtual void reset() {}
+};
 
 #if JUCE_MODULE_AVAILABLE_juce_audio_processors
 

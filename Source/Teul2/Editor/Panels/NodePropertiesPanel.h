@@ -1,8 +1,9 @@
 #pragma once
 
 #include "Teul2/Editor/TTeulEditor.h"
+#include "Teul2/Runtime/AudioGraph/TGraphCompiler.h"
 #include "Teul2/Runtime/TTeulRuntime.h"
-#include "Teul/Registry/TNodeRegistry.h"
+
 
 #include <JuceHeader.h>
 #include <functional>
@@ -36,10 +37,10 @@ public:
                                        bool canConnect) = 0;
   virtual void hidePanel() = 0;
 
-  static std::unique_ptr<NodePropertiesPanel> create(
-      TTeulDocument &document, TGraphCanvas &canvas,
-      const TNodeRegistry &registry, ITeulParamProvider *provider,
-      ParamBindingSummaryResolver bindingSummaryResolver);
+  static std::unique_ptr<NodePropertiesPanel>
+  create(TTeulDocument &document, TGraphCanvas &canvas,
+         const TNodeRegistry &registry, ITeulParamProvider *provider,
+         ParamBindingSummaryResolver bindingSummaryResolver);
 };
 
 struct GyeolBindingPresentation {
@@ -55,8 +56,7 @@ GyeolBindingPresentation makeGyeolBindingPresentation(
 std::unique_ptr<juce::Component> createParamEditor(const TParamSpec &spec,
                                                    const juce::var &value);
 int editorHeightFor(const juce::Component &editor);
-juce::var readEditorValue(const juce::Component &editor,
-                          const TParamSpec &spec,
+juce::var readEditorValue(const juce::Component &editor, const TParamSpec &spec,
                           const juce::var &originalValue);
 
 bool varEquals(const juce::var &lhs, const juce::var &rhs);
@@ -70,8 +70,7 @@ TParamSpec makeFallbackParamSpec(const juce::String &key,
 TParamSpec makeSpecFromExposedParam(const TTeulExposedParam &param);
 juce::String formatValueForDisplay(const juce::var &value,
                                    const TParamSpec &spec);
-juce::var parseTextValue(const juce::String &text,
-                         const TParamSpec &spec,
+juce::var parseTextValue(const juce::String &text, const TParamSpec &spec,
                          const juce::var &prototype);
 
 } // namespace Teul

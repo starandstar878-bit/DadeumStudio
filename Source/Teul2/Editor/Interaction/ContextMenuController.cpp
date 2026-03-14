@@ -3,7 +3,7 @@
 #include "Teul2/Editor/Search/SearchController.h"
 #include "Teul2/Document/TDocumentHistory.h"
 #include "Teul2/Document/TDocumentStore.h"
-#include "Teul/Registry/TNodeRegistry.h"
+#include "Teul2/Runtime/AudioGraph/TGraphCompiler.h"
 
 #include <algorithm>
 #include <limits>

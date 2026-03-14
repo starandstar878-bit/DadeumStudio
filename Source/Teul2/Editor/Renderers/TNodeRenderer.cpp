@@ -1,7 +1,7 @@
 #include "Teul2/Editor/Renderers/TNodeRenderer.h"
 #include "Teul2/Editor/Theme/TeulPalette.h"
 #include "Teul2/Editor/Canvas/TGraphCanvas.h"
-#include "Teul/Registry/TNodeRegistry.h"
+#include "Teul2/Runtime/AudioGraph/TGraphCompiler.h"
 
 #include <algorithm>
 #include <cmath>

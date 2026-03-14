@@ -35,21 +35,295 @@ enum class TPortDirection {
 //  포트 데이터 타입
 //
 //  색상 규약 (UI Phase 2 에서 사용):
-//    Audio   → Green   (#4CAF50)
-//    CV      → Amber   (#FFC107)
-//    MIDI    → Blue    (#2196F3)
-//    Gate    → Orange  (#FF9800)
-//    Control → Purple  (#9C27B0)
+//    Audio   -> Green   (#4CAF50)
+//    CV      -> Amber   (#FFC107)
+//    MIDI    -> Blue    (#2196F3)
+//    Gate    -> Orange  (#FF9800)
+//    Control -> Purple  (#9C27B0)
 // =============================================================================
 enum class TPortDataType {
   Audio,   // 오디오 신호 (PCM float 샘플 버퍼)
-  CV,      // Control Voltage — -1.0 ~ +1.0 float, 파라미터 변조용
+  CV,      // Control Voltage - -1.0 ~ +1.0 float, 파라미터 변조용
   MIDI,    // MIDI 메시지 스트림
   Gate,    // 0 또는 1 (트리거 / 게이트)
   Control, // UI 직접 제어 값 (파라미터 노브 등)
 };
+
 // =============================================================================
-//  TPort — 포트 데이터 모델
+//  파라미터 관련 타입 (Teul/Bridge/ITeulParamProvider.h 에서 이관)
+// =============================================================================
+
+enum class TParamValueType {
+  Auto,
+  Float,
+  Int,
+  Bool,
+  Enum,
+  String,
+};
+
+enum class TParamWidgetHint {
+  Auto,
+  Slider,
+  Combo,
+  Toggle,
+  Text,
+};
+
+struct TParamOptionSpec {
+  juce::String id;
+  juce::String label;
+  juce::var value;
+};
+
+// =============================================================================
+//  TParamSpec - 파라미터 상세 명세
+// =============================================================================
+
+struct TParamSpec {
+  juce::String key;
+  juce::String label;
+  juce::var defaultValue;
+
+  TParamValueType valueType = TParamValueType::Auto;
+  juce::var minValue;
+  juce::var maxValue;
+  juce::var step;
+  juce::String unitLabel;
+  int displayPrecision = 2;
+  juce::String group;
+  juce::String description;
+  std::vector<TParamOptionSpec> enumOptions;
+  TParamWidgetHint preferredWidget = TParamWidgetHint::Auto;
+  bool showInNodeBody = false;
+  bool showInPropertyPanel = true;
+  bool isReadOnly = false;
+  bool isAutomatable = true;
+  bool isModulatable = true;
+  bool isDiscrete = false;
+  bool exposeToIeum = true;
+  juce::String preferredBindingKey;
+  juce::String exportSymbol;
+  juce::String categoryPath;
+};
+
+// =============================================================================
+//  TPortSpec - 포트 상세 명세
+// =============================================================================
+
+struct TPortSpec {
+  TPortDirection direction;
+  TPortDataType dataType;
+
+  juce::String name;                      // 대표 이름
+  int channelCount = 1;                   // 구조상 채널 수
+  std::vector<juce::String> channelNames; // 채널별 세부 이름(optional)
+
+  int maxIncomingConnections = 1;
+  int maxOutgoingConnections = -1;
+};
+
+// =============================================================================
+//  TNodeCapabilities - 노드 기능 및 제약 조건
+// =============================================================================
+
+struct TNodeCapabilities {
+  bool canBypass = true;
+  bool canMute = false;
+  bool canSolo = false;
+  bool isTimeDependent = false;
+
+  int minInstances = 0;
+  int maxInstances = -1;
+  int maxPolyphony = 1;
+  float processingLatencyMs = 0.0f;
+  int estimatedCpuCost = 1;
+};
+
+enum class TNodeExportSupport {
+  Unsupported,
+  JsonOnly,
+  RuntimeModuleOnly,
+  Both,
+};
+
+class TNodeInstance;
+
+// =============================================================================
+//  TTeulExposedParam (Teul/Bridge/ITeulParamProvider.h 에서 이관)
+// =============================================================================
+
+struct TTeulExposedParam {
+  juce::String paramId;
+  NodeId nodeId = kInvalidNodeId;
+  juce::String nodeTypeKey;
+  juce::String nodeDisplayName;
+  juce::String paramKey;
+  juce::String paramLabel;
+  juce::var defaultValue;
+  juce::var currentValue;
+  TParamValueType valueType = TParamValueType::Auto;
+  juce::var minValue;
+  juce::var maxValue;
+  juce::var step;
+  juce::String unitLabel;
+  int displayPrecision = 2;
+  juce::String group;
+  juce::String description;
+  std::vector<TParamOptionSpec> enumOptions;
+  TParamWidgetHint preferredWidget = TParamWidgetHint::Auto;
+  bool showInNodeBody = false;
+  bool showInPropertyPanel = true;
+  bool isReadOnly = false;
+  bool isAutomatable = true;
+  bool isModulatable = true;
+  bool isDiscrete = false;
+  bool exposeToIeum = true;
+  juce::String preferredBindingKey;
+  juce::String exportSymbol;
+  juce::String categoryPath;
+};
+
+// =============================================================================
+//  TNodeDescriptor - 노드 정의 (정적 정보)
+// =============================================================================
+
+struct TNode; // Forward declaration
+
+struct TNodeDescriptor {
+  juce::String typeKey;
+  juce::String displayName;
+  juce::String category;
+
+  TNodeCapabilities capabilities;
+  TNodeExportSupport exportSupport = TNodeExportSupport::Both;
+
+  std::vector<TParamSpec> paramSpecs;
+  std::vector<TPortSpec> portSpecs;
+
+  std::function<std::unique_ptr<TNodeInstance>()> instanceFactory;
+  std::function<std::vector<TTeulExposedParam>(const TNode &node)>
+      exposedParamFactory;
+};
+
+// =============================================================================
+//  Helper Functions - 파라미터/포트 명세 생성 헬퍼
+// =============================================================================
+
+inline TParamOptionSpec makeParamOption(const juce::String &id,
+                                        const juce::String &label,
+                                        const juce::var &value) {
+  TParamOptionSpec option;
+  option.id = id;
+  option.label = label;
+  option.value = value;
+  return option;
+}
+
+inline TParamSpec
+makeFloatParamSpec(const juce::String &key, const juce::String &label,
+                   float defaultValue, float minValue, float maxValue,
+                   float step = 0.0f, const juce::String &unitLabel = {},
+                   int displayPrecision = 2, const juce::String &group = {},
+                   const juce::String &description = {}) {
+  TParamSpec spec;
+  spec.key = key;
+  spec.label = label;
+  spec.defaultValue = defaultValue;
+  spec.valueType = TParamValueType::Float;
+  spec.minValue = minValue;
+  spec.maxValue = maxValue;
+  spec.step = step;
+  spec.unitLabel = unitLabel;
+  spec.displayPrecision = displayPrecision;
+  spec.group = group;
+  spec.description = description;
+  spec.preferredWidget = TParamWidgetHint::Slider;
+  return spec;
+}
+
+inline TParamSpec makeEnumParamSpec(const juce::String &key,
+                                    const juce::String &label, int defaultValue,
+                                    std::vector<TParamOptionSpec> enumOptions,
+                                    const juce::String &group = {},
+                                    const juce::String &description = {}) {
+  TParamSpec spec;
+  spec.key = key;
+  spec.label = label;
+  spec.defaultValue = defaultValue;
+  spec.valueType = TParamValueType::Enum;
+  spec.group = group;
+  spec.description = description;
+  spec.enumOptions = std::move(enumOptions);
+  spec.preferredWidget = TParamWidgetHint::Combo;
+  spec.isDiscrete = true;
+  return spec;
+}
+
+inline TPortSpec makePortSpec(TPortDirection direction, TPortDataType dataType,
+                              const juce::String &name) {
+  TPortSpec spec;
+  spec.direction = direction;
+  spec.dataType = dataType;
+  spec.name = name;
+  spec.channelCount = 1;
+  return spec;
+}
+
+inline TPortSpec makePortSpec(TPortDirection direction, TPortDataType dataType,
+                              const juce::String &name, int channelCount) {
+  TPortSpec spec;
+  spec.direction = direction;
+  spec.dataType = dataType;
+  spec.name = name;
+  spec.channelCount = juce::jmax(1, channelCount);
+  for (int i = 0; i < spec.channelCount; ++i) {
+    spec.channelNames.push_back(name + " " + juce::String(i + 1));
+  }
+  return spec;
+}
+
+inline TPortSpec makePortSpec(TPortDirection direction, TPortDataType dataType,
+                              const juce::String &name, int channelCount,
+                              std::vector<juce::String> channelNames) {
+  TPortSpec spec;
+  spec.direction = direction;
+  spec.dataType = dataType;
+  spec.name = name;
+  spec.channelCount = juce::jmax(1, channelCount);
+  spec.channelNames = std::move(channelNames);
+
+  while ((int)spec.channelNames.size() < spec.channelCount) {
+    spec.channelNames.push_back(
+        spec.name + " " + juce::String((int)spec.channelNames.size() + 1));
+  }
+  return spec;
+}
+
+inline juce::String makeTeulParamId(NodeId nodeId,
+                                    const juce::String &paramKey) {
+  return "teul.node." + juce::String(nodeId) + "." + paramKey;
+}
+
+inline bool parseTeulParamId(const juce::String &paramId,
+                             NodeId &outNodeId,
+                             juce::String &outParamKey) {
+  const juce::String prefix = "teul.node.";
+  if (!paramId.startsWith(prefix))
+    return false;
+
+  const juce::String tail = paramId.fromFirstOccurrenceOf(prefix, false, false);
+  const int split = tail.indexOfChar('.');
+  if (split <= 0)
+    return false;
+
+  outNodeId = tail.substring(0, split).getIntValue();
+  outParamKey = tail.substring(split + 1);
+  return outNodeId != kInvalidNodeId && outParamKey.isNotEmpty();
+}
+
+// =============================================================================
+//  TPort - 포트 데이터 모델
 //
 //  포트는 TNode 가 직접 소유한다 (std::vector<TPort> nodes).
 //  ownerNodeId 는 역참조용으로 보관하며, 직렬화 시에도 기록된다.
@@ -68,8 +342,9 @@ struct TPort {
   int maxIncomingConnections = 1;
   int maxOutgoingConnections = -1;
 };
+
 // =============================================================================
-//  TNode — 노드 데이터 모델
+//  TNode - 노드 데이터 모델
 //
 //  TNode 는 순수 직렬화 가능 데이터다.
 //  DSP 상태(필터 계수, 딜레이 버퍼 등)는 Phase 3 에서 도입할
@@ -89,7 +364,7 @@ struct TNode {
   float x = 0.0f;       // 캔버스 상의 위치 (월드 좌표)
   float y = 0.0f;
 
-  // 파라미터 맵 — 타입 키에 따라 내용이 달라진다.
+  // 파라미터 맵 - 타입 키에 따라 내용이 달라진다.
   // 값 타입: float, int, bool, String (juce::var 이 모두 수용)
   std::map<juce::String, juce::var> params;
 
@@ -123,6 +398,7 @@ struct TNode {
     return nullptr;
   }
 };
+
 enum class TEndpointOwnerKind {
   NodePort,
   RailPort,
@@ -182,6 +458,7 @@ struct TConnection {
            to.isValid();
   }
 };
+
 struct TGraphMeta {
   juce::String name = "Untitled";
   float canvasOffsetX = 0.0f;
@@ -828,7 +1105,8 @@ struct TControlSourceState {
 
     syncSourceIntoDeviceProfile(*source);
 
-    auto *profileSource = findDeviceSourceProfile(normalizedProfileId, source->sourceId);
+    auto *profileSource =
+        findDeviceSourceProfile(normalizedProfileId, source->sourceId);
     if (profileSource != nullptr && bindingSignatureHasIdentity(binding)) {
       const bool alreadyPresent = std::any_of(
           profileSource->bindings.begin(), profileSource->bindings.end(),
@@ -909,9 +1187,8 @@ struct TControlSourceState {
       profileSource = &profile->sources.back();
     }
 
-    profileSource->displayName = source.displayName.isNotEmpty()
-                                     ? source.displayName
-                                     : source.sourceId;
+    profileSource->displayName =
+        source.displayName.isNotEmpty() ? source.displayName : source.sourceId;
     profileSource->kind = source.kind;
     profileSource->mode = source.mode;
     profileSource->ports = source.ports;
@@ -1002,19 +1279,20 @@ struct TControlSourceState {
     return true;
   }
 
-  juce::String findReconnectCandidateProfileId(
-      const juce::String &presentProfileId, const juce::String &deviceId,
-      const juce::String &displayName) const {
+  juce::String
+  findReconnectCandidateProfileId(const juce::String &presentProfileId,
+                                  const juce::String &deviceId,
+                                  const juce::String &displayName) const {
     const auto normalizedPresentId = presentProfileId.trim();
     if (normalizedPresentId.isEmpty())
       return {};
 
     auto isMarkedMissing = [&](const juce::String &profileId) {
-      return std::any_of(
-          missingDeviceProfileIds.begin(), missingDeviceProfileIds.end(),
-          [&](const juce::String &existingId) {
-            return existingId.trim() == profileId.trim();
-          });
+      return std::any_of(missingDeviceProfileIds.begin(),
+                         missingDeviceProfileIds.end(),
+                         [&](const juce::String &existingId) {
+                           return existingId.trim() == profileId.trim();
+                         });
     };
 
     juce::String matchedProfileId;
@@ -1066,8 +1344,8 @@ struct TControlSourceState {
     }
 
     const bool hadProfile = findDeviceProfile(normalizedProfileId) != nullptr;
-    auto &profile = ensureDeviceProfile(normalizedProfileId, deviceId, displayName,
-                                        autoDetected);
+    auto &profile = ensureDeviceProfile(normalizedProfileId, deviceId,
+                                        displayName, autoDetected);
     const auto previousDeviceId = profile.deviceId;
     const auto previousDisplayName = profile.displayName;
     const bool previousAutoDetected = profile.autoDetected;
@@ -1078,7 +1356,8 @@ struct TControlSourceState {
         });
 
     profile.deviceId = deviceId.isNotEmpty() ? deviceId : profile.deviceId;
-    profile.displayName = displayName.isNotEmpty() ? displayName : profile.displayName;
+    profile.displayName =
+        displayName.isNotEmpty() ? displayName : profile.displayName;
     profile.autoDetected = autoDetected;
     removeMissingDeviceProfileId(normalizedProfileId);
     reconcileDeviceProfilesAndSources();
@@ -1090,7 +1369,8 @@ struct TControlSourceState {
   }
   bool markDeviceProfileMissing(const juce::String &profileId) {
     const auto normalizedProfileId = profileId.trim();
-    if (normalizedProfileId.isEmpty() || normalizedProfileId == "preview-device")
+    if (normalizedProfileId.isEmpty() ||
+        normalizedProfileId == "preview-device")
       return false;
 
     const bool alreadyMissing = std::any_of(
@@ -1128,12 +1408,11 @@ struct TControlSourceState {
       matchedProfileId.clear();
       candidateCount = 0;
       for (const auto &profile : deviceProfiles) {
-        const auto matchIt =
-            std::find_if(profile.sources.begin(), profile.sources.end(),
-                         [&](const TDeviceSourceProfile &profileSource) {
-                           return matchesProfileSource(profileSource,
-                                                       allowEmptyPorts);
-                         });
+        const auto matchIt = std::find_if(
+            profile.sources.begin(), profile.sources.end(),
+            [&](const TDeviceSourceProfile &profileSource) {
+              return matchesProfileSource(profileSource, allowEmptyPorts);
+            });
         if (matchIt == profile.sources.end())
           continue;
 
@@ -1211,8 +1490,8 @@ struct TControlSourceState {
         TDeviceSourceProfile previewSource;
         previewSource.sourceId = source.sourceId;
         previewSource.displayName = source.displayName.isNotEmpty()
-                                        ? source.displayName
-                                        : source.sourceId;
+                                         ? source.displayName
+                                         : source.sourceId;
         previewSource.kind = source.kind;
         previewSource.mode = source.mode;
         previewSource.ports = source.ports;
@@ -1241,9 +1520,11 @@ struct TControlSourceState {
       if (trimmedId.isEmpty() || trimmedId == "preview-device")
         return;
 
-      const bool alreadyPresent = std::any_of(
-          normalizedMissingIds.begin(), normalizedMissingIds.end(),
-          [&](const juce::String &existingId) { return existingId == trimmedId; });
+      const bool alreadyPresent =
+          std::any_of(normalizedMissingIds.begin(), normalizedMissingIds.end(),
+                      [&](const juce::String &existingId) {
+                        return existingId == trimmedId;
+                      });
       if (!alreadyPresent)
         normalizedMissingIds.push_back(trimmedId);
     };
@@ -1253,20 +1534,11 @@ struct TControlSourceState {
       if (trimmedId.isEmpty())
         return false;
 
-      return std::any_of(
-          normalizedMissingIds.begin(), normalizedMissingIds.end(),
-          [&](const juce::String &existingId) { return existingId == trimmedId; });
-    };
-
-    auto profileIdReferencedByAnySource = [&](const juce::String &profileId) {
-      const auto trimmedId = profileId.trim();
-      if (trimmedId.isEmpty())
-        return false;
-
-      return std::any_of(
-          sources.begin(), sources.end(), [&](const TControlSource &source) {
-            return source.deviceProfileId.trim() == trimmedId;
-          });
+      return std::any_of(normalizedMissingIds.begin(),
+                         normalizedMissingIds.end(),
+                         [&](const juce::String &existingId) {
+                           return existingId == trimmedId;
+                         });
     };
 
     for (const auto &profileId : missingDeviceProfileIds) {
@@ -1298,7 +1570,8 @@ struct TControlSourceState {
         continue;
       }
 
-      const auto *profileSource = findDeviceSourceProfile(profileId, source.sourceId);
+      const auto *profileSource =
+          findDeviceSourceProfile(profileId, source.sourceId);
       if (profileSource == nullptr) {
         source.degraded = true;
         if (isMarkedMissing(profileId))

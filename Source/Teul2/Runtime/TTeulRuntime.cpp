@@ -6,8 +6,6 @@
 #include "Teul2/Runtime/IOControl/TRuntimeDeviceManager.h"
 #include "Teul2/Runtime/IOControl/TRuntimeEvent.h"
 #include "Teul2/Runtime/IOControl/TRuntimeEventQueue.h"
-#include "Teul/Registry/TNodeRegistry.h"
-#include "Teul/Runtime/TGraphRuntime.h"
 
 namespace Teul {
 namespace {
@@ -77,16 +75,15 @@ bool TTeulRuntime::buildGraph(const TTeulDocument &document) {
       TRuntimeEvent::makeGraphBuildRequested(runtimeRevision));
 
   if (!TGraphCompiler::compileLegacyDocument(impl->legacyDocument, document)) {
-    impl->pushRuntimeEvent(TRuntimeEvent::makeGraphBuildFailed(runtimeRevision));
+    impl->pushRuntimeEvent(
+        TRuntimeEvent::makeGraphBuildFailed(runtimeRevision));
     return false;
   }
 
   const bool didBuild = impl->runtime.buildGraph(impl->legacyDocument);
-  impl->pushRuntimeEvent(didBuild
-                             ? TRuntimeEvent::makeGraphBuildCommitted(
-                                   runtimeRevision)
-                             : TRuntimeEvent::makeGraphBuildFailed(
-                                   runtimeRevision));
+  impl->pushRuntimeEvent(
+      didBuild ? TRuntimeEvent::makeGraphBuildCommitted(runtimeRevision)
+               : TRuntimeEvent::makeGraphBuildFailed(runtimeRevision));
   return didBuild;
 }
 
@@ -95,9 +92,8 @@ void TTeulRuntime::prepareToPlay(double sampleRate,
   if (impl == nullptr)
     return;
 
-  impl->pushRuntimeEvent(
-      TRuntimeEvent::makePrepareToPlay(sampleRate,
-                                       maximumExpectedSamplesPerBlock));
+  impl->pushRuntimeEvent(TRuntimeEvent::makePrepareToPlay(
+      sampleRate, maximumExpectedSamplesPerBlock));
   impl->runtime.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
 }
 
@@ -122,8 +118,8 @@ void TTeulRuntime::setCurrentChannelLayout(int inputChannels,
   if (impl == nullptr)
     return;
 
-  impl->pushRuntimeEvent(TRuntimeEvent::makeChannelLayoutChanged(
-      inputChannels, outputChannels));
+  impl->pushRuntimeEvent(
+      TRuntimeEvent::makeChannelLayoutChanged(inputChannels, outputChannels));
   impl->runtime.setCurrentChannelLayout(inputChannels, outputChannels);
 }
 
@@ -166,8 +162,8 @@ void TTeulRuntime::audioDeviceIOCallbackWithContext(
   impl->pushRuntimeEvent(TRuntimeEvent::makeChannelLayoutChanged(
       numInputChannels, numOutputChannels));
   impl->runtime.audioDeviceIOCallbackWithContext(
-      inputChannelData, numInputChannels, outputChannelData,
-      numOutputChannels, numSamples, context);
+      inputChannelData, numInputChannels, outputChannelData, numOutputChannels,
+      numSamples, context);
 }
 
 void TTeulRuntime::queueParameterChange(NodeId nodeId,
@@ -182,9 +178,8 @@ void TTeulRuntime::queueParameterChange(NodeId nodeId,
 bool TTeulRuntime::applyControlSourceValue(const juce::String &sourceId,
                                            const juce::String &portId,
                                            float normalizedValue) {
-  return impl != nullptr &&
-         impl->runtime.applyControlSourceValue(sourceId, portId,
-                                               normalizedValue);
+  return impl != nullptr && impl->runtime.applyControlSourceValue(
+                                sourceId, portId, normalizedValue);
 }
 
 float TTeulRuntime::getPortLevel(PortId portId) const noexcept {

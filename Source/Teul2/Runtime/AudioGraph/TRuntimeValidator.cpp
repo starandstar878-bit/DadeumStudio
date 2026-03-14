@@ -2,8 +2,6 @@
 
 #include "Teul2/Document/TDocumentStore.h"
 #include "Teul2/Runtime/AudioGraph/TGraphCompiler.h"
-#include "Teul/Registry/TNodeRegistry.h"
-
 #include <algorithm>
 #include <cmath>
 

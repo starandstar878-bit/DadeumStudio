@@ -2,7 +2,6 @@
 
 #include "Teul2/Document/TTeulDocument.h"
 #include "Teul2/Runtime/TTeulRuntime.h"
-#include "Teul/Export/TExport.h"
 
 #include <JuceHeader.h>
 #include <vector>

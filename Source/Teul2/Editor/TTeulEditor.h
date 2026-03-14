@@ -1,8 +1,7 @@
 #pragma once
-
+ 
 #include "Teul2/Document/TTeulDocument.h"
 #include "Teul2/Runtime/TTeulRuntime.h"
-#include "Teul/Export/TExport.h"
 
 #include <JuceHeader.h>
 #include <cstdint>
@@ -41,31 +40,24 @@ public:
 
   void refreshFromDocument();
   void setSessionStatus(const TEditorSessionStatus &status);
-  bool applyLearnedControlBinding(const TDeviceBindingSignature &binding,
-                                  const juce::String &profileId,
-                                  const juce::String &deviceId,
-                                  const juce::String &profileDisplayName,
-                                  TControlSourceKind kind,
-                                  TControlSourceMode mode,
-                                  const juce::String &sourceDisplayName = {},
-                                  bool autoDetected = true,
-                                  bool confirmed = true);
+  bool applyLearnedControlBinding(
+      const TDeviceBindingSignature &binding, const juce::String &profileId,
+      const juce::String &deviceId, const juce::String &profileDisplayName,
+      TControlSourceKind kind, TControlSourceMode mode,
+      const juce::String &sourceDisplayName = {}, bool autoDetected = true,
+      bool confirmed = true);
   bool applyLearnedMidiMessage(const juce::MidiMessage &message,
                                const juce::String &midiDeviceName = {},
                                const juce::String &hardwareId = {},
                                const juce::String &profileId = {},
                                const juce::String &profileDisplayName = {},
-                               bool autoDetected = true,
-                               bool confirmed = true);
-  void enqueueLearnedControlBinding(const TDeviceBindingSignature &binding,
-                                    const juce::String &profileId,
-                                    const juce::String &deviceId,
-                                    const juce::String &profileDisplayName,
-                                    TControlSourceKind kind,
-                                    TControlSourceMode mode,
-                                    const juce::String &sourceDisplayName = {},
-                                    bool autoDetected = true,
-                                    bool confirmed = true);
+                               bool autoDetected = true, bool confirmed = true);
+  void enqueueLearnedControlBinding(
+      const TDeviceBindingSignature &binding, const juce::String &profileId,
+      const juce::String &deviceId, const juce::String &profileDisplayName,
+      TControlSourceKind kind, TControlSourceMode mode,
+      const juce::String &sourceDisplayName = {}, bool autoDetected = true,
+      bool confirmed = true);
   void enqueueControlDeviceProfilesSync(
       const std::vector<TControlDeviceProfilePresence> &profiles,
       bool autoMarkMissing = true);
@@ -94,9 +86,9 @@ private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TTeulEditor)
 };
 
-std::unique_ptr<TTeulEditor> createTeulEditor(
-    juce::AudioDeviceManager *audioDeviceManager = nullptr,
-    ParamBindingSummaryResolver bindingSummaryResolver = {},
-    ParamBindingRevisionProvider bindingRevisionProvider = {});
+std::unique_ptr<TTeulEditor>
+createTeulEditor(juce::AudioDeviceManager *audioDeviceManager = nullptr,
+                 ParamBindingSummaryResolver bindingSummaryResolver = {},
+                 ParamBindingRevisionProvider bindingRevisionProvider = {});
 
 } // namespace Teul
