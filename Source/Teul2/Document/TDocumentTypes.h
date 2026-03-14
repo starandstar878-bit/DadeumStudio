@@ -347,6 +347,15 @@ struct TPort {
 };
 
 // =============================================================================
+//  TRailType - 레일 종류 (UI 레이아웃 용)
+// =============================================================================
+enum class TRailType {
+  Left,   // Input Rail
+  Right,  // Output Rail
+  Bottom, // Control Rail
+};
+
+// =============================================================================
 //  TNode - 노드 데이터 모델
 //
 //  TNode 는 순수 직렬화 가능 데이터다.
@@ -379,6 +388,11 @@ struct TNode {
   bool bypassed = false;  // 바이패스 (DSP 우회)
   juce::String label;     // 사용자 지정 이름 (비어있으면 typeKey 사용)
   juce::String colorTag;  // node color tag for organization
+
+  // 레일 관련 속성
+  bool isRailNode = false;              // 레일에 고착된 노드 여부
+  TRailType railType = TRailType::Left; // 소속 레일 종류
+  int railOrder = 0;                    // 레일 내 배치 순서
 
   // 상태 메타데이터 (UI 에러 배지 표시용)
   bool hasError = false;

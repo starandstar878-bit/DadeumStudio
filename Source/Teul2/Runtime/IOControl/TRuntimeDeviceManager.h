@@ -26,14 +26,25 @@ struct TRuntimeDeviceState {
 
 class TRuntimeDeviceManager {
 public:
+  struct Listener {
+    virtual ~Listener() = default;
+    virtual void deviceStateChanged(const TRuntimeDeviceState &newState) = 0;
+  };
+
+  void addListener(Listener *l) { listeners.add(l); }
+  void removeListener(Listener *l) { listeners.remove(l); }
+
   void consume(const TRuntimeEvent &event);
   void consume(const std::vector<TRuntimeEvent> &events);
   TRuntimeDeviceState snapshot() const;
   void reset();
 
 private:
+  void notifyListeners();
+
   mutable juce::CriticalSection lock;
   TRuntimeDeviceState state;
+  juce::ListenerList<Listener> listeners;
 };
 
 } // namespace Teul

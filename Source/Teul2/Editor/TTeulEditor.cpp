@@ -3,6 +3,8 @@
 #include "Teul2/Document/TTeulDocument.h"
 #include "Teul2/Runtime/TTeulRuntime.h"
 
+#include "Teul2/Editor/Panels/TRailPanel.h"
+#include "Teul2/Editor/Renderers/TIOControlNodeRenderer.h"
 #include <memory>
 #include <vector>
 
@@ -16,7 +18,7 @@ class DiagnosticsDrawer;
 class PresetBrowserPanel;
 class RuntimeStatusStrip;
 class DocumentNoticeBanner;
-class RailPanel;
+// class RailPanel; // TRailPanel.h 포함으로 대체됨
 class PlaceholderInspectorPanel;
 class ControlSourceInspectorPanel;
 class SystemEndpointInspectorPanel;
@@ -157,9 +159,9 @@ private:
   std::unique_ptr<PlaceholderInspectorPanel> placeholderInspector;
   std::unique_ptr<ControlSourceInspectorPanel> controlSourceInspector;
   std::unique_ptr<SystemEndpointInspectorPanel> systemEndpointInspector;
-  std::unique_ptr<RailPanel> inputRail;
-  std::unique_ptr<RailPanel> outputRail;
-  std::unique_ptr<RailPanel> controlRail;
+  std::unique_ptr<TRailPanel> inputRail;
+  std::unique_ptr<TRailPanel> outputRail;
+  std::unique_ptr<TRailPanel> controlRail;
   juce::AudioDeviceManager *audioDeviceManager = nullptr;
   juce::CriticalSection midiOutputDeviceLock;
   std::shared_ptr<juce::MidiOutput> midiOutputDevice;
@@ -1283,136 +1285,11 @@ bool connectControlSourcePortToParam(
   return true;
 }
 } // namespace
-
-class RailPanel : public juce::Component, public juce::SettableTooltipClient {
-public:
-  using CollapseHandler = std::function<void()>;
-  using CardSelectionHandler = std::function<void(const juce::String &cardId)>;
-  using PortDragBeginHandler = std::function<bool(const juce::String &cardId,
-                                                  const juce::String &portId,
-                                                  juce::Point<float> sourceAnchorTarget,
-                                                  juce::Point<float> mousePosTarget)>;
-  using PortDragMotionHandler =
-      std::function<void(juce::Point<float> mousePosTarget)>;
-
-  RailPanel(TTeulDocument &documentIn, juce::String railIdIn,
-            RailOrientation orientationIn)
-      : document(documentIn), railId(std::move(railIdIn)),
-        orientation(orientationIn) {
-    addAndMakeVisible(collapseButton);
-    setWantsKeyboardFocus(true);
-    collapseButton.onClick = [this] { toggleCollapsed(); };
-    refreshFromDocument();
-  }
-
-  void setCollapseHandler(CollapseHandler handler) {
-    collapseHandler = std::move(handler);
-  }
-
-  void setCardSelectionHandler(CardSelectionHandler handler) {
-    cardSelectionHandler = std::move(handler);
-    if (cardSelectionHandler == nullptr) {
-      selectedCardId.clear();
-      hoveredCardId.clear();
-      hoveredPortCardId.clear();
-      hoveredPortId.clear();
-      cardHitZones.clear();
-      portHitZones.clear();
-    }
-    repaint();
-  }
-
-  void setEndpointSubtitleProvider(
-      std::function<juce::String(const TSystemRailEndpoint &)> provider) {
-    endpointSubtitleProvider = std::move(provider);
-    repaint();
-  }
-
-  void setPortDragTargetComponent(juce::Component *targetComponent) {
-    portDragTargetComponent = targetComponent;
-  }
-
-  void setPortDragHandlers(PortDragBeginHandler beginHandler,
-                           PortDragMotionHandler updateHandler,
-                           PortDragMotionHandler endHandler) {
-    portDragBeginHandler = std::move(beginHandler);
-    portDragUpdateHandler = std::move(updateHandler);
-    portDragEndHandler = std::move(endHandler);
-    if (portDragBeginHandler == nullptr) {
-      activePortDrag = {};
-      hoveredPortCardId.clear();
-      hoveredPortId.clear();
-      portHitZones.clear();
-      repaint();
-    }
-  }
-
-  std::vector<TGraphCanvas::ExternalDropZone>
-  portDropTargetsIn(juce::Component &target) const {
-    std::vector<TGraphCanvas::ExternalDropZone> zones;
-    zones.reserve(portHitZones.size());
-    for (const auto &zone : portHitZones) {
-      auto boundsInTarget = target.getLocalArea(this,
-                                                zone.bounds.getSmallestIntegerContainer())
-                                .toFloat();
-      zones.push_back({makeRailPortZoneId(zone.cardId, zone.portId),
-                       boundsInTarget, zone.dataType, zone.elliptical});
-    }
-    return zones;
-  }
-
-  void setSelectedCardId(const juce::String &cardId) {
-    if (selectedCardId == cardId)
-      return;
-
-    selectedCardId = cardId;
-    repaint();
-  }
-
-  void setDropTargetPort(const juce::String &cardId, const juce::String &portId,
-                         bool canConnect) {
-    if (dropTargetCardId == cardId && dropTargetPortId == portId &&
-        dropTargetCanConnect == canConnect)
-      return;
-
-    dropTargetCardId = cardId;
-    dropTargetPortId = portId;
-    dropTargetCanConnect = canConnect;
-    repaint();
-  }
-
-  void refreshFromDocument() {
-    const auto accent = railAccent(currentRailKind());
-    const auto collapsed = isRailCollapsed();
-    collapseButton.setButtonText(collapseGlyph(collapsed));
-    collapseButton.setColour(juce::TextButton::buttonColourId,
-                             accent.withAlpha(0.15f));
-    collapseButton.setColour(juce::TextButton::buttonOnColourId,
-                             accent.withAlpha(0.24f));
-    collapseButton.setColour(juce::TextButton::textColourOffId,
-                             TeulPalette::PanelTextStrong().withAlpha(0.92f));
-    collapseButton.setColour(juce::TextButton::textColourOnId,
-                             TeulPalette::PanelTextStrong().withAlpha(0.97f));
-    collapseButton.setTooltip(collapsed ? "Expand rail" : "Collapse rail");
-    repaint();
-  }
-
-  juce::String tooltipTextForPort(const juce::String &cardId,
-                                  const juce::String &portId) const {
-    if (cardId.isEmpty() || portId.isEmpty())
-      return {};
-
-    if (const auto *endpoint = document.controlState.findEndpoint(cardId)) {
-      juce::String text = endpoint->displayName;
-      if (isRailBundlePortToken(portId)) {
-        text << " / All channels";
-      } else if (const auto *port = document.findSystemRailPort(cardId, portId)) {
-        text << " / " << port->displayName;
+layName;
       }
       const auto issueState = issueStateForEndpoint(*endpoint);
       if (hasIssueState(issueState))
         text << " / " << issueStateLabel(issueState);
-      return text;
     }
 
     if (const auto *source = document.controlState.findSource(cardId)) {
@@ -1933,182 +1810,6 @@ private:
                          const std::vector<RailCardView> &cards) {
     const bool portsOnRight = currentRailKind() != TRailKind::output;
     const int gap = 8;
-    const int count = juce::jmax(1, (int)cards.size());
-    const int cardHeight = juce::jlimit(52, 72,
-                                        (area.getHeight() - gap * (count - 1)) /
-                                            count);
-
-    for (int index = 0; index < count && area.getHeight() >= 46; ++index) {
-      const auto cardArea = area.removeFromTop(cardHeight).toFloat();
-      area.removeFromTop(gap);
-      drawVerticalCard(g, cardArea, cards[(size_t)index], portsOnRight);
-    }
-  }
-
-  void drawVerticalCard(juce::Graphics &g, juce::Rectangle<float> area,
-                        const RailCardView &card, bool portsOnRight) {
-    const auto accent = hasIssueState(card.issueState) ? issueStateAccent(card.issueState) : card.accent;
-    const bool selected = card.itemId.isNotEmpty() && card.itemId == selectedCardId;
-    const bool hovered = card.itemId.isNotEmpty() && card.itemId == hoveredCardId;
-    const bool focused = selected && hasKeyboardFocus(true);
-    g.setColour(TeulPalette::PanelBackgroundDeep().withAlpha(0.90f));
-    g.fillRoundedRectangle(area, 12.0f);
-    if (hovered && !selected) {
-      g.setColour(accent.withAlpha(0.08f));
-      g.fillRoundedRectangle(area.reduced(2.0f), 10.0f);
-    }
-    g.setColour(accent.withAlpha(selected ? 0.98f : hovered ? 0.86f : 0.72f));
-    g.drawRoundedRectangle(area, 12.0f, selected ? 2.0f : hovered ? 1.4f : 1.0f);
-    if (focused) {
-      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.62f));
-      g.drawRoundedRectangle(area.reduced(3.0f), 9.0f, 1.0f);
-    }
-
-    auto strip = area;
-    strip.setWidth(4.0f);
-    strip.setX(portsOnRight ? area.getRight() - 4.0f : area.getX());
-    g.setColour(accent.withAlpha(selected ? 0.92f : 0.68f));
-    g.fillRoundedRectangle(strip, 2.0f);
-
-    auto content = area.toNearestInt().reduced(8, 6);
-    const int portColumnWidth = card.groupedBus ? 32 : 20;
-    auto portColumn = portsOnRight ? content.removeFromRight(portColumnWidth)
-                                   : content.removeFromLeft(portColumnWidth);
-    if (portsOnRight)
-      content.removeFromRight(5);
-    else
-      content.removeFromLeft(5);
-
-    auto titleBlock = content.removeFromTop(card.subtitle.isNotEmpty() ? 30 : 20);
-    auto titleRow = titleBlock.removeFromTop(16);
-    if (card.badge.isNotEmpty()) {
-      const int badgeWidth = juce::jlimit(28, 42, 14 + card.badge.length() * 7);
-      auto badgeArea = titleRow.removeFromRight(badgeWidth);
-      drawBadge(g, badgeArea, card.badge, accent);
-      titleRow.removeFromRight(4);
-    }
-    const bool compactText = titleRow.getWidth() < 90;
-    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.94f));
-    g.setFont(juce::FontOptions(compactText ? 10.5f : 11.3f, juce::Font::bold));
-    g.drawFittedText(card.title, titleRow, juce::Justification::topLeft,
-                     compactText ? 2 : 1, 0.86f);
-
-    if (card.subtitle.isNotEmpty()) {
-      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.58f));
-      g.setFont(9.2f);
-      g.drawFittedText(card.subtitle, titleBlock.removeFromTop(12),
-                       juce::Justification::topLeft, 1, 0.88f);
-    }
-
-    auto portTrack = portColumn.toFloat().reduced(0.0f, 1.0f);
-    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.024f));
-    g.fillRoundedRectangle(portTrack, 9.0f);
-    g.setColour(accent.withAlpha(0.12f));
-    g.drawRoundedRectangle(portTrack, 9.0f, 1.0f);
-
-    auto portArea = portColumn.toFloat().reduced(1.0f, 1.5f);
-    if (card.groupedBus) {
-      drawBusPortSlot(g, card, portArea, portsOnRight, card.issueState);
-    } else if (!card.ports.empty()) {
-      drawMonoPortSlot(g, card.itemId, card.ports.front(), portArea,
-                       portsOnRight, card.issueState);
-    }
-
-    if (card.itemId.isNotEmpty())
-      cardHitZones.push_back({card.itemId, area.toNearestInt()});
-  }
-
-  void drawHorizontalCards(juce::Graphics &g, juce::Rectangle<int> area,
-                           const std::vector<RailCardView> &cards) {
-    const int gap = 10;
-    const int count = juce::jmax(1, (int)cards.size());
-    const int cardWidth = juce::jlimit(150, 240,
-                                       (area.getWidth() - gap * (count - 1)) /
-                                           count);
-
-    for (int index = 0; index < count && area.getWidth() >= 120; ++index) {
-      const auto cardArea = area.removeFromLeft(cardWidth).toFloat();
-      area.removeFromLeft(gap);
-      drawHorizontalCard(g, cardArea, cards[(size_t)index]);
-    }
-  }
-
-  void drawHorizontalCard(juce::Graphics &g, juce::Rectangle<float> area,
-                          const RailCardView &card) {
-    const auto accent = hasIssueState(card.issueState) ? issueStateAccent(card.issueState) : card.accent;
-    const bool selected = card.itemId.isNotEmpty() && card.itemId == selectedCardId;
-    const bool hovered = card.itemId.isNotEmpty() && card.itemId == hoveredCardId;
-    const bool focused = selected && hasKeyboardFocus(true);
-    g.setColour(TeulPalette::PanelBackgroundDeep().withAlpha(0.90f));
-    g.fillRoundedRectangle(area, 13.0f);
-    if (hovered && !selected) {
-      g.setColour(accent.withAlpha(0.08f));
-      g.fillRoundedRectangle(area.reduced(2.0f), 11.0f);
-    }
-    g.setColour(accent.withAlpha(selected ? 0.98f : hovered ? 0.86f : 0.72f));
-    g.drawRoundedRectangle(area, 13.0f, selected ? 2.0f : hovered ? 1.4f : 1.0f);
-    if (focused) {
-      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.62f));
-      g.drawRoundedRectangle(area.reduced(3.0f), 10.0f, 1.0f);
-    }
-
-    auto content = area.toNearestInt().reduced(10, 8);
-    auto portTray = content.removeFromBottom(22);
-    auto titleBlock = content;
-    auto titleRow = titleBlock.removeFromTop(16);
-    if (card.badge.isNotEmpty()) {
-      const int badgeWidth = juce::jlimit(28, 42, 14 + card.badge.length() * 7);
-      auto badgeArea = titleRow.removeFromRight(badgeWidth);
-      drawBadge(g, badgeArea, card.badge, accent);
-      titleRow.removeFromRight(4);
-    }
-    const bool compactText = titleRow.getWidth() < 118;
-    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.94f));
-    g.setFont(juce::FontOptions(compactText ? 10.6f : 11.6f, juce::Font::bold));
-    g.drawFittedText(card.title, titleRow, juce::Justification::topLeft,
-                     compactText ? 2 : 1, 0.86f);
-
-    if (card.subtitle.isNotEmpty()) {
-      g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.58f));
-      g.setFont(9.4f);
-      g.drawFittedText(card.subtitle, titleBlock.removeFromTop(14),
-                       juce::Justification::topLeft, 1, 0.88f);
-    }
-
-    g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.024f));
-    g.fillRoundedRectangle(portTray.toFloat(), 9.0f);
-    g.setColour(accent.withAlpha(0.12f));
-    g.drawRoundedRectangle(portTray.toFloat(), 9.0f, 1.0f);
-
-    auto portArea = portTray.reduced(5, 3);
-    int portX = portArea.getX();
-    for (const auto &port : card.ports) {
-      const int portWidth = juce::jlimit(38, 66, 16 + port.label.length() * 7);
-      if (portX + portWidth > portArea.getRight())
-        break;
-
-      juce::Rectangle<int> pill(portX, portArea.getY(), portWidth,
-                                portArea.getHeight());
-      portX += portWidth + 5;
-      g.setColour(port.accent.withAlpha(0.16f));
-      g.fillRoundedRectangle(pill.toFloat(), 7.0f);
-      g.setColour(port.accent.withAlpha(0.84f));
-      g.drawRoundedRectangle(pill.toFloat(), 7.0f, 1.0f);
-      drawPortStateOverlay(g, pill.toFloat(), port.accent,
-                           isHoveredPort(card.itemId, port.portId),
-                           isActivePort(card.itemId, port.portId));
-      g.setColour(port.accent.brighter(0.18f));
-      g.setFont(9.4f);
-      g.drawText(port.label, pill, juce::Justification::centred, false);
-      if (isDropTargetPort(card.itemId, port.portId))
-        drawDropTargetOverlay(g, pill.toFloat(), port.accent);
-      addPortHitZone(card.itemId, port.portId, port.dataType, pill.toFloat());
-    }
-
-    if (card.itemId.isNotEmpty())
-      cardHitZones.push_back({card.itemId, area.toNearestInt()});
-  }
-
   static bool hitTestPortZone(const PortHitZone &zone,
                               juce::Point<float> point) {
     if (!zone.elliptical)
@@ -3823,65 +3524,13 @@ TTeulEditor::Impl::Impl(
   owner.addAndMakeVisible(*systemEndpointInspector);
   systemEndpointInspector->setVisible(false);
 
-  inputRail = std::make_unique<RailPanel>(doc, "input-rail",
-                                          RailOrientation::vertical);
-  inputRail->setEndpointSubtitleProvider(
-      [this](const TSystemRailEndpoint &endpoint) {
-        return railEndpointSubtitleOverride(endpoint);
-      });
-  inputRail->setCollapseHandler([this] { refreshRailUi(true); });
-  inputRail->setCardSelectionHandler(
-      [this](const juce::String &endpointId) { inspectSystemEndpoint(endpointId); });
-  inputRail->setPortDragTargetComponent(canvas.get());
-  inputRail->setPortDragHandlers(
-      [this](const juce::String &endpointId, const juce::String &portId,
-             juce::Point<float> sourceAnchorView,
-             juce::Point<float> mousePosView) {
-        return beginInputRailPortDrag(doc, *canvas, endpointId, portId,
-                                      sourceAnchorView, mousePosView);
-      },
-      [this](juce::Point<float> mousePosView) {
-        if (canvas != nullptr)
-          canvas->updateConnectionDrag(mousePosView);
-      },
-      [this](juce::Point<float> mousePosView) {
-        if (canvas != nullptr)
-          canvas->endConnectionDrag(mousePosView);
-      });
+  inputRail = std::make_unique<TRailPanel>(doc, runtime.getDeviceManager(), TRailType::Left);
   owner.addAndMakeVisible(*inputRail);
 
-  outputRail = std::make_unique<RailPanel>(doc, "output-rail",
-                                           RailOrientation::vertical);
-  outputRail->setEndpointSubtitleProvider(
-      [this](const TSystemRailEndpoint &endpoint) {
-        return railEndpointSubtitleOverride(endpoint);
-      });
-  outputRail->setCollapseHandler([this] { refreshRailUi(true); });
-  outputRail->setCardSelectionHandler(
-      [this](const juce::String &endpointId) { inspectSystemEndpoint(endpointId); });
+  outputRail = std::make_unique<TRailPanel>(doc, runtime.getDeviceManager(), TRailType::Right);
   owner.addAndMakeVisible(*outputRail);
 
-  controlRail = std::make_unique<RailPanel>(doc, "control-rail",
-                                            RailOrientation::horizontal);
-  controlRail->setCollapseHandler([this] { refreshRailUi(true); });
-  controlRail->setCardSelectionHandler(
-      [this](const juce::String &sourceId) { inspectControlSource(sourceId); });
-  controlRail->setPortDragTargetComponent(canvas.get());
-  controlRail->setPortDragHandlers(
-      [this](const juce::String &sourceId, const juce::String &portId,
-             juce::Point<float> sourceAnchorView,
-             juce::Point<float> mousePosView) {
-        return beginControlRailPortDrag(doc, *canvas, sourceId, portId,
-                                        sourceAnchorView, mousePosView);
-      },
-      [this](juce::Point<float> mousePosView) {
-        if (canvas != nullptr)
-          canvas->updateConnectionDrag(mousePosView);
-      },
-      [this](juce::Point<float> mousePosView) {
-        if (canvas != nullptr)
-          canvas->endConnectionDrag(mousePosView);
-      });
+  controlRail = std::make_unique<TRailPanel>(doc, runtime.getDeviceManager(), TRailType::Bottom);
   owner.addAndMakeVisible(*controlRail);
 
   canvasOverlayLayer = std::make_unique<CanvasOverlayLayer>(*canvas);

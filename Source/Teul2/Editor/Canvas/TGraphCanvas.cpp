@@ -1,15 +1,13 @@
 #include "Teul2/Editor/Canvas/TGraphCanvas.h"
 
-#include "Teul2/Editor/Search/SearchController.h"
 #include "Teul2/Editor/Renderers/TNodeRenderer.h"
 #include "Teul2/Editor/Renderers/TPortRenderer.h"
+#include "Teul2/Editor/Search/SearchController.h"
 #include "Teul2/Editor/Theme/TeulPalette.h"
 #include "Teul2/Runtime/AudioGraph/TGraphCompiler.h"
 
-#include <algorithm>
 #include <cmath>
 #include <limits>
-#include <set>
 #include <utility>
 
 namespace Teul {
@@ -49,7 +47,8 @@ TGraphCanvas::~TGraphCanvas() {
   document.meta.canvasZoom = zoomLevel;
 }
 
-void TGraphCanvas::setConnectionLevelProvider(ConnectionLevelProvider provider) {
+void TGraphCanvas::setConnectionLevelProvider(
+    ConnectionLevelProvider provider) {
   connectionLevelProvider = std::move(provider);
 }
 
@@ -112,8 +111,7 @@ void TGraphCanvas::setDebugOverlayEnabled(bool enabled) {
     return;
 
   runtimeViewOptions.debugOverlayEnabled = enabled;
-  pushStatusHint(enabled ? "Overlay on: runtime card visible"
-                         : "Overlay off");
+  pushStatusHint(enabled ? "Overlay on: runtime card visible" : "Overlay off");
 }
 float TGraphCanvas::getPortLevel(PortId portId) const {
   if (!portLevelProvider)
@@ -263,8 +261,9 @@ void TGraphCanvas::mouseDown(const juce::MouseEvent &event) {
       return;
     }
 
-    showCanvasContextMenu(event.position,
-                          localPointToGlobal(event.position.roundToInt()).toFloat());
+    showCanvasContextMenu(
+        event.position,
+        localPointToGlobal(event.position.roundToInt()).toFloat());
     return;
   }
 
@@ -365,7 +364,8 @@ void TGraphCanvas::mouseDrag(const juce::MouseEvent &event) {
   }
 
   if (connectionBreakDragArmed && pressedConnectionId != kInvalidConnectionId) {
-    const juce::Point<float> delta = event.position - pressedConnectionPointView;
+    const juce::Point<float> delta =
+        event.position - pressedConnectionPointView;
     if (delta.getDistanceFromOrigin() > 6.0f) {
       deleteConnectionWithAnimation(pressedConnectionId, event.position,
                                     delta * 6.0f);
@@ -376,7 +376,8 @@ void TGraphCanvas::mouseDrag(const juce::MouseEvent &event) {
   }
 
   if (panState.active) {
-    const juce::Point<float> deltaView = event.position - panState.startMouseView;
+    const juce::Point<float> deltaView =
+        event.position - panState.startMouseView;
     const juce::Point<float> deltaWorld = deltaView / zoomLevel;
 
     viewOriginWorld = panState.startViewOriginWorld - deltaWorld;
@@ -453,11 +454,10 @@ bool TGraphCanvas::keyPressed(const juce::KeyPress &key) {
     return true;
   }
 
-  const bool ctrlOrCmd = key.getModifiers().isCtrlDown() ||
-                         key.getModifiers().isCommandDown();
+  const bool ctrlOrCmd =
+      key.getModifiers().isCtrlDown() || key.getModifiers().isCommandDown();
   const bool alt = key.getModifiers().isAltDown();
-  const auto ch =
-      juce::CharacterFunctions::toLowerCase(key.getTextCharacter());
+  const auto ch = juce::CharacterFunctions::toLowerCase(key.getTextCharacter());
 
   if (ctrlOrCmd && ch == 'p') {
     showCommandPaletteOverlay();
@@ -484,8 +484,8 @@ bool TGraphCanvas::keyPressed(const juce::KeyPress &key) {
     if (selectedConnectionId != kInvalidConnectionId) {
       const bool confirmed = juce::AlertWindow::showOkCancelBox(
           juce::MessageBoxIconType::WarningIcon, "Delete Connection",
-          "Delete selected connection? Ctrl+Z will undo.", "OK", "Cancel", nullptr,
-          nullptr);
+          "Delete selected connection? Ctrl+Z will undo.", "OK", "Cancel",
+          nullptr, nullptr);
       if (confirmed)
         deleteConnectionWithAnimation(selectedConnectionId, getViewCenter(),
                                       {0.0f, 120.0f});
@@ -581,7 +581,8 @@ juce::Point<float> TGraphCanvas::viewToWorld(juce::Point<float> viewPos) const {
   return viewOriginWorld + (viewPos / zoomLevel);
 }
 
-juce::Point<float> TGraphCanvas::worldToView(juce::Point<float> worldPos) const {
+juce::Point<float>
+TGraphCanvas::worldToView(juce::Point<float> worldPos) const {
   return (worldPos - viewOriginWorld) * zoomLevel;
 }
 
@@ -699,7 +700,8 @@ void TGraphCanvas::drawMiniMap(juce::Graphics &g) {
 
   const auto miniMapInnerRect = miniMapRectView.reduced(1.0f);
   const float sx = miniMapInnerRect.getWidth() / miniMapWorldBounds.getWidth();
-  const float sy = miniMapInnerRect.getHeight() / miniMapWorldBounds.getHeight();
+  const float sy =
+      miniMapInnerRect.getHeight() / miniMapWorldBounds.getHeight();
 
   auto worldToMini = [&](juce::Point<float> p) {
     return juce::Point<float>(
@@ -717,12 +719,12 @@ void TGraphCanvas::drawMiniMap(juce::Graphics &g) {
 
   for (const auto &frame : document.frames) {
     auto topLeft = worldToMini({frame.x, frame.y});
-    auto bottomRight = worldToMini({frame.x + frame.width, frame.y + frame.height});
-    juce::Rectangle<float> rect(
-        juce::jmin(topLeft.x, bottomRight.x),
-        juce::jmin(topLeft.y, bottomRight.y),
-        std::abs(bottomRight.x - topLeft.x),
-        std::abs(bottomRight.y - topLeft.y));
+    auto bottomRight =
+        worldToMini({frame.x + frame.width, frame.y + frame.height});
+    juce::Rectangle<float> rect(juce::jmin(topLeft.x, bottomRight.x),
+                                juce::jmin(topLeft.y, bottomRight.y),
+                                std::abs(bottomRight.x - topLeft.x),
+                                std::abs(bottomRight.y - topLeft.y));
     g.setColour(juce::Colour(frame.colorArgb).withAlpha(0.24f));
     g.fillRect(rect);
   }
@@ -736,9 +738,9 @@ void TGraphCanvas::drawMiniMap(juce::Graphics &g) {
   }
 
   const float safeZoom = juce::jmax(zoomLevel, 0.0001f);
-  const juce::Rectangle<float> viewportWorld(viewOriginWorld.x, viewOriginWorld.y,
-                                             getWidth() / safeZoom,
-                                             getHeight() / safeZoom);
+  const juce::Rectangle<float> viewportWorld(
+      viewOriginWorld.x, viewOriginWorld.y, getWidth() / safeZoom,
+      getHeight() / safeZoom);
   const auto viewTopLeft = worldToMini(viewportWorld.getTopLeft());
   const auto viewBottomRight = worldToMini(viewportWorld.getBottomRight());
   miniMapViewportRectView =
@@ -770,6 +772,7 @@ bool TGraphCanvas::isNodeInsideFrame(const TNode &node,
   return frameRect.intersects(nodeRect);
 }
 
+juce::Rectangle<float>
 TGraphCanvas::getFrameMemberBoundsWorld(const TFrameRegion &frame,
                                         float paddingWorld) const {
   juce::Rectangle<float> bounds;
@@ -786,7 +789,7 @@ TGraphCanvas::getFrameMemberBoundsWorld(const TFrameRegion &frame,
   }
 
   if (!hasBounds)
-    return {frame.x, frame.y, frame.width, frame.height};
+    return juce::Rectangle<float>(frame.x, frame.y, frame.width, frame.height);
 
   return bounds.expanded(paddingWorld, paddingWorld);
 }
@@ -819,14 +822,13 @@ void TGraphCanvas::drawFrames(juce::Graphics &g) {
     const float drawH = frame.collapsed ? titleHWorld : frame.height;
 
     const auto topLeft = worldToView({frame.x, frame.y});
-    const auto bottomRight = worldToView({frame.x + frame.width,
-                                          frame.y + drawH});
+    const auto bottomRight =
+        worldToView({frame.x + frame.width, frame.y + drawH});
 
-    juce::Rectangle<float> rect(
-        juce::jmin(topLeft.x, bottomRight.x),
-        juce::jmin(topLeft.y, bottomRight.y),
-        std::abs(bottomRight.x - topLeft.x),
-        std::abs(bottomRight.y - topLeft.y));
+    juce::Rectangle<float> rect(juce::jmin(topLeft.x, bottomRight.x),
+                                juce::jmin(topLeft.y, bottomRight.y),
+                                std::abs(bottomRight.x - topLeft.x),
+                                std::abs(bottomRight.y - topLeft.y));
 
     juce::Colour base = juce::Colour(frame.colorArgb);
     if (base.isTransparent())
@@ -876,8 +878,7 @@ void TGraphCanvas::drawLibraryDropPreview(juce::Graphics &g) {
   const juce::String title =
       desc != nullptr ? desc->displayName : previewTypeKey;
   const juce::String subtitle =
-      desc != nullptr ? desc->category + " / " + desc->typeKey
-                      : previewTypeKey;
+      desc != nullptr ? desc->category + " / " + desc->typeKey : previewTypeKey;
 
   auto bubble = juce::Rectangle<float>(libraryDropPreview.pointView.x + 10.0f,
                                        libraryDropPreview.pointView.y - 6.0f,
@@ -903,8 +904,8 @@ void TGraphCanvas::drawLibraryDropPreview(juce::Graphics &g) {
   auto textArea = bubble.toNearestInt().reduced(9, 5);
   g.setColour(TeulPalette::PanelTextStrong().withAlpha(0.94f));
   g.setFont(11.0f);
-  g.drawText(title, textArea.removeFromTop(13), juce::Justification::centredLeft,
-             false);
+  g.drawText(title, textArea.removeFromTop(13),
+             juce::Justification::centredLeft, false);
   g.setColour(TeulPalette::PanelTextMuted().withAlpha(0.50f));
   g.setFont(9.2f);
   g.drawText(subtitle, textArea, juce::Justification::centredLeft, false);
@@ -946,12 +947,10 @@ void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
   if (area.getWidth() < 196 || area.getHeight() < 56)
     return;
 
-  g.setGradientFill(juce::ColourGradient(TeulPalette::HudBackground().withAlpha(0.78f),
-                                         (float)area.getCentreX(),
-                                         (float)area.getY(),
-                                         TeulPalette::HudBackgroundAlt().withAlpha(0.68f),
-                                         (float)area.getCentreX(),
-                                         (float)area.getBottom(), false));
+  g.setGradientFill(juce::ColourGradient(
+      TeulPalette::HudBackground().withAlpha(0.78f), (float)area.getCentreX(),
+      (float)area.getY(), TeulPalette::HudBackgroundAlt().withAlpha(0.68f),
+      (float)area.getCentreX(), (float)area.getBottom(), false));
   g.fillRoundedRectangle(area.toFloat(), 10.0f);
   g.setColour(TeulPalette::HudStroke().withAlpha(0.42f));
   g.drawRoundedRectangle(area.toFloat(), 10.0f, 1.0f);
@@ -966,10 +965,8 @@ void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
 
   const juce::String primaryText = juce::String::formatted(
       "%.1f kHz  |  %d blk  |  %d in / %d out  |  CPU %.1f%%",
-      runtimeOverlayState.sampleRate * 0.001,
-      runtimeOverlayState.blockSize,
-      runtimeOverlayState.inputChannels,
-      runtimeOverlayState.outputChannels,
+      runtimeOverlayState.sampleRate * 0.001, runtimeOverlayState.blockSize,
+      runtimeOverlayState.inputChannels, runtimeOverlayState.outputChannels,
       runtimeOverlayState.cpuLoadPercent);
   const juce::String detailText = juce::String::formatted(
       "Nodes %d  |  Buffers %d  |  Gen %llu  |  Pending %llu",
@@ -978,9 +975,11 @@ void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
       static_cast<unsigned long long>(runtimeOverlayState.activeGeneration),
       static_cast<unsigned long long>(runtimeOverlayState.pendingGeneration));
   const juce::String viewText =
-      "Views  " + juce::String(runtimeViewOptions.heatmapEnabled ? "Heat on" : "Heat off") +
+      "Views  " +
+      juce::String(runtimeViewOptions.heatmapEnabled ? "Heat on" : "Heat off") +
       "  |  " +
-      juce::String(runtimeViewOptions.liveProbeEnabled ? "Probe on" : "Probe off") +
+      juce::String(runtimeViewOptions.liveProbeEnabled ? "Probe on"
+                                                       : "Probe off") +
       "  |  Overlay on";
 
   g.setColour(TeulPalette::PanelTextFaint().withAlpha(0.44f));
@@ -1026,7 +1025,8 @@ void TGraphCanvas::drawRuntimeOverlay(juce::Graphics &g) {
     drewBadge = true;
   }
   if (runtimeOverlayState.smoothingActiveCount > 0) {
-    drawBadge("Smooth " + juce::String(runtimeOverlayState.smoothingActiveCount),
+    drawBadge("Smooth " +
+                  juce::String(runtimeOverlayState.smoothingActiveCount),
               TeulPalette::AccentSky());
     drewBadge = true;
   }
@@ -1062,15 +1062,15 @@ void TGraphCanvas::drawStatusHint(juce::Graphics &g) {
   auto area = getLocalBounds().removeFromTop(26).reduced(10, 4);
   area.setWidth(juce::jmin(332, area.getWidth()));
 
-  g.setColour(TeulPalette::HudBackgroundAlt().withAlpha(0.78f).withAlpha(alpha));
+  g.setColour(
+      TeulPalette::HudBackgroundAlt().withAlpha(0.78f).withAlpha(alpha));
   g.fillRoundedRectangle(area.toFloat(), 6.0f);
   g.setColour(TeulPalette::HudStroke().withAlpha(0.42f).withAlpha(alpha));
   g.drawRoundedRectangle(area.toFloat(), 6.0f, 1.0f);
 
   g.setColour(TeulPalette::PanelTextStrong().withAlpha(alpha * 0.94f));
   g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
-  g.drawText(text, area.reduced(8, 0),
-             juce::Justification::centredLeft, false);
+  g.drawText(text, area.reduced(8, 0), juce::Justification::centredLeft, false);
 }
 
 void TGraphCanvas::recalcMiniMapCache() {
@@ -1079,9 +1079,9 @@ void TGraphCanvas::recalcMiniMapCache() {
       getWidth() > 0 ? (float)getWidth() / safeZoom : 800.0f;
   const float viewportHeightWorld =
       getHeight() > 0 ? (float)getHeight() / safeZoom : 600.0f;
-  const juce::Rectangle<float> viewportWorld(viewOriginWorld.x, viewOriginWorld.y,
-                                             viewportWidthWorld,
-                                             viewportHeightWorld);
+  const juce::Rectangle<float> viewportWorld(
+      viewOriginWorld.x, viewOriginWorld.y, viewportWidthWorld,
+      viewportHeightWorld);
 
   float minX = std::numeric_limits<float>::max();
   float minY = std::numeric_limits<float>::max();
@@ -1106,12 +1106,14 @@ void TGraphCanvas::recalcMiniMapCache() {
   if (minX == std::numeric_limits<float>::max()) {
     contentBounds = viewportWorld;
   } else {
-    contentBounds = juce::Rectangle<float>(
-        minX, minY, juce::jmax(1.0f, maxX - minX), juce::jmax(1.0f, maxY - minY));
+    contentBounds =
+        juce::Rectangle<float>(minX, minY, juce::jmax(1.0f, maxX - minX),
+                               juce::jmax(1.0f, maxY - minY));
   }
 
   if (contentBounds.getWidth() < viewportWorld.getWidth()) {
-    const float grow = (viewportWorld.getWidth() - contentBounds.getWidth()) * 0.5f;
+    const float grow =
+        (viewportWorld.getWidth() - contentBounds.getWidth()) * 0.5f;
     contentBounds = contentBounds.expanded(grow, 0.0f);
   }
 
@@ -1128,17 +1130,17 @@ void TGraphCanvas::recalcMiniMapCache() {
   miniMapCacheValid = true;
 }
 
-juce::Point<float> TGraphCanvas::miniMapToWorld(
-    juce::Point<float> miniPoint) const {
+juce::Point<float>
+TGraphCanvas::miniMapToWorld(juce::Point<float> miniPoint) const {
   if (!miniMapCacheValid || miniMapRectView.getWidth() <= 0.0f ||
       miniMapRectView.getHeight() <= 0.0f) {
     return viewOriginWorld;
   }
 
-  const float nx = (miniPoint.x - miniMapRectView.getX()) /
-                   miniMapRectView.getWidth();
-  const float ny = (miniPoint.y - miniMapRectView.getY()) /
-                   miniMapRectView.getHeight();
+  const float nx =
+      (miniPoint.x - miniMapRectView.getX()) / miniMapRectView.getWidth();
+  const float ny =
+      (miniPoint.y - miniMapRectView.getY()) / miniMapRectView.getHeight();
 
   return {miniMapWorldBounds.getX() + nx * miniMapWorldBounds.getWidth(),
           miniMapWorldBounds.getY() + ny * miniMapWorldBounds.getHeight()};

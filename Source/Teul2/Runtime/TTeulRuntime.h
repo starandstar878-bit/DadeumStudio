@@ -13,6 +13,7 @@ namespace Teul {
 
 class TTeulDocument;
 class TNodeRegistry;
+class TRuntimeDeviceManager;
 
 class TTeulRuntime : public juce::AudioIODeviceCallback,
                      public ITeulParamProvider {
@@ -50,6 +51,7 @@ public:
   std::vector<TTeulExposedParam> listExposedParams() const override;
   juce::var getParam(const juce::String &paramId) const override;
   bool setParam(const juce::String &paramId, const juce::var &value) override;
+  TRuntimeDeviceManager &getDeviceManager() noexcept;
   void addListener(Listener *listener) override;
   void removeListener(Listener *listener) override;
 

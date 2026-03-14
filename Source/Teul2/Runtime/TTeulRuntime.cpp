@@ -330,6 +330,10 @@
    return false;
  }
  
+ TRuntimeDeviceManager &TTeulRuntime::getDeviceManager() noexcept {
+   return impl->deviceManager;
+ }
+ 
  void TTeulRuntime::addListener(Listener *listener) {
    juce::ignoreUnused(listener);
  }
