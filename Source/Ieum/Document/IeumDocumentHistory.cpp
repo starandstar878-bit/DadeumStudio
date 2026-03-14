@@ -1,6 +1,5 @@
 #include "IeumDocumentHistory.h"
 #include "IeumDocument.h"
-#include <algorithm>
 
 namespace Ieum {
 
