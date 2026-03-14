@@ -11,6 +11,7 @@ namespace Teul {
 //  규칙: 삭제된 ID는 절대 재사용하지 않는다.
 //  (Undo 스택에서 ID 동일성으로 객체를 추적하기 때문)
 // =============================================================================
+#ifndef TEUL2_DOCUMENT_TYPES_H
 using NodeId = uint32_t;
 using PortId = uint32_t;
 using ConnectionId = uint32_t;
@@ -18,14 +19,17 @@ using ConnectionId = uint32_t;
 static constexpr NodeId kInvalidNodeId = 0;
 static constexpr PortId kInvalidPortId = 0;
 static constexpr ConnectionId kInvalidConnectionId = 0;
+#endif
 
 // =============================================================================
 //  포트 방향
 // =============================================================================
+#ifndef TEUL2_DOCUMENT_TYPES_H
 enum class TPortDirection {
   Input,
   Output,
 };
+#endif
 
 // =============================================================================
 //  포트 데이터 타입
@@ -37,6 +41,7 @@ enum class TPortDirection {
 //    Gate    → Orange  (#FF9800)
 //    Control → Purple  (#9C27B0)
 // =============================================================================
+#ifndef TEUL2_DOCUMENT_TYPES_H
 enum class TPortDataType {
   Audio,   // 오디오 신호 (PCM float 샘플 버퍼)
   CV,      // Control Voltage — -1.0 ~ +1.0 float, 파라미터 변조용
@@ -44,5 +49,6 @@ enum class TPortDataType {
   Gate,    // 0 또는 1 (트리거 / 게이트)
   Control, // UI 직접 제어 값 (파라미터 노브 등)
 };
+#endif
 
 } // namespace Teul

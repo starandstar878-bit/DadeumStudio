@@ -1,6 +1,6 @@
 #pragma once
-#include "Teul2/Runtime/AudioGraph/TNodeInstance.h"
-#include "Teul2/Runtime/AudioGraph/TNodeSDK.h"
+#include "Teul2/Runtime/AudioGraph/TGraphProcessor.h"
+#include "Teul2/Runtime/AudioGraph/TGraphCompiler.h"
 #include <cmath>
 
 namespace Teul::Nodes {

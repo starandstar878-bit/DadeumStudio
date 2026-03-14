@@ -9,6 +9,7 @@ namespace Teul {
 #ifndef TEUL_PARAM_PROVIDER_CONTRACT_DEFINED
 #define TEUL_PARAM_PROVIDER_CONTRACT_DEFINED 1
 
+#ifndef TEUL2_DOCUMENT_TYPES_H
 enum class TParamValueType {
   Auto,
   Float,
@@ -62,7 +63,9 @@ struct TTeulExposedParam {
   juce::String exportSymbol;
   juce::String categoryPath;
 };
+#endif
 
+#ifndef TEUL2_DOCUMENT_TYPES_H
 inline juce::String makeTeulParamId(NodeId nodeId,
                                     const juce::String &paramKey) {
   return "teul.node." + juce::String(nodeId) + "." + paramKey;
@@ -84,6 +87,7 @@ inline bool parseTeulParamId(const juce::String &paramId,
   outParamKey = tail.substring(split + 1);
   return outNodeId != kInvalidNodeId && outParamKey.isNotEmpty();
 }
+#endif
 
 class ITeulParamProvider {
 public:

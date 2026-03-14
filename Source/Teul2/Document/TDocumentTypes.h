@@ -1,5 +1,7 @@
 #pragma once
 
+#define TEUL2_DOCUMENT_TYPES_H
+
 #include <JuceHeader.h>
 #include <cstdint>
 #include <map>
@@ -183,6 +185,7 @@ struct TTeulExposedParam {
   juce::String exportSymbol;
   juce::String categoryPath;
 };
+
 
 // =============================================================================
 //  TNodeDescriptor - 노드 정의 (정적 정보)
