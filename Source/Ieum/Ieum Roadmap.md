@@ -436,7 +436,7 @@ Every release track must define:
 
 ## 13. Full Implementation Roadmap
 
-### Phase 1. Provider contracts and schema model
+### Phase 1. Provider contracts and schema model [DONE]
 Goal: lock the generic interfaces before product-specific code spreads.
 
 Work:
@@ -455,7 +455,7 @@ Deliverables:
 Exit criteria:
 - the core can reason about sources and targets without hardcoded widget/parameter classes
 
-### Phase 2. Binding model and persistence contract
+### Phase 2. Binding model and persistence contract [DONE]
 Goal: define the durable storage model before editor features depend on unstable fields.
 
 Work:
@@ -473,7 +473,7 @@ Deliverables:
 Exit criteria:
 - new providers can be added without redesigning binding storage
 
-### Phase 3. Resolution and validation engine
+### Phase 3. Resolution and validation engine [IN PROGRESS]
 Goal: resolve stored binding references into live runtime handles and compute health state.
 
 Work:
@@ -545,7 +545,7 @@ Deliverables:
 Exit criteria:
 - users can create and inspect bindings without code changes
 
-### Phase 7. Persistence, recovery, and preset integration
+### Phase 7. Persistence, recovery, and preset integration [PARTIAL]
 Goal: make binding state durable across real product lifecycles.
 
 Work:
@@ -641,8 +641,8 @@ Exit criteria:
 ## 14. Release Milestones
 
 ### I1. Generic Binding Foundation Ready
-- Phase 1 complete
-- Phase 2 complete
+- Phase 1 complete [DONE]
+- Phase 2 complete [DONE]
 - Phase 3 baseline complete
 
 ### I2. Generic Runtime Binding Ready
