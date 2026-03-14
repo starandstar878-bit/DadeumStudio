@@ -39,11 +39,23 @@ public:
     /** 새로운 바인딩을 위한 고유 ID를 생성합니다. */
     BindingId allocBindingId() noexcept;
 
+    // -- 그룹 관리 (Roadmap 6.4) --
+    const std::vector<IeumBindingGroup>& getGroups() const noexcept { return groups; }
+    IeumBindingGroup* findGroup(const GroupId& id) noexcept;
+    void addGroup(const IeumBindingGroup& group);
+    void removeGroup(const GroupId& id);
+
     // -- 데이터 조작 (Index 자동 관리) --
     void addBinding(const IeumBindingSpec& spec);
     void removeBinding(const BindingId& id);
     void updateBinding(const IeumBindingSpec& spec);
     void clear() noexcept;
+
+    // -- 고속 검색 (Reverse Index) --
+    /** 특정 소스 엔드포인트에 연결된 모든 바인딩 ID를 찾습니다. */
+    std::vector<BindingId> findBindingsBySource(const IeumEndpoint& source) const;
+    /** 특정 타겟 엔드포인트에 연결된 모든 바인딩 ID를 찾습니다. */
+    std::vector<BindingId> findBindingsByTarget(const IeumEndpoint& target) const;
 
     // -- 명령 및 이력 (Roadmap Phase 2) --
     void executeCommand(std::unique_ptr<IeumCommand> command);
@@ -69,9 +81,14 @@ private:
     std::uint32_t nextIdCounter = 1;
 
     std::vector<IeumBindingSpec> bindings;
+    std::vector<IeumBindingGroup> groups;
+
     std::unordered_map<juce::String, size_t> idToIndex;
+    std::unordered_multimap<juce::String, size_t> sourceToIndex;
+    std::unordered_multimap<juce::String, size_t> targetToIndex;
 
     void rebuildIndex() noexcept;
+    static juce::String getEndpointKey(const IeumEndpoint& ep);
 
     std::unique_ptr<IeumDocumentHistory> history;
     juce::ListenerList<Listener> listeners;

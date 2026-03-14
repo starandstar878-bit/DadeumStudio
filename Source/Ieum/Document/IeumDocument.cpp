@@ -51,8 +51,37 @@ void IeumDocument::updateBinding(const IeumBindingSpec& spec)
 {
     if (auto* b = findBinding(spec.id))
     {
+        bool indexNeedsRebuild = (b->source != spec.source || b->target != spec.target);
         *b = spec;
-        // Index does not need rebuilding for update as ID remains same
+        if (indexNeedsRebuild)
+            rebuildIndex();
+    }
+}
+
+IeumBindingGroup* IeumDocument::findGroup(const GroupId& id) noexcept
+{
+    for (auto& g : groups)
+    {
+        if (g.id == id)
+            return &g;
+    }
+    return nullptr;
+}
+
+void IeumDocument::addGroup(const IeumBindingGroup& group)
+{
+    groups.push_back(group);
+    touch();
+}
+
+void IeumDocument::removeGroup(const GroupId& id)
+{
+    auto it = std::find_if(groups.begin(), groups.end(),
+                           [&](const IeumBindingGroup& g) { return g.id == id; });
+    if (it != groups.end())
+    {
+        groups.erase(it);
+        touch();
     }
 }
 
@@ -90,16 +119,54 @@ void IeumDocument::clearHistory() {
 void IeumDocument::clear() noexcept
 {
     bindings.clear();
+    groups.clear();
     idToIndex.clear();
+    sourceToIndex.clear();
+    targetToIndex.clear();
     touch();
+}
+
+std::vector<BindingId> IeumDocument::findBindingsBySource(const IeumEndpoint& source) const
+{
+    std::vector<BindingId> result;
+    auto key = getEndpointKey(source);
+    auto range = sourceToIndex.equal_range(key);
+    for (auto it = range.first; it != range.second; ++it)
+        result.push_back(bindings[it->second].id);
+    return result;
+}
+
+std::vector<BindingId> IeumDocument::findBindingsByTarget(const IeumEndpoint& target) const
+{
+    std::vector<BindingId> result;
+    auto key = getEndpointKey(target);
+    auto range = targetToIndex.equal_range(key);
+    for (auto it = range.first; it != range.second; ++it)
+        result.push_back(bindings[it->second].id);
+    return result;
 }
 
 void IeumDocument::rebuildIndex() noexcept
 {
     idToIndex.clear();
-    idToIndex.reserve(bindings.size());
-    for (size_t i = 0; i < bindings.size(); ++i)
-        idToIndex[bindings[i].id] = i;
+    sourceToIndex.clear();
+    targetToIndex.clear();
+
+    const size_t count = bindings.size();
+    idToIndex.reserve(count);
+    
+    for (size_t i = 0; i < count; ++i)
+    {
+        const auto& b = bindings[i];
+        idToIndex[b.id] = i;
+        sourceToIndex.emplace(getEndpointKey(b.source), i);
+        targetToIndex.emplace(getEndpointKey(b.target), i);
+    }
+}
+
+juce::String IeumDocument::getEndpointKey(const IeumEndpoint& ep)
+{
+    return ep.providerId.toString() + ":" + ep.entityId + ":" + ep.paramId;
 }
 
 void IeumDocument::touch() noexcept

@@ -89,6 +89,37 @@ IeumRange jsonToRange(const juce::var& json) {
     return { (double)json.getProperty("min", 0.0), (double)json.getProperty("max", 1.0) };
 }
 
+juce::var groupToJson(const IeumBindingGroup& group) {
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("id", group.id);
+    obj->setProperty("name", group.name);
+    obj->setProperty("enabled", group.enabled);
+    obj->setProperty("logic", logicSpecToJson(group.logic));
+    
+    juce::Array<juce::var> memberIds;
+    for (const auto& mid : group.memberIds)
+        memberIds.add(mid);
+    obj->setProperty("memberIds", memberIds);
+    
+    return juce::var(obj.get());
+}
+
+bool jsonToGroup(IeumBindingGroup& group, const juce::var& json) {
+    if (!json.isObject()) return false;
+    group.id = json.getProperty("id", "").toString();
+    group.name = json.getProperty("name", "").toString();
+    group.enabled = json.getProperty("enabled", true);
+    group.logic = jsonToLogicSpec(json.getProperty("logic", juce::var()));
+    
+    group.memberIds.clear();
+    const auto* array = json.getProperty("memberIds", juce::var()).getArray();
+    if (array != nullptr) {
+        for (const auto& mid : *array)
+            group.memberIds.push_back(mid.toString());
+    }
+    return true;
+}
+
 } // namespace
 
 juce::var IeumSerializer::toJson(const IeumDocument &doc) {
@@ -98,8 +129,13 @@ juce::var IeumSerializer::toJson(const IeumDocument &doc) {
   juce::Array<juce::var> bindingsArray;
   for (const auto &b : doc.getBindings())
     bindingsArray.add(bindingToJson(b));
-
   obj->setProperty("bindings", bindingsArray);
+
+  juce::Array<juce::var> groupsArray;
+  for (const auto &g : doc.getGroups())
+    groupsArray.add(groupToJson(g));
+  obj->setProperty("groups", groupsArray);
+
   return juce::var(obj.get());
 }
 
@@ -114,6 +150,15 @@ bool IeumSerializer::fromJson(IeumDocument &doc, const juce::var &json) {
       IeumBindingSpec spec;
       if (jsonToBinding(spec, bVar))
         doc.addBinding(spec);
+    }
+  }
+
+  const auto *groupsArray = json.getProperty("groups", juce::var()).getArray();
+  if (groupsArray != nullptr) {
+    for (const auto &gVar : *groupsArray) {
+      IeumBindingGroup group;
+      if (jsonToGroup(group, gVar))
+        doc.addGroup(group);
     }
   }
 
