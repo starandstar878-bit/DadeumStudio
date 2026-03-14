@@ -22,8 +22,7 @@ struct TTeulRuntime::Impl {
   TRuntimeDeviceManager deviceManager;
   TRuntimeStats stats;
 
-  // FUTURE: Teul2 고유의 DSP 엔진 인스턴스 (Phase 3)
-  // std::unique_ptr<TGraphProcessor> graphProcessor;
+  TCompiledGraph::Ptr activeState;
 };
 
 TTeulRuntime::TTeulRuntime(const TNodeRegistry *registry)
@@ -32,14 +31,23 @@ TTeulRuntime::TTeulRuntime(const TNodeRegistry *registry)
 TTeulRuntime::~TTeulRuntime() = default;
 
 bool TTeulRuntime::buildGraph(const TTeulDocument &document) {
-  if (impl == nullptr)
+  if (impl == nullptr || impl->registry == nullptr)
     return false;
 
   const auto runtimeRevision = document.getRuntimeRevision();
   impl->pushRuntimeEvent(TRuntimeEvent::makeGraphBuildRequested(runtimeRevision));
 
-  // Teul2 전용 컴파일: 현재는 JSON 변환까지만 수행 (실행 로직은 Phase 3 에서)
-  juce::var json = TGraphCompiler::compileDocumentJson(document);
+  // TGraphCompiler를 통한 실제 런타임 그래프 빌드
+  auto newGraph = TGraphCompiler::compileDocument(
+      document, *impl->registry, impl->stats.sampleRate, impl->stats.preparedBlockSize);
+
+  if (newGraph == nullptr) {
+    impl->pushRuntimeEvent(TRuntimeEvent::makeGraphBuildFailed(runtimeRevision));
+    return false;
+  }
+
+  // 빌드된 그래프를 활성 상태로 전환 (원자적 교체는 Phase 3-4에서 상세화)
+  impl->activeState = std::move(newGraph);
 
   impl->pushRuntimeEvent(TRuntimeEvent::makeGraphBuildCommitted(runtimeRevision));
   return true;
@@ -54,6 +62,13 @@ void TTeulRuntime::prepareToPlay(double sampleRate,
   
   impl->stats.sampleRate = sampleRate;
   impl->stats.preparedBlockSize = maximumExpectedSamplesPerBlock;
+
+  if (impl->activeState != nullptr) {
+    for (auto &entry : impl->activeState->sortedNodes) {
+      if (entry.instance)
+        entry.instance->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+    }
+  }
 }
 
 void TTeulRuntime::releaseResources() {
@@ -61,6 +76,13 @@ void TTeulRuntime::releaseResources() {
     return;
 
   impl->pushRuntimeEvent(TRuntimeEvent::makeReleaseResources());
+
+  if (impl->activeState != nullptr) {
+    for (auto &entry : impl->activeState->sortedNodes) {
+      if (entry.instance)
+        entry.instance->releaseResources();
+    }
+  }
 }
 
 void TTeulRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
@@ -68,7 +90,12 @@ void TTeulRuntime::processBlock(juce::AudioBuffer<float> &deviceBuffer,
   if (impl == nullptr)
     return;
 
-  // Teul2 고유 DSP 엔진의 실시간 처리 (Phase 3-4 구현 예정)
+  // Teul2 전용 DSP 엔진의 실전 처리 (Phase 3-4 구현 예정)
+  // 현재는 컴파일된 그래프의 존재 여부만 확인하고 버퍼를 클리어합니다.
+  if (impl->activeState != nullptr) {
+    // TODO: impl->activeState->sortedNodes 순회하며 processSamples 호출 로직 추가 예정
+  }
+
   deviceBuffer.clear();
   midiMessages.clear();
   
@@ -118,7 +145,6 @@ void TTeulRuntime::audioDeviceIOCallbackWithContext(
   if (impl == nullptr)
     return;
 
-  // 오디오 콜백 루프
   juce::AudioBuffer<float> buffer(const_cast<float **>(outputChannelData), numOutputChannels, numSamples);
   juce::MidiBuffer midi;
   processBlock(buffer, midi);
@@ -130,7 +156,16 @@ void TTeulRuntime::queueParameterChange(NodeId nodeId,
   if (impl == nullptr)
     return;
 
-  // 파라미터 업데이트 큐잉
+  if (impl->activeState != nullptr) {
+    for (auto &dispatch : impl->activeState->paramDispatches) {
+      if (dispatch.nodeId == nodeId && dispatch.paramKey == paramKey) {
+        if (dispatch.instance)
+          dispatch.instance->setParameterValue(paramKey, value);
+        break;
+      }
+    }
+  }
+
   impl->stats.paramChangeCount++;
 }
 
@@ -141,7 +176,6 @@ bool TTeulRuntime::applyControlSourceValue(const juce::String &sourceId,
 }
 
 float TTeulRuntime::getPortLevel(PortId portId) const noexcept {
-  juce::ignoreUnused(portId);
   return 0.0f;
 }
 
@@ -155,17 +189,24 @@ TTeulRuntime::RuntimeStats TTeulRuntime::getRuntimeStats() const noexcept {
 }
 
 std::vector<TTeulExposedParam> TTeulRuntime::listExposedParams() const {
+  if (impl && impl->activeState && impl->registry) {
+    // 임시: 활성 노드들로부터 노출 파라미터 리스트 생성
+    std::vector<TTeulExposedParam> result;
+    for (const auto& entry : impl->activeState->sortedNodes) {
+        auto params = impl->registry->listExposedParamsForNode(entry.nodeSnapshot);
+        result.insert(result.end(), params.begin(), params.end());
+    }
+    return result;
+  }
   return {};
 }
 
 juce::var TTeulRuntime::getParam(const juce::String &paramId) const {
-  juce::ignoreUnused(paramId);
   return juce::var{};
 }
 
 bool TTeulRuntime::setParam(const juce::String &paramId,
                              const juce::var &value) {
-  juce::ignoreUnused(paramId, value);
   return false;
 }
 

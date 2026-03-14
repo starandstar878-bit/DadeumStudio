@@ -5,10 +5,123 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <map>
+#include <atomic>
 
 namespace Teul {
 
 class TTeulDocument;
+class TNodeInstance;
+
+// =============================================================================
+//  컴파일된 그래프 실행에 필요한 데이터 구조 (TGraphRuntime.h 에서 이관)
+// =============================================================================
+
+struct TMixOp {
+  int srcChannelIndex = -1;
+  int dstChannelIndex = -1;
+};
+
+struct TNodeEntry {
+  NodeId nodeId = kInvalidNodeId;
+  TNode nodeSnapshot;
+  std::unique_ptr<TNodeInstance> instance;
+  std::vector<TMixOp> preProcessMixes;
+  std::map<PortId, int> portChannels;
+  std::map<PortId, juce::MidiBuffer> midiInputBuffers;
+  std::map<PortId, juce::MidiBuffer> midiOutputBuffers;
+};
+
+struct TPortTelemetry {
+  PortId portId = kInvalidPortId;
+  NodeId nodeId = kInvalidNodeId;
+  int channelIndex = -1;
+  TPortDataType dataType = TPortDataType::Audio;
+};
+
+struct TRailInputSource {
+  juce::String endpointId;
+  juce::String portId;
+  int channelIndex = -1;
+  int deviceChannelIndex = -1;
+  TPortDataType dataType = TPortDataType::Audio;
+};
+
+struct TRailOutputTarget {
+  juce::String endpointId;
+  juce::String portId;
+  int sourceChannelIndex = -1;
+  int deviceChannelIndex = -1;
+  TPortDataType dataType = TPortDataType::Audio;
+};
+
+struct TRailMidiInputTarget {
+  juce::String endpointId;
+  juce::String portId;
+  std::size_t targetNodeIndex = 0;
+  PortId targetPortId = kInvalidPortId;
+};
+
+struct TRailMidiOutputTarget {
+  juce::String endpointId;
+  juce::String portId;
+  std::size_t sourceNodeIndex = 0;
+  PortId sourcePortId = kInvalidPortId;
+};
+
+struct TMidiRoute {
+  std::size_t sourceNodeIndex = 0;
+  PortId sourcePortId = kInvalidPortId;
+  std::size_t targetNodeIndex = 0;
+  PortId targetPortId = kInvalidPortId;
+};
+
+struct TControlRoute {
+  juce::String sourceKey;
+  juce::String paramId;
+  TControlPortKind portKind = TControlPortKind::value;
+  TParamValueType valueType = TParamValueType::Auto;
+  TParamWidgetHint preferredWidget = TParamWidgetHint::Auto;
+  juce::var defaultValue;
+  juce::var minValue;
+  juce::var maxValue;
+  std::vector<TParamOptionSpec> enumOptions;
+  bool inverted = false;
+  float rangeMin = 0.0f;
+  float rangeMax = 1.0f;
+};
+
+struct TParamDispatch {
+  NodeId nodeId = kInvalidNodeId;
+  TNodeInstance *instance = nullptr;
+  juce::String paramKey;
+  std::array<char, 32> paramKeyUtf8{};
+  float currentValue = 0.0f;
+  float targetValue = 0.0f;
+  bool smoothingEnabled = false;
+};
+
+/**
+ * \brief 컴파일된 실행용 그래프 상태 (구 RenderState)
+ */
+struct TCompiledGraph : public juce::ReferenceCountedObject {
+  using Ptr = juce::ReferenceCountedObjectPtr<TCompiledGraph>;
+
+  std::vector<TNodeEntry> sortedNodes;
+  juce::AudioBuffer<float> globalPortBuffer;
+  std::vector<TPortTelemetry> portTelemetry;
+  std::map<PortId, std::size_t> portTelemetryIndex;
+  std::unique_ptr<std::atomic<float>[]> portLevels;
+  std::vector<TRailInputSource> railInputSources;
+  std::vector<TRailOutputTarget> railOutputTargets;
+  std::vector<TRailMidiInputTarget> railMidiInputTargets;
+  std::vector<TRailMidiOutputTarget> railMidiOutputTargets;
+  std::vector<TMidiRoute> midiRoutes;
+  std::vector<TControlRoute> controlRoutes;
+  std::vector<TParamDispatch> paramDispatches;
+  std::uint64_t generation = 0;
+  int totalAllocatedChannels = 0;
+};
 
 // =============================================================================
 //  TNodeRegistry — 런타임 노드 명세 카탈로그
@@ -83,6 +196,15 @@ public:
 class TGraphCompiler {
 public:
   static juce::var compileDocumentJson(const TTeulDocument &document);
+
+  /**
+   * \brief TTeulDocument를 실행 가능한 TCompiledGraph로 컴파일합니다.
+   * (TGraphRuntime::buildGraph 로직 이관)
+   */
+  static TCompiledGraph::Ptr compileDocument(const TTeulDocument &document,
+                                             const TNodeRegistry &registry,
+                                             double sampleRate,
+                                             int blockSize);
 };
 
 } // namespace Teul
