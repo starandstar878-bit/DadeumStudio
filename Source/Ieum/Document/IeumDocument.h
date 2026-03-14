@@ -30,15 +30,20 @@ public:
     IeumDocument();
     ~IeumDocument();
 
-    // -- 데이터 컬렉션 --
-    std::vector<IeumBindingSpec> bindings;
-
-    // -- 조회 및 관리 --
+    // -- 데이터 컬렉션 및 조회 --
+    const std::vector<IeumBindingSpec>& getBindings() const noexcept { return bindings; }
+    
     IeumBindingSpec* findBinding(const BindingId& id) noexcept;
     const IeumBindingSpec* findBinding(const BindingId& id) const noexcept;
     
     /** 새로운 바인딩을 위한 고유 ID를 생성합니다. */
     BindingId allocBindingId() noexcept;
+
+    // -- 데이터 조작 (Index 자동 관리) --
+    void addBinding(const IeumBindingSpec& spec);
+    void removeBinding(const BindingId& id);
+    void updateBinding(const IeumBindingSpec& spec);
+    void clear() noexcept;
 
     // -- 명령 및 이력 (Roadmap Phase 2) --
     void executeCommand(std::unique_ptr<IeumCommand> command);
@@ -62,6 +67,11 @@ public:
 private:
     std::uint64_t documentRevision = 0;
     std::uint32_t nextIdCounter = 1;
+
+    std::vector<IeumBindingSpec> bindings;
+    std::unordered_map<juce::String, size_t> idToIndex;
+
+    void rebuildIndex() noexcept;
 
     std::unique_ptr<IeumDocumentHistory> history;
     juce::ListenerList<Listener> listeners;

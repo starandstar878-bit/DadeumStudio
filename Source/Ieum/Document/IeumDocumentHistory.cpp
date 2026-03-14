@@ -14,14 +14,11 @@ public:
 
     void execute(IeumDocument& document) override {
         addedBindingId = spec.id;
-        document.bindings.push_back(spec);
+        document.addBinding(spec);
     }
 
     void undo(IeumDocument& document) override {
-        auto it = std::find_if(document.bindings.begin(), document.bindings.end(),
-                               [&](const IeumBindingSpec& b) { return b.id == addedBindingId; });
-        if (it != document.bindings.end())
-            document.bindings.erase(it);
+        document.removeBinding(addedBindingId);
     }
 
 private:
@@ -36,16 +33,13 @@ public:
     void execute(IeumDocument& document) override {
         if (auto* b = document.findBinding(targetId)) {
             backup = *b;
-            auto it = std::find_if(document.bindings.begin(), document.bindings.end(),
-                                   [&](const IeumBindingSpec& candidate) { return candidate.id == targetId; });
-            if (it != document.bindings.end())
-                document.bindings.erase(it);
+            document.removeBinding(targetId);
         }
     }
 
     void undo(IeumDocument& document) override {
         if (!backup.id.isEmpty())
-            document.bindings.push_back(backup);
+            document.addBinding(backup);
     }
 
 private:
@@ -59,13 +53,11 @@ public:
         : oldSpec(oldSpecIn), newSpec(newSpecIn) {}
 
     void execute(IeumDocument& document) override {
-        if (auto* b = document.findBinding(newSpec.id))
-            *b = newSpec;
+        document.updateBinding(newSpec);
     }
 
     void undo(IeumDocument& document) override {
-        if (auto* b = document.findBinding(oldSpec.id))
-            *b = oldSpec;
+        document.updateBinding(oldSpec);
     }
 
 private:
@@ -136,6 +128,11 @@ std::unique_ptr<IeumCommand> createRemoveBindingCommand(const BindingId& id)
 std::unique_ptr<IeumCommand> createUpdateBindingCommand(const IeumBindingSpec& oldSpec, const IeumBindingSpec& newSpec)
 {
     return std::make_unique<UpdateBindingCommand>(oldSpec, newSpec);
+}
+
+std::unique_ptr<IeumCommand> createCompositeCommand()
+{
+    return std::make_unique<IeumCompositeCommand>();
 }
 
 } // namespace Ieum

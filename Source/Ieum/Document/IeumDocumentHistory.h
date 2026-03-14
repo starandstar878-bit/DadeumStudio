@@ -38,9 +38,30 @@ private:
     int currentIndex = -1;
 };
 
+/** 
+ * 여러 명령을 하나로 묶어주는 복합 명령 (Roadmap Phase 4)
+ */
+class IeumCompositeCommand final : public IeumCommand {
+public:
+    void addCommand(std::unique_ptr<IeumCommand> cmd) { commands.push_back(std::move(cmd)); }
+    
+    void execute(IeumDocument& doc) override {
+        for (auto& cmd : commands) cmd->execute(doc);
+    }
+    
+    void undo(IeumDocument& doc) override {
+        for (auto it = commands.rbegin(); it != commands.rend(); ++it)
+            (*it)->undo(doc);
+    }
+
+private:
+    std::vector<std::unique_ptr<IeumCommand>> commands;
+};
+
 // -- 공통 명령 생성 도우미 함수들 --
 std::unique_ptr<IeumCommand> createAddBindingCommand(const IeumBindingSpec& spec);
 std::unique_ptr<IeumCommand> createRemoveBindingCommand(const BindingId& id);
 std::unique_ptr<IeumCommand> createUpdateBindingCommand(const IeumBindingSpec& oldSpec, const IeumBindingSpec& newSpec);
+std::unique_ptr<IeumCommand> createCompositeCommand();
 
 } // namespace Ieum
