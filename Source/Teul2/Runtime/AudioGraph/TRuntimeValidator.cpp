@@ -971,3 +971,1009 @@ juce::File makeBenchmarkSuiteHistoryFile(const juce::String &suiteId) {
       .getChildFile("Benchmark")
       .getChildFile(sanitizePathFragment(suiteId) + "-history.json");
 }
+juce::var buildBenchmarkHistoryEntry(
+    const TRuntimeValidationBenchmarkSuiteReport &report) {
+  double peakCpuLoadPercent = 0.0;
+  double peakProcessMilliseconds = 0.0;
+  double peakBuildMilliseconds = 0.0;
+  juce::Array<juce::var> cases;
+  for (const auto &caseReport : report.caseReports) {
+    peakCpuLoadPercent = juce::jmax(
+        peakCpuLoadPercent,
+        static_cast<double>(caseReport.worstRuntimeStats.cpuLoadPercent));
+    peakProcessMilliseconds = juce::jmax(
+        peakProcessMilliseconds,
+        caseReport.worstRuntimeStats.maxProcessMilliseconds);
+    peakBuildMilliseconds = juce::jmax(
+        peakBuildMilliseconds,
+        caseReport.worstRuntimeStats.maxBuildMilliseconds);
+
+    auto *caseObject = new juce::DynamicObject();
+    caseObject->setProperty("graphId", caseReport.graphId);
+    caseObject->setProperty("stimulusId", caseReport.stimulusId);
+    caseObject->setProperty("profileId", caseReport.profileId);
+    caseObject->setProperty("passed", caseReport.passed);
+    caseObject->setProperty("worstCpuLoadPercent",
+                            caseReport.worstRuntimeStats.cpuLoadPercent);
+    caseObject->setProperty("worstMaxProcessMilliseconds",
+                            caseReport.worstRuntimeStats.maxProcessMilliseconds);
+    caseObject->setProperty("worstMaxBuildMilliseconds",
+                            caseReport.worstRuntimeStats.maxBuildMilliseconds);
+    if (caseReport.failureReason.isNotEmpty())
+      caseObject->setProperty("failureReason", caseReport.failureReason);
+    cases.add(juce::var(caseObject));
+  }
+
+  auto *entry = new juce::DynamicObject();
+  entry->setProperty("timestampUtc",
+                     juce::Time::getCurrentTime().toISO8601(true));
+  entry->setProperty("suiteId", report.suiteId);
+  entry->setProperty("passed", report.passed);
+  entry->setProperty("failedCaseCount", report.failedCaseCount);
+  entry->setProperty("iterationCount", report.iterationCount);
+  entry->setProperty("peakCpuLoadPercent", peakCpuLoadPercent);
+  entry->setProperty("peakMaxProcessMilliseconds", peakProcessMilliseconds);
+  entry->setProperty("peakMaxBuildMilliseconds", peakBuildMilliseconds);
+  entry->setProperty("cases", juce::var(cases));
+  return juce::var(entry);
+}
+
+void appendBenchmarkHistory(
+    const TRuntimeValidationBenchmarkSuiteReport &report) {
+  const auto historyFile = makeBenchmarkSuiteHistoryFile(report.suiteId);
+  juce::ignoreUnused(historyFile.getParentDirectory().createDirectory());
+
+  juce::Array<juce::var> entries;
+  if (historyFile.existsAsFile()) {
+    juce::var parsed;
+    const auto parseResult =
+        juce::JSON::parse(historyFile.loadFileAsString(), parsed);
+    if (parseResult.wasOk() && parsed.isObject()) {
+      if (const auto *object = parsed.getDynamicObject()) {
+        const auto existingEntries = object->getProperty("entries");
+        if (existingEntries.isArray())
+          entries = *existingEntries.getArray();
+      }
+    }
+  }
+
+  entries.add(buildBenchmarkHistoryEntry(report));
+  while (entries.size() > 24)
+    entries.remove(0);
+
+  auto *root = new juce::DynamicObject();
+  root->setProperty("kind", "teul-benchmark-history");
+  root->setProperty("suiteId", report.suiteId);
+  root->setProperty("entries", juce::var(entries));
+  juce::ignoreUnused(writeJsonArtifact(historyFile, juce::var(root)));
+}
+
+juce::String buildBenchmarkFailureReason(
+    const TRuntimeValidationBenchmarkCaseReport &report) {
+  juce::String failure;
+  if (report.worstRuntimeStats.cpuLoadPercent >
+      report.thresholds.maxCpuLoadPercent) {
+    failure << "cpuLoadPercent exceeded baseline ("
+            << juce::String(report.worstRuntimeStats.cpuLoadPercent, 6)
+            << " > "
+            << juce::String(report.thresholds.maxCpuLoadPercent, 6)
+            << ")";
+  }
+  if (report.worstRuntimeStats.maxProcessMilliseconds >
+      report.thresholds.maxProcessMilliseconds) {
+    if (failure.isNotEmpty())
+      failure << "; ";
+    failure << "maxProcessMilliseconds exceeded baseline ("
+            << juce::String(report.worstRuntimeStats.maxProcessMilliseconds, 6)
+            << " > "
+            << juce::String(report.thresholds.maxProcessMilliseconds, 6)
+            << ")";
+  }
+  if (report.worstRuntimeStats.maxBuildMilliseconds >
+      report.thresholds.maxBuildMilliseconds) {
+    if (failure.isNotEmpty())
+      failure << "; ";
+    failure << "maxBuildMilliseconds exceeded baseline ("
+            << juce::String(report.worstRuntimeStats.maxBuildMilliseconds, 6)
+            << " > "
+            << juce::String(report.thresholds.maxBuildMilliseconds, 6)
+            << ")";
+  }
+  return failure;
+}
+
+juce::String buildBenchmarkCaseSummaryText(
+    const TRuntimeValidationBenchmarkCaseReport &report) {
+  juce::String summary;
+  summary << "graphId=" << report.graphId << "\r\n";
+  summary << "stimulusId=" << report.stimulusId << "\r\n";
+  summary << "profileId=" << report.profileId << "\r\n";
+  summary << "passed=" << (report.passed ? "true" : "false") << "\r\n";
+  summary << "iterationCount=" << report.iterationCount << "\r\n";
+  summary << "artifactDirectory=" << report.artifactDirectory << "\r\n";
+  summary << "totalRenderedSamples=" << report.totalRenderedSamples << "\r\n";
+  summary << "totalRenderedBlocks=" << report.totalRenderedBlocks << "\r\n";
+  summary << "thresholdCpuLoadPercent="
+          << juce::String(report.thresholds.maxCpuLoadPercent, 6) << "\r\n";
+  summary << "thresholdMaxProcessMilliseconds="
+          << juce::String(report.thresholds.maxProcessMilliseconds, 6)
+          << "\r\n";
+  summary << "thresholdMaxBuildMilliseconds="
+          << juce::String(report.thresholds.maxBuildMilliseconds, 6)
+          << "\r\n";
+  summary << "worstCpuLoadPercent="
+          << juce::String(report.worstRuntimeStats.cpuLoadPercent, 6)
+          << "\r\n";
+  summary << "worstMaxProcessMilliseconds="
+          << juce::String(report.worstRuntimeStats.maxProcessMilliseconds, 6)
+          << "\r\n";
+  summary << "worstMaxBuildMilliseconds="
+          << juce::String(report.worstRuntimeStats.maxBuildMilliseconds, 6)
+          << "\r\n";
+  if (report.failureReason.isNotEmpty())
+    summary << "failureReason=" << report.failureReason << "\r\n";
+  return summary;
+}
+
+juce::var makeBenchmarkCaseArtifactBundle(
+    const juce::File &artifactDirectory,
+    const TRuntimeValidationBenchmarkCaseReport &report) {
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("benchmarkCaseSummary", artifactDirectory,
+                                  artifactDirectory.getChildFile("case-summary.txt")));
+
+  auto *root = new juce::DynamicObject();
+  root->setProperty("kind", "teul-verification-artifact-bundle");
+  root->setProperty("scope", "benchmark-case");
+  root->setProperty("graphId", report.graphId);
+  root->setProperty("stimulusId", report.stimulusId);
+  root->setProperty("profileId", report.profileId);
+  root->setProperty("passed", report.passed);
+  root->setProperty("iterationCount", report.iterationCount);
+  root->setProperty("totalRenderedSamples", report.totalRenderedSamples);
+  root->setProperty("totalRenderedBlocks", report.totalRenderedBlocks);
+  root->setProperty("artifactDirectory", artifactDirectory.getFullPathName());
+  root->setProperty("thresholdCpuLoadPercent", report.thresholds.maxCpuLoadPercent);
+  root->setProperty("thresholdMaxProcessMilliseconds",
+                    report.thresholds.maxProcessMilliseconds);
+  root->setProperty("thresholdMaxBuildMilliseconds",
+                    report.thresholds.maxBuildMilliseconds);
+  root->setProperty("worstCpuLoadPercent", report.worstRuntimeStats.cpuLoadPercent);
+  root->setProperty("worstMaxProcessMilliseconds",
+                    report.worstRuntimeStats.maxProcessMilliseconds);
+  root->setProperty("worstMaxBuildMilliseconds",
+                    report.worstRuntimeStats.maxBuildMilliseconds);
+  if (report.failureReason.isNotEmpty())
+    root->setProperty("failureReason", report.failureReason);
+  root->setProperty("files", juce::var(files));
+  return juce::var(root);
+}
+
+void finalizeBenchmarkCaseArtifacts(
+    const juce::File &artifactDirectory,
+    const TRuntimeValidationBenchmarkCaseReport &report) {
+  juce::ignoreUnused(artifactDirectory.createDirectory());
+  juce::ignoreUnused(writeTextArtifact(
+      artifactDirectory.getChildFile("case-summary.txt"),
+      buildBenchmarkCaseSummaryText(report)));
+  juce::ignoreUnused(writeJsonArtifact(
+      artifactDirectory.getChildFile("artifact-bundle.json"),
+      makeBenchmarkCaseArtifactBundle(artifactDirectory, report)));
+}
+
+juce::String buildBenchmarkSuiteSummaryText(
+    const TRuntimeValidationBenchmarkSuiteReport &report) {
+  juce::String summary;
+  summary << "suiteId=" << report.suiteId << "\r\n";
+  summary << "passed=" << (report.passed ? "true" : "false") << "\r\n";
+  summary << "iterationCount=" << report.iterationCount << "\r\n";
+  summary << "artifactDirectory=" << report.artifactDirectory << "\r\n";
+  summary << "totalCaseCount=" << report.totalCaseCount << "\r\n";
+  summary << "passedCaseCount=" << report.passedCaseCount << "\r\n";
+  summary << "failedCaseCount=" << report.failedCaseCount << "\r\n\r\n";
+  for (const auto &caseReport : report.caseReports) {
+    summary << "case=" << caseReport.graphId << "/" << caseReport.stimulusId
+            << "/" << caseReport.profileId << "\r\n";
+    summary << "passed=" << (caseReport.passed ? "true" : "false")
+            << "\r\n";
+    summary << "artifactDirectory=" << caseReport.artifactDirectory << "\r\n";
+    summary << "worstCpuLoadPercent="
+            << juce::String(caseReport.worstRuntimeStats.cpuLoadPercent, 6)
+            << "\r\n";
+    summary << "worstMaxProcessMilliseconds="
+            << juce::String(caseReport.worstRuntimeStats.maxProcessMilliseconds, 6)
+            << "\r\n";
+    summary << "worstMaxBuildMilliseconds="
+            << juce::String(caseReport.worstRuntimeStats.maxBuildMilliseconds, 6)
+            << "\r\n";
+    if (caseReport.failureReason.isNotEmpty())
+      summary << "failureReason=" << caseReport.failureReason << "\r\n";
+    summary << "\r\n";
+  }
+  return summary;
+}
+
+juce::var makeBenchmarkSuiteArtifactBundle(
+    const juce::File &artifactDirectory,
+    const TRuntimeValidationBenchmarkSuiteReport &report) {
+  juce::Array<juce::var> files;
+  files.add(makeArtifactFileEntry("benchmarkSummary", artifactDirectory,
+                                  artifactDirectory.getChildFile("benchmark-summary.txt")));
+  files.add(makeArtifactFileEntry("benchmarkHistory", artifactDirectory,
+                                  makeBenchmarkSuiteHistoryFile(report.suiteId)));
+
+  juce::Array<juce::var> cases;
+  for (const auto &caseReport : report.caseReports) {
+    auto *entry = new juce::DynamicObject();
+    entry->setProperty("graphId", caseReport.graphId);
+    entry->setProperty("stimulusId", caseReport.stimulusId);
+    entry->setProperty("profileId", caseReport.profileId);
+    entry->setProperty("passed", caseReport.passed);
+    entry->setProperty("iterationCount", caseReport.iterationCount);
+    entry->setProperty("artifactDirectory", caseReport.artifactDirectory);
+    if (caseReport.artifactDirectory.isNotEmpty()) {
+      const auto caseDir = juce::File(caseReport.artifactDirectory);
+      entry->setProperty("relativeArtifactDirectory",
+                         relativeArtifactPath(artifactDirectory, caseDir));
+      entry->setProperty(
+          "bundleRelativePath",
+          relativeArtifactPath(
+              artifactDirectory,
+              caseDir.getChildFile("artifact-bundle.json")));
+    }
+    if (caseReport.failureReason.isNotEmpty())
+      entry->setProperty("failureReason", caseReport.failureReason);
+    cases.add(juce::var(entry));
+  }
+
+  auto *root = new juce::DynamicObject();
+  root->setProperty("kind", "teul-verification-artifact-bundle");
+  root->setProperty("scope", "benchmark-suite");
+  root->setProperty("suiteId", report.suiteId);
+  root->setProperty("passed", report.passed);
+  root->setProperty("iterationCount", report.iterationCount);
+  root->setProperty("artifactDirectory", artifactDirectory.getFullPathName());
+  root->setProperty("totalCaseCount", report.totalCaseCount);
+  root->setProperty("passedCaseCount", report.passedCaseCount);
+  root->setProperty("failedCaseCount", report.failedCaseCount);
+  root->setProperty("files", juce::var(files));
+  root->setProperty("cases", juce::var(cases));
+  return juce::var(root);
+}
+
+void finalizeBenchmarkSuiteArtifacts(
+    const juce::File &artifactDirectory,
+    const TRuntimeValidationBenchmarkSuiteReport &report) {
+  juce::ignoreUnused(artifactDirectory.createDirectory());
+  juce::ignoreUnused(writeTextArtifact(
+      artifactDirectory.getChildFile("benchmark-summary.txt"),
+      buildBenchmarkSuiteSummaryText(report)));
+  appendBenchmarkHistory(report);
+  juce::ignoreUnused(writeJsonArtifact(
+      artifactDirectory.getChildFile("artifact-bundle.json"),
+      makeBenchmarkSuiteArtifactBundle(artifactDirectory, report)));
+}
+
+} // namespace
+
+std::vector<TRuntimeValidationGraphFixture>
+TRuntimeValidator::makeRepresentativeGraphSet(const TNodeRegistry &registry) {
+  std::vector<TRuntimeValidationGraphFixture> fixtures;
+  for (const auto &legacyFixture :
+       makeRepresentativeVerificationGraphSet(registry)) {
+    fixtures.push_back(convertLegacyFixture(legacyFixture));
+  }
+  return fixtures;
+}
+
+TRuntimeValidationRenderProfile TRuntimeValidator::makePrimaryRenderProfile() {
+  return {"primary", 48000.0, 128, 2, 2.0};
+}
+
+TRuntimeValidationRenderProfile
+TRuntimeValidator::makeSecondaryRenderProfile() {
+  return {"secondary", 48000.0, 480, 2, 2.0};
+}
+
+TRuntimeValidationRenderProfile
+TRuntimeValidator::makeExtendedRenderProfile() {
+  return {"extended", 96000.0, 128, 2, 2.0};
+}
+
+TRuntimeValidationStimulusSpec TRuntimeValidator::makeStaticRenderStimulus() {
+  return {"S1", "Static Render", TRuntimeValidationStimulusKind::StaticRender,
+          {}, {}};
+}
+
+TRuntimeValidationStimulusSpec TRuntimeValidator::makeStepAutomationStimulus(
+    const juce::String &nodeLabel, const juce::String &paramKey,
+    float startValue, float endValue, double stepIntervalSeconds) {
+  TRuntimeValidationStimulusSpec stimulus;
+  stimulus.stimulusId = "S2";
+  stimulus.displayName = "Step Automation";
+  stimulus.kind = TRuntimeValidationStimulusKind::StepAutomation;
+  stimulus.automationLanes.push_back(
+      {nodeLabel, paramKey, TRuntimeValidationAutomationMode::Step,
+       startValue, endValue, stepIntervalSeconds});
+  return stimulus;
+}
+
+TRuntimeValidationStimulusSpec TRuntimeValidator::makeSweepAutomationStimulus(
+    const juce::String &nodeLabel, const juce::String &paramKey,
+    float startValue, float endValue) {
+  TRuntimeValidationStimulusSpec stimulus;
+  stimulus.stimulusId = "S3";
+  stimulus.displayName = "Sweep Automation";
+  stimulus.kind = TRuntimeValidationStimulusKind::SweepAutomation;
+  stimulus.automationLanes.push_back(
+      {nodeLabel, paramKey, TRuntimeValidationAutomationMode::Linear,
+       startValue, endValue, 0.25});
+  return stimulus;
+}
+
+TRuntimeValidationStimulusSpec TRuntimeValidator::makeMidiPhraseStimulus() {
+  TRuntimeValidationStimulusSpec stimulus;
+  stimulus.stimulusId = "S4";
+  stimulus.displayName = "MIDI Phrase";
+  stimulus.kind = TRuntimeValidationStimulusKind::MidiPhrase;
+  const double sampleRate = 48000.0;
+  auto sampleOffsetForSeconds = [sampleRate](double seconds) {
+    return juce::roundToInt(seconds * sampleRate);
+  };
+  stimulus.midiEvents.push_back({sampleOffsetForSeconds(0.00),
+                                 juce::MidiMessage::noteOn(
+                                     1, 60, (juce::uint8)96)});
+  stimulus.midiEvents.push_back({sampleOffsetForSeconds(0.35),
+                                 juce::MidiMessage::noteOff(1, 60)});
+  stimulus.midiEvents.push_back({sampleOffsetForSeconds(0.55),
+                                 juce::MidiMessage::noteOn(
+                                     1, 64, (juce::uint8)110)});
+  stimulus.midiEvents.push_back({sampleOffsetForSeconds(0.95),
+                                 juce::MidiMessage::noteOff(1, 64)});
+  stimulus.midiEvents.push_back({sampleOffsetForSeconds(1.15),
+                                 juce::MidiMessage::noteOn(
+                                     1, 67, (juce::uint8)100)});
+  stimulus.midiEvents.push_back({sampleOffsetForSeconds(1.65),
+                                 juce::MidiMessage::noteOff(1, 67)});
+  return stimulus;
+}
+bool TRuntimeValidator::renderDocumentWithStimulus(
+    const TNodeRegistry &registry, const TTeulDocument &document,
+    const TRuntimeValidationRenderProfile &profile,
+    const TRuntimeValidationStimulusSpec &stimulus,
+    TRuntimeValidationRenderResult &resultOut,
+    juce::String *errorMessageOut) {
+  if (profile.sampleRate <= 0.0 || profile.blockSize <= 0 ||
+      profile.outputChannels <= 0 || profile.durationSeconds <= 0.0) {
+    writeError(errorMessageOut, "Invalid verification render profile.");
+    return false;
+  }
+
+  std::vector<std::pair<NodeId, TRuntimeValidationAutomationLane>> resolvedLanes;
+  resolvedLanes.reserve(stimulus.automationLanes.size());
+  for (const auto &lane : stimulus.automationLanes) {
+    const NodeId nodeId = findNodeIdByLabel(document, lane.nodeLabel);
+    if (nodeId == kInvalidNodeId) {
+      writeError(errorMessageOut,
+                 "Verification stimulus references a missing node label: " +
+                     lane.nodeLabel);
+      return false;
+    }
+    resolvedLanes.push_back({nodeId, lane});
+  }
+
+  std::vector<TRuntimeValidationMidiEvent> midiEvents = stimulus.midiEvents;
+  std::sort(midiEvents.begin(), midiEvents.end(),
+            [](const auto &lhs, const auto &rhs) {
+              return lhs.sampleOffset < rhs.sampleOffset;
+            });
+
+  TTeulRuntime runtime(&registry);
+  if (!runtime.buildGraph(document)) {
+    writeError(errorMessageOut, "Failed to build verification graph.");
+    return false;
+  }
+
+  runtime.setCurrentChannelLayout(0, profile.outputChannels);
+  runtime.prepareToPlay(profile.sampleRate, profile.blockSize);
+
+  const int totalSamples = juce::jmax(
+      1, juce::roundToInt(profile.durationSeconds * profile.sampleRate));
+  resultOut.graphName = document.meta.name;
+  resultOut.stimulusId = stimulus.stimulusId;
+  resultOut.profileId = profile.profileId;
+  resultOut.totalSamples = totalSamples;
+  resultOut.audioBuffer.setSize(profile.outputChannels, totalSamples, false,
+                                false, true);
+  resultOut.audioBuffer.clear();
+  resultOut.renderedBlockCount = 0;
+
+  std::size_t midiEventIndex = 0;
+  for (int blockStart = 0; blockStart < totalSamples;
+       blockStart += profile.blockSize) {
+    const int blockSamples =
+        juce::jmin(profile.blockSize, totalSamples - blockStart);
+    for (const auto &resolvedLane : resolvedLanes) {
+      const float value = valueForLaneAtSample(
+          resolvedLane.second, blockStart, totalSamples, profile.sampleRate);
+      runtime.queueParameterChange(resolvedLane.first,
+                                   resolvedLane.second.paramKey, value);
+    }
+
+    juce::AudioBuffer<float> blockBuffer(profile.outputChannels, blockSamples);
+    juce::MidiBuffer midiBuffer;
+    while (midiEventIndex < midiEvents.size() &&
+           midiEvents[midiEventIndex].sampleOffset <
+               (blockStart + blockSamples)) {
+      const auto &event = midiEvents[midiEventIndex];
+      if (event.sampleOffset >= blockStart)
+        midiBuffer.addEvent(event.message, event.sampleOffset - blockStart);
+      ++midiEventIndex;
+    }
+
+    runtime.processBlock(blockBuffer, midiBuffer);
+    for (int channel = 0; channel < profile.outputChannels; ++channel) {
+      resultOut.audioBuffer.copyFrom(channel, blockStart, blockBuffer, channel,
+                                     0, blockSamples);
+    }
+    ++resultOut.renderedBlockCount;
+  }
+
+  resultOut.runtimeStats = runtime.getRuntimeStats();
+  return true;
+}
+
+bool TRuntimeValidator::runEditableExportRoundTripParity(
+    const TNodeRegistry &registry,
+    const TRuntimeValidationGraphFixture &fixture,
+    const TRuntimeValidationRenderProfile &profile,
+    const TRuntimeValidationStimulusSpec &stimulus,
+    TRuntimeValidationParityReport &reportOut, float maxAbsoluteTolerance,
+    double rmsTolerance) {
+  reportOut = {};
+  reportOut.graphId = fixture.fixtureId;
+  reportOut.stimulusId = stimulus.stimulusId;
+  reportOut.profileId = profile.profileId;
+  reportOut.modeId = "editable-roundtrip";
+
+  const auto artifactDirectory =
+      makeCaseArtifactDirectory(fixture, profile, stimulus);
+  reportOut.artifactDirectory = artifactDirectory.getFullPathName();
+  juce::ignoreUnused(artifactDirectory.deleteRecursively());
+  juce::ignoreUnused(artifactDirectory.createDirectory());
+
+  TRuntimeValidationRenderResult sourceRender;
+  juce::String sourceRenderError;
+  if (!renderDocumentWithStimulus(registry, fixture.document, profile, stimulus,
+                                  sourceRender, &sourceRenderError)) {
+    reportOut.failureReason =
+        "Source runtime render failed: " + sourceRenderError;
+    finalizeCaseArtifacts(artifactDirectory, reportOut);
+    return false;
+  }
+
+  TGraphDocument exportDocument;
+  if (!TGraphCompiler::compileLegacyDocument(exportDocument, fixture.document)) {
+    reportOut.failureReason =
+        "EditableGraph export failed: Teul2 document compile to legacy graph failed.";
+    finalizeCaseArtifacts(artifactDirectory, reportOut);
+    return false;
+  }
+
+  TExportOptions options;
+  options.mode = TExportMode::EditableGraph;
+  options.dryRunOnly = false;
+  options.outputDirectory = artifactDirectory.getChildFile("export-package");
+  options.projectRootDirectory = juce::File::getCurrentWorkingDirectory();
+
+  TExportReport exportReport;
+  const auto exportResult =
+      TExporter::exportToDirectory(exportDocument, registry, options,
+                                   exportReport);
+  reportOut.exportReport = exportReport;
+  reportOut.exportWarningCount = exportReport.warningCount();
+  reportOut.exportErrorCount = exportReport.errorCount();
+  if (exportResult.failed()) {
+    reportOut.failureReason =
+        "EditableGraph export failed: " + exportResult.getErrorMessage();
+    finalizeCaseArtifacts(artifactDirectory, reportOut);
+    return false;
+  }
+
+  TTeulDocument importedDocument;
+  const auto importResult =
+      TDocumentStore::importEditableGraphPackage(options.outputDirectory,
+                                                 importedDocument);
+  if (importResult.failed()) {
+    reportOut.failureReason =
+        "EditableGraph import failed: " + importResult.getErrorMessage();
+    finalizeCaseArtifacts(artifactDirectory, reportOut);
+    return false;
+  }
+  reportOut.importedDocumentLoaded = true;
+
+  TRuntimeValidationRenderResult importedRender;
+  juce::String importedRenderError;
+  if (!renderDocumentWithStimulus(registry, importedDocument, profile,
+                                  stimulus, importedRender,
+                                  &importedRenderError)) {
+    reportOut.failureReason =
+        "Imported runtime render failed: " + importedRenderError;
+    finalizeCaseArtifacts(artifactDirectory, reportOut);
+    return false;
+  }
+
+  const int channels = juce::jmin(sourceRender.audioBuffer.getNumChannels(),
+                                  importedRender.audioBuffer.getNumChannels());
+  const int samples = juce::jmin(sourceRender.audioBuffer.getNumSamples(),
+                                 importedRender.audioBuffer.getNumSamples());
+  reportOut.totalSamples = samples;
+  reportOut.comparedChannels = channels;
+  if (channels <= 0 || samples <= 0) {
+    reportOut.failureReason =
+        "Parity render produced an empty audio buffer.";
+    finalizeCaseArtifacts(artifactDirectory, reportOut);
+    return false;
+  }
+
+  double squaredErrorSum = 0.0;
+  int comparedSampleCount = 0;
+  for (int channel = 0; channel < channels; ++channel) {
+    const float *lhs = sourceRender.audioBuffer.getReadPointer(channel);
+    const float *rhs = importedRender.audioBuffer.getReadPointer(channel);
+    for (int sampleIndex = 0; sampleIndex < samples; ++sampleIndex) {
+      const float a = normalizeSample(lhs[sampleIndex]);
+      const float b = normalizeSample(rhs[sampleIndex]);
+      if (!std::isfinite(a) || !std::isfinite(b)) {
+        reportOut.firstMismatchChannel = channel;
+        reportOut.firstMismatchSample = sampleIndex;
+        reportOut.failureReason =
+            "Parity compare encountered NaN or Inf.";
+        finalizeCaseArtifacts(artifactDirectory, reportOut);
+        return false;
+      }
+
+      const double error = static_cast<double>(a) - static_cast<double>(b);
+      const float absError = static_cast<float>(std::abs(error));
+      reportOut.maxAbsoluteError = juce::jmax(reportOut.maxAbsoluteError,
+                                              absError);
+      squaredErrorSum += error * error;
+      ++comparedSampleCount;
+      if (reportOut.firstMismatchSample < 0 &&
+          absError > maxAbsoluteTolerance) {
+        reportOut.firstMismatchChannel = channel;
+        reportOut.firstMismatchSample = sampleIndex;
+      }
+    }
+  }
+
+  reportOut.rmsError =
+      comparedSampleCount > 0
+          ? std::sqrt(squaredErrorSum /
+                      static_cast<double>(comparedSampleCount))
+          : 0.0;
+  reportOut.passed = reportOut.maxAbsoluteError <= maxAbsoluteTolerance &&
+                     reportOut.rmsError <= rmsTolerance;
+  finalizeCaseArtifacts(artifactDirectory, reportOut);
+  return reportOut.passed;
+}
+
+bool TRuntimeValidator::runInitialG1StaticParitySmoke(
+    const TNodeRegistry &registry,
+    TRuntimeValidationParityReport &reportOut) {
+  const auto fixtures = makeRepresentativeGraphSet(registry);
+  for (const auto &fixture : fixtures) {
+    if (fixture.fixtureId == "G1") {
+      return runEditableExportRoundTripParity(
+          registry, fixture, makePrimaryRenderProfile(),
+          makeStaticRenderStimulus(), reportOut);
+    }
+  }
+  reportOut = {};
+  reportOut.graphId = "G1";
+  reportOut.stimulusId = "S1";
+  reportOut.profileId = "primary";
+  reportOut.modeId = "editable-roundtrip";
+  reportOut.failureReason = "G1 fixture was not found.";
+  return false;
+}
+
+bool TRuntimeValidator::runRepresentativePrimaryParityMatrix(
+    const TNodeRegistry &registry,
+    TRuntimeValidationParitySuiteReport &reportOut) {
+  reportOut = {};
+  reportOut.suiteId = "representative-primary";
+  const auto artifactDirectory = juce::File::getCurrentWorkingDirectory()
+                                     .getChildFile("Builds")
+                                     .getChildFile("TeulVerification")
+                                     .getChildFile("EditableRoundTrip")
+                                     .getChildFile(
+                                         "RepresentativeMatrix_primary");
+  reportOut.artifactDirectory = artifactDirectory.getFullPathName();
+  juce::ignoreUnused(artifactDirectory.deleteRecursively());
+  juce::ignoreUnused(artifactDirectory.createDirectory());
+
+  const auto fixtures = makeRepresentativeGraphSet(registry);
+  for (const auto &caseSpec : makeRepresentativePrimaryCases()) {
+    TRuntimeValidationParityReport caseReport;
+    const auto *fixture = findFixtureById(fixtures, caseSpec.fixtureId);
+    if (fixture == nullptr) {
+      caseReport.graphId = caseSpec.fixtureId;
+      caseReport.stimulusId = caseSpec.stimulus.stimulusId;
+      caseReport.profileId = caseSpec.profile.profileId;
+      caseReport.modeId = "editable-roundtrip";
+      caseReport.failureReason =
+          "Representative parity matrix fixture was not found.";
+      caseReport.passed = false;
+    } else {
+      caseReport.passed = runEditableExportRoundTripParity(
+          registry, *fixture, caseSpec.profile, caseSpec.stimulus,
+          caseReport);
+    }
+
+    ++reportOut.totalCaseCount;
+    if (caseReport.passed)
+      ++reportOut.passedCaseCount;
+    else
+      ++reportOut.failedCaseCount;
+    reportOut.caseReports.push_back(caseReport);
+  }
+
+  reportOut.passed =
+      reportOut.totalCaseCount > 0 && reportOut.failedCaseCount == 0;
+  finalizeSuiteArtifacts(artifactDirectory, reportOut);
+  return reportOut.passed;
+}
+bool TRuntimeValidator::runRepresentativeGoldenAudioRecord(
+    const TNodeRegistry &registry,
+    TRuntimeValidationGoldenAudioSuiteReport &reportOut) {
+  reportOut = {};
+  reportOut.suiteId = "representative-primary";
+  reportOut.modeId = "record";
+  const auto suiteDirectory = baselineSuiteDirectory();
+  reportOut.baselineDirectory = suiteDirectory.getFullPathName();
+  juce::ignoreUnused(suiteDirectory.createDirectory());
+
+  const auto fixtures = makeRepresentativeGraphSet(registry);
+  for (const auto &caseSpec : makeRepresentativePrimaryCases()) {
+    TRuntimeValidationGoldenAudioReport caseReport;
+    caseReport.graphId = caseSpec.fixtureId;
+    caseReport.stimulusId = caseSpec.stimulus.stimulusId;
+    caseReport.profileId = caseSpec.profile.profileId;
+    caseReport.modeId = "record";
+
+    const auto *fixture = findFixtureById(fixtures, caseSpec.fixtureId);
+    if (fixture == nullptr) {
+      caseReport.failureReason =
+          "Representative golden fixture was not found.";
+    } else {
+      const auto caseDirectory = makeGoldenCaseDirectory(
+          suiteDirectory, *fixture, caseSpec.profile, caseSpec.stimulus);
+      juce::ignoreUnused(caseDirectory.deleteRecursively());
+      juce::ignoreUnused(caseDirectory.createDirectory());
+      caseReport.baselineDirectory = caseDirectory.getFullPathName();
+
+      TRuntimeValidationRenderResult renderResult;
+      juce::String renderError;
+      if (!renderDocumentWithStimulus(registry, fixture->document,
+                                      caseSpec.profile, caseSpec.stimulus,
+                                      renderResult, &renderError)) {
+        caseReport.failureReason =
+            "Golden audio record render failed: " + renderError;
+      } else {
+        caseReport.totalSamples = renderResult.totalSamples;
+        const auto waveFile = caseDirectory.getChildFile("golden-output.wav");
+        juce::String writeErrorMessage;
+        if (!writeWaveFile(waveFile, renderResult.audioBuffer,
+                           caseSpec.profile.sampleRate,
+                           &writeErrorMessage)) {
+          caseReport.failureReason = writeErrorMessage;
+        } else {
+          juce::ignoreUnused(writeJsonArtifact(
+              caseDirectory.getChildFile("golden-metadata.json"),
+              makeGoldenMetadata(*fixture, caseSpec.profile, caseSpec.stimulus,
+                                 renderResult, caseDirectory)));
+          caseReport.baselineExists = true;
+          caseReport.passed = true;
+        }
+      }
+
+      finalizeGoldenRecordCaseArtifacts(caseDirectory, caseReport,
+                                        caseSpec.profile);
+    }
+
+    ++reportOut.totalCaseCount;
+    if (caseReport.passed)
+      ++reportOut.passedCaseCount;
+    else
+      ++reportOut.failedCaseCount;
+    reportOut.caseReports.push_back(caseReport);
+  }
+
+  reportOut.passed =
+      reportOut.totalCaseCount > 0 && reportOut.failedCaseCount == 0;
+  finalizeGoldenSuiteArtifacts(suiteDirectory, reportOut, false);
+  return reportOut.passed;
+}
+
+bool TRuntimeValidator::runRepresentativeGoldenAudioVerify(
+    const TNodeRegistry &registry,
+    TRuntimeValidationGoldenAudioSuiteReport &reportOut,
+    float maxAbsoluteTolerance,
+    double rmsTolerance) {
+  reportOut = {};
+  reportOut.suiteId = "representative-primary";
+  reportOut.modeId = "verify";
+  const auto baselineDirectory = baselineSuiteDirectory();
+  const auto artifactDirectory = verifySuiteArtifactDirectory();
+  reportOut.baselineDirectory = baselineDirectory.getFullPathName();
+  reportOut.artifactDirectory = artifactDirectory.getFullPathName();
+  juce::ignoreUnused(artifactDirectory.deleteRecursively());
+  juce::ignoreUnused(artifactDirectory.createDirectory());
+
+  const auto fixtures = makeRepresentativeGraphSet(registry);
+  for (const auto &caseSpec : makeRepresentativePrimaryCases()) {
+    TRuntimeValidationGoldenAudioReport caseReport;
+    caseReport.graphId = caseSpec.fixtureId;
+    caseReport.stimulusId = caseSpec.stimulus.stimulusId;
+    caseReport.profileId = caseSpec.profile.profileId;
+    caseReport.modeId = "verify";
+
+    const auto *fixture = findFixtureById(fixtures, caseSpec.fixtureId);
+    if (fixture == nullptr) {
+      caseReport.failureReason =
+          "Representative golden fixture was not found.";
+    } else {
+      const auto caseBaselineDirectory = makeGoldenCaseDirectory(
+          baselineDirectory, *fixture, caseSpec.profile, caseSpec.stimulus);
+      const auto caseArtifactDirectory = makeGoldenCaseDirectory(
+          artifactDirectory, *fixture, caseSpec.profile, caseSpec.stimulus);
+      juce::ignoreUnused(caseArtifactDirectory.createDirectory());
+      caseReport.baselineDirectory = caseBaselineDirectory.getFullPathName();
+      caseReport.artifactDirectory = caseArtifactDirectory.getFullPathName();
+
+      const auto baselineWaveFile =
+          caseBaselineDirectory.getChildFile("golden-output.wav");
+      caseReport.baselineExists = baselineWaveFile.existsAsFile();
+      if (!caseReport.baselineExists) {
+        caseReport.failureReason = "Golden baseline WAV file is missing.";
+      } else {
+        TRuntimeValidationRenderResult renderResult;
+        juce::String renderError;
+        if (!renderDocumentWithStimulus(registry, fixture->document,
+                                        caseSpec.profile, caseSpec.stimulus,
+                                        renderResult, &renderError)) {
+          caseReport.failureReason =
+              "Golden audio verify render failed: " + renderError;
+        } else {
+          juce::AudioBuffer<float> goldenBuffer;
+          double goldenSampleRate = 0.0;
+          juce::String readErrorMessage;
+          if (!readWaveFile(baselineWaveFile, goldenBuffer, goldenSampleRate,
+                            &readErrorMessage)) {
+            caseReport.failureReason = readErrorMessage;
+          } else if (std::abs(goldenSampleRate - caseSpec.profile.sampleRate) >
+                     0.01) {
+            caseReport.failureReason =
+                "Golden baseline sample rate does not match the verification profile.";
+          } else {
+            compareWithGolden(renderResult, goldenBuffer, caseReport,
+                              maxAbsoluteTolerance, rmsTolerance);
+          }
+        }
+      }
+
+      finalizeGoldenVerifyCaseArtifacts(caseArtifactDirectory, caseReport);
+    }
+
+    ++reportOut.totalCaseCount;
+    if (caseReport.passed)
+      ++reportOut.passedCaseCount;
+    else
+      ++reportOut.failedCaseCount;
+    reportOut.caseReports.push_back(caseReport);
+  }
+
+  reportOut.passed =
+      reportOut.totalCaseCount > 0 && reportOut.failedCaseCount == 0;
+  finalizeGoldenSuiteArtifacts(artifactDirectory, reportOut, true);
+  return reportOut.passed;
+}
+
+bool TRuntimeValidator::runRepresentativeStressSoakSuite(
+    const TNodeRegistry &registry,
+    TRuntimeValidationStressSuiteReport &reportOut,
+    int iterationCount) {
+  reportOut = {};
+  reportOut.suiteId = "representative-stress-primary";
+  reportOut.iterationCount = juce::jmax(1, iterationCount);
+  const auto suiteArtifactDirectory =
+      makeStressSuiteArtifactDirectory(reportOut.suiteId);
+  reportOut.artifactDirectory = suiteArtifactDirectory.getFullPathName();
+  juce::ignoreUnused(suiteArtifactDirectory.deleteRecursively());
+  juce::ignoreUnused(suiteArtifactDirectory.createDirectory());
+
+  const auto fixtures = makeRepresentativeGraphSet(registry);
+  for (const auto &caseSpec : makeRepresentativePrimaryCases()) {
+    TRuntimeValidationStressCaseReport caseReport;
+    caseReport.graphId = caseSpec.fixtureId;
+    caseReport.stimulusId = caseSpec.stimulus.stimulusId;
+    caseReport.profileId = caseSpec.profile.profileId;
+    caseReport.iterationCount = reportOut.iterationCount;
+
+    const auto *fixture = findFixtureById(fixtures, caseSpec.fixtureId);
+    if (fixture == nullptr) {
+      caseReport.failureReason =
+          "Representative stress fixture was not found.";
+    } else {
+      const auto caseArtifactDirectory = makeStressCaseArtifactDirectory(
+          suiteArtifactDirectory, *fixture, caseSpec.profile,
+          caseSpec.stimulus);
+      caseReport.artifactDirectory = caseArtifactDirectory.getFullPathName();
+      juce::ignoreUnused(caseArtifactDirectory.deleteRecursively());
+      juce::ignoreUnused(caseArtifactDirectory.createDirectory());
+
+      for (int iteration = 0; iteration < reportOut.iterationCount;
+           ++iteration) {
+        TRuntimeValidationRenderResult renderResult;
+        juce::String renderError;
+        if (!renderDocumentWithStimulus(registry, fixture->document,
+                                        caseSpec.profile, caseSpec.stimulus,
+                                        renderResult, &renderError)) {
+          caseReport.failureReason =
+              "Stress render failed at iteration " +
+              juce::String(iteration + 1) + ": " + renderError;
+          break;
+        }
+        if (renderResult.audioBuffer.getNumChannels() <= 0 ||
+            renderResult.audioBuffer.getNumSamples() <= 0) {
+          caseReport.failureReason =
+              "Stress render produced an empty audio buffer at iteration " +
+              juce::String(iteration + 1) + ".";
+          break;
+        }
+
+        bool hasFiniteAudio = true;
+        for (int channel = 0; channel < renderResult.audioBuffer.getNumChannels() &&
+                               hasFiniteAudio;
+             ++channel) {
+          const auto *samples = renderResult.audioBuffer.getReadPointer(channel);
+          for (int sampleIndex = 0;
+               sampleIndex < renderResult.audioBuffer.getNumSamples();
+               ++sampleIndex) {
+            if (!std::isfinite(samples[sampleIndex])) {
+              hasFiniteAudio = false;
+              break;
+            }
+          }
+        }
+        if (!hasFiniteAudio) {
+          caseReport.failureReason =
+              "Stress render produced NaN or Inf samples at iteration " +
+              juce::String(iteration + 1) + ".";
+          break;
+        }
+        if (!isFiniteRuntimeStats(renderResult.runtimeStats)) {
+          caseReport.failureReason =
+              "Stress render produced non-finite runtime stats at iteration " +
+              juce::String(iteration + 1) + ".";
+          break;
+        }
+
+        caseReport.totalRenderedSamples += renderResult.totalSamples;
+        caseReport.totalRenderedBlocks += renderResult.renderedBlockCount;
+        caseReport.worstRuntimeStats =
+            (iteration == 0)
+                ? renderResult.runtimeStats
+                : maxRuntimeStats(caseReport.worstRuntimeStats,
+                                  renderResult.runtimeStats);
+      }
+
+      caseReport.passed = caseReport.failureReason.isEmpty();
+      finalizeStressCaseArtifacts(caseArtifactDirectory, caseReport);
+    }
+
+    ++reportOut.totalCaseCount;
+    if (caseReport.passed)
+      ++reportOut.passedCaseCount;
+    else
+      ++reportOut.failedCaseCount;
+    reportOut.caseReports.push_back(caseReport);
+  }
+
+  reportOut.passed =
+      reportOut.totalCaseCount > 0 && reportOut.failedCaseCount == 0;
+  finalizeStressSuiteArtifacts(suiteArtifactDirectory, reportOut);
+  return reportOut.passed;
+}
+
+bool TRuntimeValidator::runRepresentativeBenchmarkGate(
+    const TNodeRegistry &registry,
+    TRuntimeValidationBenchmarkSuiteReport &reportOut,
+    int iterationCount) {
+  reportOut = {};
+  reportOut.suiteId = "representative-benchmark-primary";
+  reportOut.iterationCount = juce::jmax(1, iterationCount);
+  const auto suiteArtifactDirectory =
+      makeBenchmarkSuiteArtifactDirectory(reportOut.suiteId);
+  reportOut.artifactDirectory = suiteArtifactDirectory.getFullPathName();
+  juce::ignoreUnused(suiteArtifactDirectory.deleteRecursively());
+  juce::ignoreUnused(suiteArtifactDirectory.createDirectory());
+
+  const auto fixtures = makeRepresentativeGraphSet(registry);
+  for (const auto &caseSpec : makeRepresentativeBenchmarkCases()) {
+    TRuntimeValidationBenchmarkCaseReport caseReport;
+    caseReport.graphId = caseSpec.fixtureId;
+    caseReport.stimulusId = caseSpec.stimulus.stimulusId;
+    caseReport.profileId = caseSpec.profile.profileId;
+    caseReport.iterationCount = reportOut.iterationCount;
+    caseReport.thresholds = caseSpec.thresholds;
+
+    const auto *fixture = findFixtureById(fixtures, caseSpec.fixtureId);
+    if (fixture == nullptr) {
+      caseReport.failureReason =
+          "Representative benchmark fixture was not found.";
+    } else {
+      const auto caseArtifactDirectory = makeBenchmarkCaseArtifactDirectory(
+          suiteArtifactDirectory, *fixture, caseSpec.profile,
+          caseSpec.stimulus);
+      caseReport.artifactDirectory = caseArtifactDirectory.getFullPathName();
+      juce::ignoreUnused(caseArtifactDirectory.deleteRecursively());
+      juce::ignoreUnused(caseArtifactDirectory.createDirectory());
+
+      for (int iteration = 0; iteration < reportOut.iterationCount;
+           ++iteration) {
+        TRuntimeValidationRenderResult renderResult;
+        juce::String renderError;
+        if (!renderDocumentWithStimulus(registry, fixture->document,
+                                        caseSpec.profile, caseSpec.stimulus,
+                                        renderResult, &renderError)) {
+          caseReport.failureReason =
+              "Benchmark render failed at iteration " +
+              juce::String(iteration + 1) + ": " + renderError;
+          break;
+        }
+        if (renderResult.audioBuffer.getNumChannels() <= 0 ||
+            renderResult.audioBuffer.getNumSamples() <= 0) {
+          caseReport.failureReason =
+              "Benchmark render produced an empty audio buffer at iteration " +
+              juce::String(iteration + 1) + ".";
+          break;
+        }
+        if (!isFiniteRuntimeStats(renderResult.runtimeStats)) {
+          caseReport.failureReason =
+              "Benchmark render produced non-finite runtime stats at iteration " +
+              juce::String(iteration + 1) + ".";
+          break;
+        }
+
+        caseReport.totalRenderedSamples += renderResult.totalSamples;
+        caseReport.totalRenderedBlocks += renderResult.renderedBlockCount;
+        caseReport.worstRuntimeStats =
+            (iteration == 0)
+                ? renderResult.runtimeStats
+                : maxRuntimeStats(caseReport.worstRuntimeStats,
+                                  renderResult.runtimeStats);
+      }
+
+      if (caseReport.failureReason.isEmpty())
+        caseReport.failureReason = buildBenchmarkFailureReason(caseReport);
+      caseReport.passed = caseReport.failureReason.isEmpty();
+      finalizeBenchmarkCaseArtifacts(caseArtifactDirectory, caseReport);
+    }
+
+    ++reportOut.totalCaseCount;
+    if (caseReport.passed)
+      ++reportOut.passedCaseCount;
+    else
+      ++reportOut.failedCaseCount;
+    reportOut.caseReports.push_back(caseReport);
+  }
+
+  reportOut.passed =
+      reportOut.totalCaseCount > 0 && reportOut.failedCaseCount == 0;
+  finalizeBenchmarkSuiteArtifacts(suiteArtifactDirectory, reportOut);
+  return reportOut.passed;
+}
+
+} // namespace Teul

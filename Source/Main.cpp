@@ -13,10 +13,7 @@
 #include "Teul/Export/TExport.h"
 #include "Teul/Registry/TNodeRegistry.h"
 #include "Teul2/Runtime/AudioGraph/TRuntimeValidator.h"
-#include "Teul/Verification/TVerificationBenchmark.h"
-#include "Teul/Verification/TVerificationGoldenAudio.h"
 #include "Teul/Verification/TVerificationCompiledParity.h"
-#include "Teul/Verification/TVerificationStress.h"
 #include "Teul/Serialization/TPatchPresetIO.h"
 #include "Teul/Serialization/TStatePresetIO.h"
 #include "Teul/Serialization/TFileIo.h"
@@ -973,9 +970,9 @@ juce::Result runTeulPhase7StressSoak(const juce::StringArray &args) {
     }
   }
 
-  Teul::TVerificationStressSuiteReport report;
+  Teul::TRuntimeValidationStressSuiteReport report;
   const bool passed =
-      Teul::runRepresentativeStressSoakSuite(*registry, report, iterationCount);
+      Teul::TRuntimeValidator::runRepresentativeStressSoakSuite(*registry, report, iterationCount);
   if (report.artifactDirectory.isEmpty()) {
     return juce::Result::fail(
         "Teul stress/soak run did not produce an artifact directory.");
@@ -1014,8 +1011,8 @@ juce::Result runTeulPhase7GoldenAudioRecord(const juce::StringArray &args) {
   if (!registry)
     return juce::Result::fail("Failed to create Teul node registry.");
 
-  Teul::TVerificationGoldenAudioSuiteReport report;
-  const bool passed = Teul::runRepresentativeGoldenAudioRecord(*registry, report);
+  Teul::TRuntimeValidationGoldenAudioSuiteReport report;
+  const bool passed = Teul::TRuntimeValidator::runRepresentativeGoldenAudioRecord(*registry, report);
   const auto baselineDirectory = juce::File(report.baselineDirectory);
   const auto summaryFile = baselineDirectory.getChildFile("golden-suite-summary.txt");
   const auto bundleFile = baselineDirectory.getChildFile("artifact-bundle.json");
@@ -1042,8 +1039,8 @@ juce::Result runTeulPhase7GoldenAudioVerify(const juce::StringArray &args) {
   if (!registry)
     return juce::Result::fail("Failed to create Teul node registry.");
 
-  Teul::TVerificationGoldenAudioSuiteReport report;
-  const bool passed = Teul::runRepresentativeGoldenAudioVerify(*registry, report);
+  Teul::TRuntimeValidationGoldenAudioSuiteReport report;
+  const bool passed = Teul::TRuntimeValidator::runRepresentativeGoldenAudioVerify(*registry, report);
   const auto artifactDirectory = juce::File(report.artifactDirectory);
   const auto summaryFile = artifactDirectory.getChildFile("golden-suite-summary.txt");
   const auto bundleFile = artifactDirectory.getChildFile("artifact-bundle.json");
@@ -3499,9 +3496,9 @@ juce::Result runTeulPhase7BenchmarkGate(const juce::StringArray &args) {
     }
   }
 
-  Teul::TVerificationBenchmarkSuiteReport report;
+  Teul::TRuntimeValidationBenchmarkSuiteReport report;
   const bool passed =
-      Teul::runRepresentativeBenchmarkGate(*registry, report, iterationCount);
+      Teul::TRuntimeValidator::runRepresentativeBenchmarkGate(*registry, report, iterationCount);
   if (report.artifactDirectory.isEmpty()) {
     return juce::Result::fail(
         "Teul benchmark gate did not produce an artifact directory.");
