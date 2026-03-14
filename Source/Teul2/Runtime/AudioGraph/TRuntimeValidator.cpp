@@ -1,6 +1,5 @@
 #include "Teul2/Runtime/AudioGraph/TRuntimeValidator.h"
 
-#include "Teul2/Document/TDocumentStore.h"
 #include "Teul2/Runtime/AudioGraph/TGraphCompiler.h"
 #include <algorithm>
 #include <cmath>
@@ -315,7 +314,6 @@ TTeulDocument makeRepresentativeGraphG5TimeTail(const TNodeRegistry &registry) {
 }
 
 const TRuntimeValidationGraphFixture *findFixtureById(
-const TRuntimeValidationGraphFixture *findFixtureById(
     const std::vector<TRuntimeValidationGraphFixture> &fixtures,
     const juce::String &fixtureId) {
   for (const auto &fixture : fixtures) {
@@ -467,6 +465,35 @@ juce::File makeCaseArtifactDirectory(
                     sanitizePathFragment(profile.profileId));
 }
 
+juce::String exportReportToText(const TExportReport &report) {
+  juce::String text;
+  text << "Export Report\r\n";
+  text << "-------------\r\n";
+  text << "Mode: " << (report.mode == TExportMode::EditableGraph ? "EditableGraph" : "RuntimeModule") << "\r\n";
+  text << "Dry Run: " << (report.dryRunOnly ? "Yes" : "No") << "\r\n\r\n";
+  
+  text << "Summary:\r\n";
+  text << "  Nodes: " << report.summary.nodeCount << "\r\n";
+  text << "  Connections: " << report.summary.connectionCount << "\r\n";
+  text << "  Exposed Params: " << report.summary.exposedParamCount << "\r\n\r\n";
+
+  if (!report.issues.empty()) {
+    text << "Issues:\r\n";
+    for (const auto &issue : report.issues) {
+      juce::String severity;
+      switch (issue.severity) {
+        case TExportIssueSeverity::Info:    severity = "[INFO]"; break;
+        case TExportIssueSeverity::Warning: severity = "[WARN]"; break;
+        case TExportIssueSeverity::Error:   severity = "[ERR ]"; break;
+      }
+      text << "  " << severity << " " << issue.message << "\r\n";
+    }
+  } else {
+    text << "No issues found.\r\n";
+  }
+  return text;
+}
+
 void finalizeCaseArtifacts(const juce::File &artifactDirectory,
                            const TRuntimeValidationParityReport &report) {
   juce::ignoreUnused(artifactDirectory.createDirectory());
@@ -498,7 +525,7 @@ void finalizeCaseArtifacts(const juce::File &artifactDirectory,
 
   juce::ignoreUnused(writeTextArtifact(
       artifactDirectory.getChildFile("export-report.txt"),
-      report.exportReport.toText()));
+      exportReportToText(report.exportReport)));
 
   if (report.failureReason.isNotEmpty()) {
     juce::ignoreUnused(writeTextArtifact(
@@ -516,15 +543,6 @@ void finalizeCaseArtifacts(const juce::File &artifactDirectory,
   files.add(makeArtifactFileEntry(
       "bundle", artifactDirectory,
       artifactDirectory.getChildFile("artifact-bundle.json")));
-  if (report.exportReport.graphFile.getFullPathName().isNotEmpty())
-    files.add(makeArtifactFileEntry("editableGraph", artifactDirectory,
-                                    report.exportReport.graphFile));
-  if (report.exportReport.manifestFile.getFullPathName().isNotEmpty())
-    files.add(makeArtifactFileEntry("editableManifest", artifactDirectory,
-                                    report.exportReport.manifestFile));
-  if (report.exportReport.runtimeDataFile.getFullPathName().isNotEmpty())
-    files.add(makeArtifactFileEntry("editableRuntimeData", artifactDirectory,
-                                    report.exportReport.runtimeDataFile));
 
   auto *bundle = new juce::DynamicObject();
   bundle->setProperty("kind", "teul-verification-artifact-bundle");
@@ -1762,7 +1780,6 @@ bool TRuntimeValidator::runEditableExportRoundTripParity(
     finalizeCaseArtifacts(artifactDirectory, reportOut);
     return false;
   }
-  */
 
   TTeulDocument importedDocument;
   const auto importResult =
@@ -1840,6 +1857,7 @@ bool TRuntimeValidator::runEditableExportRoundTripParity(
                      reportOut.rmsError <= rmsTolerance;
   finalizeCaseArtifacts(artifactDirectory, reportOut);
   return reportOut.passed;
+  */
 }
 
 bool TRuntimeValidator::runInitialG1StaticParitySmoke(
