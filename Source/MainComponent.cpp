@@ -1,6 +1,6 @@
 // BOM
 #include "MainComponent.h"
-#include "Teul/Serialization/TFileIo.h"
+#include "Teul2/Document/TDocumentStore.h"
 
 #include <algorithm>
 
@@ -103,8 +103,8 @@ juce::String gyeolEventSummary(const juce::String &eventKey) {
   return normalized.isNotEmpty() ? normalized : juce::String("event");
 }
 
-juce::String buildTeulBindingSummary(const Gyeol::DocumentHandle &document,
-                                     const juce::String &paramId) {
+juce::String buildTeul2BindingSummary(const Gyeol::DocumentHandle &document,
+                                      const juce::String &paramId) {
   const auto normalizedParamId = paramId.trim();
   if (normalizedParamId.isEmpty())
     return {};
@@ -273,7 +273,7 @@ MainComponent::MainComponent(AppServices &services) : appServices(services) {
       [this](const juce::String &paramId) -> juce::String {
         if (gyeolPage == nullptr)
           return {};
-        return buildTeulBindingSummary(gyeolPage->document(), paramId);
+        return buildTeul2BindingSummary(gyeolPage->document(), paramId);
       },
       [this]() -> std::uint64_t {
         if (gyeolPage == nullptr)
@@ -314,7 +314,7 @@ void MainComponent::timerCallback() { persistSession(); }
 void MainComponent::switchToPage(AppPage page) {
   currentPage = page;
   gyeolPage->setVisible(page == AppPage::Gyeol);
-  teulPage->setVisible(page == AppPage::Teul);
+  teulPage->setVisible(page == AppPage::Teul2);
   resized();
 }
 
@@ -340,7 +340,7 @@ juce::File MainComponent::sessionFilePath() {
 }
 
 juce::File MainComponent::teulSessionFilePath() {
-  return resolveSessionDirectory().getChildFile("autosave-teul.teul");
+  return resolveSessionDirectory().getChildFile("autosave-teul2.teul2");
 }
 
 juce::File MainComponent::sessionStateFilePath() {
@@ -383,7 +383,7 @@ void MainComponent::restoreSession() {
     const auto file = teulSessionFilePath();
     if (file.existsAsFile()) {
       if (!Teul::TFileIo::loadFromFile(teulPage->document(), file)) {
-        DBG("[Teul] Session restore failed: " + file.getFullPathName());
+        DBG("[Teul2] Session restore failed: " + file.getFullPathName());
       } else {
         if (!previousSessionWasClean) {
           const auto existingNotice = teulPage->document().getTransientNotice();
@@ -401,8 +401,8 @@ void MainComponent::restoreSession() {
                   : Teul::TDocumentNoticeLevel::warning;
           const auto title =
               existingNotice.active
-                  ? juce::String("Recovered Teul autosave with warnings")
-                  : juce::String("Recovered Teul autosave");
+                  ? juce::String("Recovered Teul2 autosave with warnings")
+                  : juce::String("Recovered Teul2 autosave");
           teulPage->document().setTransientNotice(level, title, detail);
         }
 
@@ -446,9 +446,9 @@ void MainComponent::persistSession() const {
     if (documentRevision != lastPersistedTeulDocumentRevision ||
         !file.existsAsFile()) {
       if (!ensureParentDirectory(file)) {
-        DBG("[Teul] Session save failed: could not create autosave directory.");
+        DBG("[Teul2] Session save failed: could not create autosave directory.");
       } else if (!Teul::TFileIo::saveToFile(teulPage->document(), file)) {
-        DBG("[Teul] Session save failed: " + file.getFullPathName());
+        DBG("[Teul2] Session save failed: " + file.getFullPathName());
       } else {
         lastPersistedTeulDocumentRevision = documentRevision;
         wroteAutosave = true;

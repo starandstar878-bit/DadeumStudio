@@ -11,7 +11,7 @@
 // =============================================================================
 enum class AppPage {
   Gyeol, // UI 편집기
-  Teul,  // DSP 그래프 에디터
+  Teul2, // DSP 그래프 에디터
          // Ieum, // TODO: Ieum 브리지 페이지 (미래)
 };
 
@@ -31,7 +31,7 @@ public:
 
     gyeolButton.setButtonText(
         juce::CharPointer_UTF8("\xf0\x9f\x8e\xa8  Gyeol"));
-    teulButton.setButtonText(juce::CharPointer_UTF8("\xf0\x9f\x94\x8a  Teul"));
+    teulButton.setButtonText(juce::CharPointer_UTF8("\xf0\x9f\x94\x8a  Teul2"));
 
     gyeolButton.setRadioGroupId(1);
     teulButton.setRadioGroupId(1);
@@ -40,7 +40,7 @@ public:
 
     gyeolButton.setToggleState(currentPage == AppPage::Gyeol,
                                juce::dontSendNotification);
-    teulButton.setToggleState(currentPage == AppPage::Teul,
+    teulButton.setToggleState(currentPage == AppPage::Teul2,
                               juce::dontSendNotification);
 
     gyeolButton.onClick = [this] { switchTo(AppPage::Gyeol); };
@@ -76,7 +76,7 @@ private:
 //    │ [GlobalToolbar]              42px           │
 //    ├─────────────────────────────────────────────┤
 //    │                                             │
-//    │   현재 페이지 (Gyeol 또는 Teul)              │
+//    │   현재 페이지 (Gyeol 또는 Teul2)             │
 //    │   setVisible() 전환 — 숨겨도 오디오는 유지   │
 //    │                                             │
 //    ├─────────────────────────────────────────────┤
@@ -119,7 +119,7 @@ private:
   // -------------------------------------------------------------------------
   //  현재 활성 페이지
   // -------------------------------------------------------------------------
-  AppPage currentPage{AppPage::Teul};
+  AppPage currentPage{AppPage::Teul2};
 
   // -------------------------------------------------------------------------
   //  서브 에디터 페이지
